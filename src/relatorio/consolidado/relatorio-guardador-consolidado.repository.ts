@@ -41,13 +41,38 @@ export class RelatorioGuardadorConsolidadoRepository {
     const selectedStatuses = this.getSelectedStatuses(args);
     const statuses = this.resolveStatuses(selectedStatuses, isSingleDate);
 
-    const consorcioNome = args.consorcioNome?.length && !args.consorcioNome.includes('Todos')
-      ? args.consorcioNome.map((c) => c.trim().toUpperCase())
+    const rawConsorcio = args.consorcioNome;
+    const consorcioList: string[] = Array.isArray(rawConsorcio)
+      ? rawConsorcio
+      : typeof rawConsorcio === 'string'
+      ? (rawConsorcio as string).split(',').map((s) => s.trim())
+      : [];
+
+    const hasTodosConsorcios =
+      args.todosConsorcios === true ||
+      (args as any).todosConsorcios === 'true' ||
+      consorcioList.some((c) => typeof c === 'string' && c.trim().toLowerCase() === 'todos');
+
+    const consorcioNome = !hasTodosConsorcios && consorcioList.length
+      ? consorcioList
+          .map((c) => (typeof c === 'string' ? c.trim().toUpperCase() : ''))
+          .filter(Boolean)
       : null;
 
-    const favorecidoNome = args.favorecidoNome?.length && !args.favorecidoNome.includes('Todos')
-      ? args.favorecidoNome.map((f) => f.trim().toUpperCase())
-      : null;
+    const rawFavorecido = args.favorecidoNome;
+    const favorecidoList: string[] = Array.isArray(rawFavorecido)
+      ? rawFavorecido
+      : typeof rawFavorecido === 'string'
+      ? (rawFavorecido as string).split(',').map((s) => s.trim())
+      : [];
+
+    const favorecidoNome =
+      favorecidoList.length &&
+      !favorecidoList.some((f) => typeof f === 'string' && f.trim().toLowerCase() === 'todos')
+        ? favorecidoList
+            .map((f) => (typeof f === 'string' ? f.trim().toUpperCase() : ''))
+            .filter(Boolean)
+        : null;
 
     const userIds = (args as any).userIds?.length ? (args as any).userIds : null;
 
@@ -62,7 +87,7 @@ export class RelatorioGuardadorConsolidadoRepository {
       favorecidoNome,
     ];
 
-    const finalBaseQuery = this.buildFinalBaseQuery(statuses);
+    const finalBaseQuery = this.buildFinalBaseQuery(statuses, hasTodosConsorcios);
 
     const finalQuery = `
       SELECT
@@ -101,6 +126,7 @@ export class RelatorioGuardadorConsolidadoRepository {
       dataFim: args.dataFim,
       userIds: args.userIds,
       consorcioNome: args.consorcioNome,
+      todosConsorcios: args.todosConsorcios,
       valorMin: args.valorMin,
       valorMax: args.valorMax,
       pago: args.pago,
@@ -203,13 +229,14 @@ export class RelatorioGuardadorConsolidadoRepository {
     };
   }
 
-  private buildFinalBaseQuery(statuses: ResolvedStatuses): string {
+  private buildFinalBaseQuery(statuses: ResolvedStatuses, todosConsorcios?: boolean): string {
     const queries: string[] = [];
 
     if (statuses.includeBase) {
       queries.push(buildGuardadorBaseQuery({
         consorcioFilterParamIndex: 5,
         favorecidoFilterParamIndex: 8,
+        todosConsorcios,
       }));
     }
 
@@ -217,6 +244,7 @@ export class RelatorioGuardadorConsolidadoRepository {
       queries.push(buildGuardadorPendenciaPagaSingleDateQuery({
         consorcioFilterParamIndex: 5,
         favorecidoFilterParamIndex: 8,
+        todosConsorcios,
       }));
     }
 
@@ -224,6 +252,7 @@ export class RelatorioGuardadorConsolidadoRepository {
       queries.push(buildGuardadorAPagarQuery({
         consorcioFilterParamIndex: 5,
         favorecidoFilterParamIndex: 8,
+        todosConsorcios,
       }));
     }
 
@@ -231,6 +260,7 @@ export class RelatorioGuardadorConsolidadoRepository {
       return buildGuardadorBaseQuery({
         consorcioFilterParamIndex: 5,
         favorecidoFilterParamIndex: 8,
+        todosConsorcios,
       });
     }
 

@@ -4,6 +4,7 @@ export interface IFindPublicacaoRelatorio {
   userIds?: number[];
   favorecidoNome?: string[];  
   consorcioNome?: string[];
+  todosConsorcios?: boolean;
   valorMin?: number;
   valorMax?: number;
   pago?: boolean;

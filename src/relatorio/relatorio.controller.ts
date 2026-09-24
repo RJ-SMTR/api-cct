@@ -3,7 +3,6 @@ import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { ParseBooleanPipe } from 'src/utils/pipes/parse-boolean.pipe';
 import { ParseDatePipe } from 'src/utils/pipes/parse-date.pipe';
-import { Int32 } from 'typeorm';
 import { ParseNumberPipe } from 'src/utils/pipes/parse-number.pipe';
 import { RelatorioNovoRemessaService } from './novo-remessa/relatorio-novo-remessa.service';
 
@@ -14,12 +13,11 @@ import { RelatorioNovoRemessaService } from './novo-remessa/relatorio-novo-remes
 })
 export class RelatorioController {
   constructor(
-     private relatorioNovoRemessaService: RelatorioNovoRemessaService,
+    private relatorioNovoRemessaService: RelatorioNovoRemessaService,
   ) { }
-  
+
   @ApiQuery({ name: 'dataInicio', description: 'Data da Ordem de Pagamento Inicial', required: true, type: String })
   @ApiQuery({ name: 'dataFim', description: 'Data da Ordem de Pagamento Final', required: true, type: String })
-  @ApiQuery({ name: 'userIds', description: 'Pesquisa o id dos usuários.', required: false, type: [Number] })
   @ApiQuery({ name: 'favorecidoNome', description: 'Pesquisa o nome dos favorecidos', required: false, type: [String] })
   @ApiQuery({ name: 'consorcioNome', description: 'Pesquisa o nome da associação', required: false, type: [String] })
   @ApiQuery({ name: 'valorMin', description: 'Somatório do valor bruto mínimo', required: false, type: Number })
@@ -39,8 +37,6 @@ export class RelatorioController {
     dataInicio: Date,
     @Query('dataFim', new ParseDatePipe({ dateOnly: true }))
     dataFim: Date,
-    @Query('userIds', new ParseArrayPipe({ items: Int32, separator: ',', optional: true }))
-    userIds: number[],
     @Query('favorecidoNome', new ParseArrayPipe({ items: String, separator: ',', optional: true }))
     favorecidoNome: string[],
     @Query('consorcioNome', new ParseArrayPipe({ items: String, separator: ',', optional: true }))
@@ -60,7 +56,6 @@ export class RelatorioController {
       const result = await this.relatorioNovoRemessaService.findConsolidadoGuardador({
         dataInicio,
         dataFim,
-        userIds,
         favorecidoNome,
         consorcioNome,
         valorMin,
@@ -81,7 +76,7 @@ export class RelatorioController {
   @ApiQuery({ name: 'dataInicio', description: 'Data da Ordem de Pagamento Inicial', required: true, type: String })
   @ApiQuery({ name: 'dataFim', description: 'Data da Ordem de Pagamento Final', required: true, type: String })
   @ApiQuery({ name: 'tipo', description: 'Debito ou Credito', required: false, type: String })
-  @ApiQuery({ name: 'operacao', description: 'Tipos de Operação', required: false, type: String }) 
+  @ApiQuery({ name: 'operacao', description: 'Tipos de Operação', required: false, type: String })
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'))
@@ -96,7 +91,7 @@ export class RelatorioController {
     @Query('conta') conta: string
   ) {
     try {
-      const result = await this.relatorioNovoRemessaService.findExtrato ({
+      const result = await this.relatorioNovoRemessaService.findExtrato({
         dataInicio, dataFim, tipo, operacao, conta
       });
       return result;
