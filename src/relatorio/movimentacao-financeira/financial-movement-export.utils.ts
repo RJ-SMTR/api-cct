@@ -58,6 +58,7 @@ export function toExportRow(row: RelatorioFinancialMovementNovoRemessaData) {
     consorcio: row.consorcio ?? '',
     valor: formatCurrency(row.valor),
     status: row.status ?? '',
+    descricaoErro: row.descricaoErro ?? '',
   };
 }
 
@@ -115,6 +116,7 @@ export const EXPORT_COLUMNS_PT_BR = [
   'Consórcio',
   'Valor',
   'Status',
+  'Descrição do Erro',
 ] as const;
 
 export function truncateText(value: string, maxLength: number): string {

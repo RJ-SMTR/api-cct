@@ -1,4 +1,5 @@
 import { DeepPartial } from 'typeorm';
+import { getDescricaoErro } from '../novo-remessa/queries/descricao-erro';
 
 export type RelatorioFinancialMovementNovoRemessaCursor = {
   dataReferencia: string;
@@ -48,9 +49,17 @@ export class RelatorioFinancialMovementNovoRemessaPageDto {
 }
 
 export class RelatorioFinancialMovementNovoRemessaData {
-  constructor(consolidado?: DeepPartial<RelatorioFinancialMovementNovoRemessaData>) {
+  // "codigoErro" is the raw occurrence code of the row (or an aggregated list of them). It is
+  // only an input: the response exposes the human readable descricaoErro instead.
+  constructor(consolidado?: DeepPartial<RelatorioFinancialMovementNovoRemessaData> & { codigoErro?: string | null }) {
     if (consolidado !== undefined) {
-      Object.assign(this, consolidado);
+      const { codigoErro, ...rest } = consolidado;
+      Object.assign(this, rest);
+
+      const descricaoErro = getDescricaoErro(this.status, codigoErro);
+      if (descricaoErro !== undefined) {
+        this.descricaoErro = descricaoErro;
+      }
     }
   }
 
@@ -64,4 +73,5 @@ export class RelatorioFinancialMovementNovoRemessaData {
   consorcio?: string;
   valor?: number;
   status?: string;
+  descricaoErro?: string;
 }

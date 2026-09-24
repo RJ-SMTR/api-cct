@@ -140,4 +140,28 @@ describe('guardador-novo-remessa-query-builder', () => {
       );
     });
   });
+
+  // Every select of the UNION ALL must expose the same columns. The occurrence code (used to
+  // describe the error) only exists for rows read from the payment history.
+  describe.each(Object.entries(builders))('%s query codigoErro', (name, build) => {
+    it('exposes the codigoErro column', () => {
+      expect(build()).toContain('AS "codigoErro"');
+    });
+
+    it(
+      name === 'base'
+        ? 'reads the occurrence code only for Estorno and Rejeitado rows'
+        : 'has no occurrence code, since the row is never an error',
+      () => {
+        const sql = build();
+
+        if (name === 'base') {
+          expect(sql).toContain(`IN ('Estorno', 'Rejeitado')`);
+          expect(sql).toContain('TRIM(oph."motivoStatusRemessa")');
+        } else {
+          expect(sql).toContain('NULL::text AS "codigoErro"');
+        }
+      },
+    );
+  });
 });

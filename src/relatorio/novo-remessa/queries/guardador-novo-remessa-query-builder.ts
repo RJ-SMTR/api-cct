@@ -1,3 +1,5 @@
+import { buildCodigoErroSql } from './descricao-erro';
+
 export type GuardadorBaseQueryParams = {
   desativados?: boolean;
   consorcioFilterParamIndex?: number;
@@ -121,7 +123,8 @@ export const buildGuardadorBaseQuery = (params: GuardadorBaseQueryParams = {}) =
           THEN op_pai."dataPagamento"
         ELSE opa."dataPagamento"
       END AS "dataPagamento",
-      ${GUARDADOR_STATUS_CASE} AS status
+      ${GUARDADOR_STATUS_CASE} AS status,
+      ${buildCodigoErroSql(GUARDADOR_STATUS_CASE)} AS "codigoErro"
     FROM ordem_pagamento_guardador opg
     INNER JOIN ordem_pagamento_agrupado opa
       ON opg."ordemPagamentoAgrupadoId" = opa.id
@@ -170,7 +173,8 @@ export const buildGuardadorAPagarQuery = (params: GuardadorBaseQueryParams = {})
       ${GUARDADOR_CONSORCIO_CASE} AS "nomeConsorcio",
       ROUND(opg."valorRepasseGuardador"::numeric, 2) AS valor,
       opg."dataOrdem" AS "dataPagamento",
-      'A Pagar' AS status
+      'A Pagar' AS status,
+      NULL::text AS "codigoErro"
     FROM ordem_pagamento_guardador opg
     INNER JOIN public."user" pu
       ON pu.id = opg."userId"
@@ -215,7 +219,8 @@ export const buildGuardadorPendenciaPagaSingleDateQuery = (params: GuardadorBase
           THEN op_pai."dataPagamento"
         ELSE opa."dataPagamento"
       END AS "dataPagamento",
-      ${GUARDADOR_STATUS_CASE} AS status
+      ${GUARDADOR_STATUS_CASE} AS status,
+      NULL::text AS "codigoErro"
     FROM ordem_pagamento_guardador opg
     INNER JOIN ordem_pagamento_agrupado opa
       ON opg."ordemPagamentoAgrupadoId" = opa.id
