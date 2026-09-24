@@ -111,4 +111,45 @@ describe('RelatorioNovoRemessaMovimentacaoRepository — consorcio grouping', ()
     expect(aggQuery).toContain('COUNT(*) AS total');
     expect(dataQuery).not.toContain('GROUP BY "dataReferencia", consorcio, status');
   });
+  // Each selected status widens the result set: they must be OR-ed together. AND-ing them
+  // (e.g. the erro "motivo NOT IN 00/0BD" on top of pago) wiped out every Pago row.
+  describe('status combination', () => {
+    const PAGO = `oph."statusRemessa" = 3`;
+    const ERRO = `(oph."statusRemessa" = 4 AND oph."motivoStatusRemessa" NOT IN ('00','0BD'))`;
+
+    it('ORs pago and erro instead of restricting Pago rows by the erro motivo', async () => {
+      const { aggQuery, dataQuery } = await runAndCaptureQueries(undefined, true, { erro: true });
+
+      for (const query of [aggQuery, dataQuery]) {
+        expect(query).toContain(`AND (${PAGO} OR ${ERRO})`);
+        expect(query).not.toMatch(/AND \(oph\."motivoStatusRemessa" NOT IN \('00','0BD'\)\)/);
+      }
+    });
+
+    it('ORs pago and estorno instead of restricting Pago rows to motivo 02', async () => {
+      const { aggQuery } = await runAndCaptureQueries(undefined, true, { estorno: true });
+
+      expect(aggQuery).toContain(`AND (${PAGO} OR oph."motivoStatusRemessa" IN ('02'))`);
+    });
+
+    it('keeps estorno when estorno and rejeitado are selected together', async () => {
+      const { aggQuery } = await runAndCaptureQueries(undefined, true, {
+        pago: false,
+        estorno: true,
+        rejeitado: true,
+      });
+
+      expect(aggQuery).toContain(
+        `AND (oph."motivoStatusRemessa" IN ('02') OR oph."motivoStatusRemessa" NOT IN ('00','0BD','02'))`,
+      );
+    });
+
+    it('filters only by the selected status when a single one is chosen', async () => {
+      const { aggQuery } = await runAndCaptureQueries(undefined, true, { pago: true });
+
+      expect(aggQuery).toContain(`AND (${PAGO})`);
+      expect(aggQuery).not.toContain(`${PAGO} OR`);
+      expect(aggQuery).not.toContain(`NOT IN ('00','0BD')`);
+    });
+  });
 });
