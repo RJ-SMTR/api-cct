@@ -92,7 +92,7 @@ export class RelatorioNovoRemessaService {
 
   private resolveStatus(args: IFindPublicacaoRelatorio): string[] {
     const hasFiltroEspecifico = Boolean(
-      args.userIds?.length || args.favorecidoNome?.length || args.consorcioNome?.length,
+      args.userIds?.length || args.favorecidoNome?.length || args.consorcioNome?.length || args.todosConsorcios,
     );
 
     const pendenciaPaga = args.pendenciaPaga === true ? ['pendenciaPaga'] : [];
