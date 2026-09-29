@@ -4,6 +4,13 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * Consortium pending-payment grouping procedures. Failed attempts remain
  * eligible regardless of date; never-grouped orders use the requested window
  * and bank-data checks. New histories start as Created.
+ *
+ * The failure branch matches `motivoStatusRemessa IS NULL` explicitly, same
+ * as the guardador procedure (RewriteGuardadorPendenteProcedure1786400000000):
+ * `NULL NOT IN (...)` evaluates to NULL in Postgres, so a historico that was
+ * sent but never received any retorno response would otherwise be silently
+ * excluded from every pendente sweep, indefinitely.
+ *
  * The legacy p_agrupar_ordens_pendentes procedure remains available for
  * existing callers (no live caller in this codebase, kept for compatibility).
  * Rollback removes these definitions; it does not restore preexisting routines.
@@ -130,7 +137,13 @@ BEGIN
     )
             AND op."nomeConsorcio" IN ('STPC', 'STPL', 'TEC')
 			-- and opa."ordemPagamentoAgrupadoId" is NULL
-            AND oph."motivoStatusRemessa" NOT IN ('AM', '00', 'BD')
+            -- motivoStatusRemessa IS NULL entra explicitamente: uma ordem
+            -- enviada que nunca recebeu NENHUMA resposta de retorno fica com
+            -- motivo NULL (nao um codigo de sucesso), e e tao pendente quanto
+            -- uma rejeitada - "NOT IN" sozinho nunca inclui NULL (evalua pra
+            -- NULL, nao TRUE). Mesmo bug achado e corrigido pro guardador em
+            -- RewriteGuardadorPendenteProcedure1786400000000.
+            AND (oph."motivoStatusRemessa" IS NULL OR oph."motivoStatusRemessa" NOT IN ('AM', '00', 'BD'))
             AND oph."statusRemessa" NOT IN ('3', '5')
 			AND pu."bloqueado" IS NOT TRUE
             AND op."userId" IS NOT NULL

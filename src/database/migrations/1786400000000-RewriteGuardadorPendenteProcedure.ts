@@ -13,7 +13,13 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  *
  * PASSO 1 is the usual pai/filha grouping, now a UNION ALL of real failures
  * (via detalhe_a, no date cutoff - a failed attempt is pending regardless of
- * how long ago it happened) and the fresh OPAs PASSO 0 just created.
+ * how long ago it happened) and the fresh OPAs PASSO 0 just created. The
+ * failure branch also matches `motivoStatusRemessa IS NULL` explicitly: in
+ * Postgres, `NULL NOT IN (...)` evaluates to NULL, not TRUE, so a historico
+ * that was sent but never received ANY retorno response (motivo stays NULL,
+ * statusRemessa stays 1) would otherwise be silently excluded from every
+ * pendente sweep, indefinitely - confirmed via a full multi-week
+ * reconstruction against restored prod data.
  *
  * `up` uses CREATE OR REPLACE: aligns the definition where the procedure
  * already exists, creates it where it doesn't.
@@ -107,6 +113,11 @@ BEGIN
     -- falha real e pendente independente de ha quanto tempo aconteceu. O
     -- corte de ciclo em curso so faz sentido pro PASSO 0 (nunca pago), que e
     -- o unico lugar aqui que ainda usa datainicial/datafinal.
+    --
+    -- motivoStatusRemessa IS NULL entra explicitamente: uma ordem enviada
+    -- que nunca recebeu NENHUMA resposta de retorno fica com motivo NULL
+    -- (nao um codigo de sucesso), e e tao pendente quanto uma rejeitada -
+    -- "NOT IN" sozinho nunca inclui NULL (evalua pra NULL, nao TRUE).
     FOR rec IN (
    WITH
     agrupado AS (
@@ -122,7 +133,7 @@ BEGIN
             INNER JOIN detalhe_a da ON da."ordemPagamentoAgrupadoHistoricoId" = oph."id"
             INNER JOIN public."user" pu ON pu."id" = op."userId"
         WHERE
-            oph."motivoStatusRemessa" NOT IN ('AM', '00', 'BD')
+            (oph."motivoStatusRemessa" IS NULL OR oph."motivoStatusRemessa" NOT IN ('AM', '00', 'BD'))
             AND oph."statusRemessa" NOT IN ('3', '5')
             AND pu."bloqueado" IS NOT TRUE
             AND op."userId" IS NOT NULL
