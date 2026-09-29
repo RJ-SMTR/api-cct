@@ -6,6 +6,12 @@ import { MigrationInterface, QueryRunner } from "typeorm"
  *   p_agrupar_ordens_guardador_pendente): idx_oph_pendente e idx_op_user_grupo;
  * - os relatórios de movimentação/consolidado (fromQueryApagar): idx_op_datacaptura.
  *
+ * idx_oph_pendente: o predicado precisa bater com a condição usada pelas
+ * duas procedures pra o planner conseguir usar o índice. Atualizado junto
+ * com o fix de `motivoStatusRemessa IS NULL` (RewriteGuardadorPendenteProcedure1786400000000,
+ * VersionAgrupamentoPendentesProcedures1786320000000) — o predicado antigo
+ * excluía as ordens com motivo NULL, exatamente as que o fix passou a incluir.
+ *
  * ATENÇÃO ao aplicar em produção: ordem_pagamento e ordem_pagamento_agrupado_historico
  * são tabelas grandes (centenas de milhares de linhas) e essas migrations rodam dentro
  * de transação por padrão, então "CREATE INDEX CONCURRENTLY" não pode ser usado aqui
@@ -20,7 +26,8 @@ export class AddIndexesRemessaAgrupamento1789522300000 implements MigrationInter
         await queryRunner.query(`
             CREATE INDEX IF NOT EXISTS idx_oph_pendente
             ON ordem_pagamento_agrupado_historico ("ordemPagamentoAgrupadoId")
-            WHERE "statusRemessa" NOT IN (3,5) AND "motivoStatusRemessa" NOT IN ('AM','00','BD');
+            WHERE "statusRemessa" NOT IN (3,5)
+              AND ("motivoStatusRemessa" IS NULL OR "motivoStatusRemessa" NOT IN ('AM','00','BD'));
         `);
 
         await queryRunner.query(`
