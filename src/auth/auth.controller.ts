@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Logger, Patch, Post, Request, SerializeOptions, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Logger, Param, Patch, Post, Request, SerializeOptions, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { MailHistoryService } from 'src/mail-history/mail-history.service';
@@ -93,6 +93,12 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   resetPassword(@Body() resetPasswordDto: AuthResetPasswordDto): Promise<{ redirectTo: string }> {
     return this.authService.resetPassword(resetPasswordDto.hash, resetPasswordDto.password);
+  }
+
+  @Get('reset/password/:hash')
+  @HttpCode(HttpStatus.OK)
+  getResetPasswordRole(@Param('hash') hash: string): Promise<{ roleId: number | null }> {
+    return this.authService.getResetPasswordRole(hash);
   }
 
   @ApiBearerAuth()

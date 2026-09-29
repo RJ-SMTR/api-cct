@@ -189,5 +189,150 @@ export class RelatorioNovoRemessaController {
         await this.relatorioNovoRemessaFinancialMovementService.removeGeneratedExportFile(generatedFile.filePath);
       }
     }
-  } 
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
+  @Get('guardador/report/summary')
+  async getGuardadorFinancialMovementSummary(
+    @Query(new ValidationPipe({ transform: true })) queryParams: FinancialMovementQueryDto,
+  ) {
+    try {
+      return await this.relatorioNovoRemessaFinancialMovementService.findGuardadorFinancialMovementSummary(queryParams);
+    } catch (e) {
+      return new HttpException({ error: e.message }, HttpStatus.BAD_REQUEST);
+    }
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
+  @Get('agentes/report/summary')
+  async getAgentesFinancialMovementSummary(
+    @Query(new ValidationPipe({ transform: true })) queryParams: FinancialMovementQueryDto,
+  ) {
+    return this.getGuardadorFinancialMovementSummary(queryParams);
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
+  @Get('guardador/report/page')
+  async getGuardadorFinancialMovementPage(
+    @Query(new ValidationPipe({ transform: true })) queryParams: FinancialMovementQueryDto,
+  ) {
+    try {
+      return await this.relatorioNovoRemessaFinancialMovementService.findGuardadorFinancialMovementPage(queryParams);
+    } catch (e) {
+      return new HttpException({ error: e.message }, HttpStatus.BAD_REQUEST);
+    }
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
+  @Get('agentes/report/page')
+  async getAgentesFinancialMovementPage(
+    @Query(new ValidationPipe({ transform: true })) queryParams: FinancialMovementQueryDto,
+  ) {
+    return this.getGuardadorFinancialMovementPage(queryParams);
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @Roles(RoleEnum.master, RoleEnum.admin)
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Post('guardador/report/export/download')
+  async downloadGuardadorFinancialMovementReport(
+    @Body(new ValidationPipe({ transform: true })) body: FinancialMovementExportRequestDto,
+    @Res() response: Response,
+  ) {
+    let generatedFile: Awaited<ReturnType<RelatorioNovoRemessaFinancialMovementService['downloadGuardadorFinancialMovementExport']>> | undefined;
+
+    try {
+      generatedFile = await this.relatorioNovoRemessaFinancialMovementService.downloadGuardadorFinancialMovementExport(body);
+      const file = generatedFile;
+
+      response.setHeader('Cache-Control', 'no-store');
+      response.setHeader('Content-Type', file.contentType);
+      response.setHeader('Content-Disposition', `attachment; filename="${file.filename}"`);
+
+      await pipeline(createReadStream(file.filePath), response);
+    } catch (e) {
+      if (!response.headersSent) {
+        response.status(HttpStatus.BAD_REQUEST).json({ error: e.message });
+      }
+    } finally {
+      if (generatedFile) {
+        await this.relatorioNovoRemessaFinancialMovementService.removeGeneratedExportFile(generatedFile.filePath);
+      }
+    }
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @Roles(RoleEnum.master, RoleEnum.admin)
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Post('agentes/report/export/download')
+  async downloadAgentesFinancialMovementReport(
+    @Body(new ValidationPipe({ transform: true })) body: FinancialMovementExportRequestDto,
+    @Res() response: Response,
+  ) {
+    return this.downloadGuardadorFinancialMovementReport(body, response);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
+  @Get('guardador/consolidado')
+  async getGuardadorConsolidado(
+    @Query('dataInicio', new ParseDatePipe({ dateOnly: true })) dataInicio: Date,
+    @Query('dataFim', new ParseDatePipe({ dateOnly: true })) dataFim: Date,
+    @Query('userIds', new ParseArrayPipe({ items: Int32, separator: ',', optional: true })) userIds: number[],
+    @Query('consorcioNome', new ParseArrayPipe({ items: String, separator: ',', optional: true })) consorcioNome: string[],
+    @Query('valorMin', new ParseNumberPipe({ optional: true })) valorMin: number | undefined,
+    @Query('valorMax', new ParseNumberPipe({ optional: true })) valorMax: number | undefined,
+    @Query('pago', new ParseBooleanPipe({ optional: true })) pago: boolean | undefined,
+    @Query('aPagar', new ParseBooleanPipe({ optional: true })) aPagar: boolean | undefined,
+    @Query('emProcessamento', new ParseBooleanPipe({ optional: true })) emProcessamento: boolean | undefined,
+    @Query('erro', new ParseBooleanPipe({ optional: true })) erro: boolean | undefined,
+    @Query('desativados', new ParseBooleanPipe({ optional: true })) desativados: boolean | undefined,
+    @Query('pendentes', new ParseBooleanPipe({ optional: true })) pendentes: boolean | undefined,
+    @Query('rejeitado', new ParseBooleanPipe({ optional: true })) rejeitado: boolean | undefined,
+    @Query('estorno', new ParseBooleanPipe({ optional: true })) estorno: boolean | undefined,
+    @Query('pendenciaPaga', new ParseBooleanPipe({ optional: true })) pendenciaPaga: boolean | undefined,
+  ) {
+    try {
+      return await this.relatorioNovoRemessaService.findConsolidadoGuardadorNovoRemessa({
+        dataInicio, dataFim, userIds, consorcioNome, valorMin, valorMax, pago, aPagar, emProcessamento, erro, desativados, pendentes, rejeitado, estorno, pendenciaPaga
+      });
+    } catch (e) {
+      return new HttpException({ error: e.message }, HttpStatus.BAD_REQUEST);
+    }
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
+  @Get('agentes/consolidado')
+  async getAgentesConsolidado(
+    @Query('dataInicio', new ParseDatePipe({ dateOnly: true })) dataInicio: Date,
+    @Query('dataFim', new ParseDatePipe({ dateOnly: true })) dataFim: Date,
+    @Query('userIds', new ParseArrayPipe({ items: Int32, separator: ',', optional: true })) userIds: number[],
+    @Query('consorcioNome', new ParseArrayPipe({ items: String, separator: ',', optional: true })) consorcioNome: string[],
+    @Query('valorMin', new ParseNumberPipe({ optional: true })) valorMin: number | undefined,
+    @Query('valorMax', new ParseNumberPipe({ optional: true })) valorMax: number | undefined,
+    @Query('pago', new ParseBooleanPipe({ optional: true })) pago: boolean | undefined,
+    @Query('aPagar', new ParseBooleanPipe({ optional: true })) aPagar: boolean | undefined,
+    @Query('emProcessamento', new ParseBooleanPipe({ optional: true })) emProcessamento: boolean | undefined,
+    @Query('erro', new ParseBooleanPipe({ optional: true })) erro: boolean | undefined,
+    @Query('desativados', new ParseBooleanPipe({ optional: true })) desativados: boolean | undefined,
+    @Query('pendentes', new ParseBooleanPipe({ optional: true })) pendentes: boolean | undefined,
+    @Query('rejeitado', new ParseBooleanPipe({ optional: true })) rejeitado: boolean | undefined,
+    @Query('estorno', new ParseBooleanPipe({ optional: true })) estorno: boolean | undefined,
+    @Query('pendenciaPaga', new ParseBooleanPipe({ optional: true })) pendenciaPaga: boolean | undefined,
+  ) {
+    return this.getGuardadorConsolidado(
+      dataInicio, dataFim, userIds, consorcioNome, valorMin, valorMax, pago, aPagar, emProcessamento, erro, desativados, pendentes, rejeitado, estorno, pendenciaPaga
+    );
+  }
 }

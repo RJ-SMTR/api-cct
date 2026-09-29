@@ -1,6 +1,8 @@
 import { Provider } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
+import * as bcrypt from 'bcryptjs';
+import { AuthProvidersEnum } from 'src/auth/auth-providers.enum';
 import { ForgotService } from 'src/forgot/forgot.service';
 import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
 import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
@@ -30,6 +32,7 @@ describe('AuthLicenseeService', () => {
         create: jest.fn(),
         getOne: jest.fn(),
         findOne: jest.fn(),
+        findMany: jest.fn(),
         update: jest.fn(),
         softDelete: jest.fn(),
       },
@@ -167,7 +170,11 @@ describe('AuthLicenseeService', () => {
       });
     });
 
-    it('rejects an already active user even when the invite status is stale sent', async () => {
+    it('allows an active user to view a freshly resent invite without consuming it', async () => {
+      // Viewing must not burn the single-use hash: MailHistoryValidationPipe
+      // rejects register/:hash as "already used" once the invite flips to
+      // `used` for an active user, so the actual conclude-registration POST
+      // (not this GET-equivalent view) must be the only thing marking used.
       const user = new User({
         id: 4,
         email: 'active@example.com',
@@ -185,19 +192,202 @@ describe('AuthLicenseeService', () => {
       jest.spyOn(usersService, 'getOne').mockResolvedValue(user);
       jest.spyOn(mailHistoryService, 'getOne').mockResolvedValue(mailHistory);
 
-      await expect(
-        authLicenseeService.getInviteProfile('hash_4'),
-      ).rejects.toThrowError();
+      const response = await authLicenseeService.getInviteProfile('hash_4');
 
-      expect(mailHistoryService.update).toHaveBeenCalledWith(
-        4,
-        {
-          inviteStatus: {
-            id: InviteStatusEnum.used,
+      expect(response.email).toBe('active@example.com');
+      expect(mailHistoryService.update).not.toHaveBeenCalled();
+    });
+
+    it('rejects an active user when this specific invite hash was already consumed', async () => {
+      const user = new User({
+        id: 6,
+        email: 'already-consumed@example.com',
+        fullName: 'Already Consumed',
+        permitCode: 'permit-6',
+        status: new Status(StatusEnum.active),
+      });
+      const mailHistory = {
+        id: 6,
+        user,
+        hash: 'hash_6',
+        inviteStatus: new InviteStatus(InviteStatusEnum.used),
+      } as MailHistory;
+
+      jest.spyOn(usersService, 'getOne').mockResolvedValue(user);
+      jest.spyOn(mailHistoryService, 'getOne').mockResolvedValue(mailHistory);
+
+      await expect(
+        authLicenseeService.getInviteProfile('hash_6'),
+      ).rejects.toThrowError();
+    });
+
+    it('includes role metadata in the already-used invite error so the frontend can redirect correctly', async () => {
+      expect.assertions(1);
+
+      const user = new User({
+        id: 5,
+        email: 'agent5@example.com',
+        fullName: 'Agent Five',
+        permitCode: 'permit-5',
+        status: new Status(StatusEnum.active),
+      });
+      user.role = new Role(RoleEnum.agentes);
+      const mailHistory = {
+        id: 5,
+        user,
+        hash: 'hash_5',
+        inviteStatus: new InviteStatus(InviteStatusEnum.used),
+      } as MailHistory;
+
+      jest.spyOn(usersService, 'getOne').mockResolvedValue(user);
+      jest.spyOn(mailHistoryService, 'getOne').mockResolvedValue(mailHistory);
+
+      try {
+        await authLicenseeService.getInviteProfile('hash_5');
+      } catch (exception) {
+        expect(exception.getResponse()).toMatchObject({
+          error: {
+            roleId: RoleEnum.agentes,
+            redirectTo: '/agentes/sign-in',
           },
-        },
-        expect.any(String),
+        });
+      }
+    });
+
+    it('includes non-agente role metadata in the not-yet-sent invite error', async () => {
+      expect.assertions(1);
+
+      const user = new User({
+        id: 6,
+        email: 'user6@example.com',
+        fullName: 'User Six',
+        permitCode: 'permit-6',
+        status: new Status(StatusEnum.register),
+      });
+      user.role = new Role(RoleEnum.user);
+      const mailHistory = {
+        id: 6,
+        user,
+        hash: 'hash_6',
+        inviteStatus: new InviteStatus(InviteStatusEnum.queued),
+      } as MailHistory;
+
+      jest.spyOn(usersService, 'getOne').mockResolvedValue(user);
+      jest.spyOn(mailHistoryService, 'getOne').mockResolvedValue(mailHistory);
+
+      try {
+        await authLicenseeService.getInviteProfile('hash_6');
+      } catch (exception) {
+        expect(exception.getResponse()).toMatchObject({
+          error: {
+            roleId: RoleEnum.user,
+            redirectTo: '/sign-in',
+          },
+        });
+      }
+    });
+
+    it('includes role metadata in the invalid-user-for-hash error', async () => {
+      expect.assertions(1);
+
+      const invitedUser = new User({ id: 7 });
+      const mismatchedUser = new User({
+        id: 8,
+        email: 'agent8@example.com',
+        fullName: 'Agent Eight',
+        permitCode: 'permit-8',
+        status: new Status(StatusEnum.register),
+      });
+      mismatchedUser.role = new Role(RoleEnum.agentes);
+      const mailHistory = {
+        id: 7,
+        user: invitedUser,
+        hash: 'hash_7',
+        inviteStatus: new InviteStatus(InviteStatusEnum.sent),
+      } as MailHistory;
+
+      jest.spyOn(usersService, 'getOne').mockResolvedValue(mismatchedUser);
+      jest.spyOn(mailHistoryService, 'getOne').mockResolvedValue(mailHistory);
+
+      try {
+        await authLicenseeService.getInviteProfile('hash_7');
+      } catch (exception) {
+        expect(exception.getResponse()).toMatchObject({
+          error: {
+            roleId: RoleEnum.agentes,
+            redirectTo: '/agentes/sign-in',
+          },
+        });
+      }
+    });
+  });
+
+  describe('validateLogin', () => {
+    it('authenticates a licensee whose provider is email', async () => {
+      const user = new User({
+        id: 10,
+        permitCode: 'permit-10',
+        provider: AuthProvidersEnum.email,
+        password: 'hashed-password',
+        status: new Status(StatusEnum.active),
+      });
+      user.role = new Role(RoleEnum.user);
+
+      jest.spyOn(usersService, 'getOne').mockResolvedValue(user);
+      jest.spyOn(usersService, 'findMany').mockResolvedValue([]);
+      jest.spyOn(bcrypt, 'compare').mockImplementation(async () => true);
+      jest.spyOn(jwtService, 'sign').mockReturnValue('token');
+
+      const response = await authLicenseeService.validateLogin(
+        { permitCode: 'permit-10', password: 'secret' },
+        RoleEnum.user,
       );
+
+      expect(response).toEqual({ token: 'token', user });
+    });
+
+    it('authenticates a licensee whose provider is local', async () => {
+      const user = new User({
+        id: 11,
+        permitCode: 'permit-11',
+        provider: AuthProvidersEnum.local,
+        password: 'hashed-password',
+        status: new Status(StatusEnum.active),
+      });
+      user.role = new Role(RoleEnum.user);
+
+      jest.spyOn(usersService, 'getOne').mockResolvedValue(user);
+      jest.spyOn(usersService, 'findMany').mockResolvedValue([]);
+      jest.spyOn(bcrypt, 'compare').mockImplementation(async () => true);
+      jest.spyOn(jwtService, 'sign').mockReturnValue('token');
+
+      const response = await authLicenseeService.validateLogin(
+        { permitCode: 'permit-11', password: 'secret' },
+        RoleEnum.user,
+      );
+
+      expect(response).toEqual({ token: 'token', user });
+    });
+
+    it('rejects a licensee whose provider is neither email nor local', async () => {
+      const user = new User({
+        id: 12,
+        permitCode: 'permit-12',
+        provider: AuthProvidersEnum.google,
+        password: 'hashed-password',
+        status: new Status(StatusEnum.active),
+      });
+      user.role = new Role(RoleEnum.user);
+
+      jest.spyOn(usersService, 'getOne').mockResolvedValue(user);
+      jest.spyOn(usersService, 'findMany').mockResolvedValue([]);
+
+      await expect(
+        authLicenseeService.validateLogin(
+          { permitCode: 'permit-12', password: 'secret' },
+          RoleEnum.user,
+        ),
+      ).rejects.toThrowError();
     });
   });
 
@@ -320,6 +510,71 @@ describe('AuthLicenseeService', () => {
         }),
         expect.any(String),
       );
+    });
+
+    it('allows an already active user to conclude registration through a freshly resent invite', async () => {
+      const dateNow = new Date('2023-01-01T10:00:00');
+      const user = new User({
+        id: 7,
+        email: 'active-resend@example.com',
+        hash: 'hash_7',
+        permitCode: 'permitCode7',
+        role: new Role(RoleEnum.user),
+        status: new Status(StatusEnum.active),
+      });
+      const mailHistory = {
+        id: 7,
+        user,
+        hash: 'hash_7',
+        inviteStatus: new InviteStatus(InviteStatusEnum.sent),
+        sentAt: dateNow,
+      } as MailHistory;
+
+      jest.spyOn(mailHistoryService, 'findOne').mockResolvedValue(mailHistory);
+      jest.spyOn(usersService, 'getOne').mockResolvedValue(user);
+      jest.spyOn(usersService, 'update').mockResolvedValue(user);
+      jest.spyOn(jwtService, 'sign').mockReturnValue('token');
+
+      const response = await authLicenseeService.concludeRegistration(
+        { password: 'new-secret' },
+        'hash_7',
+      );
+
+      expect(response.token).toBe('token');
+      expect(usersService.update).toBeCalledWith(
+        7,
+        expect.objectContaining({ password: 'new-secret' }),
+        expect.any(String),
+      );
+    });
+
+    it('rejects an already active user when this specific invite hash was already consumed', async () => {
+      const user = new User({
+        id: 8,
+        email: 'active-used@example.com',
+        hash: 'hash_8',
+        permitCode: 'permitCode8',
+        role: new Role(RoleEnum.user),
+        status: new Status(StatusEnum.active),
+      });
+      const mailHistory = {
+        id: 8,
+        user,
+        hash: 'hash_8',
+        inviteStatus: new InviteStatus(InviteStatusEnum.used),
+      } as MailHistory;
+
+      jest.spyOn(mailHistoryService, 'findOne').mockResolvedValue(mailHistory);
+      jest.spyOn(usersService, 'getOne').mockResolvedValue(user);
+
+      await expect(
+        authLicenseeService.concludeRegistration(
+          { password: 'new-secret' },
+          'hash_8',
+        ),
+      ).rejects.toThrowError();
+
+      expect(usersService.update).not.toBeCalled();
     });
   });
 });

@@ -4,6 +4,7 @@ import * as bcrypt from 'bcryptjs';
 import { AuthProvidersEnum } from 'src/auth/auth-providers.enum';
 import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
 import { MailHistoryService } from 'src/mail-history/mail-history.service';
+import { getLoginRedirectTo } from 'src/roles/get-login-redirect-to';
 import { RoleEnum } from 'src/roles/roles.enum';
 import { Status } from 'src/statuses/entities/status.entity';
 import { StatusEnum } from 'src/statuses/statuses.enum';
@@ -32,10 +33,6 @@ export class AuthLicenseeService {
     private mailHistoryService: MailHistoryService,
   ) { }
 
-  private isRegistrationConcluded(user: User | null | undefined): boolean {
-    return user?.status?.id === StatusEnum.active;
-  }
-
   private async markInviteAsUsed(
     invite: MailHistory,
     logContext: string,
@@ -55,12 +52,6 @@ export class AuthLicenseeService {
     );
     invite.inviteStatus.id = InviteStatusEnum.used;
     invite.inviteStatus.name = 'used';
-  }
-
-  private getLoginRedirectTo(roleId?: number | null): string {
-    return roleId === RoleEnum.agentes
-      ? '/agentes/sign-in'
-      : '/sign-in';
   }
 
   async validateLogin(
@@ -89,7 +80,10 @@ export class AuthLicenseeService {
       );
     }
 
-    if (user.provider !== AuthProvidersEnum.email) {
+    if (
+      user.provider !== AuthProvidersEnum.email &&
+      user.provider !== AuthProvidersEnum.local
+    ) {
       throw new HttpException(
         {
           error: HttpStatusMessage.UNAUTHORIZED,
@@ -175,14 +169,17 @@ export class AuthLicenseeService {
     const invite = await this.mailHistoryService.getOne({ hash });
     const user = await this.usersService.getOne({ id: invite.user.id });
 
-    if (this.isRegistrationConcluded(user)) {
-      await this.markInviteAsUsed(
-        invite,
-        'AuthLicenseeService.getInviteProfile()',
-      );
+    if (
+      invite.inviteStatus.id === InviteStatusEnum.used &&
+      user.status?.id === StatusEnum.active
+    ) {
       throw new HttpException(
         {
-          error: HttpStatusMessage.UNAUTHORIZED,
+          error: {
+            message: HttpStatusMessage.UNAUTHORIZED,
+            roleId: user.role?.id ?? null,
+            redirectTo: getLoginRedirectTo(user.role?.id),
+          },
           details: {
             invite: {
               inviteStatus: `inviteAlreadyUsed'`,
@@ -199,7 +196,11 @@ export class AuthLicenseeService {
     ) {
       throw new HttpException(
         {
-          error: HttpStatusMessage.UNAUTHORIZED,
+          error: {
+            message: HttpStatusMessage.UNAUTHORIZED,
+            roleId: user.role?.id ?? null,
+            redirectTo: getLoginRedirectTo(user.role?.id),
+          },
           details: {
             invite: {
               inviteStatus: `Invite is not 'sent' yet`,
@@ -210,7 +211,15 @@ export class AuthLicenseeService {
       );
     }
 
-    await this.markInviteAsUsed(invite, 'AuthLicenseeService.getInviteProfile()');
+    if (user.status?.id !== StatusEnum.active) {
+      // For an active user, marking used here (mere viewing) would make the
+      // subsequent register/:hash POST get rejected by
+      // MailHistoryValidationPipe as "already used". Only the actual
+      // conclusion (concludeRegistration) should consume the invite in that
+      // case; pending users keep the existing "viewed" tracking used by the
+      // usedComplete/usedIncomplete report.
+      await this.markInviteAsUsed(invite, 'AuthLicenseeService.getInviteProfile()');
+    }
 
     if (
       user.id !== invite.user.id ||
@@ -220,7 +229,11 @@ export class AuthLicenseeService {
     ) {
       throw new HttpException(
         {
-          error: HttpStatusMessage.UNAUTHORIZED,
+          error: {
+            message: HttpStatusMessage.UNAUTHORIZED,
+            roleId: user.role?.id ?? null,
+            redirectTo: getLoginRedirectTo(user.role?.id),
+          },
           details: {
             user: {
               ...(user.id !== invite.user.id && {
@@ -244,7 +257,7 @@ export class AuthLicenseeService {
       hash: invite.hash,
       inviteStatus: invite.inviteStatus,
       roleId: user.role?.id ?? null,
-      redirectTo: this.getLoginRedirectTo(user.role?.id),
+      redirectTo: getLoginRedirectTo(user.role?.id),
     };
 
     return inviteResponse;
@@ -271,11 +284,10 @@ export class AuthLicenseeService {
 
     const user = await this.usersService.getOne({ id: invite.user.id });
 
-    if (this.isRegistrationConcluded(user)) {
-      await this.markInviteAsUsed(
-        invite,
-        'AuthLicenseeService.concludeRegistration()',
-      );
+    if (
+      invite.inviteStatus.id === InviteStatusEnum.used &&
+      user.status?.id === StatusEnum.active
+    ) {
       throw new HttpException(
         {
           error: HttpStatusMessage.UNAUTHORIZED,
@@ -356,7 +368,7 @@ export class AuthLicenseeService {
       token,
       user: updatedUser,
       roleId: updatedUser.role?.id ?? null,
-      redirectTo: this.getLoginRedirectTo(updatedUser.role?.id),
+      redirectTo: getLoginRedirectTo(updatedUser.role?.id),
     };
   }
 }

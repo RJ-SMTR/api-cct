@@ -1,8 +1,10 @@
 export interface IFindPublicacaoRelatorio {
   dataInicio: Date;
   dataFim: Date;
+  userIds?: number[];
   favorecidoNome?: string[];  
   consorcioNome?: string[];
+  todosConsorcios?: boolean;
   valorMin?: number;
   valorMax?: number;
   pago?: boolean;
@@ -10,4 +12,6 @@ export interface IFindPublicacaoRelatorio {
   emProcessamento?:boolean;
   rejeitado?: boolean;
   estorno?: boolean;
+  pendenciaPaga?: boolean;
+  status?: string;
 }

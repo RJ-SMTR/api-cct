@@ -20,6 +20,8 @@ import {
   RelatorioFinancialMovementNovoRemessaSummaryDto,
 } from '../dtos/relatorio-financial-and-movement.dto';
 
+import { RelatorioGuardadorFinancialMovementRepository } from './relatorio-guardador-financial-movement.repository';
+
 type NormalizedFilter = IFindPublicacaoRelatorioNovoFinancialMovement & {
   dataInicio: Date;
   dataFim: Date;
@@ -45,7 +47,43 @@ type CursorValues = {
 export class RelatorioNovoRemessaFinancialMovementService {
   private readonly logger = new CustomLogger(RelatorioNovoRemessaFinancialMovementService.name, { timestamp: true });
 
-  constructor(@InjectDataSource() private readonly dataSource: DataSource) {}
+  constructor(
+    @InjectDataSource() private readonly dataSource: DataSource,
+    private readonly relatorioGuardadorFinancialMovementRepository: RelatorioGuardadorFinancialMovementRepository,
+  ) {}
+
+  public async findGuardadorFinancialMovementSummary(filter: IFindPublicacaoRelatorioNovoFinancialMovement) {
+    return this.relatorioGuardadorFinancialMovementRepository.findFinancialMovementSummary(filter);
+  }
+
+  public async findGuardadorFinancialMovementPage(filter: IFindPublicacaoRelatorioNovoFinancialMovement) {
+    return this.relatorioGuardadorFinancialMovementRepository.findFinancialMovementPage(filter);
+  }
+
+  public async downloadGuardadorFinancialMovementExport(filter: IFindPublicacaoRelatorioNovoFinancialMovement) {
+    const fileName = `financial-movement-guardadores-${Date.now()}.csv`;
+    const filePath = path.join(os.tmpdir(), fileName);
+    const header = 'dataReferencia;dataPagamento;nomes;email;codBanco;nomeBanco;cpfCnpj;consorcio;valor;status;descricaoErro\n';
+    const ws = fs.createWriteStream(filePath, { encoding: 'utf8' });
+    ws.write(header);
+    await this.relatorioGuardadorFinancialMovementRepository.streamFinancialMovementRows(filter, (row) => {
+      ws.write([
+        row.dataReferencia,
+        row.dataPagamento,
+        `"${(row.nomes ?? '').replace(/"/g, '""')}"`,
+        row.email,
+        row.codBanco,
+        row.nomeBanco,
+        row.cpfCnpj,
+        row.consorcio,
+        String(row.valor).replace('.', ','),
+        row.status,
+        `"${(row.descricaoErro ?? '').replace(/"/g, '""')}"`,
+      ].join(';') + '\n');
+    });
+    await new Promise<void>((res, rej) => ws.end((e) => (e ? rej(e) : res())));
+    return { filePath, fileName, filename: fileName, contentType: 'text/csv; charset=utf-8' };
+  }
 
   public async findFinancialMovementSummary(filter: IFindPublicacaoRelatorioNovoFinancialMovement) {
     const safeFilter = this.normalizeFilter(filter);
@@ -113,11 +151,11 @@ export class RelatorioNovoRemessaFinancialMovementService {
   public async downloadFinancialMovementExport(filter: IFindPublicacaoRelatorioNovoFinancialMovement) {
     const fileName = `financial-movement-${Date.now()}.csv`;
     const filePath = path.join(os.tmpdir(), fileName);
-    const header = 'dataReferencia;dataPagamento;nomes;email;codBanco;nomeBanco;cpfCnpj;consorcio;valor;status\n';
+    const header = 'dataReferencia;dataPagamento;nomes;email;codBanco;nomeBanco;cpfCnpj;consorcio;valor;status;descricaoErro\n';
     const ws = fs.createWriteStream(filePath, { encoding: 'utf8' });
     ws.write(header);
     await this.streamFinancialMovementRows(filter, (row) => {
-      ws.write([row.dataReferencia, row.dataPagamento, `"${(row.nomes?? '').replace(/"/g, '""')}"`, row.email, row.codBanco, row.nomeBanco, row.cpfCnpj, row.consorcio, String(row.valor).replace('.', ','), row.status].join(';') + '\n');
+      ws.write([row.dataReferencia, row.dataPagamento, `"${(row.nomes?? '').replace(/"/g, '""')}"`, row.email, row.codBanco, row.nomeBanco, row.cpfCnpj, row.consorcio, String(row.valor).replace('.', ','), row.status, `"${(row.descricaoErro?? '').replace(/"/g, '""')}"`].join(';') + '\n');
     });
     await new Promise<void>((res, rej) => ws.end((e) => (e? rej(e) : res())));
     return { filePath, fileName, filename: fileName, contentType: 'text/csv; charset=utf-8' };
@@ -129,7 +167,7 @@ export class RelatorioNovoRemessaFinancialMovementService {
 
   private buildBaseCte(finalBaseQuery: string) { return `WITH base AS ( ${finalBaseQuery} )`; }
   private buildGroupedCte(finalBaseQuery: string) {
-    return `${this.buildBaseCte(finalBaseQuery)}, grouped AS (SELECT "dataReferencia", nomes, email, "codBanco", "nomeBanco", "cpfCnpj", "nomeConsorcio", status, "dataPagamento", SUM(valor) AS valor FROM base GROUP BY "dataReferencia", nomes, email, "codBanco", "nomeBanco", "cpfCnpj", "nomeConsorcio", status, "dataPagamento")`;
+    return `${this.buildBaseCte(finalBaseQuery)}, grouped AS (SELECT "dataReferencia", nomes, email, "codBanco", "nomeBanco", "cpfCnpj", "nomeConsorcio", status, "dataPagamento", "codigoErro", SUM(valor) AS valor FROM base GROUP BY "dataReferencia", nomes, email, "codBanco", "nomeBanco", "cpfCnpj", "nomeConsorcio", status, "dataPagamento", "codigoErro")`;
   }
 
   private buildSummaryQueries(finalBaseQuery: string) {
@@ -148,7 +186,7 @@ export class RelatorioNovoRemessaFinancialMovementService {
     const groupedCte = this.buildGroupedCte(finalBaseQuery);
     return {
       params,
-      query: `${groupedCte} SELECT to_char(g."dataReferencia" AT TIME ZONE 'America/Sao_Paulo','DD/MM/YYYY') AS "dataReferencia", to_char(g."dataPagamento" AT TIME ZONE 'America/Sao_Paulo','DD/MM/YYYY') AS "dataPagamento", g.nomes, g.email, g."codBanco", g."nomeBanco", g."cpfCnpj", g."nomeConsorcio" AS consorcio, g.valor, g.status FROM grouped g WHERE 1=1 AND ($6::numeric IS NULL OR g.valor >= $6::numeric) AND ($7::numeric IS NULL OR g.valor <= $7::numeric)`,
+      query: `${groupedCte} SELECT to_char(g."dataReferencia" AT TIME ZONE 'America/Sao_Paulo','DD/MM/YYYY') AS "dataReferencia", to_char(g."dataPagamento" AT TIME ZONE 'America/Sao_Paulo','DD/MM/YYYY') AS "dataPagamento", g.nomes, g.email, g."codBanco", g."nomeBanco", g."cpfCnpj", g."nomeConsorcio" AS consorcio, g.valor, g.status, g."codigoErro" FROM grouped g WHERE 1=1 AND ($6::numeric IS NULL OR g.valor >= $6::numeric) AND ($7::numeric IS NULL OR g.valor <= $7::numeric)`,
     };
   }
 
