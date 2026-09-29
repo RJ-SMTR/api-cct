@@ -980,7 +980,7 @@ export class CronJobsService {
       let { dataInicio, dataFim, dataPagamento } = this.calcularPeriodoPagamento();
 
       if (tipo === 'GUARDADOR') {
-        const dataHoje = new Date('2026-09-29');
+        const dataHoje = new Date();
         dataInicio = dataHoje
         dataFim = dataHoje
         dataPagamento = dataHoje
