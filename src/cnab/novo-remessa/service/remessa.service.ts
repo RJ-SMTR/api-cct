@@ -56,12 +56,12 @@ export class RemessaService {
     if (pagamentoUnico) {
       ordens = await this.ordemPagamentoAgrupadoService.getOrdensUnicas(dataInicio, dataFim,
         dataPgto ? dataPgto : new Date());
-    }
-
-    if (isPendente) {
-      ordens = await this.ordemPagamentoAgrupadoService.getOrdensPendentes(dataInicio, dataFim, consorcio, dataPgto, idsFavorecidos);
     } else {
-      ordens = await this.ordemPagamentoAgrupadoService.getOrdens(dataInicio, dataFim, consorcio);
+      if (isPendente) {
+        ordens = await this.ordemPagamentoAgrupadoService.getOrdensPendentes(dataInicio, dataFim, consorcio, dataPgto, idsFavorecidos);
+      } else {
+        ordens = await this.ordemPagamentoAgrupadoService.getOrdens(dataInicio, dataFim, consorcio);
+      }
     }
 
     if (ordens.length > 0) {
