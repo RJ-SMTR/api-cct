@@ -179,7 +179,7 @@ export class DetalheARepository {
   }
 
 
-  async getDetalheARetorno(cpf: String, valorLancamento: number) {
+  async getDetalheARetorno(cpf: string, valorLancamento: number, dataVencimento: Date) {
     // Casa o registro do retorno (CPF do detalheB + valor do detalheA) com o
     // detalhe_a local. O usuario e resolvido por "userId" (estavel mesmo se o
     // vanzeiro trocar de conta apos a remessa). 4 unioes:
@@ -192,7 +192,8 @@ export class DetalheARepository {
       ${joins}
       where oph."statusRemessa" in (1, 2)
         and uu."cpfCnpj" ilike '%' || $1
-        and da."valorLancamento" = $2`;
+        and da."valorLancamento" = $2
+        and da."dataVencimento"::date = $3::date`;
 
     const query = [
       casar(`inner join ordem_pagamento op on op."ordemPagamentoAgrupadoId" = opa.id
@@ -210,7 +211,7 @@ export class DetalheARepository {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     try {
-      const result: any[] = await queryRunner.query(query, [cpf, valorLancamento]);
+      const result: any[] = await queryRunner.query(query, [cpf, valorLancamento, dataVencimento]);
       return result.map((i) => new DetalheA(i));
     } finally {
       await queryRunner.release();
