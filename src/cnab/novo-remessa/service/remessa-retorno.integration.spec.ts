@@ -278,9 +278,15 @@ suite('Remessa -> Retorno (integração, CnabModule, BQ+SFTP mockados)', () => {
     await esperarStatusPai(pid, StatusRemessaEnum.PreparadoParaEnvio);
 
     const daPai = (await ds.query(
-      `SELECT da."valorLancamento" v FROM detalhe_a da JOIN ordem_pagamento_agrupado_historico oph ON oph.id = da."ordemPagamentoAgrupadoHistoricoId"
+      `SELECT da."valorLancamento" v, da."dataVencimento" dv FROM detalhe_a da JOIN ordem_pagamento_agrupado_historico oph ON oph.id = da."ordemPagamentoAgrupadoHistoricoId"
        WHERE oph."ordemPagamentoAgrupadoId"=$1 ORDER BY da.id DESC LIMIT 1`, [pid]))[0];
-    const cnab = buildRetornoCnab([{ ocorrenciaHeaderLote: '00', registros: [{ cpf: CPF, valor: Number(daPai.v), ocorrenciaDetalheA: '00' }] }]);
+    const dv = new Date(daPai.dv);
+    const dataVencimento = [
+      String(dv.getUTCDate()).padStart(2, '0'),
+      String(dv.getUTCMonth() + 1).padStart(2, '0'),
+      String(dv.getUTCFullYear()),
+    ].join('');
+    const cnab = buildRetornoCnab([{ ocorrenciaHeaderLote: '00', registros: [{ cpf: CPF, valor: Number(daPai.v), ocorrenciaDetalheA: '00', dataVencimento }] }]);
 
     // 1a volta: PreparadoParaEnvio -> AguardandoPagamento
     await retorno.salvarRetorno({ name: 'r1.ret', content: cnab });
