@@ -69,7 +69,7 @@ Definido em `.claude/settings.json` e descrito em `PROJECT.md`, seção "Agent s
 
 ## Cuidado com o pagamento
 
-O pagamento é disparado **manualmente**, colocando uma chamada em `onModuleLoad` e fazendo deploy (TD-9). Os jobs de remessa estão desligados de propósito. **Na `main`, `onModuleLoad` já começa com `await this.remessaModalExec(true)`: subir o app gera remessa.** Peça ao agente para não reativar os jobs nem deixar chamadas de remessa em `onModuleLoad`. O fluxo completo e os riscos estão em `docs/fluxo-pagamento.md`. Essa área tem cobertura parcial de teste: revise à mão e com calma.
+O pagamento é disparado **manualmente**, colocando uma chamada em `onModuleLoad` e fazendo deploy (TD-9). Os jobs de remessa estão desligados de propósito. Por padrão `onModuleLoad` não chama remessa (a linha `await this.remessaModalExec(true)` que gerava remessa a cada boot foi removida em 2026-09-30), mas um branch ou deploy antigo que ainda a tenha gera remessa ao subir. Peça ao agente para não reativar os jobs nem deixar chamadas de remessa em `onModuleLoad`. O fluxo completo e os riscos estão em `docs/fluxo-pagamento.md`. Essa área tem cobertura parcial de teste: revise à mão e com calma.
 
 ## Mantendo tudo atualizado
 

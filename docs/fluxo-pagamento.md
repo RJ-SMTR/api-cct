@@ -24,7 +24,7 @@ Arquivo: `src/cron-jobs/cron-jobs.service.ts`. Horários em GMT (BRT = GMT-3).
 | `sendAdminFraudAlert` | setting `any__mail_admin_fraud_cronjob` | alerta de antifraude |
 | `bulkSendInvites`, `bulkSendInvitesFixedTime` (`30 10 * * *`), `bulkResendInvites` (`45 14 15 * *`), `sendReport`, `pollDb` | ver o arquivo | fora do fluxo de pagamento |
 
-A remessa é disparada **manualmente** (TD-9): no dia de pagamento, alguém coloca uma chamada em `onModuleLoad` (`remessaModalExec`, `remessaGuardadorExec` ou `remessaConsorciosExec`), faz o deploy (a remessa roda quando o app sobe) e depois remove a chamada. **No estado atual da `main`, a primeira linha de `onModuleLoad` é `await this.remessaModalExec(true)`**: ela roda a cada boot do app, então cada restart ou deploy da `main` executa a geração de remessa dos modais. Não deixe esse tipo de chamada em `onModuleLoad` sem pedido explícito.
+A remessa é disparada **manualmente** (TD-9): no dia de pagamento, alguém coloca uma chamada em `onModuleLoad` (`remessaModalExec`, `remessaGuardadorExec` ou `remessaConsorciosExec`), faz o deploy (a remessa roda quando o app sobe) e depois remove a chamada. **Por padrão `onModuleLoad` não chama nenhuma geração de remessa**: a linha `await this.remessaModalExec(true)`, que existia na `main` em `c83718e2` e rodava a cada boot, foi removida em 2026-09-30. Não deixe esse tipo de chamada em `onModuleLoad` sem pedido explícito, pois cada restart ou deploy reexecutaria a geração.
 
 ## Etapas
 

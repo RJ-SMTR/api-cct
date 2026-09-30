@@ -118,7 +118,7 @@ Imports go one way: controller → service → repository. The repo is organized
 - `tsconfig.json` includes specs, so `tsc -p tsconfig.json` shows errors that the build does not (TD-5). The gate uses `tsconfig.build.json`, which also excludes `scripts/`.
 - Jest runs with `diagnostics: false`: type errors in specs do not fail a suite.
 - `DATABASE_SYNCHRONIZE` must stay `false` outside throwaway local databases.
-- **`onModuleLoad` in `src/cron-jobs/cron-jobs.service.ts` currently calls `remessaModalExec(true)`** (TD-9). Booting the app runs the remessa generation. Do not run the app against a real database or SFTP without knowing this.
+- **Payment is triggered by hand** (TD-9): on payday someone temporarily adds a `remessa*Exec()` call to `onModuleLoad` in `src/cron-jobs/cron-jobs.service.ts` and deploys. By default `onModuleLoad` calls none (the `remessaModalExec(true)` line that ran on every boot was removed on 2026-09-30), but a branch or deploy that still has it will generate a remessa when the app boots.
 - `npm install` runs `husky install`, which sets `core.hooksPath=.husky` in the shared git config, so the hook applies to every worktree of the repo. `npm ci` may also rewrite `yarn.lock`; do not commit that.
 
 ## Agent safety

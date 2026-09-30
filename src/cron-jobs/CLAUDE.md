@@ -4,8 +4,8 @@ Job schedules and the manual remessa triggers for the payment pipeline. This mov
 
 ## Do not
 
-- Do not add or leave a `remessaModalExec`, `remessaGuardadorExec` or `remessaConsorciosExec` call in `onModuleLoad`, and do not re-enable `generateRemessaVLT`, `generateRemessaVanzeiros` or `generateRemessaEmpresa`. Payment is triggered manually (TD-9) and every app boot would resend the remessa. Note that `onModuleLoad` on `main` currently starts with `await this.remessaModalExec(true)`: booting the app generates a remessa.
-- Do not call remessa, sync or return reading from tests, scripts or exploration, and never run the app against a real database or SFTP without knowing the line above.
+- Do not add or leave a `remessaModalExec`, `remessaGuardadorExec` or `remessaConsorciosExec` call in `onModuleLoad`, and do not re-enable `generateRemessaVLT`, `generateRemessaVanzeiros` or `generateRemessaEmpresa`. Payment is triggered manually (TD-9) and every app boot would resend the remessa. `onModuleLoad` calls none by default; the `remessaModalExec(true)` line that used to be there was removed on 2026-09-30, so an older branch or deploy may still generate a remessa at boot.
+- Do not call remessa, sync or return reading from tests, scripts or exploration, and never run the app against a real database or SFTP from a branch that still has a `remessa*Exec()` call in `onModuleLoad`.
 - `limparAgrupamentos` deletes the groupings of an interval. Today it is active only in `remessaGuardadorExec`; do not enable or remove it elsewhere without being asked.
 
 ## Things that are easy to get wrong
