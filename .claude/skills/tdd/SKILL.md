@@ -120,9 +120,9 @@ For bugs, write the failing regression test first and confirm it fails for the r
 
 ## This repository
 
-- Specs are `src/**/*.spec.ts`, next to the source; e2e specs are `test/**/*.e2e-spec.ts`.
+- Specs are `src/**/*.spec.ts`, next to the source; e2e specs are `test/**/*.e2e-spec.ts`. Jest runs with `diagnostics: false`, so run `npx tsc --noEmit -p tsconfig.build.json` yourself.
 - Use Nest's `Test.createTestingModule` and mock only boundaries: repositories that hit the DB, SFTP, BigQuery, mail, clock. See [mocking.md](mocking.md).
-- Look at an existing spec in the same layer (for example `src/service/ordem-pagamento.service.spec.ts`) before writing a new one, and follow it.
+- Look at an existing spec in the same area (for example `src/users/users.repository.spec.ts` or `src/cnab/novo-remessa/service/retorno.service.spec.ts`) before writing a new one, and follow it.
 - Tests run in UTC (`test/global-setup.ts`). Do not depend on the machine time zone.
-- Policy: new or changed business logic gets a spec; never write tests for SFTP or cron jobs, and do not restore the old broken suites.
+- Policy: new or changed business logic gets a spec; never write tests for SFTP or cron jobs. The 13 failing suites (TD-1) do not have to be fixed to proceed.
 - After a new spec passes, run `npm run validate:update-baseline` and commit the baseline. Until it is listed there the gate does not protect the spec.

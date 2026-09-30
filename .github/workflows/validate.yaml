@@ -2,7 +2,7 @@ name: Validate
 
 on:
   pull_request:
-    branches: [master, hmg, homol, main]
+    branches: [main, homol, hmg]
     paths-ignore:
       - 'README.md'
       - 'docs/**'

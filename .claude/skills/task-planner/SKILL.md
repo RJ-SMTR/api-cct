@@ -21,7 +21,7 @@ Read in order, when they exist: `PROJECT.md`, `CONTEXT.md`, `docs/PRD.md`, `docs
 
 `docs/PRD.md` is mandatory for feature and refactor work. If it is missing or insufficient, stop and send the user back to `to-prd` or `grill-with-docs`. An urgent narrow bug fix may skip it only with the user's explicit approval; the plan must then still name the failing behavior, expected behavior, affected area, and regression test.
 
-Inspect the code before naming files. Layers live in `src/controller`, `src/service`, `src/repository`, `src/domain`; do not guess paths.
+Inspect the code before naming files. The repo is organized by feature (`src/users`, `src/cnab`, `src/cron-jobs`...), so find the real files; do not guess paths.
 
 ## Steps
 
@@ -56,7 +56,7 @@ Behaviors to test, at which seam, and which existing spec is the prior art.
 ## Dependencies
 
 ## Validation Command
-The exact commands from the PROJECT.md validation ladder that prove this task is done, e.g. `npx jest src/service/x.service.spec.ts`.
+The exact commands from the PROJECT.md validation ladder that prove this task is done, e.g. `npx jest src/users/users.repository.spec.ts`.
 
 ## Completion Signal
 Checkable statement, e.g. "the new spec passes and `npx tsc --noEmit` is clean".
