@@ -27,10 +27,10 @@ jobs:
     steps:
       - name: Checkout latest code
         uses: actions/checkout@v4
-      - name: Use Node.js 16.x
+      - name: Use Node.js 18.16.0
         uses: actions/setup-node@v2
         with:
-          node-version: 16.x
+          node-version: 18.16.0
       - name: Install dependencies
         run: npm i --legacy-peer-deps
         env:
