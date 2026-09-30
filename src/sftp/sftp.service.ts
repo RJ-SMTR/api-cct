@@ -176,14 +176,19 @@ export class SftpService implements OnModuleInit, OnModuleLoad {
       }
       
       const remessaName = this.generateRemessaName();
-      remotePath =
+      const targetPath =
       //  headerName === 'VLT' ? this.dir(`${this.FOLDERS.REMESSA}/${remessaName}`) :
          this.dir(`${this.FOLDERS.BACKUP_REMESSA}/${remessaName}`);
 
-      await this.sftpClient.upload(Buffer.from(content, 'utf-8'), remotePath);
+      await this.sftpClient.upload(Buffer.from(content, 'utf-8'), targetPath);
       await this.submitCnabBackupRemessa(content);
 
-      this.logger.log(`Arquivo CNAB carregado em ${remotePath}`, METHOD);     
+      // Only mark the upload as done once the transfer actually succeeded -
+      // remotePath stays '' (its initial value) on failure, which is what
+      // enviarRemessa checks to decide whether to mark a header_arquivo as
+      // sent.
+      remotePath = targetPath;
+      this.logger.log(`Arquivo CNAB carregado em ${remotePath}`, METHOD);
 
     } catch (error) {     
       this.logger.error(`Erro em ${METHOD}: ${error.message}`, METHOD);   
