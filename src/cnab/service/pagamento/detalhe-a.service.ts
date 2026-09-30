@@ -151,7 +151,7 @@ export class DetalheAService {
     return await this.detalheARepository.getDetalheAHeaderLote(headerLoteId)
   }
 
-  public async getDetalheARetorno(cpf:String,valorLancamento: number){
-    return await this.detalheARepository.getDetalheARetorno(cpf,valorLancamento)
+  public async getDetalheARetorno(cpf: string, valorLancamento: number, dataVencimento: Date) {
+    return await this.detalheARepository.getDetalheARetorno(cpf, valorLancamento, dataVencimento);
   }
 }

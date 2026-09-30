@@ -20,7 +20,7 @@ Registro único do que foi adiado de propósito, por quê e por quem. Serve para
 | [TD-3](#td-3) | Código fora do padrão do prettier | aberto | Matthew | 2026-09-30 |
 | [TD-4](#td-4) | Gate por ratchet no lugar de base limpa | aberto | Matthew | 2026-09-30 |
 | [TD-5](#td-5) | `tsconfig.json` inclui specs com erros de tipo (90 erros de tsc) | aberto | Matthew | 2026-09-30 |
-| [TD-6](#td-6) | Sem testes para SFTP e cron jobs | descartado | Matthew | 2026-09-30 |
+| [TD-6](#td-6) | Sem testes para SFTP e cron jobs | descartado (parcial) | Matthew | 2026-09-30 |
 | [TD-7](#td-7) | Gate não detecta teste pulado dentro de suíte que passa | aberto | Matthew | 2026-09-30 |
 | [TD-8](#td-8) | 12 imports de `repository` para `service` | aberto | Matthew | 2026-09-30 |
 | [TD-9](#td-9) | Pagamento depende de editar o código e fazer deploy | aberto | Matthew | 2026-09-30 |
@@ -75,12 +75,13 @@ Registro único do que foi adiado de propósito, por quê e por quem. Serve para
 ## TD-6
 **Sem testes para SFTP e cron jobs**
 
-- **Status:** descartado
+- **Status:** descartado (parcial — reaberto e revertido pra SFTP, cron jobs continua descartado)
 - **Registrado por:** Matthew · **Detectado por:** agente · **Data:** 2026-09-30
 - **Contexto:** `src/cron-jobs/cron-jobs.service.spec.ts` está ignorado e o spec do cliente SFTP (`src/sftp/sftp-client/sftp-client.service.spec.ts`) tem 8 blocos em `xdescribe`; só "should be defined" roda.
 - **Impacto/risco:** o envio de arquivos ao banco e o agendamento dos jobs não têm teste automático.
 - **Critério de pagamento:** os blocos voltam para `describe` e passam, ou a decisão de não testar vira um ADR.
 - **Descartado por:** Matthew · **Data:** 2026-09-29 · **Motivo:** decisão de que SFTP e cron jobs nunca terão testes automatizados; os `xdescribe` ficam como estão e não são dívida a pagar.
+- **Revertido (parcial) por:** Matthew · **Data:** 2026-09-30 · **Motivo:** `src/sftp/sftp.service.ts#submitCnabRemessa` tinha um bug real (upload falho reportado como sucesso) achado só rodando o envio real contra um SFTP local — nunca teria sido pego sem um teste. `src/sftp/sftp.service.spec.ts` prova o fix (vermelho contra o código antigo, verde com o fix). A partir de agora, specs de SFTP são bem-vindas quando cobrem esse tipo de lógica de retorno/tratamento de erro, mockando o cliente SFTP como fronteira. `cron-jobs.service` continua fora — decisão original mantida ali.
 
 ## TD-7
 **Gate não detecta teste pulado dentro de suíte que passa**

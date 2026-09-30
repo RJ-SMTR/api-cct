@@ -40,5 +40,5 @@ Features, refactors and non-trivial bug fixes go through these skills, in order.
 - `npm run lint` runs with `--fix` and rewrites files. To check only, run `npx eslint <files>`.
 - Never commit `.env`, `env-deploy` values, credentials or `key.json` contents.
 - Money and payment code (`src/cnab/`, `src/cron-jobs/`: remessa, retorno, ordem de pagamento) changes real payouts: keep diffs small, test first, and say what you did not verify. Never add a `remessa*Exec()` call to `onModuleLoad` or re-enable the remessa jobs unless asked.
-- New or changed business logic gets a spec (PROJECT.md, "Testing"). After adding a passing spec run `npm run validate:update-baseline` so the gate protects it. Never write tests for SFTP or cron jobs.
+- New or changed business logic gets a spec (PROJECT.md, "Testing"). After adding a passing spec run `npm run validate:update-baseline` so the gate protects it. Never write tests for cron jobs; SFTP is fine (TD-6 partially reversed 2026-09-30 — see `src/sftp/sftp.service.spec.ts`).
 - Do not run migrations, seeds or anything that writes to a database that is not local without asking (`.claude/settings.json` enforces the prompt; see PROJECT.md, "Agent safety").
