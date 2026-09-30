@@ -38,6 +38,7 @@ import twitterConfig from 'src/config/twitter.config';
 import appleConfig from 'src/config/apple.config';
 import sftpConfig from 'src/config/sftp.config';
 import gcsConfig from 'src/config/gcs.config';
+import { parseCnab240Pagamento } from 'src/cnab/utils/cnab/cnab-104-utils';
 
 const RUN = !!process.env.RUN_RETORNO_DB_TESTS;
 const suite = RUN ? describe : describe.skip;
@@ -86,7 +87,7 @@ suite('Remessa -> Retorno (integração, CnabModule, BQ+SFTP mockados)', () => {
         CnabModule,
       ],
     })
-      .overrideProvider(SftpService).useValue({ getFirstRetornoPagamento: async () => null, moveToBackup: async () => undefined, submitCnabRemessa: async () => '' })
+      .overrideProvider(SftpService).useValue({ getFirstRetornoPagamento: () => Promise.resolve(null), moveToBackup: () => Promise.resolve(undefined), submitCnabRemessa: () => Promise.resolve('') })
       .overrideProvider(SftpClientService).useValue(stub())
       .overrideProvider(BigqueryService).useValue(stub())
       .overrideProvider(BigqueryOrdemPagamentoService).useValue(stub())
@@ -321,7 +322,7 @@ suite('Remessa -> Retorno (integração, CnabModule, BQ+SFTP mockados)', () => {
       expect(linhas.every((l) => l.length === 240)).toBe(true);
       expect(linhas[0][142]).toBe('2'); // tipoArquivo = retorno
 
-      const parsed: any = require('src/cnab/utils/cnab/cnab-104-utils').parseCnab240Pagamento(ret);
+      const parsed: any = parseCnab240Pagamento(ret);
       const reg = parsed.lotes[0].registros[0];
       expect(reg.detalheA.ocorrencias.value.trim()).toBe('00');
       expect(parsed.lotes[0].headerLote.ocorrencias.value.trim()).toBe('00');
@@ -548,7 +549,7 @@ suite('Remessa -> Retorno (integração, CnabModule, BQ+SFTP mockados)', () => {
 
     it('gerarCnabText do pendente guardador tem o CPF/nome do favorecido (getHistoricoDetalheA guardador)', async () => {
       const { cnabRemessa } = await gerarRemessaGuardadorPendente();
-      const parsed: any = require('src/cnab/utils/cnab/cnab-104-utils').parseCnab240Pagamento(
+      const parsed: any = parseCnab240Pagamento(
         remessaParaRetorno(cnabRemessa, { ocorrenciaDetalheA: '00' }));
       const reg = parsed.lotes[0].registros[0];
       expect(reg.detalheB.numeroInscricao.convertedValue.toString()).toBe(CPF); // <- vinha vazio sem o fix

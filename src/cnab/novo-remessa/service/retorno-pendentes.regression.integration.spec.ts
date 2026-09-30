@@ -25,8 +25,8 @@ import { BigqueryTransacaoRepository } from 'src/bigquery/repositories/bigquery-
 import { HeaderName } from 'src/cnab/enums/pagamento/header-arquivo-status.enum';
 import { StatusRemessaEnum } from 'src/cnab/enums/novo-remessa/status-remessa.enum';
 import { CustomLogger } from 'src/utils/custom-logger';
-import { buildRetornoCnab } from '../test/build-retorno-cnab';
 import { remessaParaRetorno } from '../test/remessa-to-retorno';
+import { parseCnab240Pagamento } from 'src/cnab/utils/cnab/cnab-104-utils';
 import databaseConfig from 'src/config/database.config';
 import authConfig from 'src/config/auth.config';
 import appConfig from 'src/config/app.config';
@@ -90,9 +90,9 @@ suite('Retorno de pendentes — regressão (banco local, BQ+SFTP mockados)', () 
       ],
     })
       .overrideProvider(SftpService).useValue({
-        getFirstRetornoPagamento: async () => null,
-        moveToBackup: async (_n: string, folder: string) => { sftpFolders.push(String(folder)); },
-        submitCnabRemessa: async () => '',
+        getFirstRetornoPagamento: () => Promise.resolve(null),
+        moveToBackup: (_n: string, folder: string) => { sftpFolders.push(String(folder)); return Promise.resolve(); },
+        submitCnabRemessa: () => Promise.resolve(''),
       })
       .overrideProvider(SftpClientService).useValue(stub())
       .overrideProvider(BigqueryService).useValue(stub())
@@ -389,8 +389,7 @@ suite('Retorno de pendentes — regressão (banco local, BQ+SFTP mockados)', () 
     }
 
     // round-trip: o parser real lê o retorno derivado sem erro
-    const parsed: any = require('src/cnab/utils/cnab/cnab-104-utils')
-      .parseCnab240Pagamento(remessaParaRetorno(cnab, { ocorrenciaDetalheA: '00' }));
+    const parsed: any = parseCnab240Pagamento(remessaParaRetorno(cnab, { ocorrenciaDetalheA: '00' }));
     expect(parsed.lotes[0].registros[0].detalheB.numeroInscricao.convertedValue.toString()).toBe(CPF);
   }, 120000);
 

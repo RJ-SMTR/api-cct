@@ -46,12 +46,12 @@ describe('Pending payment job lifecycle', () => {
     jest.spyOn(fs, 'mkdirSync').mockReturnValue(undefined);
     const writeFile = jest.spyOn(fs, 'writeFileSync').mockImplementation(() => undefined);
     const steps: string[] = [];
-    const group = jest.fn(async () => { steps.push('group'); });
+    const group = jest.fn(() => { steps.push('group'); return Promise.resolve(); });
     const files = [{ content: 'synthetic CNAB', headerArquivo: { id: 1 } }];
     const remittance = {
-      prepararRemessa: jest.fn(async () => { steps.push('prepare'); }),
-      gerarCnabText: jest.fn(async () => { steps.push('generate'); return files; }),
-      enviarRemessa: jest.fn(async () => { steps.push('send'); }),
+      prepararRemessa: jest.fn(() => { steps.push('prepare'); return Promise.resolve(); }),
+      gerarCnabText: jest.fn(() => { steps.push('generate'); return Promise.resolve(files); }),
+      enviarRemessa: jest.fn(() => { steps.push('send'); return Promise.resolve(); }),
     };
     const service = new CronJobsService(
       unusedDependency, unusedDependency, unusedDependency, unusedDependency, unusedDependency, unusedDependency,

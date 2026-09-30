@@ -25,6 +25,7 @@ function makeRegistro(ocorrenciaDetalheA: string, cpf = '55032451720', valor = 4
     detalheA: {
       ocorrencias: { value: ocorrenciaDetalheA.padEnd(10, ' ') },
       valorLancamento: { convertedValue: valor },
+      dataVencimento: { convertedValue: new Date('2026-01-01') },
       codigoBancoDestino: { convertedValue: '104' },
       codigoAgenciaDestino: { convertedValue: '0001' },
       contaCorrenteDestino: { convertedValue: '123' },
@@ -102,7 +103,7 @@ describe('RetornoService', () => {
       expect(opaService.saveStatusHistorico).toHaveBeenCalledWith(expect.anything(), StatusRemessaEnum.Efetivado);
     });
 
-    it('AguardandoPagamento + "00": indice 0 => Efetivado, indices seguintes => PendenciaPaga', async () => {
+    it('AguardandoPagamento + "00", mais de um historico (pai+filhas) => todos viram PendenciaPaga', async () => {
       opaService.getHistorico.mockResolvedValue([
         makeHistorico(10, StatusRemessaEnum.AguardandoPagamento),
         makeHistorico(11, StatusRemessaEnum.AguardandoPagamento),
@@ -110,7 +111,7 @@ describe('RetornoService', () => {
       ]);
       await atualizar(makeLote('00'), makeRegistro('00'), { id: 1 });
       expect(opaService.saveStatusHistorico).toHaveBeenNthCalledWith(1,
-        expect.objectContaining({ id: 10 }), StatusRemessaEnum.Efetivado);
+        expect.objectContaining({ id: 10 }), StatusRemessaEnum.PendenciaPaga);
       expect(opaService.saveStatusHistorico).toHaveBeenNthCalledWith(2,
         expect.objectContaining({ id: 11 }), StatusRemessaEnum.PendenciaPaga);
       expect(opaService.saveStatusHistorico).toHaveBeenNthCalledWith(3,
