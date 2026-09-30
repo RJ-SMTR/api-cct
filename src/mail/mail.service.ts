@@ -432,10 +432,12 @@ export class MailService {
       });
       const isRegistrationConcluded =
         invite?.user?.status?.id === StatusEnum.active;
+      const isGuardador = invite?.user?.role?.id === RoleEnum.agentes;
+      const signInPath = isGuardador ? 'agentes/sign-in' : 'sign-in';
       const userLink =
         isRegistrationConcluded ||
         (!invite && inviteStatus.id === InviteStatusEnum.used)
-          ? `${frontendDomain}sign-in`
+          ? `${frontendDomain}${signInPath}`
           : `${frontendDomain}conclude-registration/${mailData.data.hash}`;
       const response = await this.safeSendMail({
         from,

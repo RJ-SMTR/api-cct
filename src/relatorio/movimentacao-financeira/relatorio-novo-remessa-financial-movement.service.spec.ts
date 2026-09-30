@@ -65,7 +65,8 @@ describe('RelatorioNovoRemessaFinancialMovementService', () => {
         cpfCnpj: '123',
         consorcio: 'STPC',
         valor: 100,
-        status: 'Pago',
+        status: 'Rejeitado',
+        descricaoErro: 'Agência/Conta corrente/DV inválido',
       } as any);
     });
 
@@ -77,6 +78,10 @@ describe('RelatorioNovoRemessaFinancialMovementService', () => {
     expect(response.contentType).toBe('text/csv; charset=utf-8');
     expect(response.filename).toContain('financial-movement-');
     expect(fs.existsSync(response.filePath)).toBe(true);
+
+    const [header, line] = fs.readFileSync(response.filePath, 'utf8').trim().split('\n');
+    expect(header.endsWith(';status;descricaoErro')).toBe(true);
+    expect(line.endsWith(';Rejeitado;"Agência/Conta corrente/DV inválido"')).toBe(true);
 
     await service.removeGeneratedExportFile(response.filePath);
   });
@@ -107,6 +112,11 @@ describe('RelatorioNovoRemessaFinancialMovementService', () => {
     expect(response.contentType).toBe('text/csv; charset=utf-8');
     expect(response.filename).toContain('financial-movement-guardadores-');
     expect(fs.existsSync(response.filePath)).toBe(true);
+
+    // A row without an error keeps the description empty, so the column stays aligned.
+    const [header, line] = fs.readFileSync(response.filePath, 'utf8').trim().split('\n');
+    expect(header.endsWith(';status;descricaoErro')).toBe(true);
+    expect(line.endsWith(';Pago;""')).toBe(true);
 
     await service.removeGeneratedExportFile(response.filePath);
   });

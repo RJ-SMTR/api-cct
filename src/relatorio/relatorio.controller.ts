@@ -13,9 +13,9 @@ import { RelatorioNovoRemessaService } from './novo-remessa/relatorio-novo-remes
 })
 export class RelatorioController {
   constructor(
-     private relatorioNovoRemessaService: RelatorioNovoRemessaService,
+    private relatorioNovoRemessaService: RelatorioNovoRemessaService,
   ) { }
-  
+
   @ApiQuery({ name: 'dataInicio', description: 'Data da Ordem de Pagamento Inicial', required: true, type: String })
   @ApiQuery({ name: 'dataFim', description: 'Data da Ordem de Pagamento Final', required: true, type: String })
   @ApiQuery({ name: 'favorecidoNome', description: 'Pesquisa o nome dos favorecidos', required: false, type: [String] })
@@ -76,7 +76,7 @@ export class RelatorioController {
   @ApiQuery({ name: 'dataInicio', description: 'Data da Ordem de Pagamento Inicial', required: true, type: String })
   @ApiQuery({ name: 'dataFim', description: 'Data da Ordem de Pagamento Final', required: true, type: String })
   @ApiQuery({ name: 'tipo', description: 'Debito ou Credito', required: false, type: String })
-  @ApiQuery({ name: 'operacao', description: 'Tipos de Operação', required: false, type: String }) 
+  @ApiQuery({ name: 'operacao', description: 'Tipos de Operação', required: false, type: String })
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'))
@@ -91,7 +91,7 @@ export class RelatorioController {
     @Query('conta') conta: string
   ) {
     try {
-      const result = await this.relatorioNovoRemessaService.findExtrato ({
+      const result = await this.relatorioNovoRemessaService.findExtrato({
         dataInicio, dataFim, tipo, operacao, conta
       });
       return result;

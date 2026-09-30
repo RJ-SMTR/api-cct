@@ -178,8 +178,10 @@ export class SftpService implements OnModuleInit, OnModuleLoad {
       }
       
       const remessaName = this.generateRemessaName();
+      // origin/main passou a mandar a remessa real pra BACKUP_REMESSA (não mais REMESSA) —
+      // preserva essa mudança e só soma o modo teste por cima, redirecionando pra pasta de teste.
       const modoTeste = this.configService.get('sftp.remessaModoTeste', { infer: true });
-      const pastaDestino = modoTeste ? this.FOLDERS.BACKUP_REMESSA_TESTE : this.FOLDERS.REMESSA;
+      const pastaDestino = modoTeste ? this.FOLDERS.BACKUP_REMESSA_TESTE : this.FOLDERS.BACKUP_REMESSA;
       remotePath = this.dir(`${pastaDestino}/${remessaName}`);
 
       await this.sftpClient.upload(Buffer.from(content, 'utf-8'), remotePath);

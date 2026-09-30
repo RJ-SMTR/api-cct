@@ -7,6 +7,11 @@ describe('RelatorioGuardadorConsolidadoRepository', () => {
   let mockQueryRunner: Partial<QueryRunner>;
   let mockDataSource: Partial<DataSource>;
 
+  // CustomLogger reads this global (set in main.ts) to format timestamps.
+  beforeAll(() => {
+    (global as any).__localTzOffset = 0;
+  });
+
   beforeEach(() => {
     mockQueryRunner = {
       connect: jest.fn().mockResolvedValue(undefined),
@@ -201,6 +206,77 @@ describe('RelatorioGuardadorConsolidadoRepository', () => {
           null,
         ],
       );
+    });
+
+    it('sets todosConsorcios on the query builder when "Todos" is in consorcioNome', async () => {
+      await repository.findConsolidado({
+        dataInicio: new Date('2026-01-01'),
+        dataFim: new Date('2026-01-01'),
+        consorcioNome: ['Todos'],
+      });
+
+      const sql = (mockQueryRunner.query as jest.Mock).mock.calls[0][0];
+      expect(sql).toContain('pu."permitCode" IS NULL');
+      expect(sql).not.toContain('pu."roleId" = 6');
+    });
+
+    it('sets todosConsorcios on the query builder when todosConsorcios is true', async () => {
+      await repository.findConsolidado({
+        dataInicio: new Date('2026-01-01'),
+        dataFim: new Date('2026-01-01'),
+        todosConsorcios: true,
+      } as any);
+
+      const sql = (mockQueryRunner.query as jest.Mock).mock.calls[0][0];
+      expect(sql).toContain('pu."permitCode" IS NULL');
+      expect(sql).not.toContain('pu."roleId" = 6');
+    });
+
+    it('filters by specific association and requires permitCode IS NULL when a specific consorcio is passed', async () => {
+      await repository.findConsolidado({
+        dataInicio: new Date('2026-01-01'),
+        dataFim: new Date('2026-01-01'),
+        consorcioNome: ['SINGAERJ'],
+      });
+
+      const sql = (mockQueryRunner.query as jest.Mock).mock.calls[0][0];
+      expect(sql).toContain('pu."permitCode" IS NULL');
+      expect(sql).toContain('UPPER(TRIM(pu."fullName")) = ANY($5::text[])');
+    });
+
+    it('defaults to guardador role when no consorcio is passed', async () => {
+      await repository.findConsolidado({
+        dataInicio: new Date('2026-01-01'),
+        dataFim: new Date('2026-01-01'),
+      });
+
+      const sql = (mockQueryRunner.query as jest.Mock).mock.calls[0][0];
+      expect(sql).toContain('pu."roleId" = 6');
+    });
+  });
+
+  describe('userIds filter', () => {
+    it('should pass the selected user ids as the third query parameter', async () => {
+      await repository.findConsolidado({
+        dataInicio: new Date('2026-09-01'),
+        dataFim: new Date('2026-09-21'),
+        userIds: [7, 9],
+        status: 'todos',
+      } as any);
+
+      const params = (mockQueryRunner.query as jest.Mock).mock.calls[0][1];
+      expect(params[2]).toEqual([7, 9]);
+    });
+
+    it('should not filter by user when no ids are selected', async () => {
+      await repository.findConsolidado({
+        dataInicio: new Date('2026-09-01'),
+        dataFim: new Date('2026-09-21'),
+        status: 'todos',
+      } as any);
+
+      const params = (mockQueryRunner.query as jest.Mock).mock.calls[0][1];
+      expect(params[2]).toBeNull();
     });
   });
 

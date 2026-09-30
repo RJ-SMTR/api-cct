@@ -542,6 +542,31 @@ export class AuthService {
     };
   }
 
+  async getResetPasswordRole(hash: string): Promise<{ roleId: number | null }> {
+    const forgot = await this.forgotService.findOne({
+      where: {
+        hash,
+      },
+    });
+
+    if (!forgot) {
+      throw new HttpException(
+        {
+          error: HttpStatusMessage.UNAUTHORIZED,
+          details: {
+            error: 'hash not found',
+            hash,
+          },
+        },
+        HttpStatus.UNAUTHORIZED,
+      );
+    }
+
+    return {
+      roleId: forgot.user.role?.id ?? null,
+    };
+  }
+
   async me(user: User): Promise<Nullable<User>> {
     return this.usersService.findOne({
       id: user.id,

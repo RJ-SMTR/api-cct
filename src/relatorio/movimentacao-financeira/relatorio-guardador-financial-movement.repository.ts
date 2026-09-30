@@ -195,6 +195,7 @@ export class RelatorioGuardadorFinancialMovementRepository {
           "nomeConsorcio",
           status,
           "dataPagamento",
+          "codigoErro",
           SUM(valor) AS valor
         FROM base
         GROUP BY
@@ -206,7 +207,8 @@ export class RelatorioGuardadorFinancialMovementRepository {
           "cpfCnpj",
           "nomeConsorcio",
           status,
-          "dataPagamento"
+          "dataPagamento",
+          "codigoErro"
       )
     `;
   }
@@ -263,7 +265,8 @@ export class RelatorioGuardadorFinancialMovementRepository {
           g."cpfCnpj",
           g."nomeConsorcio" AS consorcio,
           g.valor,
-          g.status
+          g.status,
+          g."codigoErro"
         FROM grouped g
       `,
     };
@@ -361,15 +364,24 @@ export class RelatorioGuardadorFinancialMovementRepository {
   }
 
   private buildBaseQuery(filter: NormalizedFilter): string {
-    return buildGuardadorBaseQuery({ desativados: filter.desativados });
+    return buildGuardadorBaseQuery({
+      desativados: filter.desativados,
+      todosConsorcios: filter.todosConsorcios,
+    });
   }
 
   private buildAPagarQuery(filter: NormalizedFilter): string {
-    return buildGuardadorAPagarQuery({ desativados: filter.desativados });
+    return buildGuardadorAPagarQuery({
+      desativados: filter.desativados,
+      todosConsorcios: filter.todosConsorcios,
+    });
   }
 
   private buildPendenciaPagaSingleDateQuery(filter: NormalizedFilter): string {
-    return buildGuardadorPendenciaPagaSingleDateQuery({ desativados: filter.desativados });
+    return buildGuardadorPendenciaPagaSingleDateQuery({
+      desativados: filter.desativados,
+      todosConsorcios: filter.todosConsorcios,
+    });
   }
 
   private isSingleDate(filter: NormalizedFilter): boolean {

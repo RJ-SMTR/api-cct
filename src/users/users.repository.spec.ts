@@ -1,3 +1,4 @@
+import { HttpStatus } from '@nestjs/common';
 import { EntityManager, Repository } from 'typeorm';
 import { BanksService } from 'src/banks/banks.service';
 import { MailHistoryService } from 'src/mail-history/mail-history.service';
@@ -6,10 +7,15 @@ import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.
 import { MailHistory } from 'src/mail-history/entities/mail-history.entity';
 import { User } from './entities/user.entity';
 import { UsersRepository } from './users.repository';
+import { validateDTO } from 'src/utils/validation-utils';
+
+jest.mock('src/utils/validation-utils', () => ({
+  validateDTO: jest.fn(),
+}));
 
 describe('UsersRepository', () => {
   let usersRepository: UsersRepository;
-  let typeormRepository: Pick<Repository<User>, 'createQueryBuilder'>;
+  let typeormRepository: Pick<Repository<User>, 'createQueryBuilder' | 'update' | 'findOne'>;
   let mailHistoryService: Pick<MailHistoryService, 'find'>;
   let banksService: Pick<BanksService, 'findMany'>;
   let queryBuilder: {
@@ -28,6 +34,8 @@ describe('UsersRepository', () => {
     };
     typeormRepository = {
       createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
+      update: jest.fn(),
+      findOne: jest.fn(),
     };
     mailHistoryService = {
       find: jest.fn().mockResolvedValue([]),
@@ -88,5 +96,42 @@ describe('UsersRepository', () => {
     expect(user.aux_inviteStatus?.id).toBe(InviteStatusEnum.sent);
     expect(user.inviteAt).toEqual(sentAt);
     expect(user.aux_inviteHash).toBe('invite_hash');
+  });
+
+  it('should return an explicit duplicate-email validation message on update', async () => {
+    const existingUser = new User({
+      id: 10,
+      email: 'current@test.com',
+      mailHistories: [],
+    });
+    existingUser.parseNewPassword = jest.fn().mockResolvedValue(undefined) as any;
+
+    jest.spyOn(usersRepository, 'getOne').mockResolvedValue(existingUser);
+    (validateDTO as jest.Mock).mockResolvedValue({
+      email: 'emailAlreadyExists',
+    });
+
+    await expect(
+      usersRepository.update(10, { email: 'taken@test.com' }, 'UsersRepositorySpec.update'),
+    ).rejects.toMatchObject({
+      response: {
+        error: 'UnprocessableEntity',
+        message: 'emailAlreadyExists',
+        errors: {
+          email: 'emailAlreadyExists',
+        },
+      },
+      status: HttpStatus.UNPROCESSABLE_ENTITY,
+    });
+
+    expect(validateDTO).toHaveBeenCalledWith(
+      expect.any(Function),
+      {
+        id: 10,
+        email: 'taken@test.com',
+      },
+      false,
+    );
+    expect(typeormRepository.update).not.toHaveBeenCalled();
   });
 });
