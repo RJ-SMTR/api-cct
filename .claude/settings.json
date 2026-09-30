@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(./.env*)",
+      "Read(./env-deploy*)",
+      "Bash(git push --force*)",
+      "Bash(git push -f*)",
+      "Bash(git reset --hard*)",
+      "Bash(rm -rf*)",
+      "Bash(git commit*--no-verify*)"
+    ],
+    "ask": [
+      "Bash(git push*)",
+      "Bash(npm run migration:*)",
+      "Bash(npm run seed:run*)",
+      "Bash(npm run schema:drop*)",
+      "Bash(psql*)",
+      "Bash(docker compose down*)"
+    ],
+    "allow": [
+      "Bash(npm run validate*)",
+      "Bash(npx jest*)",
+      "Bash(npx eslint*)",
+      "Bash(npx tsc*)"
+    ]
+  }
+}
