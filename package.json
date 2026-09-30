@@ -27,6 +27,8 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "env-cmd jest --config ./test/jest-e2e.json --runInBand",
+    "validate": "ts-node scripts/validate/validate.ts",
+    "validate:update-baseline": "ts-node scripts/validate/validate.ts --update-baseline",
     "prepare": "is-ci || husky install"
   },
   "dependencies": {
@@ -141,6 +143,6 @@
     "globalSetup": "./test/global-setup.ts"
   },
   "engines": {
-    "node": ">=16.0.0"
+    "node": ">=18.16.0"
   }
 }
