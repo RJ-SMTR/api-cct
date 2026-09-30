@@ -12,8 +12,22 @@ import validationOptions from './utils/validation-options';
 import { AllConfigType } from './config/config.type';
 import { AllExceptionsFilter } from './utils/all-exteptions-filter/filters/all-exceptions.filter';
 import { differenceInMinutes } from 'date-fns';
+import { CustomLogger } from './utils/custom-logger';
 
 async function bootstrap() {
+  // Rede neste servidor às vezes emite um evento 'error' fora do fluxo de uma Promise
+  // (ex.: timeout de handshake do SFTP disparado por um setTimeout interno da lib
+  // ssh2-sftp-client/ssh2, fora do try/catch do cron job que chamou connect()).
+  // Sem isso, esse tipo de erro derruba o processo inteiro da API. Apenas loga e
+  // mantém a API no ar — não deve mascarar bugs que já são tratados normalmente
+  // via try/catch ou pelo AllExceptionsFilter.
+  const bootstrapLogger = new CustomLogger('UnhandledError', { timestamp: true });
+  process.on('uncaughtException', (error) => {
+    bootstrapLogger.error(`Uncaught exception (processo mantido no ar): ${error?.message}`, error?.stack);
+  });
+  process.on('unhandledRejection', (reason: any) => {
+    bootstrapLogger.error(`Unhandled rejection (processo mantido no ar): ${reason?.message ?? reason}`, reason?.stack);
+  });
 
   // Save BRT time before set UTC
   const localDateStr = new Date().toString();

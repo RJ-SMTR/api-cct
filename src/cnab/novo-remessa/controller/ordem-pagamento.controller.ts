@@ -16,8 +16,14 @@ import { DateApiParams } from 'src/utils/api-param/date-api-param';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { IRequest } from 'src/utils/interfaces/request.interface';
 import { ParseNumberPipe } from 'src/utils/pipes/parse-number.pipe';
+import { ParseDatePipe } from 'src/utils/pipes/parse-date.pipe';
 import { DateQueryParams } from 'src/utils/query-param/date.query-param';
+import { PaginationQueryParams } from 'src/utils/query-param/pagination.query-param';
+import { PaginationApiParams } from 'src/utils/api-param/pagination.api-param';
 import { canProceed, getRequestLog } from 'src/utils/request-utils';
+import { Roles } from 'src/roles/roles.decorator';
+import { RoleEnum } from 'src/roles/roles.enum';
+import { RolesGuard } from 'src/roles/roles.guard';
 import { OrdemPagamentoService } from '../service/ordem-pagamento.service';
 import { OrdemPagamentoSemanalDto } from '../dto/ordem-pagamento-semanal.dto';
 import { BigqueryTransacaoService } from '../../../bigquery/services/bigquery-transacao.service';
@@ -39,6 +45,37 @@ export class OrdemPagamentoController {
   constructor(private readonly ordemPagamentoService: OrdemPagamentoService,
               private readonly bigqueryTransacaoService: BigqueryTransacaoService,
               private readonly usersService: UsersService) {}
+
+  @Get()
+  @Roles(RoleEnum.master, RoleEnum.admin)
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @ApiBearerAuth()
+  @ApiQuery(PaginationApiParams.page)
+  @ApiQuery(PaginationApiParams.limit)
+  @ApiQuery({ name: 'dataOrdemInicio', required: false, type: String })
+  @ApiQuery({ name: 'dataOrdemFim', required: false, type: String })
+  @ApiQuery({ name: 'nomeConsorcio', required: false, type: String })
+  @ApiQuery({ name: 'nomeOperadora', required: false, type: String })
+  @HttpCode(HttpStatus.OK)
+  async getPaginado(
+    @Query(...PaginationQueryParams.page) page: number,
+    @Query(...PaginationQueryParams.limit) limit: number,
+    // Tipado como `any` (não `Date`) propositalmente: com o ValidationPipe
+    // global (`transform: true`), o Nest converteria o parâmetro para Date
+    // ANTES do ParseDatePipe rodar, e um valor ausente viraria "Invalid Date"
+    // em vez de undefined, quebrando a checagem `optional`.
+    @Query('dataOrdemInicio', new ParseDatePipe({ dateOnly: true, optional: true, transform: true })) dataOrdemInicio?: any,
+    @Query('dataOrdemFim', new ParseDatePipe({ dateOnly: true, optional: true, transform: true })) dataOrdemFim?: any,
+    @Query('nomeConsorcio') nomeConsorcio?: string,
+    @Query('nomeOperadora') nomeOperadora?: string,
+  ) {
+    return this.ordemPagamentoService.findPermissionarioListPaginated(page, limit, {
+      dataOrdemInicio,
+      dataOrdemFim,
+      nomeConsorcio,
+      nomeOperadora,
+    });
+  }
 
   @Get('mensal')
   @UseGuards(AuthGuard('jwt'))

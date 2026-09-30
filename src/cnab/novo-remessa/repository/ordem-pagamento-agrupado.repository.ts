@@ -121,17 +121,20 @@ export class OrdemPagamentoAgrupadoRepository {
     return result;
   }
   
-  public async findAllCustom(dataInicio: Date, dataFim: Date, nomeConsorcio?: string[], dataPagamento?: Date): Promise<OrdemPagamentoAgrupado[]> {
+  public async findAllCustom(dataInicio: Date, dataFim: Date, nomeConsorcio?: string[], dataPagamento?: Date, gratuidade = false): Promise<OrdemPagamentoAgrupado[]> {
     const dataIniForm = formatDateISODate(dataInicio)
     const dataFimForm = formatDateISODate(dataFim)
 
+    // Agrupamento de Gratuidade navega por "ordemPagamentoAgrupadoGratuidadeId" em vez de
+    // "ordemPagamentoAgrupadoId" — os dois agrupamentos são independentes na mesma ordem_pagamento.
+    const colunaAgrupamento = gratuidade ? '"ordemPagamentoAgrupadoGratuidadeId"' : '"ordemPagamentoAgrupadoId"';
 
     let query;
 
     if(nomeConsorcio && nomeConsorcio.length > 0) {
-    
+
       query = ` select distinct opa.* from ordem_pagamento op
-                    inner join ordem_pagamento_agrupado opa on opa.id = op."ordemPagamentoAgrupadoId"
+                    inner join ordem_pagamento_agrupado opa on opa.id = op.${colunaAgrupamento}
                     inner join ordem_pagamento_agrupado_historico oph on opa.id = oph."ordemPagamentoAgrupadoId"
                     where oph."statusRemessa"= 0 `;
     }else{
@@ -152,7 +155,7 @@ export class OrdemPagamentoAgrupadoRepository {
       }else{
         query = query + ` and date_trunc('day',op."dataOrdem") between '${dataIniForm}' and '${dataFimForm}' `;
       }
-      query = query + ` and op."ordemPagamentoAgrupadoId" is not null `;
+      query = query + ` and op.${colunaAgrupamento} is not null `;
     } else {
       return [];
     }

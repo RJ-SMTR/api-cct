@@ -24,10 +24,12 @@ export class SftpService implements OnModuleInit, OnModuleLoad {
     AJUSTES: '/backup/ajuste',
     BACKUP: '/backup',
     BACKUP_REMESSA: '/backup/remessa',
+    /** Destino de "Enviar para o Banco" quando `SFTP_REMESSA_MODO_TESTE=true` — não é lido pelo banco. */
+    BACKUP_REMESSA_TESTE: '/backup/remessa-teste',
     BACKUP_RETORNO_FAILURE: '/backup/retorno/failure',
     BACKUP_RETORNO_SUCCESS: '/backup/retorno/success',
   };
-  private RECURSIVE_MKDIR: string[] = ['/remessa', '/retorno', '/backup/remessa', '/backup/retorno/failure', '/backup/retorno/success'];
+  private RECURSIVE_MKDIR: string[] = ['/remessa', '/retorno', '/backup/remessa', '/backup/remessa-teste', '/backup/retorno/failure', '/backup/retorno/success'];
   private readonly REGEX = {
     /** smtr_prefeiturarj_ddMMyy_hhmmss.rem */
     REMESSA: new RegExp(`smtr_prefeiturarj_\\d{6}_\\d{6}\\.rem`),
@@ -176,14 +178,20 @@ export class SftpService implements OnModuleInit, OnModuleLoad {
       }
       
       const remessaName = this.generateRemessaName();
-      remotePath =
-      //  headerName === 'VLT' ? this.dir(`${this.FOLDERS.REMESSA}/${remessaName}`) :
-         this.dir(`${this.FOLDERS.REMESSA}/${remessaName}`);
+      const modoTeste = this.configService.get('sftp.remessaModoTeste', { infer: true });
+      const pastaDestino = modoTeste ? this.FOLDERS.BACKUP_REMESSA_TESTE : this.FOLDERS.REMESSA;
+      remotePath = this.dir(`${pastaDestino}/${remessaName}`);
 
       await this.sftpClient.upload(Buffer.from(content, 'utf-8'), remotePath);
-      await this.submitCnabBackupRemessa(content);
+      if (!modoTeste) {
+        await this.submitCnabBackupRemessa(content);
+      }
 
-      this.logger.log(`Arquivo CNAB carregado em ${remotePath}`, METHOD);     
+      if (modoTeste) {
+        this.logger.warn(`[MODO TESTE] Arquivo CNAB NÃO enviado à pasta real do banco. Salvo em ${remotePath}`, METHOD);
+      } else {
+        this.logger.log(`Arquivo CNAB carregado em ${remotePath}`, METHOD);
+      }
 
     } catch (error) {     
       this.logger.error(`Erro em ${METHOD}: ${error.message}`, METHOD);   

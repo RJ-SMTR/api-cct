@@ -38,7 +38,7 @@ export class OrdemPagamentoAgrupadoHistoricoRepository {
     });
   }
 
-  public async getHistoricoDetalheA(detalheAId: number, pagamentoUnico?: boolean, isPendente?: boolean,consorcios?: string[]): Promise<OrdemPagamentoAgrupadoHistoricoDTO> {
+  public async getHistoricoDetalheA(detalheAId: number, pagamentoUnico?: boolean, isPendente?: boolean, consorcios?: string[], gratuidade = false): Promise<OrdemPagamentoAgrupadoHistoricoDTO> {
 
     let query = '';
     if (pagamentoUnico) {
@@ -75,11 +75,14 @@ export class OrdemPagamentoAgrupadoHistoricoRepository {
     `where da."id" = ${detalheAId}`)
     } else {
       if(consorcios && consorcios.length > 0){
+          // Gratuidade navega por "ordemPagamentoAgrupadoGratuidadeId" (agrupamento paralelo,
+          // independente do normal) — sem isso, nome/CPF do favorecido sairiam em branco no CNAB.
+          const colunaAgrupamento = gratuidade ? '"ordemPagamentoAgrupadoGratuidadeId"' : '"ordemPagamentoAgrupadoId"';
           query = (`select distinct u."fullName" userName, u."cpfCnpj" usercpfcnpj,
-                          oph.* from ordem_pagamento_agrupado_historico oph 
-                          inner join detalhe_a da on da."ordemPagamentoAgrupadoHistoricoId"= oph.id 
+                          oph.* from ordem_pagamento_agrupado_historico oph
+                          inner join detalhe_a da on da."ordemPagamentoAgrupadoHistoricoId"= oph.id
                           left join ordem_pagamento_agrupado opa on opa."id" = oph."ordemPagamentoAgrupadoId"
-                          left join ordem_pagamento op on op."ordemPagamentoAgrupadoId" = opa.id
+                          left join ordem_pagamento op on op.${colunaAgrupamento} = opa.id
                           left join public.user u on u."id" = op."userId"` +
             ` where da."id" = ${detalheAId}`)
         }else{

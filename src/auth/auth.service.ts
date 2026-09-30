@@ -548,6 +548,38 @@ export class AuthService {
     });
   }
 
+  async changePassword(
+    user: User,
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<void> {
+    const userProfile = await this.usersService.findOne({ id: user.id });
+
+    if (!userProfile) {
+      throw new HttpException(
+        { error: HttpStatusMessage.UNAUTHORIZED },
+        HttpStatus.UNAUTHORIZED,
+      );
+    }
+
+    const isCurrentPasswordValid = await bcrypt.compare(
+      currentPassword,
+      userProfile.password,
+    );
+
+    if (!isCurrentPasswordValid) {
+      throw new HttpException(
+        { error: 'Senha atual incorreta.' },
+        HttpStatus.UNPROCESSABLE_ENTITY,
+      );
+    }
+
+    // Usa usersService.update (UPDATE direto via query builder) em vez de
+    // userProfile.save(), que tenta salvar relações não carregadas em cascata
+    // e quebra com "Cannot read properties of undefined (reading 'joinColumns')".
+    await this.usersService.update(user.id, { password: newPassword });
+  }
+
   async update(user: User, userDto: AuthUpdateDto): Promise<Nullable<User>> {
     const userProfile = await this.usersService.findOne({ id: user.id });
 

@@ -91,8 +91,8 @@ export class OrdemPagamentoAgrupadoService {
     await this.ordemPagamentoRepository.agruparOrdensDePagamentoUnico(dataInicial, dataFinal, dataPgto, pagador);
   }
 
-  async getOrdens(dataInicio: Date, dataFim: Date, consorcio: string[] | undefined, dataPagamento?: Date ) {
-    return await this.ordemPagamentoAgrupadoRepository.findAllCustom(dataInicio, dataFim, consorcio, dataPagamento);
+  async getOrdens(dataInicio: Date, dataFim: Date, consorcio: string[] | undefined, dataPagamento?: Date, gratuidade = false) {
+    return await this.ordemPagamentoAgrupadoRepository.findAllCustom(dataInicio, dataFim, consorcio, dataPagamento, gratuidade);
   }
   async getOrdensPendentes(dataInicio: Date, dataFim: Date, consorcio: string[] | undefined, dataPagamento?: Date, idOperadoras?: string[] ) {
     return await this.ordemPagamentoAgrupadoRepository.findAllPendente(dataInicio, dataFim, consorcio, dataPagamento, idOperadoras);
@@ -125,6 +125,11 @@ export class OrdemPagamentoAgrupadoService {
     return await this.ordemPagamentoRepository.findOne({ ordemPagamentoAgrupado: { id: idOrdemPagamentoAg } })
   }
 
+  /** Espelha `getOrdemPagamento`, mas navega pelo agrupamento paralelo de Gratuidade. */
+  public async getOrdemPagamentoGratuidade(idOrdemPagamentoAg: number) {
+    return await this.ordemPagamentoRepository.findOne({ ordemPagamentoAgrupadoGratuidade: { id: idOrdemPagamentoAg } })
+  }
+
   public async getOrdemPagamentoGuardador(idOrdemPagamentoAg: number) {
     return await this.ordemPagamentoGuardadorRepository.findOne({ ordemPagamentoAgrupado: { id: idOrdemPagamentoAg } })
   }
@@ -143,8 +148,8 @@ export class OrdemPagamentoAgrupadoService {
     return await this.ordemPagamentoRepository.findOrdemUnica(idOrdemPagamentoAg);
   }
 
-  public async getHistoricosOrdemDetalheA(id: number, pagamentoUnico?: boolean, isPendente?: boolean,consorcios?: string[]) {
-    return await this.ordemPagamentoAgrupadoHistRepository.getHistoricoDetalheA(id, pagamentoUnico, isPendente,consorcios);
+  public async getHistoricosOrdemDetalheA(id: number, pagamentoUnico?: boolean, isPendente?: boolean, consorcios?: string[], gratuidade = false) {
+    return await this.ordemPagamentoAgrupadoHistRepository.getHistoricoDetalheA(id, pagamentoUnico, isPendente, consorcios, gratuidade);
   }
 
   public async getHistorico(id: number) {

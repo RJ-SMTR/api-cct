@@ -3,9 +3,16 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { Nullable } from 'src/utils/types/nullable.type';
-import { DataSource, DeepPartial, Repository } from 'typeorm';
+import { Between, DataSource, DeepPartial, FindOptionsWhere, ILike, LessThanOrEqual, MoreThanOrEqual, Repository } from 'typeorm';
 import { PagadorDTO } from 'src/cnab/dto/pagamento/pagador.dto';
 import { OrdemPagamentoGuardador } from '../entity/ordem-pagamento-guardador.entity';
+
+export interface OrdemPagamentoGuardadorListFilters {
+  dataOrdemInicio?: Date;
+  dataOrdemFim?: Date;
+  cpfCnpj?: string;
+  nome?: string;
+}
 
 
 @Injectable()
@@ -30,6 +37,11 @@ export class OrdemPagamentoGuardadorRepository {
     return this.ordemPagamentoGuardadorRepository.save(dto);
   }
 
+  public async saveMany(dtos: DeepPartial<OrdemPagamentoGuardador>[]): Promise<OrdemPagamentoGuardador[]> {
+    const entities = this.ordemPagamentoGuardadorRepository.create(dtos);
+    return this.ordemPagamentoGuardadorRepository.save(entities);
+  }
+
   public async findOne(fields: EntityCondition<OrdemPagamentoGuardador>): Promise<Nullable<OrdemPagamentoGuardador>> {
     return await this.ordemPagamentoGuardadorRepository.findOne({
       where: fields,
@@ -40,6 +52,48 @@ export class OrdemPagamentoGuardadorRepository {
     return await this.ordemPagamentoGuardadorRepository.find({
       where: fields,
     });
+  }
+
+  private buildListFiltersWhere(filters?: OrdemPagamentoGuardadorListFilters): FindOptionsWhere<OrdemPagamentoGuardador> {
+    const where: FindOptionsWhere<OrdemPagamentoGuardador> = {};
+
+    if (filters?.dataOrdemInicio && filters?.dataOrdemFim) {
+      where.dataOrdem = Between(filters.dataOrdemInicio, filters.dataOrdemFim);
+    } else if (filters?.dataOrdemInicio) {
+      where.dataOrdem = MoreThanOrEqual(filters.dataOrdemInicio);
+    } else if (filters?.dataOrdemFim) {
+      where.dataOrdem = LessThanOrEqual(filters.dataOrdemFim);
+    }
+
+    if (filters?.cpfCnpj || filters?.nome) {
+      where.user = {
+        ...(filters.cpfCnpj ? { cpfCnpj: ILike(`%${filters.cpfCnpj}%`) } : {}),
+        ...(filters.nome ? { fullName: ILike(`%${filters.nome}%`) } : {}),
+      };
+    }
+
+    return where;
+  }
+
+  public async findAllPaginated(
+    page: number,
+    limit: number,
+    filters?: OrdemPagamentoGuardadorListFilters,
+  ): Promise<[OrdemPagamentoGuardador[], number]> {
+    const where = this.buildListFiltersWhere(filters);
+
+    return this.ordemPagamentoGuardadorRepository.findAndCount({
+      where,
+      order: { dataOrdem: 'DESC', id: 'DESC' },
+      take: limit,
+      skip: (page - 1) * limit,
+    });
+  }
+
+  public async sumValorFiltered(filters?: OrdemPagamentoGuardadorListFilters): Promise<number> {
+    const where = this.buildListFiltersWhere(filters);
+    const total = await this.ordemPagamentoGuardadorRepository.sum('valorRepasseGuardador', where);
+    return Number(total ?? 0);
   }
 
   public async agruparOrdensDePagamentoGuardador(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: PagadorDTO): Promise<void> {
