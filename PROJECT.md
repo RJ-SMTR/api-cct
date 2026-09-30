@@ -59,12 +59,12 @@ The test suite and lint are not clean yet (see [docs/TECH-DEBT.md](docs/TECH-DEB
 
 ## Testing
 
-Policy (decided by Matthew, 2026-09-30): **new or changed business logic gets a spec next to it**, written test-first with the `tdd` skill, pure logic first. It never applies to SFTP or cron jobs (TD-6, discarded).
+Policy (decided by Matthew, 2026-09-30): **new or changed business logic gets a spec next to it**, written test-first with the `tdd` skill, pure logic first. It never applies to cron jobs. SFTP was excluded too (TD-6, discarded 2026-09-29) but that call was reversed the next day: `src/sftp/sftp.service.ts#submitCnabRemessa` had a real bug (a failed upload was silently reported as sent) caught only by exercising the real send path, and `src/sftp/sftp.service.spec.ts` proved the fix red→green — so SFTP specs are worth writing when they cover exactly that kind of return-value/error-swallowing logic, mocking the SFTP client itself as the boundary.
 
 - Put the spec next to the file (`*.spec.ts`). In Nest, mock only the boundaries (database, SFTP, BigQuery, mail, clock); follow an existing spec of the same area, for example `src/users/users.repository.spec.ts` or `src/cnab/novo-remessa/service/retorno.service.spec.ts`.
 - **Lock it in:** a new passing spec is *not* protected until it is in the baseline. The gate only checks suites listed there, so a new spec can break later without `validate` failing (verified 2026-09-30). After adding a passing spec, run `npm run validate:update-baseline` and commit the baseline.
 - For payment code, aim at the `src/cnab/novo-remessa/` services; see `src/cron-jobs/CLAUDE.md` and `src/cnab/CLAUDE.md` for what never to call from a test.
-- Current state (2026-09-30): 42 app spec files, of which 25 pass, 13 fail (TD-1) and 4 are skipped; plus 4 specs of the gate itself. Passing coverage includes agentes, antifraud, mail, the novo-remessa reports and `retorno.service`; there is no working test for `cron-jobs.service`, the SFTP client, bank statements or ticket revenues. `validate` green does not mean a change is safe.
+- Current state (2026-09-30): 43 app spec files, of which 26 pass, 13 fail (TD-1) and 4 are skipped; plus 4 specs of the gate itself. Passing coverage includes agentes, antifraud, mail, the novo-remessa reports, `retorno.service` and `sftp.service`; there is no working test for `cron-jobs.service`, bank statements or ticket revenues. `validate` green does not mean a change is safe.
 - E2E (`npm run test:e2e`) needs Postgres and maildev and runs in CI (`docker-e2e.yml`) on pushes and PRs to `main`; it was not exercised while preparing this repo.
 
 ## Layer rules
