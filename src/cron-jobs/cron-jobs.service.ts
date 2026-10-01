@@ -119,6 +119,10 @@ export class CronJobsService {
   }
 
   async onModuleLoad() {
+    this.remessaPendenteExec('2026-01-01', '2026-09-30', '2026-10-01').catch((error: Error) => {
+      this.logger.error('Erro no gatilho manual de modal.', error?.stack, 'CronJobsService.onModuleLoad (GATILHO MANUAL)');
+    });
+
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -801,9 +805,9 @@ export class CronJobsService {
     await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, ['STPC', 'STPL', 'TEC'], false, true, idsFavorecidos);
 
     // Gera o TXT
-    const txt = await this.remessaService.gerarCnabText(headerName, undefined, true);
+    // const txt = await this.remessaService.gerarCnabText(headerName, undefined, true);
 
-    await this.remessaService.enviarRemessa(txt, headerName);
+    // await this.remessaService.enviarRemessa(txt, headerName);
   }
 
   async remessaModalExec(pagamentoUnico?: boolean) {
