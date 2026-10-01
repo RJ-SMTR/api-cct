@@ -119,6 +119,9 @@ export class CronJobsService {
   }
 
   async onModuleLoad() {
+    this.pagamentoPendentesGuardadoresExec('2026-07-01', '2026-09-30', '2026-10-01').catch((error: Error) => {
+      this.logger.error('Erro no gatilho manual de modal.', error?.stack, 'CronJobsService.onModuleLoad (GATILHO MANUAL)');
+    });
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -778,9 +781,9 @@ export class CronJobsService {
     // An empty consortium list selects guardadores; prepare parent histories for sending.
     await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPgto, [], false, true);
 
-    const txt = await this.remessaService.gerarCnabText(HeaderName.GUARDADOR, undefined, true);
+    // const txt = await this.remessaService.gerarCnabText(HeaderName.GUARDADOR, undefined, true);
 
-    await this.remessaService.enviarRemessa(txt, HeaderName.GUARDADOR);
+    // await this.remessaService.enviarRemessa(txt, HeaderName.GUARDADOR);
   }
 
   private async geradorRemessaPendenteExec(dataInicio: Date, dataFimSolicitada: Date, dataPagamento: Date,
