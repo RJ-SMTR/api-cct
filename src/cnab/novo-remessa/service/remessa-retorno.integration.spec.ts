@@ -206,6 +206,28 @@ suite('Remessa -> Retorno (integração, CnabModule, BQ+SFTP mockados)', () => {
        VALUES ($1,$2,$3,$3,'2099-01-15', 1, 1, now(), now())`, [DA_FALHA, OPH_FALHA, VALOR]);
   }
 
+  async function seedNuncaAgrupadaComHistorico() {
+    await limpar();
+    await criarUser(USER_ID, 'TESTE PEND PASSO 0');
+    await ds.query(
+      `INSERT INTO ordem_pagamento_agrupado(id, "dataPagamento", "valorTotal", "createdAt", "updatedAt")
+       VALUES ($1, CURRENT_DATE - INTERVAL '40 days', 75, now(), now())`,
+      [OPA_FALHA],
+    );
+    await ds.query(
+      `INSERT INTO ordem_pagamento_agrupado_historico(id, "ordemPagamentoAgrupadoId", "dataReferencia", "userBankCode", "userBankAgency", "userBankAccount", "userBankAccountDigit", "statusRemessa", "motivoStatusRemessa")
+       VALUES ($1,$2, CURRENT_DATE - INTERVAL '40 days', '104','0001','99990001','1', $3, '00')`,
+      [OPH_FALHA, OPA_FALHA, StatusRemessaEnum.Efetivado],
+    );
+    await ds.query(
+      `INSERT INTO ordem_pagamento(id, "userId", "ordemPagamentoAgrupadoId", valor, "dataOrdem", "dataCaptura", "nomeConsorcio", "nomeOperadora", "createdAt", "updatedAt", "bqUpdatedAt")
+       VALUES
+         ($1,$2,$3,75,CURRENT_DATE - INTERVAL '40 days',CURRENT_DATE - INTERVAL '40 days','STPC','TESTE HISTORICO',now(),now(),now()),
+         ($4,$2,NULL,$5,CURRENT_DATE - INTERVAL '20 days',CURRENT_DATE - INTERVAL '20 days','STPC','TESTE PEND PASSO 0',now(),now(),now())`,
+      [OP_FALHA, USER_ID, OPA_FALHA, OP_FALHA + 1, VALOR],
+    );
+  }
+
   const parentId = async (): Promise<number> =>
     (await ds.query(`SELECT "ordemPagamentoAgrupadoId" p FROM ordem_pagamento_agrupado WHERE id = $1`, [OPA_FALHA]))[0]?.p;
 
@@ -255,6 +277,64 @@ suite('Remessa -> Retorno (integração, CnabModule, BQ+SFTP mockados)', () => {
        WHERE oph."ordemPagamentoAgrupadoId" = $1`, [pid]);
     expect(ha.length).toBe(1);
     expect(ha[0].status).toBe('remessaGerado');
+  });
+
+  it('PASSO 0 gera pai e filha, mas prepara somente um pagamento no valor da obrigacao', async () => {
+    await seedNuncaAgrupadaComHistorico();
+    const dataFim = new Date();
+    const dataInicio = new Date(dataFim);
+    dataInicio.setUTCDate(dataInicio.getUTCDate() - 30);
+    const dataPagamento = new Date('2099-02-06T00:00:00.000Z');
+    const consorcios = ['STPC', 'STPL', 'TEC'];
+
+    await opaService.prepararPagamentoAgrupadosPendentes(
+      dataInicio,
+      dataFim,
+      dataPagamento,
+      'contaBilhetagem',
+      [String(USER_ID)],
+    );
+
+    const filha = (await ds.query(
+      `SELECT opa.id, opa."ordemPagamentoAgrupadoId" pai
+       FROM ordem_pagamento op
+       JOIN ordem_pagamento_agrupado opa ON opa.id = op."ordemPagamentoAgrupadoId"
+       WHERE op.id = $1`,
+      [OP_FALHA + 1],
+    ))[0];
+    expect(filha.pai).toBeTruthy();
+
+    const ordens = await opaService.getOrdensPendentes(
+      dataInicio,
+      dataFim,
+      consorcios,
+      dataPagamento,
+      [String(USER_ID)],
+    );
+    expect(ordens.map((o: any) => o.id)).toEqual([filha.pai]);
+    expect(ordens.map((o: any) => Number(o.valorTotal))).toEqual([VALOR]);
+
+    await remessa.prepararRemessa(
+      dataInicio,
+      dataFim,
+      dataPagamento,
+      consorcios,
+      false,
+      true,
+      [String(USER_ID)],
+    );
+
+    const detalhes = await ds.query(
+      `SELECT oph."ordemPagamentoAgrupadoId" opa_id, da."valorLancamento" valor
+       FROM detalhe_a da
+       JOIN ordem_pagamento_agrupado_historico oph ON oph.id = da."ordemPagamentoAgrupadoHistoricoId"
+       WHERE oph."ordemPagamentoAgrupadoId" IN ($1, $2)
+         AND da."headerLoteId" IS NOT NULL`,
+      [filha.id, filha.pai],
+    );
+    expect(detalhes.map((d: any) => ({ opaId: Number(d.opa_id), valor: Number(d.valor) }))).toEqual([
+      { opaId: Number(filha.pai), valor: VALOR },
+    ]);
   });
 
   it('gerarCnabText produz um CNAB 240 valido', async () => {
