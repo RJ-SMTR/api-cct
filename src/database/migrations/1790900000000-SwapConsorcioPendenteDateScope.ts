@@ -20,9 +20,25 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * Known trade-off, accepted: a failure whose dataVencimento falls outside
  * the window passed to a given run is skipped that run (not lost - it is
  * still correctly classified NaoEfetivado and will be picked up by a later
- * run whose window covers it). PASSO 0 no longer excludes the in-flight
- * cycle, so a never-grouped order captured today can be swept into the same
- * run depending on when it executes relative to the normal cycle.
+ * run whose window covers it).
+ *
+ * Running PASSO 0 unbounded against production also surfaced a separate,
+ * pre-existing bug in its own NOT EXISTS guard: it checked whether the user
+ * had EVER had anything grouped in their entire history, meant as a crude
+ * "don't confuse the in-flight cycle with never-paid" safeguard. For any
+ * normal active user (who has months of already-paid history), that guard
+ * permanently excludes them from PASSO 0 the moment they have any grouped
+ * order at all - a stray never-grouped order from months ago becomes
+ * invisible forever, neither PASSO 0 (blocked by this guard) nor PASSO 1
+ * (no detalhe_a, since it was never even attempted) can reach it. Found via
+ * two real users (Alan da Silva Matheus, R$4.651,20; Jefferson Pinto de
+ * Oliveira, R$1.291,20) stuck in exactly this gap.
+ *
+ * Fix: replace the user-level "ever grouped" check with an order-level
+ * recency check - only pick up an order whose own dataCaptura is more than
+ * 10 days old, safely outside any normal processing cycle (the normal
+ * consórcio flow runs Tuesday/Friday, covering at most ~4 days back) -
+ * instead of a permanent per-user exclusion.
  */
 export class SwapConsorcioPendenteDateScope1790900000000 implements MigrationInterface {
   name = 'SwapConsorcioPendenteDateScope1790900000000';
@@ -43,6 +59,12 @@ BEGIN
     -- pago pela primeira vez e nunca entrou em nenhuma remessa). Varre a
     -- tabela inteira, sem corte de data (SwapConsorcioPendenteDateScope1790900000000)
     -- - datainicial/datafinal nao se aplicam mais aqui, so ao PASSO 1.
+    --
+    -- Corte de 10 dias na propria dataCaptura da ordem - nao no historico do
+    -- usuario (ver docstring da migration): so pega ordens capturadas ha
+    -- mais de 10 dias, fora de qualquer janela normal de processamento,
+    -- pra nao confundir o ciclo em andamento com "nunca pago", sem excluir
+    -- permanentemente usuarios que ja tiveram qualquer coisa agrupada antes.
     FOR fresh IN (
         SELECT
             op."userId",
@@ -59,11 +81,7 @@ BEGIN
           AND pu."bankAgency" IS NOT NULL
           AND pu."bankCode" IS NOT NULL
           AND pu."bankAccountDigit" IS NOT NULL
-          AND NOT EXISTS (
-              SELECT 1 FROM ordem_pagamento op2
-              WHERE op2."userId" = op."userId"
-                AND op2."ordemPagamentoAgrupadoId" IS NOT NULL
-          )
+          AND date_trunc('day', op."dataCaptura") <= (CURRENT_DATE - INTERVAL '10 days')
         GROUP BY op."userId"
     )
     LOOP
@@ -82,7 +100,8 @@ BEGIN
         SET "ordemPagamentoAgrupadoId" = freshOpaId
         WHERE "userId" = fresh."userId"
           AND "ordemPagamentoAgrupadoId" IS NULL
-          AND "nomeConsorcio" IN ('STPC', 'STPL', 'TEC');
+          AND "nomeConsorcio" IN ('STPC', 'STPL', 'TEC')
+          AND date_trunc('day', "dataCaptura") <= (CURRENT_DATE - INTERVAL '10 days');
 
         INSERT INTO public.ordem_pagamento_agrupado_historico (
             id, "ordemPagamentoAgrupadoId", "dataReferencia",
