@@ -112,7 +112,7 @@ export class CronJobsService {
   ) { }
 
   async onModuleInit() {
-   // await this.sincronizarEAgruparOrdensPagamento()
+    await this.sincronizarEAgruparOrdensPagamento()
     this.onModuleLoad().catch((error: Error) => {
       throw error;
     });
@@ -763,27 +763,27 @@ export class CronJobsService {
 
   /** Group eligible guardador pendencies, prepare the CNAB and send it. */
   async pagamentoPendentesGuardadoresExec(dtInicio: string, dtFim: string, dataPagamento?: string) {
-    const dataInicio = new Date(dtInicio);
-    const dataPgto = dataPagamento ? new Date(dataPagamento) : new Date();
+    // const dataInicio = new Date(dtInicio);
+    // const dataPgto = dataPagamento ? new Date(dataPagamento) : new Date();
 
-    // Exclude the current normal payment cycle from never-paid candidates.
-    const limiteSeguro = this.getLimiteSeguroPendentes();
-    const dataFimSolicitada = new Date(dtFim);
-    const dataFim = dataFimSolicitada >= limiteSeguro ? subDays(limiteSeguro, 1) : dataFimSolicitada;
-    if (dataFim.getTime() !== dataFimSolicitada.getTime()) {
-      this.logger.warn(`Pendentes guardador: dtFim ${dataFimSolicitada.toISOString()} alcançava o ciclo em curso (limite ${limiteSeguro.toISOString()}) - ajustado para ${dataFim.toISOString()}`);
-    }
+    // // Exclude the current normal payment cycle from never-paid candidates.
+    // const limiteSeguro = this.getLimiteSeguroPendentes();
+    // const dataFimSolicitada = new Date(dtFim);
+    // const dataFim = dataFimSolicitada >= limiteSeguro ? subDays(limiteSeguro, 1) : dataFimSolicitada;
+    // if (dataFim.getTime() !== dataFimSolicitada.getTime()) {
+    //   this.logger.warn(`Pendentes guardador: dtFim ${dataFimSolicitada.toISOString()} alcançava o ciclo em curso (limite ${limiteSeguro.toISOString()}) - ajustado para ${dataFim.toISOString()}`);
+    // }
 
-    this.logger.debug('iniciando o agrupamento pendente de guardador');
-    // Use the same payer as normal guardador payments.
-    await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupadosGuardadorPendentes(dataInicio, dataFim, dataPgto, 'contaRotativo');
+    // this.logger.debug('iniciando o agrupamento pendente de guardador');
+    // // Use the same payer as normal guardador payments.
+    // await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupadosGuardadorPendentes(dataInicio, dataFim, dataPgto, 'contaRotativo');
 
-    // An empty consortium list selects guardadores; prepare parent histories for sending.
-    await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPgto, [], false, true);
+    // // An empty consortium list selects guardadores; prepare parent histories for sending.
+    // await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPgto, [], false, true);
 
-    // const txt = await this.remessaService.gerarCnabText(HeaderName.GUARDADOR, undefined, true);
+    const txt = await this.remessaService.gerarCnabText(HeaderName.GUARDADOR, undefined, true);
 
-    // await this.remessaService.enviarRemessa(txt, HeaderName.GUARDADOR);
+    await this.remessaService.enviarRemessa(txt, HeaderName.GUARDADOR);
   }
 
   private async geradorRemessaPendenteExec(dataInicio: Date, dataFimSolicitada: Date, dataPagamento: Date,
