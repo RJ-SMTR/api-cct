@@ -986,7 +986,7 @@ export class CronJobsService {
         dataPagamento = dataHoje
       }
 
-      dataInicio = new Date("2026-09-14T00:00:00.000Z")
+      dataInicio = new Date("2026-09-01T00:00:00.000Z")
       dataFim = new Date("2026-09-20T00:00:00.000Z")
       dataPagamento = new Date()
 
