@@ -118,11 +118,7 @@ export class CronJobsService {
     });
   }
 
-  async onModuleLoad() {
-    this.remessaPendenteExec('2026-01-01', '2026-09-30', '2026-10-01').catch((error: Error) => {
-      this.logger.error('Erro no gatilho manual de modal.', error?.stack, 'CronJobsService.onModuleLoad (GATILHO MANUAL)');
-    });
-
+  async onModuleLoad() {    
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
