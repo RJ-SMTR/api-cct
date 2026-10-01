@@ -60,6 +60,12 @@ Um destinatário a ser pago dentro de um `TransacaoAgrupado`: a soma de todos os
 Agrupamento das ordens de pagamento por favorecido para uma data de pagamento; o valor é somado. O Histórico registra cada tentativa de pagamento (cópia) e é o que a remessa lê.
 _Avoid_: agrupamento (genérico)
 
+**OPA filha**:
+Obrigação original vinculada a uma nova tentativa de pagamento pendente. Preserva as ordens e o histórico de origem, mas não representa um segundo pagamento ao banco.
+
+**OPA pai**:
+Tentativa de pagamento pendente que consolida uma ou mais OPAs filhas do mesmo favorecido. É a única representante financeira dessas filhas na remessa.
+
 **TransacaoView**:
 Visão das transações de bilhetagem por dia. **Legado: ninguém mais usa** (confirmado por Matthew em 2026-09-30); não a use em código novo.
 
