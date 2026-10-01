@@ -24,6 +24,7 @@ Registro único do que foi adiado de propósito, por quê e por quem. Serve para
 | [TD-7](#td-7) | Gate não detecta teste pulado dentro de suíte que passa | aberto | Matthew | 2026-09-30 |
 | [TD-8](#td-8) | 12 imports de `repository` para `service` | aberto | Matthew | 2026-09-30 |
 | [TD-9](#td-9) | Pagamento depende de editar o código e fazer deploy | aberto | Matthew | 2026-09-30 |
+| [TD-10](#td-10) | Hook de pre-commit quebra no Windows e exigiu --no-verify | aberto | William | 2026-10-01 |
 
 ## Entradas
 
@@ -109,3 +110,12 @@ Registro único do que foi adiado de propósito, por quê e por quem. Serve para
 - **Contexto:** os jobs `generateRemessaVLT`, `generateRemessaVanzeiros` e `generateRemessaEmpresa` não geram remessa (corpo vazio ou chamada comentada). No dia de pagamento, alguém coloca uma chamada em `onModuleLoad` de `CronJobsService` (`remessaModalExec`, `remessaGuardadorExec` ou `remessaConsorciosExec`), faz o deploy (a remessa roda quando o app sobe) e depois remove a chamada. Confirmado por Matthew em 2026-09-30. Em `c83718e2` a primeira linha de `onModuleLoad` era `await this.remessaModalExec(true)`, que gerava remessa a cada boot do app; essa linha foi removida em 2026-09-30, e o gatilho continua manual.
 - **Impacto/risco:** a remessa de pagamento depende de uma edição manual de código de produção; qualquer restart do app com a chamada ativa reenvia a remessa; não há trava contra execução dupla nem trilha de quem disparou; agentes podem "consertar" os crons desligados sem saber que é intencional.
 - **Critério de pagamento:** a geração da remessa pode ser disparada sem alterar código nem fazer deploy (por endpoint autenticado com papel restrito, ou pelos crons reativados atrás de uma flag em `settings`), com trava contra execução duplicada e registro de quem disparou e quando; o processo fica descrito em `docs/fluxo-pagamento.md`.
+
+## TD-10
+**Hook de pre-commit quebra no Windows e exigiu `--no-verify`**
+
+- **Status:** aberto
+- **Registrado por:** William · **Detectado por:** agente · **Data:** 2026-10-01
+- **Contexto:** em 2026-10-01, na branch `hotfix/ajusteRelatorioErros`, o commit dos ajustes de filtro dos relatórios `novo-remessa` (e do `cron-jobs.service.ts`) foi bloqueado por `scripts/validate/pre-commit.ts` com "Build failed" e saída vazia (`undefinedundefined`). O `tsc -p tsconfig.build.json --noEmit` rodado à mão passou (exit 0). A causa provável é que o hook chama `node_modules/.bin/tsc` via `spawnSync` sem `shell`, e no Windows esse binário é um script (`tsc.cmd`), então o spawn falha. Não foi confirmado rodando o hook de novo. O commit foi feito com `git commit --no-verify`, por decisão de William, sem rodar os specs relacionados nem o ratchet.
+- **Impacto/risco:** o commit entrou sem a checagem de specs relacionados e sem o ratchet contra a baseline; o hook provavelmente bloqueia qualquer commit de `.ts` em Windows, o que incentiva novos `--no-verify`.
+- **Critério de pagamento:** o hook resolve o binário de forma portável (`tsc.cmd` no Windows ou `shell: true`), roda em Windows sem `--no-verify`, e o commit desta entrada é revalidado com `npm run validate` verde.

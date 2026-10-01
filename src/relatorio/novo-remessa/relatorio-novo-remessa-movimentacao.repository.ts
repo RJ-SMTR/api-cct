@@ -40,8 +40,8 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
                                                     END AS consorcio,
                                                     round(op."valor",2) AS valor,
                                                     null::text AS dataPagamento,
-                                                   'A Pagar' AS status,
-                                                  NULL::text AS "codigoErro"`;
+                                                   'A Pagar' AS status `;
+                                                  //NULL::text AS "codigoErro"`;
 
   private readonly headerQueryConsorcios = ` select distinct TO_CHAR(da."dataVencimento"::date, 'DD/MM/YYYY') AS "dataReferencia",
                                                     oph."ordemPagamentoAgrupadoId" as id,
@@ -66,8 +66,8 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
                                                     WHEN oph."motivoStatusRemessa" IN ('00', 'BD') OR oph."statusRemessa" = 3 THEN 'Pago'
                                                     WHEN oph."motivoStatusRemessa" = '02' THEN 'Estorno'
                                                     ELSE 'Rejeitado'
-                                                  END AS status,
-                                                  ${buildCodigoErroSql(STATUS_CASE)} AS "codigoErro"`;
+                                                  END AS status `;
+                                                  // ${buildCodigoErroSql(STATUS_CASE)} AS "codigoErro"`;
 
   private readonly headerQueryVanzeirosAPagar = ` select distinct TO_CHAR( op."dataOrdem"::date, 'DD/MM/YYYY') AS "dataReferencia",
                                                     op."ordemPagamentoAgrupadoId" AS id,
@@ -85,8 +85,8 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
                                                     END AS consorcio,
                                                     round(op."valor",2) AS valor,
                                                     null::text AS dataPagamento,
-                                                   'A Pagar' AS status,
-                                                  NULL::text AS "codigoErro"`;
+                                                   'A Pagar' AS status `;
+                                                 // NULL::text AS "codigoErro"`;
 
   private readonly headerQueryVanzeiros = ` select distinct TO_CHAR(da."dataVencimento"::date, 'DD/MM/YYYY') AS "dataReferencia",
                                                     oph."ordemPagamentoAgrupadoId" as id,
@@ -111,8 +111,8 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
                                                     WHEN oph."motivoStatusRemessa" IN ('00', 'BD') OR oph."statusRemessa" = 3 THEN 'Pago'
                                                     WHEN oph."motivoStatusRemessa" = '02' THEN 'Estorno'
                                                     ELSE 'Rejeitado'
-                                                  END AS status,
-                                                  ${buildCodigoErroSql(STATUS_CASE)} AS "codigoErro"`;
+                                                  END AS status `;
+                                                //  ${buildCodigoErroSql(STATUS_CASE)} AS "codigoErro"`;
 
   private readonly headerQueryEleicaoVanzereiroApagar = ` select distinct TO_CHAR(op."dataOrdem"::date, 'DD/MM/YYYY') AS "dataReferencia",
                                                           op."ordemPagamentoAgrupadoId" AS id,
@@ -130,8 +130,8 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
                                                           END AS consorcio,
                                                           round(op."valor",2) AS valor,
                                                           null::text AS dataPagamento,
-                                                        'A Pagar' AS status,
-                                                  NULL::text AS "codigoErro"`;
+                                                        'A Pagar' AS status `;
+                                                 // NULL::text AS "codigoErro"`;
 
 
   private readonly headerQueryEleicaoConsorcioApagar = ` select distinct TO_CHAR(op."dataOrdem"::date, 'DD/MM/YYYY') AS "dataReferencia",
@@ -150,8 +150,8 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
                                                             END AS consorcio,
                                                             round(op."valor",2) AS valor,
                                                             null::text AS dataPagamento,
-                                                          'A Pagar' AS status,
-                                                  NULL::text AS "codigoErro"`;
+                                                          'A Pagar' AS status `;
+                                                  //NULL::text AS "codigoErro"`;
 
   private readonly headerQueryEleicaoVanzeiro = ` select distinct TO_CHAR(da."dataVencimento"::date, 'DD/MM/YYYY') AS "dataReferencia",
                                                     oph."ordemPagamentoAgrupadoId" AS id,
@@ -176,8 +176,8 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
                                                     WHEN oph."motivoStatusRemessa" IN ('00', 'BD') OR oph."statusRemessa" = 3 THEN 'Pago'
                                                     WHEN oph."motivoStatusRemessa" = '02' THEN 'Estorno'
                                                     ELSE 'Rejeitado'
-                                                  END AS status,
-                                                  ${buildCodigoErroSql(STATUS_CASE)} AS "codigoErro"`;
+                                                  END AS status `;
+                                                  //${buildCodigoErroSql(STATUS_CASE)} AS "codigoErro"`;
 
   private readonly headerQueryEleicaoConsorcio = ` select distinct TO_CHAR(da."dataVencimento"::date, 'DD/MM/YYYY') AS "dataReferencia",
                                                     oph."ordemPagamentoAgrupadoId" AS id,
@@ -202,8 +202,8 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
                                                     WHEN oph."motivoStatusRemessa" IN ('00', 'BD') OR oph."statusRemessa" = 3 THEN 'Pago'
                                                     WHEN oph."motivoStatusRemessa" = '02' THEN 'Estorno'
                                                     ELSE 'Rejeitado'
-                                                  END AS status,
-                                                  ${buildCodigoErroSql(STATUS_CASE)} AS "codigoErro"`;
+                                                  END AS status, `;
+                                                //  ${buildCodigoErroSql(STATUS_CASE)} AS "codigoErro"`;
 
   private readonly fromQueryApagar = ` from ordem_pagamento op
                                         left join ordem_pagamento_agrupado opa  on op."ordemPagamentoAgrupadoId"=opa.id
@@ -467,30 +467,43 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
       queryEleicaoConsorcio += ` AND ${this.buildConsorcioMatchCondition(consorcioValues, { rawColumn: 'consorcio' })} `;
       queryPendentesConsorcio += ` AND ${this.buildConsorcioMatchCondition(consorcioValues)} `;
     }
+   
+    const status: number[] = [];
+    const subErroStatus: string[] = [];
 
-    //status: filter.aPagar, filter.pago, filter.emProcessamento ,filter.erro
-    //sub-fltros 
-    // substatus: filter.error
-    //      filter.estorno,filter.rejeitado
-    // filter.pago: 
-    //    filter.pendenciaPaga
+    if (filter.emProcessamento) {
+      status.push(1);
+      status.push(2);
+    }
+    if (filter.pago) status.push(3);
 
-    // Each selected status widens the result set, so their predicates are OR-ed together.
-    const statusPredicates: string[] = [];
+    if (filter.pendenciaPaga) status.push(5);
 
-    if (filter.emProcessamento) statusPredicates.push(`oph."statusRemessa" IN (1,2)`);
-    if (filter.pago) statusPredicates.push(`oph."statusRemessa" = 3`);
-    if (filter.erro) statusPredicates.push(`(oph."statusRemessa" = 4 AND oph."motivoStatusRemessa" NOT IN ('00','0BD'))`);
-    if (filter.pendenciaPaga) statusPredicates.push(`oph."statusRemessa" = 5`);
-    if (filter.estorno) statusPredicates.push(`oph."motivoStatusRemessa" IN ('02')`);
-    if (filter.rejeitado) statusPredicates.push(`oph."motivoStatusRemessa" NOT IN ('00','0BD','02')`);
+    if (filter.erro || filter.rejeitado || filter.estorno) {      
+      if (filter.rejeitado) {      
+        subErroStatus.push('AL');
+        subErroStatus.push('HO');
+        subErroStatus.push('ANHO');
+      }
+      if (filter.estorno) {      
+        subErroStatus.push('02');
+      }       
+    }  
 
-    if (statusPredicates.length > 0) {
-      const statusFilter = ` AND (${statusPredicates.join(' OR ')}) `;
-      queryConsorcios += statusFilter;
-      queryVanzeiros += statusFilter;
-      queryEleicaoConsorcio += statusFilter;
-      queryEleicaoVanzeiro += statusFilter;
+    if (subErroStatus.length > 0) {
+      let motivoStatus = ` AND (oph."motivoStatusRemessa" IN (${subErroStatus.map((s) => `'${s}'`).join(',')}) `;
+      queryConsorcios += motivoStatus;
+      queryVanzeiros += motivoStatus;
+      queryEleicaoConsorcio += motivoStatus;
+      queryEleicaoVanzeiro += motivoStatus;
+    }
+
+    if (status.length > 0) {
+      const statusRemessa = `  ${subErroStatus.length>0 ?'OR' :'AND'}  oph."statusRemessa" IN (${status.join(',')}) ${subErroStatus.length>0 ? ')' :'' } `;
+      queryConsorcios += statusRemessa;
+      queryVanzeiros += statusRemessa;
+      queryEleicaoConsorcio += statusRemessa;
+      queryEleicaoVanzeiro += statusRemessa;
     }
 
     const hasQuery = queryAPagarConsorcios !== `` || queryAPagarVanzeiros !== `` || queryConsorcios !== `` || queryVanzeiros !== ``
@@ -515,64 +528,38 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
 
     const queries: string[] = [];
 
-    const temFiltroConsorcio = (filter.consorcioNome && filter.consorcioNome.length > 0) || filter.todosConsorcios;
+const temFiltroConsorcio = (filter.consorcioNome && filter.consorcioNome.length > 0) || filter.todosConsorcios;
     const temFiltroVanzeiros = (filter.userIds && filter.userIds.length > 0) || filter.todosVanzeiros;
 
-    // Se nenhum status foi selecionado, inclui tudo
-    const incluirAPagar = filter.aPagar || filter.pendentes || (filter.erro && !filter.rejeitado && !filter.estorno);
+    const incluirAPagar = !!(filter.aPagar || filter.pendentes);
+
+    const pendenciaPagamento = !!(filter.erro && filter.pendentes);
+
+    const temFiltroPago = !!(filter.pago || filter.pendenciaPaga || filter.rejeitado || filter.estorno);
+
+    const todosStatus = !filter.aPagar && !filter.pendentes && !filter.rejeitado && !filter.estorno && !filter.erro && !filter.pago && !filter.pendenciaPaga
+
+    const temEleicao = !!filter.eleicao;
     
-    const todosStatus = (!filter.aPagar && !filter.pago && !filter.emProcessamento && !filter.pendentes && !filter.erro && !filter.rejeitado && !filter.estorno
-      && !filter.pendenciaPaga );
+    const deveBuscar = (flag: boolean) => todosStatus || flag;
 
-    if (temFiltroConsorcio) {
-      if (incluirAPagar) {
-        if (filter.eleicao) {
-          queries.push(queryAPagarEleicaoConsorcio);
-        } else {
-          if (filter.aPagar) queries.push(queryAPagarConsorcios);
-          if (filter.pendentes || (filter.erro && !filter.rejeitado && !filter.estorno) || todosStatus) queries.push(queryPendentesConsorcio);
-          if (filter.erro) queries.push(queryConsorcios);
-        }
-      } 
-     if((filter.todosConsorcios && !filter.pendentes) || filter.pago || filter.pendenciaPaga || filter.emProcessamento ||filter.rejeitado || filter.estorno) {
-        if (filter.eleicao) {
-          queries.push(queryEleicaoConsorcio);
-        } else {
-          queries.push(queryConsorcios);
-        }
-      }
+    // Se não marcou nenhum dos dois, é busca geral = busca os dois
+    const buscarConsorcio = temFiltroConsorcio || !temFiltroVanzeiros;
+    const buscarVanzeiro = temFiltroVanzeiros || !temFiltroConsorcio;
+
+    if (deveBuscar(incluirAPagar)) {
+      if (buscarConsorcio) queries.push(temEleicao ? queryAPagarEleicaoConsorcio : queryAPagarConsorcios);
+      if (buscarVanzeiro) queries.push(temEleicao ? queryAPagarEleicaoVanzeiro : queryAPagarVanzeiros);
     }
 
-    if (temFiltroVanzeiros) {
-      if (incluirAPagar) {
-        if (filter.eleicao) {
-          queries.push(queryAPagarEleicaoVanzeiro);
-        } else {
-          if (filter.aPagar ) queries.push(queryAPagarVanzeiros);
-          if (filter.pendentes || (filter.erro && !filter.rejeitado && !filter.estorno) || todosStatus) queries.push(queryPendentesVanzeiro);
-          if (filter.erro)queries.push(queryVanzeiros);
-        }
-      }
-
-      if((filter.todosVanzeiros && !filter.pendentes && !filter.aPagar) || filter.pago || filter.pendenciaPaga || filter.emProcessamento ||filter.rejeitado || filter.estorno) {
-        if (filter.eleicao) {
-          queries.push(queryEleicaoVanzeiro);
-        } else {
-          queries.push(queryVanzeiros);
-        }
-      }
+    if (deveBuscar(pendenciaPagamento)) {
+      if (buscarConsorcio) queries.push(queryPendentesConsorcio);
+      if (buscarVanzeiro) queries.push(queryPendentesVanzeiro);
     }
 
-    if (!temFiltroVanzeiros && !temFiltroConsorcio) {
-      if (filter.eleicao) {
-        queries.push(queryEleicaoVanzeiro);
-      }
-      if (filter.todosConsorcios) {
-        queries.push(queryConsorcios);
-      }
-      if (filter.todosVanzeiros) {
-        queries.push(queryVanzeiros);
-      }
+    if (deveBuscar(temFiltroPago)) {
+      if (buscarConsorcio) queries.push(temEleicao ? queryEleicaoConsorcio : queryConsorcios);
+      if (buscarVanzeiro) queries.push(temEleicao ? queryEleicaoVanzeiro : queryVanzeiros);
     }
 
     // Junta só as queries que realmente existem
@@ -679,8 +666,9 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
             consorcio,
             SUM(valor) AS valor,
             NULL::text AS "dataPagamento",
-            status,
-            STRING_AGG(DISTINCT "codigoErro", ',') AS "codigoErro"
+            status
+            --,
+          --  STRING_AGG(DISTINCT "codigoErro", ',') AS "codigoErro"
           FROM r
           GROUP BY "dataReferencia", consorcio, status
           ORDER BY "dataReferencia", consorcio ASC
