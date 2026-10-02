@@ -54,8 +54,7 @@ export class RemessaService {
   public async prepararRemessa(dataInicio: Date, dataFim: Date, dataPgto?: Date, consorcio?: string[], pagamentoUnico?: boolean, isPendente?: boolean, idsFavorecidos?: string[]) {
     let ordens;
     if (pagamentoUnico) {
-      ordens = await this.ordemPagamentoAgrupadoService.getOrdensUnicas(dataInicio, dataFim,
-        dataPgto ? dataPgto : new Date());
+      ordens = await this.ordemPagamentoAgrupadoService.getOrdensUnicas(dataInicio, dataFim);
     } else {
       if (isPendente) {
         ordens = await this.ordemPagamentoAgrupadoService.getOrdensPendentes(dataInicio, dataFim, consorcio, dataPgto, idsFavorecidos);

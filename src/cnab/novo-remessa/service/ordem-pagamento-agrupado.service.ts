@@ -109,8 +109,8 @@ export class OrdemPagamentoAgrupadoService {
     return await this.ordemPagamentoAgrupadoRepository.findAllPendente(dataInicio, dataFim, consorcio, dataPagamento, idsFavorecidos);
   }
 
-  async getOrdensUnicas(dataInicio: Date, dataFim: Date, dataPgto: Date) {
-    return await this.ordemPagamentoAgrupadoRepository.findAllUnica(dataInicio, dataFim, dataPgto);
+  async getOrdensUnicas(dataInicio: Date, dataFim: Date) {
+    return await this.ordemPagamentoAgrupadoRepository.findAllUnica(dataInicio, dataFim);
   }
 
   async getHistoricosOrdem(idOrdem: number) {
