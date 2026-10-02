@@ -823,7 +823,7 @@ export class CronJobsService {
     const dataFim = new Date('2026-09-30');
 
     const consorcios = ['STPC', 'STPL', 'TEC'];
-    await this.limparAgrupamentos(dataInicio, dataFim, consorcios);
+    //await this.limparAgrupamentos(dataInicio, dataFim, consorcios);
     await this.geradorRemessaExec(dataInicio, dataFim, today,
       consorcios, HeaderName.MODAL, pagamentoUnico);
   }
