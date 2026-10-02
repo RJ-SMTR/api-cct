@@ -807,6 +807,8 @@ export class CronJobsService {
     // await this.remessaService.enviarRemessa(txt, headerName);
   }
 
+
+  
   async remessaModalExec(pagamentoUnico?: boolean) {
     const today = new Date();
     let subDaysInt = 0;
