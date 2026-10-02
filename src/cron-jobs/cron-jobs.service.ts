@@ -118,8 +118,8 @@ export class CronJobsService {
     });
   }
 
-  async onModuleLoad() {  
-    await this.remessaModalExec()    
+  async onModuleLoad() {     
+    await this.remessaGuardadorExec();
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -978,15 +978,11 @@ export class CronJobsService {
       let { dataInicio, dataFim, dataPagamento } = this.calcularPeriodoPagamento();
 
       if (tipo === 'GUARDADOR') {
-        const dataHoje = new Date();
+        const dataHoje = new Date("2026-10-02");
         dataInicio = dataHoje
         dataFim = dataHoje
         dataPagamento = dataHoje
-      }
-
-      dataInicio = new Date("2026-10-01T00:00:00.000Z")
-      dataFim = new Date("2026-10-02T23:59:59.999Z")
-      dataPagamento = new Date()
+      }     
 
       this.logger.log(
         `Iniciando sincronização das ordens de pagamento (${tipo}) do BigQuery. Data de Início: ${dataInicio.toISOString()}, Data Fim: ${dataFim.toISOString()}`,
