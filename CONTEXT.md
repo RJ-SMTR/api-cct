@@ -103,6 +103,12 @@ Valor pago a mais a um favorecido no passado (issue #488), guardado na tabela `p
 **Pagamento pendente**:
 Pagamento que já sofreu uma tentativa de pagamento antes e vai ser reprocessado (`remessaPendenteExec`, entidade `pagamentos-pendentes`, campo `ocorrenciaErro`).
 
+**Data Tentativa Pagamento do guardador**:
+Data da tentativa registrada na ordem de pagamento agrupada filha. No relatório de movimentação financeira, cada filha continua sendo exibida em sua própria linha, inclusive quando a consulta pontual é feita pela data da ordem pai.
+
+**Data Efetiva Pagamento do guardador**:
+Data em que a ordem de pagamento agrupada pai foi efetivamente paga. Em uma consulta de `Pendência Paga` para um único dia, essa data seleciona a família pai/filhas e é repetida nas linhas das filhas, sem somar ou repetir seus valores.
+
 **Guardador**:
 Beneficiário do fluxo de pagamento próprio "guardador": ordens em `ordem-pagamento-guardador`, pagador `ContaRotativo`, `HeaderName.GUARDADOR`, sincronismo `sincronizarOrdensPagamentoGuardador` e relatórios específicos. O significado de negócio não está no código _(a confirmar)_.
 
