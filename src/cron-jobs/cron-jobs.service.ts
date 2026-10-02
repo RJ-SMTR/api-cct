@@ -112,7 +112,7 @@ export class CronJobsService {
   ) { }
 
   async onModuleInit() {
-    await this.sincronizarEAgruparOrdensPagamento()
+   // await this.sincronizarEAgruparOrdensPagamento()
     this.onModuleLoad().catch((error: Error) => {
       throw error;
     });
@@ -810,7 +810,7 @@ export class CronJobsService {
 
   
   async remessaModalExec(pagamentoUnico?: boolean) {
-    const today = new Date();
+    const today = new Date("2026-10-05");
     let subDaysInt = 0;
 
     // if (isTuesday(today)) {
