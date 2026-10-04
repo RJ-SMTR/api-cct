@@ -178,17 +178,21 @@ export class SftpService implements OnModuleInit, OnModuleLoad {
       }
       
       const remessaName = this.generateRemessaName();
-      // origin/main passou a mandar a remessa real pra BACKUP_REMESSA (não mais REMESSA) —
-      // preserva essa mudança e só soma o modo teste por cima, redirecionando pra pasta de teste.
+      // Modo teste (SFTP_REMESSA_MODO_TESTE=true) redireciona pra pasta de teste e não gera backup.
       const modoTeste = this.configService.get('sftp.remessaModoTeste', { infer: true });
       const pastaDestino = modoTeste ? this.FOLDERS.BACKUP_REMESSA_TESTE : this.FOLDERS.BACKUP_REMESSA;
-      remotePath = this.dir(`${pastaDestino}/${remessaName}`);
+      const targetPath = this.dir(`${pastaDestino}/${remessaName}`);
 
-      await this.sftpClient.upload(Buffer.from(content, 'utf-8'), remotePath);
+      await this.sftpClient.upload(Buffer.from(content, 'utf-8'), targetPath);
       if (!modoTeste) {
         await this.submitCnabBackupRemessa(content);
       }
 
+      // Only mark the upload as done once the transfer actually succeeded -
+      // remotePath stays '' (its initial value) on failure, which is what
+      // enviarRemessa checks to decide whether to mark a header_arquivo as
+      // sent.
+      remotePath = targetPath;
       if (modoTeste) {
         this.logger.warn(`[MODO TESTE] Arquivo CNAB NÃO enviado à pasta real do banco. Salvo em ${remotePath}`, METHOD);
       } else {

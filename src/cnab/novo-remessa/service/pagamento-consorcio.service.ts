@@ -3,12 +3,12 @@ import * as bcrypt from 'bcryptjs';
 import { UsersService } from 'src/users/users.service';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { getInicioDoDiaBrasilia } from 'src/utils/date-utils';
-import { PagadorService } from 'src/cnab/service/pagamento/pagador.service';
 import { DetalheAValorLancamentoAuditoria } from 'src/cnab/entity/pagamento/detalhe-a-valor-lancamento-auditoria.entity';
 import { DetalheARepository } from 'src/cnab/repository/pagamento/detalhe-a.repository';
 import { HeaderName } from 'src/cnab/enums/pagamento/header-arquivo-status.enum';
 import { ICnabInfo } from 'src/cnab/cnab.service';
 import { RemessaService } from './remessa.service';
+import { OrdemPagamentoAgrupadoService } from './ordem-pagamento-agrupado.service';
 import {
   IDetalhamentoPorDia,
   ILimparPreparoResult,
@@ -27,8 +27,8 @@ export class PagamentoConsorcioService {
     private remessaService: RemessaService,
     private detalheARepository: DetalheARepository,
     private pagamentoConsorcioRepository: PagamentoConsorcioRepository,
-    private pagadorService: PagadorService,
     private usersService: UsersService,
+    private ordemPagamentoAgrupadoService: OrdemPagamentoAgrupadoService,
   ) {}
 
   /**
@@ -39,15 +39,11 @@ export class PagamentoConsorcioService {
    */
   async prepararPagamentos(dataInicio: Date, dataFim: Date): Promise<IPagamentoConsorcioPreparado[]> {
     const dataPagamento = getInicioDoDiaBrasilia();
-    const pagador = (await this.pagadorService.getAllPagador()).contaBilhetagem;
 
-    for (const consorcio of CONSORCIOS) {
-      this.logger.log(`Agrupando ordens do consórcio ${consorcio}`);
-      const resultado = await this.pagamentoConsorcioRepository.agruparPorConsorcio(dataInicio, dataFim, dataPagamento, pagador.id, consorcio);
-      this.logger.log(
-        `Consórcio ${consorcio}: ${resultado.agrupados} agrupado(s), ${resultado.semDadosBancarios} sem dados bancários, ${resultado.bloqueados} bloqueado(s)`,
-      );
-    }
+    // Agrupamento pela procedure da main (`P_AGRUPAR_ORDENS`), a mesma usada pelos cron jobs.
+    await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(dataInicio, dataFim, dataPagamento, 'contaBilhetagem', CONSORCIOS);
+    const tiposAtualizados = await this.pagamentoConsorcioRepository.sincronizarTipoContaHistorico(dataPagamento, CONSORCIOS, dataInicio, dataFim);
+    this.logger.log(`Consórcios agrupados (${tiposAtualizados} histórico(s) com tipo de conta ajustado)`);
 
     await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, CONSORCIOS, false);
 

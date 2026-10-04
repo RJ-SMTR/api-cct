@@ -112,10 +112,10 @@ suite('RetornoService (integração - banco real)', () => {
       `INSERT INTO ordem_pagamento(id, "userId", "ordemPagamentoAgrupadoId", valor, "dataOrdem", "nomeConsorcio", "createdAt", "updatedAt", "bqUpdatedAt")
        VALUES ($1,$2,$3, 100, now(), 'STPC', now(), now(), now())`, [id, userId, opaId]);
   }
-  async function criarDetalheA(id: number, ophId: number, valor = 100) {
+  async function criarDetalheA(id: number, ophId: number, valor = 100, dataVencimento = '2026-06-08') {
     await ds.query(
       `INSERT INTO detalhe_a(id, "ordemPagamentoAgrupadoHistoricoId", "valorLancamento", "dataVencimento", nsr, "numeroDocumentoEmpresa", "createdAt", "updatedAt")
-       VALUES ($1,$2,$3, now(), 1, 1, now(), now())`, [id, ophId, valor]);
+       VALUES ($1,$2,$3, $4::date, 1, 1, now(), now())`, [id, ophId, valor, dataVencimento]);
   }
   const statusOph = async (id: number): Promise<number> =>
     (await ds.query(`SELECT "statusRemessa" s FROM ordem_pagamento_agrupado_historico WHERE id=$1`, [id]))[0]?.s;
@@ -127,7 +127,7 @@ suite('RetornoService (integração - banco real)', () => {
     await criarOrdemPagamento(B + 30, B + 1, B + 10);
     await criarDetalheA(B + 40, B + 20, 100);
 
-    const r = await retornoService['detalheAService'].getDetalheARetorno(CPF, 100);
+    const r = await retornoService['detalheAService'].getDetalheARetorno(CPF, 100, new Date('2026-06-08T00:00:00Z'));
     expect(r.map((d: any) => d.id)).toContain(B + 40);
   });
 
@@ -139,7 +139,7 @@ suite('RetornoService (integração - banco real)', () => {
     await criarOrdemPagamento(B + 130, B + 1, B + 101); // ordem_pagamento na FILHA
     await criarDetalheA(B + 140, B + 110, 100); // detalhe_a na PAI
 
-    const r = await retornoService['detalheAService'].getDetalheARetorno(CPF, 100);
+    const r = await retornoService['detalheAService'].getDetalheARetorno(CPF, 100, new Date('2026-06-08T00:00:00Z'));
     expect(r.map((d: any) => d.id)).toContain(B + 140);
   });
 
@@ -151,7 +151,7 @@ suite('RetornoService (integração - banco real)', () => {
     await criarOrdemPagamento(B + 30, B + 1, B + 10);
     await criarDetalheA(B + 40, B + 20, 100);
 
-    const r = await retornoService['detalheAService'].getDetalheARetorno(CPF, 100);
+    const r = await retornoService['detalheAService'].getDetalheARetorno(CPF, 100, new Date('2026-06-08T00:00:00Z'));
     expect(r.map((d: any) => d.id)).toContain(B + 40);
   });
 
@@ -162,7 +162,7 @@ suite('RetornoService (integração - banco real)', () => {
     await criarOrdemPagamento(B + 30, B + 1, B + 10);
     await criarDetalheA(B + 40, B + 20, 100);
 
-    const da = (await retornoService['detalheAService'].getDetalheARetorno(CPF, 100))[0];
+    const da = (await retornoService['detalheAService'].getDetalheARetorno(CPF, 100, new Date('2026-06-08T00:00:00Z')))[0];
     await (retornoService as any).atualizarStatusRemessaHistorico(lote('00'), registro('00'), da);
 
     expect(await statusOph(B + 20)).toBe(StatusRemessaEnum.Efetivado);
@@ -178,7 +178,7 @@ suite('RetornoService (integração - banco real)', () => {
     await criarOrdemPagamento(B + 130, B + 1, B + 101);
     await criarDetalheA(B + 140, B + 110, 100); // detalhe_a na pai
 
-    const da = (await retornoService['detalheAService'].getDetalheARetorno(CPF, 100))[0];
+    const da = (await retornoService['detalheAService'].getDetalheARetorno(CPF, 100, new Date('2026-06-08T00:00:00Z')))[0];
     await (retornoService as any).atualizarStatusRemessaHistorico(lote('00'), registro('00'), da);
 
     // pai: paga (Efetivado se index 0 do getHistorico, senao PendenciaPaga)
@@ -196,7 +196,7 @@ suite('RetornoService (integração - banco real)', () => {
     await criarOrdemPagamento(B + 130, B + 1, B + 101);
     await criarDetalheA(B + 140, B + 110, 100);
 
-    const da = (await retornoService['detalheAService'].getDetalheARetorno(CPF, 100))[0];
+    const da = (await retornoService['detalheAService'].getDetalheARetorno(CPF, 100, new Date('2026-06-08T00:00:00Z')))[0];
     await (retornoService as any).atualizarStatusRemessaHistorico(lote('00'), registro('02'), da);
 
     expect(await statusOph(B + 110)).toBe(StatusRemessaEnum.NaoEfetivado); // pai
@@ -205,6 +205,28 @@ suite('RetornoService (integração - banco real)', () => {
 
   // ---- salvarRetorno de ponta a ponta: CNAB de verdade -> parseCnab240Pagamento real ----
   describe('salvarRetorno (arquivo CNAB real, parse real)', () => {
+    it('mesmo CPF e valor em datas diferentes: retorno atualiza somente a tentativa da data do CNAB', async () => {
+      await criarUser(B + 1);
+
+      await criarOpa(B + 200, null, '2026-09-03'); // pai pendente atual
+      await criarOpa(B + 100, B + 200, '2026-08-12'); // tentativa antiga, agora filha
+      await criarOph(B + 110, B + 100, StatusRemessaEnum.PreparadoParaEnvio);
+      await criarOrdemPagamento(B + 130, B + 1, B + 100);
+      await criarDetalheA(B + 140, B + 110, 100, '2026-08-12');
+
+      await criarOph(B + 210, B + 200, StatusRemessaEnum.PreparadoParaEnvio);
+      await criarDetalheA(B + 240, B + 210, 100, '2026-09-03');
+
+      const cnab = buildRetornoCnab([{
+        ocorrenciaHeaderLote: '00',
+        registros: [{ cpf: CPF, valor: 100, ocorrenciaDetalheA: 'BD', dataVencimento: '03092026' }],
+      }]);
+      await retornoService.salvarRetorno({ name: 'retorno-03092026.ret', content: cnab });
+
+      expect(await statusOph(B + 210)).toBe(StatusRemessaEnum.AguardandoPagamento);
+      expect(await statusOph(B + 110)).toBe(StatusRemessaEnum.AguardandoPagamento);
+    });
+
     it('NORMAL: 1a volta BD, depois 00 => AguardandoPagamento => Efetivado', async () => {
       await criarUser(B + 1);
       await criarOpa(B + 10);

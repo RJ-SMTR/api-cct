@@ -7,6 +7,7 @@ import { PagadorService } from 'src/cnab/service/pagamento/pagador.service';
 import { HeaderName } from 'src/cnab/enums/pagamento/header-arquivo-status.enum';
 import { ICnabInfo } from 'src/cnab/cnab.service';
 import { RemessaService } from './remessa.service';
+import { OrdemPagamentoAgrupadoService } from './ordem-pagamento-agrupado.service';
 import {
   IDetalhamentoPorDia,
   ILimparPreparoResult,
@@ -42,6 +43,7 @@ export class PagamentoModalService {
     private pagamentoConsorcioRepository: PagamentoConsorcioRepository,
     private pagadorService: PagadorService,
     private usersService: UsersService,
+    private ordemPagamentoAgrupadoService: OrdemPagamentoAgrupadoService,
   ) {}
 
   /**
@@ -56,23 +58,24 @@ export class PagamentoModalService {
     this.ultimoGratuidade = gratuidade;
 
     const dataPagamento = getInicioDoDiaBrasilia();
-    const pagadores = await this.pagadorService.getAllPagador();
-    const pagador = gratuidade ? pagadores.cett : pagadores.contaBilhetagem;
 
-    for (const modal of MODAIS) {
-      this.logger.log(`Agrupando ordens do modal ${modal}${gratuidade ? ' (gratuidade)' : ''}`);
-      const resultado = await this.pagamentoConsorcioRepository.agruparPorConsorcio(
-        dataInicio,
-        dataFim,
-        dataPagamento,
-        pagador.id,
-        modal,
-        gratuidade,
-      );
-      this.logger.log(
-        `Modal ${modal}: ${resultado.agrupados} agrupado(s), ${resultado.semDadosBancarios} sem dados bancários, ${resultado.bloqueados} bloqueado(s)`,
-      );
+    if (gratuidade) {
+      // Gratuidade (pagador CETT, "valorGratuidade") não existe nas procedures da main —
+      // usa a procedure própria `P_AGRUPAR_ORDENS_CONSORCIO` em modo gratuidade.
+      const pagador = (await this.pagadorService.getAllPagador()).cett;
+      for (const modal of MODAIS) {
+        this.logger.log(`Agrupando ordens do modal ${modal} (gratuidade)`);
+        const resultado = await this.pagamentoConsorcioRepository.agruparPorConsorcio(dataInicio, dataFim, dataPagamento, pagador.id, modal, true);
+        this.logger.log(
+          `Modal ${modal}: ${resultado.agrupados} agrupado(s), ${resultado.semDadosBancarios} sem dados bancários, ${resultado.bloqueados} bloqueado(s)`,
+        );
+      }
+    } else {
+      // Fluxo normal: procedure da main (`P_AGRUPAR_ORDENS`), a mesma usada pelos cron jobs.
+      await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(dataInicio, dataFim, dataPagamento, 'contaBilhetagem', MODAIS);
     }
+    const tiposAtualizados = await this.pagamentoConsorcioRepository.sincronizarTipoContaHistorico(dataPagamento, MODAIS, dataInicio, dataFim);
+    this.logger.log(`Modais agrupados (${tiposAtualizados} histórico(s) com tipo de conta ajustado)`);
 
     await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, MODAIS, false, false, undefined, gratuidade);
   }

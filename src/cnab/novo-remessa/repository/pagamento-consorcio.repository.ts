@@ -169,11 +169,10 @@ export class PagamentoConsorcioRepository {
    * (não agrupadas) e são contabilizadas em `semDadosBancarios`.
    */
   /**
-   * Todo o agrupamento roda dentro da procedure `P_AGRUPAR_ORDENS_CONSORCIO` (ver migration
-   * CreateAgruparOrdensConsorcioProcedure), em SQL orientado a conjunto — sem trazer as
-   * ordens pra aplicação nem fazer INSERTs em blocos daqui. Isso evita as várias idas e
-   * vindas entre app e banco que deixavam o agrupamento de Modais (dezenas de milhares de
-   * ordens) lento.
+   * Agrupamento de GRATUIDADE (pagador CETT): roda na procedure `P_AGRUPAR_ORDENS_CONSORCIO`
+   * (ver migrations CreateAgruparOrdensConsorcioProcedure/AddGratuidadeAgruparOrdensConsorcio),
+   * porque as procedures da main (`P_AGRUPAR_ORDENS`, usadas no agrupamento normal) não
+   * conhecem "valorGratuidade" nem "ordemPagamentoAgrupadoGratuidadeId".
    */
   public async agruparPorConsorcio(
     dataInicio: Date,
@@ -201,6 +200,32 @@ export class PagamentoConsorcioRepository {
       semDadosBancarios: Number(resultado?.p_sem_dados_bancarios ?? 0),
       bloqueados: Number(resultado?.p_bloqueados ?? 0),
     };
+  }
+
+  /**
+   * As procedures da main (`P_AGRUPAR_ORDENS`) gravam o snapshot bancário no histórico mas
+   * não conhecem "userBankAccountType" (fica no default 'corrente'). Este passo copia o tipo
+   * de conta atual do usuário pros históricos recém-criados (statusRemessa 0) desse período,
+   * pra conta poupança Caixa continuar saindo como poupança no CNAB.
+   */
+  public async sincronizarTipoContaHistorico(dataPagamento: Date, consorcios: string[], dataInicio: Date, dataFim: Date): Promise<number> {
+    const [, afetados] = await this.dataSource.query(
+      `
+      UPDATE ordem_pagamento_agrupado_historico oph
+      SET "userBankAccountType" = u."bankAccountType"
+      FROM ordem_pagamento_agrupado opa
+      INNER JOIN ordem_pagamento op ON op."ordemPagamentoAgrupadoId" = opa.id
+      INNER JOIN "user" u ON u.id = op."userId"
+      WHERE oph."ordemPagamentoAgrupadoId" = opa.id
+        AND opa."dataPagamento" = $1
+        AND op."nomeConsorcio" = ANY($2)
+        AND date_trunc('day', op."dataCaptura") BETWEEN $3 AND $4
+        AND oph."statusRemessa" = 0
+        AND oph."userBankAccountType" IS DISTINCT FROM u."bankAccountType"
+      `,
+      [formatDateISODate(dataPagamento), consorcios, formatDateISODate(dataInicio), formatDateISODate(dataFim)],
+    );
+    return Number(afetados ?? 0);
   }
 
   /**

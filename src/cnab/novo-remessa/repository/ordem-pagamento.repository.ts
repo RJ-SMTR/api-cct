@@ -394,6 +394,7 @@ ORDER BY r.data_referencia DESC;`;
 
     const params: any[] = [ordemPagamentoAgrupadoIds, userId];
     let whereData = '';
+    let whereDataGratuidade = '';
 
     if (endDateParam) {
       const today = new Date(endDateParam);
@@ -416,18 +417,37 @@ ORDER BY r.data_referencia DESC;`;
 
       whereData = `AND o."dataOrdem" BETWEEN $3 AND $4
       GROUP BY o.id,  o."dataOrdem", o."dataCaptura"`;
+      // Mesmo filtro de data do lado normal, mas sem o GROUP BY (a CTE de gratuidade já
+      // agrega por dia sozinha, antes do LEFT JOIN — evita duplicar o valor normal).
+      whereDataGratuidade = `AND o."dataOrdem" BETWEEN $3 AND $4`;
       params.push(dataInicio, dataFim);
     }
 
+    // Agrupamento de Gratuidade é independente do normal (FK e coluna de valor próprios) —
+    // pré-agregado por dia numa CTE separada antes de entrar no join final, pro mesmo motivo
+    // de sempre: evitar produto cartesiano que dobraria o valor normal por linha.
     const query = `
+    WITH gratuidade_por_dia AS (
+      SELECT
+        date_trunc('day', o."dataCaptura") AS "dataCaptura",
+        ROUND(SUM(o."valorGratuidade")::numeric, 2) AS "valorGratuidade"
+      FROM ordem_pagamento o
+      WHERE o."userId" = $2
+        AND o."ordemPagamentoAgrupadoGratuidadeId" IS NOT NULL
+        AND o."dataCaptura" IS NOT NULL
+        ${whereDataGratuidade}
+      GROUP BY 1
+    )
     SELECT
           o.id,
-           MAX(ROUND(valor, 2)) as valor,
+           MAX(ROUND(o.valor, 2)) as valor,
             date_trunc('day', o."dataCaptura") "dataCaptura",
-           o."dataOrdem"
+           o."dataOrdem",
+           MAX(g."valorGratuidade") as "valorGratuidade"
     FROM ordem_pagamento o
     INNER JOIN ordem_pagamento_agrupado opa
     ON o."ordemPagamentoAgrupadoId" = opa.id
+    LEFT JOIN gratuidade_por_dia g ON g."dataCaptura" = date_trunc('day', o."dataCaptura")
     WHERE 1 = 1
       AND opa.id = ANY(string_to_array($1, ',')::int[])
       AND o."dataCaptura" IS NOT NULL
@@ -444,6 +464,7 @@ ORDER BY r.data_referencia DESC;`;
       ordemPagamento.ordemId = row.id;
       ordemPagamento.dataCaptura = row.dataCaptura;
       ordemPagamento.valor = row.valor ? parseFloat(row.valor) : 0;
+      ordemPagamento.valorGratuidade = row.valorGratuidade != null ? parseFloat(row.valorGratuidade) : undefined;
       return ordemPagamento;
     });
 
@@ -683,19 +704,21 @@ ORDER BY r.data_referencia DESC;`;
     return result.map((r: DeepPartial<OrdemPagamentoAgrupado> | undefined) => new OrdemPagamentoAgrupado(r))[0];
   }
 
-  public async agruparOrdensDePagamentoPendentes(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: Pagador, idOperadoras?: string[]): Promise<void> {
+  public async agruparOrdensDePagamentoPendentes(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: Pagador, idsFavorecidos?: string[]): Promise<void> {
     const dtInicialStr = dataInicial.toISOString().split('T')[0];
     const dtFinalStr = dataFinal.toISOString().split('T')[0];
     const dtPgtoStr = dataPgto.toISOString().split('T')[0];
-    const ipOperadorasJoin = idOperadoras ? idOperadoras.join(',') : '';
-    await this.ordemPagamentoRepository.query(`CALL P_AGRUPAR_ORDENS_PENDENTES($1, $2, $3, $4, $5)`, [`${dtInicialStr} 00:00:00`, `${dtFinalStr} 23:59:59`, dtPgtoStr, pagador.id, `{${ipOperadorasJoin}}`]);
+    // NULL disables filtering; an empty SQL array would exclude every beneficiary.
+    const idsFavorecidosParam = idsFavorecidos && idsFavorecidos.length ? `{${idsFavorecidos.join(',')}}` : null;
+    await this.ordemPagamentoRepository.query(`CALL P_AGRUPAR_ORDENS_PENDENTES($1, $2, $3, $4, $5)`, [`${dtInicialStr} 00:00:00`, `${dtFinalStr} 23:59:59`, dtPgtoStr, pagador.id, idsFavorecidosParam]);
   }
-  public async agruparOrdensDeEstornadosRejeitados(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: Pagador, idOperadoras?: string[]): Promise<void> {
+  public async agruparOrdensPendentesConsorcio(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: Pagador, idsFavorecidos?: string[]): Promise<void> {
     const dtInicialStr = dataInicial.toISOString().split('T')[0];
     const dtFinalStr = dataFinal.toISOString().split('T')[0];
     const dtPgtoStr = dataPgto.toISOString().split('T')[0];
-    const ipOperadorasJoin = idOperadoras ? idOperadoras.join(',') : '';
-    await this.ordemPagamentoRepository.query(`CALL P_AGRUPAR_ORDENS_ESTORNOS_REJEITADOS($1, $2, $3, $4, $5)`, [`${dtInicialStr} 00:00:00`, `${dtFinalStr} 23:59:59`, dtPgtoStr, pagador.id, `{${ipOperadorasJoin}}`]);
+    // NULL disables filtering for an omitted or empty operator list.
+    const idsFavorecidosParam = idsFavorecidos && idsFavorecidos.length ? `{${idsFavorecidos.join(',')}}` : null;
+    await this.ordemPagamentoRepository.query(`CALL P_AGRUPAR_ORDENS_CONSORCIO_PENDENTES($1, $2, $3, $4, $5)`, [`${dtInicialStr} 00:00:00`, `${dtFinalStr} 23:59:59`, dtPgtoStr, pagador.id, idsFavorecidosParam]);
   }
 
   public async findOrdensAgrupadas(dataInicio: Date, dataFim: Date, consorcios: string[]) {

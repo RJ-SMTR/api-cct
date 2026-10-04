@@ -3,12 +3,12 @@ import * as bcrypt from 'bcryptjs';
 import { UsersService } from 'src/users/users.service';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { getInicioDoDiaBrasilia } from 'src/utils/date-utils';
-import { PagadorService } from 'src/cnab/service/pagamento/pagador.service';
 import { DetalheAValorLancamentoAuditoria } from 'src/cnab/entity/pagamento/detalhe-a-valor-lancamento-auditoria.entity';
 import { DetalheARepository } from 'src/cnab/repository/pagamento/detalhe-a.repository';
 import { HeaderName } from 'src/cnab/enums/pagamento/header-arquivo-status.enum';
 import { ICnabInfo } from 'src/cnab/cnab.service';
 import { RemessaService } from './remessa.service';
+import { OrdemPagamentoAgrupadoService } from './ordem-pagamento-agrupado.service';
 import {
   IDetalhamentoPorDia,
   ILimparPreparoResult,
@@ -32,19 +32,18 @@ export class PagamentoGuardadorService {
     private remessaService: RemessaService,
     private detalheARepository: DetalheARepository,
     private pagamentoGuardadorRepository: PagamentoGuardadorRepository,
-    private pagadorService: PagadorService,
+    private ordemPagamentoAgrupadoService: OrdemPagamentoAgrupadoService,
     private usersService: UsersService,
   ) {}
 
   async prepararPagamentos(dataInicio: Date, dataFim: Date): Promise<IPagamentoGuardadorPreparado[]> {
     const dataPagamento = getInicioDoDiaBrasilia();
-    const pagador = (await this.pagadorService.getAllPagador()).contaRotativo;
 
-    this.logger.log(`Agrupando ordens de guardador`);
-    const resultado = await this.pagamentoGuardadorRepository.agruparGuardador(dataInicio, dataFim, dataPagamento, pagador.id);
-    this.logger.log(
-      `Guardador: ${resultado.agrupados} agrupado(s), ${resultado.semDadosBancarios} sem dados bancários, ${resultado.bloqueados} bloqueado(s)`,
-    );
+    // Agrupamento pela procedure da main (`P_AGRUPAR_ORDENS_GUARDADOR`), a mesma usada pelos cron jobs.
+    // Lista de consórcios vazia = fluxo de guardador no `prepararPagamentoAgrupados`.
+    await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(dataInicio, dataFim, dataPagamento, 'contaRotativo', []);
+    const tiposAtualizados = await this.pagamentoGuardadorRepository.sincronizarTipoContaHistorico(dataPagamento, dataInicio, dataFim);
+    this.logger.log(`Guardadores agrupados (${tiposAtualizados} histórico(s) com tipo de conta ajustado)`);
 
     await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, [], false);
 

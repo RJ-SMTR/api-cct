@@ -26,11 +26,6 @@ export interface IPagamentoGuardadorPreparadoPaginado {
   valorTotalBi: number;
 }
 
-export interface IAgruparGuardadorResult {
-  agrupados: number;
-  semDadosBancarios: number;
-  bloqueados: number;
-}
 
 interface IGrupoPorUsuario {
   userId: number;
@@ -131,132 +126,27 @@ export class PagamentoGuardadorRepository {
   }
 
   /**
-   * Agrupa, por pessoa (userId), todas as ordens de guardador ainda não agrupadas no período
-   * informado — só quem tem dados bancários completos e não está bloqueado (mesma regra dos
-   * consórcios/modais). Bulk insert em blocos, igual ao `agruparPorConsorcio`.
+   * As procedures da main (`P_AGRUPAR_ORDENS_GUARDADOR`) gravam o snapshot bancário no histórico
+   * mas não conhecem "userBankAccountType" (fica no default 'corrente'). Copia o tipo de conta
+   * atual do usuário pros históricos recém-criados (statusRemessa 0) desse período.
    */
-  public async agruparGuardador(dataInicio: Date, dataFim: Date, dataPagamento: Date, pagadorId: number): Promise<IAgruparGuardadorResult> {
-    const dtInicioStr = formatDateISODate(dataInicio);
-    const dtFimStr = formatDateISODate(dataFim);
-    const dtPagamentoStr = formatDateISODate(dataPagamento);
-
-    const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    await queryRunner.startTransaction();
-    try {
-      const grupos: IGrupoPorUsuario[] = await queryRunner.query(
-        `
-        SELECT op."userId" AS "userId",
-               SUM(op."valorRepasseGuardador") AS "valorTotal",
-               ARRAY_AGG(op.id) AS "orderIds",
-               u."bankCode" AS "bankCode",
-               u."bankAgency" AS "bankAgency",
-               u."bankAccount" AS "bankAccount",
-               u."bankAccountDigit" AS "bankAccountDigit",
-               u."bloqueado" AS "bloqueado"
-        FROM ordem_pagamento_guardador op
-        INNER JOIN "user" u ON u.id = op."userId"
-        WHERE op."ordemPagamentoAgrupadoId" IS NULL
-          AND op."userId" IS NOT NULL
-          AND date_trunc('day', op."dataOrdem") BETWEEN $1 AND $2
-        GROUP BY op."userId", u."bankCode", u."bankAgency", u."bankAccount", u."bankAccountDigit", u."bloqueado"
-        `,
-        [dtInicioStr, dtFimStr],
-      );
-
-      let semDadosBancarios = 0;
-      let bloqueados = 0;
-      const elegiveis: IGrupoPorUsuario[] = [];
-
-      for (const grupo of grupos) {
-        if (grupo.bloqueado) {
-          bloqueados += 1;
-          this.logger.warn(`Usuário ${grupo.userId} bloqueado, não agrupado (guardador)`);
-          continue;
-        }
-
-        const temDadosBancarios = Boolean(grupo.bankCode) && Boolean(grupo.bankAgency) && Boolean(grupo.bankAccount) && Boolean(grupo.bankAccountDigit);
-        if (!temDadosBancarios) {
-          semDadosBancarios += 1;
-          this.logger.warn(`Usuário ${grupo.userId} sem dados bancários completos, não agrupado (guardador)`);
-          continue;
-        }
-
-        elegiveis.push(grupo);
-      }
-
-      const TAMANHO_BLOCO = 500;
-      for (let inicio = 0; inicio < elegiveis.length; inicio += TAMANHO_BLOCO) {
-        const bloco = elegiveis.slice(inicio, inicio + TAMANHO_BLOCO);
-
-        const insertAgrupadoValues: string[] = [];
-        const insertAgrupadoParams: unknown[] = [];
-        for (const grupo of bloco) {
-          const p = insertAgrupadoParams.length;
-          insertAgrupadoValues.push(`(nextval('ordem_pagamento_agrupado_id_seq'), $${p + 1}, $${p + 2}, now(), now(), $${p + 3})`);
-          insertAgrupadoParams.push(dtPagamentoStr, grupo.valorTotal, pagadorId);
-        }
-
-        const opaRows: { id: number }[] = await queryRunner.query(
-          `
-          INSERT INTO ordem_pagamento_agrupado (id, "dataPagamento", "valorTotal", "createdAt", "updatedAt", "pagadorId")
-          VALUES ${insertAgrupadoValues.join(', ')}
-          RETURNING id
-          `,
-          insertAgrupadoParams,
-        );
-        const opaIds = opaRows.map((r) => r.id);
-
-        const updateValues: string[] = [];
-        const updateParams: unknown[] = [];
-        bloco.forEach((grupo, idx) => {
-          const opaId = opaIds[idx];
-          for (const orderId of grupo.orderIds) {
-            const p = updateParams.length;
-            updateValues.push(`($${p + 1}::int, $${p + 2}::int)`);
-            updateParams.push(orderId, opaId);
-          }
-        });
-        if (updateValues.length > 0) {
-          await queryRunner.query(
-            `
-            UPDATE ordem_pagamento_guardador op
-            SET "ordemPagamentoAgrupadoId" = v.opa_id
-            FROM (VALUES ${updateValues.join(', ')}) AS v(order_id, opa_id)
-            WHERE op.id = v.order_id
-            `,
-            updateParams,
-          );
-        }
-
-        const insertHistValues: string[] = [];
-        const insertHistParams: unknown[] = [];
-        bloco.forEach((grupo, idx) => {
-          const opaId = opaIds[idx];
-          const p = insertHistParams.length;
-          insertHistValues.push(`(nextval('ordem_pagamento_agrupado_historico_id_seq'), $${p + 1}, now(), $${p + 2}, $${p + 3}, $${p + 4}, $${p + 5}, $${p + 6})`);
-          insertHistParams.push(opaId, grupo.bankAccountDigit, grupo.bankAccount, grupo.bankAgency, String(grupo.bankCode), StatusRemessaEnum.Criado);
-        });
-        await queryRunner.query(
-          `
-          INSERT INTO ordem_pagamento_agrupado_historico
-            (id, "ordemPagamentoAgrupadoId", "dataReferencia", "userBankAccountDigit", "userBankAccount", "userBankAgency", "userBankCode", "statusRemessa")
-          VALUES ${insertHistValues.join(', ')}
-          `,
-          insertHistParams,
-        );
-      }
-
-      const agrupados = elegiveis.length;
-
-      await queryRunner.commitTransaction();
-      return { agrupados, semDadosBancarios, bloqueados };
-    } catch (error) {
-      await queryRunner.rollbackTransaction();
-      throw error;
-    } finally {
-      await queryRunner.release();
-    }
+  public async sincronizarTipoContaHistorico(dataPagamento: Date, dataInicio: Date, dataFim: Date): Promise<number> {
+    const [, afetados] = await this.dataSource.query(
+      `
+      UPDATE ordem_pagamento_agrupado_historico oph
+      SET "userBankAccountType" = u."bankAccountType"
+      FROM ordem_pagamento_agrupado opa
+      INNER JOIN ordem_pagamento_guardador og ON og."ordemPagamentoAgrupadoId" = opa.id
+      INNER JOIN "user" u ON u.id = og."userId"
+      WHERE oph."ordemPagamentoAgrupadoId" = opa.id
+        AND opa."dataPagamento" = $1
+        AND date_trunc('day', og."dataOrdem") BETWEEN $2 AND $3
+        AND oph."statusRemessa" = 0
+        AND oph."userBankAccountType" IS DISTINCT FROM u."bankAccountType"
+      `,
+      [formatDateISODate(dataPagamento), formatDateISODate(dataInicio), formatDateISODate(dataFim)],
+    );
+    return Number(afetados ?? 0);
   }
 
   /**

@@ -43,3 +43,14 @@ local.Dockerfile
 docker-compose*.local.yaml
 env-local-docker
 ~$*
+
+# AI workflow working files (see CLAUDE.md)
+/docs/PRD.md
+/docs/TASKS.md
+/docs/tasks/
+/docs/task-runs/
+/docs/archive/
+
+# personal Claude Code overrides
+/.claude/settings.local.json
+*.tsbuildinfo

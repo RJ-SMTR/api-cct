@@ -73,7 +73,7 @@ export class OrdemPagamentoAgrupadoRepository {
     dataFim: Date,
     nomeConsorcio?: string[],
     dataPagamento?: Date,
-    idOperadoras?: string[]
+    idsFavorecidos?: string[]
   ): Promise<OrdemPagamentoAgrupado[]> {
     const dataIniForm = formatDateISODate(dataInicio);
     const dataFimForm = formatDateISODate(dataFim);
@@ -105,8 +105,8 @@ export class OrdemPagamentoAgrupadoRepository {
     if (nomeConsorcio && nomeConsorcio.length) {
       query += ` AND op."nomeConsorcio" IN ('${nomeConsorcio.join("','")}')`;
     }
-    if(idOperadoras && idOperadoras.length){
-      query += ` AND op."userId" IN ('${idOperadoras.join("','")}')`;
+    if(idsFavorecidos && idsFavorecidos.length){
+      query += ` AND op."userId" IN ('${idsFavorecidos.join("','")}')`;
     }
 
     this.logger.debug(query);
@@ -172,17 +172,14 @@ export class OrdemPagamentoAgrupadoRepository {
     return result.map((r) => new OrdemPagamentoAgrupado(r));
   }
 
-  public async findAllUnica(dataInicio: Date, dataFim: Date, dataPgto: Date, statusRemessa?: StatusRemessaEnum): Promise<OrdemPagamentoAgrupado[]> {
+  public async findAllUnica(dataInicio: Date, dataFim: Date, statusRemessa?: StatusRemessaEnum): Promise<OrdemPagamentoAgrupado[]> {
     const dataIniForm = formatDateISODate(dataInicio)
-    const dataFimForm = formatDateISODate(dataFim)
-    const dataPgtoForm = formatDateISODate(dataPgto)
-    let query = ` select distinct opa.* from ordem_pagamento_unico op
-					        inner join ordem_pagamento_agrupado opa on cast(opa.id as varchar) = op."idOrdemPagamento" 
-							    inner join ordem_pagamento_agrupado_historico oph on opa.id = oph."ordemPagamentoAgrupadoId"
-							                            and oph."dataReferencia" =
-                                          (select max(ophh."dataReferencia") from ordem_pagamento_agrupado_historico ophh
-					                                where cast(ophh."ordemPagamentoAgrupadoId" as varchar)=op."idOrdemPagamento") 
-                  where (oph."dataReferencia"='${dataPgtoForm}') `
+    const dataFimForm = formatDateISODate(dataFim)    
+    let query = ` select distinct opa.* 
+                  from ordem_pagamento_unico op
+				          inner join ordem_pagamento_agrupado opa on cast(opa.id as varchar) = op."idOrdemPagamento" 
+                  inner join ordem_pagamento_agrupado_historico oph on opa.id = oph."ordemPagamentoAgrupadoId"
+                  where (1=1)  `
 
     if (statusRemessa === undefined || statusRemessa === StatusRemessaEnum.Criado) {
       query = query + ` and oph."statusRemessa"= 0 `;
