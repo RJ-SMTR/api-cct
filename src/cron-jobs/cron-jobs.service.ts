@@ -827,20 +827,30 @@ export class CronJobsService {
     // const dataInicio = new Date('2026-09-28');
     // const dataFim = new Date('2026-09-30');
 
+    if (gratuidade) {
+      await this.geradorRemessaGratuidadeExec(dataInicio, dataFim, today, consorcios, HeaderName.MODAL);
+      return;
+    }
     const consorcios = ['STPC', 'STPL', 'TEC'];
     await this.limparAgrupamentos(dataInicio, dataFim, consorcios);
     await this.geradorRemessaExec(dataInicio, dataFim, today,
       consorcios, HeaderName.MODAL, pagamentoUnico);
+
   }
   /**
-   * Agrupamento da gratuidade: pagador CETT e valor de ordem_pagamento.valorGratuidade.
-   * Não chama limparAgrupamentos (apagaria os agrupamentos normais do intervalo) e ainda não
-   * gera/envia o CNAB, pois prepararRemessa lê os agrupados por ordemPagamentoAgrupadoId.
+   * Remessa de gratuidade: agrupa com o pagador CETT usando ordem_pagamento.valorGratuidade
+   * (vínculo em ordemPagamentoAgrupadoGratuidadeId), prepara, gera e envia o CNAB.
+   * Não chama limparAgrupamentos, que apagaria os agrupamentos normais do intervalo.
    */
-  private async agruparGratuidadeExec(dataInicio: Date, dataFim: Date, dataPagamento: Date, consorcios: string[]) {
+  private async geradorRemessaGratuidadeExec(dataInicio: Date, dataFim: Date, dataPagamento: Date,
+    consorcios: string[], headerName: HeaderName) {
     for (const consorcio of consorcios) {
       await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupadosGratuidade(dataInicio, dataFim, dataPagamento, "cett", [consorcio]);
     }
+    await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, consorcios, false, false, undefined, true);
+
+    const txt = await this.remessaService.gerarCnabText(headerName, false, false, consorcios, true);
+    await this.remessaService.enviarRemessa(txt, headerName);
   }
 
 
