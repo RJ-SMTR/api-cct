@@ -118,8 +118,7 @@ export class CronJobsService {
     });
   }
 
-  async onModuleLoad() {     
-    await this.remessaModalExec();
+  async onModuleLoad() {        
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -810,7 +809,7 @@ export class CronJobsService {
 
   
   async remessaModalExec(pagamentoUnico?: boolean, gratuidade?: boolean) {
-    const today = new Date("2026-10-05");
+    const today = new Date();
     let subDaysInt = 0;
 
     if (isTuesday(today)) {
@@ -827,16 +826,16 @@ export class CronJobsService {
     // const dataInicio = new Date('2026-09-28');
     // const dataFim = new Date('2026-09-30');
 
+    const consorcios = ['STPC', 'STPL', 'TEC'];
     if (gratuidade) {
       await this.geradorRemessaGratuidadeExec(dataInicio, dataFim, today, consorcios, HeaderName.MODAL);
       return;
     }
-    const consorcios = ['STPC', 'STPL', 'TEC'];
     await this.limparAgrupamentos(dataInicio, dataFim, consorcios);
     await this.geradorRemessaExec(dataInicio, dataFim, today,
       consorcios, HeaderName.MODAL, pagamentoUnico);
-
   }
+
   /**
    * Remessa de gratuidade: agrupa com o pagador CETT usando ordem_pagamento.valorGratuidade
    * (vínculo em ordemPagamentoAgrupadoGratuidadeId), prepara, gera e envia o CNAB.
@@ -847,12 +846,12 @@ export class CronJobsService {
     for (const consorcio of consorcios) {
       await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupadosGratuidade(dataInicio, dataFim, dataPagamento, "cett", [consorcio]);
     }
+
     await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, consorcios, false, false, undefined, true);
 
     const txt = await this.remessaService.gerarCnabText(headerName, false, false, consorcios, true);
     await this.remessaService.enviarRemessa(txt, headerName);
   }
-
 
   async remessaGuardadorExec(pagamentoUnico?: boolean) {
     const today = new Date();
