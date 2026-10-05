@@ -320,8 +320,10 @@ export class UsersRepository {
 
       if (fields?.name || fields?._anyField?.value) {
         const fieldName = fields?.name || fields?._anyField?.value;
-        return qb
-          .where(() => (whereFields.length > 0 ? whereFields : '1 = 0'))
+        const qbWithWhere =
+          whereFields.length > 0 ? qb.where(whereFields) : qb.where('1 = 0');
+
+        return qbWithWhere
           .orWhere(
             'unaccent(UPPER("user"."fullName")) ILIKE unaccent(UPPER(:name))',
             { name: `%${fieldName}%` },

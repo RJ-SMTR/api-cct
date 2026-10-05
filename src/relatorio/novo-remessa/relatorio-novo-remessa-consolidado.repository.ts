@@ -441,15 +441,38 @@ export class RelatorioNovoRemessaConsolidadoRepository {
 
     query += ` ORDER BY "nome" ASC `;
 
-    this.logger.debug(`Executing query: ${query} with params: ${params.join(', ')}`, RelatorioNovoRemessaConsolidadoRepository.name);
+    const hasPagination = filter.page !== undefined && filter.pageSize !== undefined;
+    const baseParams = [...params];
+
+    let paginatedQuery = query;
+
+    if (hasPagination) {
+      const page = filter.page as number;
+      const pageSize = filter.pageSize as number;
+      const offset = (page - 1) * pageSize;
+      paginatedQuery = `SELECT *, COUNT(*) OVER() AS "totalCount" FROM (${query}) AS P LIMIT $${paramIndex++} OFFSET $${paramIndex++}`;
+      params.push(pageSize, offset);
+    }
+
+    this.logger.debug(`Executing query: ${paginatedQuery} with params: ${params.join(', ')}`, RelatorioNovoRemessaConsolidadoRepository.name);
 
     const queryRunner = this.dataSource.createQueryRunner();
 
     await queryRunner.connect();
 
-    const result = await queryRunner.query(query, params);
+    let result: any[];
+    let valorTotal = 0;
 
-    await queryRunner.release();
+    try {
+      result = await queryRunner.query(paginatedQuery, params);
+
+      if (hasPagination) {
+        const totalRows = await queryRunner.query(query, baseParams);
+        valorTotal = totalRows.reduce((acc: number, curr: { valor: any; }) => acc + parseFloat(String(curr.valor)), 0);
+      }
+    } finally {
+      await queryRunner.release();
+    }
 
     const mappedResults = result.map((r) => {
       const elem = new RelatorioConsolidadoNovoRemessaData();
@@ -458,10 +481,14 @@ export class RelatorioNovoRemessaConsolidadoRepository {
       return elem;
     });
 
+    const totalCount = hasPagination
+      ? (result.length > 0 ? parseInt(String(result[0].totalCount), 10) : 0)
+      : mappedResults.length;
+
     return new RelatorioConsolidadoNovoRemessaDto({
       data: mappedResults,
-      count: mappedResults.length,
-      valor: mappedResults.reduce((acc: any, curr: { valor: any; }) => acc + curr.valor, 0),
+      count: totalCount,
+      valor: hasPagination ? valorTotal : mappedResults.reduce((acc: any, curr: { valor: any; }) => acc + curr.valor, 0),
     });
   }
 

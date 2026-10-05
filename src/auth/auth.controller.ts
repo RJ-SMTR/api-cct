@@ -9,6 +9,7 @@ import { User } from '../users/entities/user.entity';
 import { LoginResponseType } from '../utils/types/auth/login-response.type';
 import { Nullable } from '../utils/types/nullable.type';
 import { AuthService } from './auth.service';
+import { AuthChangePasswordDto } from './dto/auth-change-password.dto';
 import { AuthConfirmEmailDto } from './dto/auth-confirm-email.dto';
 import { AuthCpfLoginDto } from './dto/auth-cpf-login.dto';
 import { AuthEmailLoginDto } from './dto/auth-email-login.dto';
@@ -130,5 +131,20 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   public update(@Request() request, @Body() userDto: AuthUpdateDto): Promise<Nullable<User>> {
     return this.authService.update(request.user, userDto);
+  }
+
+  @ApiBearerAuth()
+  @Patch('change-password')
+  @UseGuards(AuthGuard('jwt'))
+  @HttpCode(HttpStatus.OK)
+  public changePassword(
+    @Request() request,
+    @Body() changePasswordDto: AuthChangePasswordDto,
+  ): Promise<void> {
+    return this.authService.changePassword(
+      request.user,
+      changePasswordDto.currentPassword,
+      changePasswordDto.newPassword,
+    );
   }
 }

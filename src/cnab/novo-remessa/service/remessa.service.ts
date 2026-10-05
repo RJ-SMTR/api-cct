@@ -51,16 +51,15 @@ export class RemessaService {
   ) { }
 
   //PREPARA DADOS AGRUPADOS SALVANDO NAS TABELAS CNAB
-  public async prepararRemessa(dataInicio: Date, dataFim: Date, dataPgto?: Date, consorcio?: string[], pagamentoUnico?: boolean, isPendente?: boolean, idsFavorecidos?: string[]) {
+  public async prepararRemessa(dataInicio: Date, dataFim: Date, dataPgto?: Date, consorcio?: string[], pagamentoUnico?: boolean, isPendente?: boolean, idsFavorecidos?: string[], gratuidade = false) {
     let ordens;
     if (pagamentoUnico) {
-      ordens = await this.ordemPagamentoAgrupadoService.getOrdensUnicas(dataInicio, dataFim,
-        dataPgto ? dataPgto : new Date());
+      ordens = await this.ordemPagamentoAgrupadoService.getOrdensUnicas(dataInicio, dataFim);
     } else {
       if (isPendente) {
         ordens = await this.ordemPagamentoAgrupadoService.getOrdensPendentes(dataInicio, dataFim, consorcio, dataPgto, idsFavorecidos);
       } else {
-        ordens = await this.ordemPagamentoAgrupadoService.getOrdens(dataInicio, dataFim, consorcio);
+        ordens = await this.ordemPagamentoAgrupadoService.getOrdens(dataInicio, dataFim, consorcio, undefined, gratuidade);
       }
     }
 
@@ -69,10 +68,30 @@ export class RemessaService {
       const pagador = await this.pagadorService.getOneByIdPagador(ordens[0].pagadorId);
 
       if (!isEmpty(ordens)) {
-        const headerArquivo = await this.gerarHeaderArquivo(pagador, this.getHeaderName(consorcio));
+        const headerArquivo = await this.gerarHeaderArquivo(pagador, this.getHeaderName(consorcio, gratuidade));
         let nsrTed = 1;
         let nsrCC = 1;
-        for (let i = 0; i < ordens.length; i++) {
+        let nsrPoupanca = 1;
+        // Duas otimizações puramente de cache, sem mudar nenhuma decisão do loop: (1) o
+        // header lote de um bankCode só muda entre "104" (CC) e qualquer outro (TED) — sem
+        // isso, cada uma das milhares de ordens de um lote grande (ex.: modais) refazia a
+        // mesma consulta pra achar o mesmíssimo header lote; (2) o número do documento é
+        // hoje uma query de COUNT(*) idêntica a cada iteração — como só muda quando um
+        // DetalheA novo é de fato inserido (não em atualização), dá pra pedir o valor uma
+        // vez e incrementar em memória, replicando exatamente o mesmo resultado.
+        const headerLoteCache = new Map<string, HeaderLote>();
+        const numeroDocumentoRef = { value: await this.detalheAService.getNextNumeroDocumento(new Date()) };
+
+        // Otimização 3: a resolução de op/user/indevido/opa de cada ordem é só leitura e
+        // independente entre ordens — só a geração do DetalheA/B (que consome nsr/numeroDocumento
+        // em sequência) precisa ser estritamente sequencial. Por isso resolvemos um lote de ordens
+        // em paralelo antes do loop de geração, mantendo a MESMA lógica/chamadas de cada ordem
+        // (nada de bulk SQL novo aqui) e a MESMA ordem/sequência na hora de gravar.
+        const TAMANHO_LOTE_LEITURA = 25;
+        interface IOrdemResolvida { user: any; indevido: any; opa: any; }
+        const resolvidos: (IOrdemResolvida | null)[] = new Array(ordens.length).fill(null);
+
+        const resolverOrdem = async (i: number) => {
           let parentOp = (ordens[i].ordemPagamentoAgrupadoId === null);
           let op;
           let opaChild;
@@ -81,7 +100,9 @@ export class RemessaService {
           } else {
             if (!parentOp) {
               if (consorcio && consorcio.length > 0) {
-                op = await this.ordemPagamentoAgrupadoService.getOrdemPagamento(ordens[i].id);
+                op = gratuidade
+                  ? await this.ordemPagamentoAgrupadoService.getOrdemPagamentoGratuidade(ordens[i].id)
+                  : await this.ordemPagamentoAgrupadoService.getOrdemPagamento(ordens[i].id);
               } else {
                 op = await this.ordemPagamentoAgrupadoService.getOrdemPagamentoGuardador(ordens[i].id);
               }
@@ -89,14 +110,18 @@ export class RemessaService {
               opaChild = await this.ordemPagamentoAgrupadoService.getOrdemPagamentoAgrupadoChild(ordens[i].id);
               if (opaChild) {
                 if (consorcio && consorcio.length > 0) {
-                  op = await this.ordemPagamentoAgrupadoService.getOrdemPagamento(opaChild.id);
+                  op = gratuidade
+                    ? await this.ordemPagamentoAgrupadoService.getOrdemPagamentoGratuidade(opaChild.id)
+                    : await this.ordemPagamentoAgrupadoService.getOrdemPagamento(opaChild.id);
                 } else {
                   op = await this.ordemPagamentoAgrupadoService.getOrdemPagamentoGuardador(opaChild.id);
                 }
               } else {
                 parentOp = false
                 if (consorcio && consorcio.length > 0) {
-                  op = await this.ordemPagamentoAgrupadoService.getOrdemPagamento(ordens[i].id);
+                  op = gratuidade
+                    ? await this.ordemPagamentoAgrupadoService.getOrdemPagamentoGratuidade(ordens[i].id)
+                    : await this.ordemPagamentoAgrupadoService.getOrdemPagamento(ordens[i].id);
                 } else {
                   op = await this.ordemPagamentoAgrupadoService.getOrdemPagamentoGuardador(ordens[i].id);
                 }
@@ -104,50 +129,89 @@ export class RemessaService {
             }
           }
 
-          if (op != null) {
-            let user
-            if (pagamentoUnico) {
-              user = await this.userService.getOne({ permitCode: op.idOperadora });
+          if (op == null) {
+            return;
+          }
+
+          let user
+          if (pagamentoUnico) {
+            user = await this.userService.getOne({ permitCode: op.idOperadora });
+          } else {
+            if (consorcio && consorcio.length > 0) {
+              user = await this.userService.getOne({ id: op.userId });
             } else {
-              if (consorcio && consorcio.length > 0) {
-                user = await this.userService.getOne({ id: op.userId });
-              } else {
-                user = op.user;
-              }
+              user = op.user;
             }
-            if (user.bankCode) {
-              const indevido = await this.pagamentoIndevidoService.findByNome(user.fullName);
+          }
 
-              const headerLote = await this.gerarHeaderLote(headerArquivo, pagador, user.bankCode);
-              let detB;
-              let opa;
-              if (pagamentoUnico) {
-                opa = await this.ordemPagamentoAgrupadoService.getOrdemPagamentoAgrupado(Number(op.idOrdemPagamento));
-              } else {
-                if (parentOp) {
-                  const opaParent = await this.ordemPagamentoAgrupadoService.getOrdemPagamentoAgrupadoRepo(ordens[i].id);
-                  opa = opaParent
-                } else {
-                  opa = op.ordemPagamentoAgrupado
-                }
+          if (!user.bankCode) {
+            return;
+          }
+
+          const indevido = await this.pagamentoIndevidoService.findByNome(user.fullName);
+
+          let opa;
+          if (pagamentoUnico) {
+            opa = await this.ordemPagamentoAgrupadoService.getOrdemPagamentoAgrupado(Number(op.idOrdemPagamento));
+          } else {
+            if (parentOp) {
+              opa = await this.ordemPagamentoAgrupadoService.getOrdemPagamentoAgrupadoRepo(ordens[i].id);
+            } else {
+              opa = op.ordemPagamentoAgrupado
+            }
+          }
+
+          resolvidos[i] = { user, indevido, opa };
+        };
+
+        for (let inicio = 0; inicio < ordens.length; inicio += TAMANHO_LOTE_LEITURA) {
+          const fim = Math.min(inicio + TAMANHO_LOTE_LEITURA, ordens.length);
+          const promessas: Promise<void>[] = [];
+          for (let i = inicio; i < fim; i++) {
+            promessas.push(resolverOrdem(i));
+          }
+          await Promise.all(promessas);
+        }
+
+        for (let i = 0; i < ordens.length; i++) {
+          const resolvido = resolvidos[i];
+          if (resolvido == null) {
+            continue;
+          }
+          const { user, indevido, opa } = resolvido;
+
+          const ehPoupanca = user.bankAccountType === 'poupanca';
+          const headerLoteCacheKey = user.bankCode === 104 ? (ehPoupanca ? 'CC_POUPANCA' : 'CC') : 'TED';
+          let headerLote = headerLoteCache.get(headerLoteCacheKey);
+          if (!headerLote) {
+            headerLote = await this.gerarHeaderLote(headerArquivo, pagador, user.bankCode, ehPoupanca);
+            if (headerLote) {
+              headerLoteCache.set(headerLoteCacheKey, headerLote);
+            }
+          }
+          let detB;
+
+          if (headerLote) {
+            if (headerLote.formaLancamento === Cnab104FormaLancamento.TED) {
+              detB = await this.gerarDetalheAB(headerLote, opa, nsrTed, indevido ? indevido[0] : indevido, pagamentoUnico, numeroDocumentoRef);
+              if (detB !== null) {
+                this.atualizaStatusRemessa(ordens[i], StatusRemessaEnum.PreparadoParaEnvio);
+                this.logger.debug(`Remessa preparado para: ${user.fullName} - TED`);
+                nsrTed = detB.nsr + 1;
               }
-
-              if (headerLote) {
-                if (headerLote.formaLancamento === '41') {
-                  detB = await this.gerarDetalheAB(headerLote, opa, nsrTed, indevido ? indevido[0] : indevido, pagamentoUnico);
-                  if (detB !== null) {
-                    this.atualizaStatusRemessa(ordens[i], StatusRemessaEnum.PreparadoParaEnvio);
-                    this.logger.debug(`Remessa preparado para: ${user.fullName} - TED`);
-                    nsrTed = detB.nsr + 1;
-                  }
-                } else {
-                  detB = await this.gerarDetalheAB(headerLote, opa, nsrCC, indevido ? indevido[0] : indevido, pagamentoUnico);
-                  if (detB !== null) {
-                    this.atualizaStatusRemessa(ordens[i], StatusRemessaEnum.PreparadoParaEnvio);
-                    this.logger.debug(`Remessa preparado para: ${user.fullName} - CC`);
-                    nsrCC = detB.nsr + 1;
-                  }
-                }
+            } else if (headerLote.formaLancamento === Cnab104FormaLancamento.CreditoContaPoupanca) {
+              detB = await this.gerarDetalheAB(headerLote, opa, nsrPoupanca, indevido ? indevido[0] : indevido, pagamentoUnico, numeroDocumentoRef);
+              if (detB !== null) {
+                this.atualizaStatusRemessa(ordens[i], StatusRemessaEnum.PreparadoParaEnvio);
+                this.logger.debug(`Remessa preparado para: ${user.fullName} - Poupança`);
+                nsrPoupanca = detB.nsr + 1;
+              }
+            } else {
+              detB = await this.gerarDetalheAB(headerLote, opa, nsrCC, indevido ? indevido[0] : indevido, pagamentoUnico, numeroDocumentoRef);
+              if (detB !== null) {
+                this.atualizaStatusRemessa(ordens[i], StatusRemessaEnum.PreparadoParaEnvio);
+                this.logger.debug(`Remessa preparado para: ${user.fullName} - CC`);
+                nsrCC = detB.nsr + 1;
               }
             }
           }
@@ -157,16 +221,16 @@ export class RemessaService {
   }
 
   //PEGA INFORMAÇÕS DAS TABELAS CNAB E GERA O TXT PARA ENVIAR PARA O BANCO
-  async gerarCnabText(headerName: HeaderName, pagamentoUnico?: boolean, isPendente?: boolean, consorcios?: string[]): Promise<ICnabInfo[]> {
+  async gerarCnabText(headerName: HeaderName, pagamentoUnico?: boolean, isPendente?: boolean, consorcios?: string[], gratuidade = false): Promise<ICnabInfo[]> {
     const headerArquivo = await this.headerArquivoService.getExists(HeaderArquivoStatus._2_remessaGerado, headerName);
     if (headerArquivo[0] !== null && headerArquivo[0] !== undefined) {
       const headerArquivoCnab = CnabHeaderArquivo104DTO.fromDTO(headerArquivo[0]);
-      return await this.gerarListaCnab(headerArquivoCnab, headerArquivo[0], pagamentoUnico, isPendente, consorcios)
+      return await this.gerarListaCnab(headerArquivoCnab, headerArquivo[0], pagamentoUnico, isPendente, consorcios, gratuidade)
     }
     return [];
   }
 
-  private async gerarListaCnab(headerArquivoCnab, headerArquivo: HeaderArquivo, pagamentoUnico?: boolean, isPendente?: boolean, consorcios?: string[]): Promise<ICnabInfo[]> {
+  private async gerarListaCnab(headerArquivoCnab, headerArquivo: HeaderArquivo, pagamentoUnico?: boolean, isPendente?: boolean, consorcios?: string[], gratuidade = false): Promise<ICnabInfo[]> {
     const listCnab: ICnabInfo[] = [];
 
     const trailerArquivo104 = structuredClone(Cnab104PgtoTemplates.file104.registros.trailerArquivo);
@@ -185,7 +249,7 @@ export class RemessaService {
         if (isPendente) {
           historico = await this.ordemPagamentoAgrupadoService.getHistoricosOrdemDetalheA(detalhesA[index].id, pagamentoUnico, isPendente);
         } else {
-          historico = await this.ordemPagamentoAgrupadoService.getHistoricosOrdemDetalheA(detalhesA[index].id, pagamentoUnico, false, consorcios);
+          historico = await this.ordemPagamentoAgrupadoService.getHistoricosOrdemDetalheA(detalhesA[index].id, pagamentoUnico, false, consorcios, gratuidade);
         }
 
         this.logger.debug(`BANK: ${historico.userBankCode} - ${historico.username}`)
@@ -249,10 +313,11 @@ export class RemessaService {
     return headerArquivoExists[0];
   }
 
-  private async gerarHeaderLote(headerArquivo: HeaderArquivo, pagador: Pagador, bankCode: number) {
-    //verifica se existe header lote para o convenio para esse header arquivo  
-    const formaLancamento = (bankCode === 104) ? Cnab104FormaLancamento.CreditoContaCorrente :
-      Cnab104FormaLancamento.TED;
+  private async gerarHeaderLote(headerArquivo: HeaderArquivo, pagador: Pagador, bankCode: number, ehPoupanca = false) {
+    //verifica se existe header lote para o convenio para esse header arquivo
+    const formaLancamento = bankCode === 104
+      ? (ehPoupanca ? Cnab104FormaLancamento.CreditoContaPoupanca : Cnab104FormaLancamento.CreditoContaCorrente)
+      : Cnab104FormaLancamento.TED;
 
     const headersLote = await this.headerLoteService.findByFormaLancamento(headerArquivo.id, formaLancamento);
 
@@ -271,7 +336,7 @@ export class RemessaService {
   }
 
   private async gerarDetalheAB(headerLote: HeaderLote, ordem: OrdemPagamentoAgrupado, nsr: number,
-    indevido?: PagamentoIndevidoDTO, pagamentoUnico?: boolean) {
+    indevido?: PagamentoIndevidoDTO, pagamentoUnico?: boolean, numeroDocumentoRef?: { value: number }) {
     let ultimoHistorico;
     if (pagamentoUnico) {
       ultimoHistorico = await this.ordemPagamentoAgrupadoService.getHistoricoUnico(ordem.id);
@@ -281,12 +346,17 @@ export class RemessaService {
 
     const detalheA = await this.existsDetalheA(ultimoHistorico)
 
-    const numeroDocumento = await this.detalheAService.getNextNumeroDocumento(new Date());
+    // Se o chamador passou o contador em memória, usa e só avança ele quando for um
+    // DetalheA novo de fato (mesma regra do COUNT(*) original: atualização não muda a
+    // contagem). Sem o contador (chamadas fora do laço principal), mantém a consulta.
+    const numeroDocumento = numeroDocumentoRef ? numeroDocumentoRef.value : await this.detalheAService.getNextNumeroDocumento(new Date());
     const detalheADTO = await HeaderLoteToDetalheA.convert(headerLote, ordem, nsr, ultimoHistorico, numeroDocumento);
 
     if (detalheA.length > 0) {
       detalheADTO.id = detalheA[0].id;
       detalheADTO.valorRealEfetivado = detalheA[0].valorLancamento;
+    } else if (numeroDocumentoRef) {
+      numeroDocumentoRef.value += 1;
     }
 
     if (indevido && indevido.saldoDevedor > 0) {
@@ -298,6 +368,14 @@ export class RemessaService {
     const detalheASavesd = await this.detalheAService.save(detalheADTO);
     if (detalheASavesd) {
       const detalheB = DetalheAToDetalheB.convert(detalheASavesd, ordem);
+      // Mesma ideia do reaproveitamento de id do DetalheA logo acima: se esse DetalheA já
+      // tinha um DetalheB (reprocessamento de um historico que ficou com statusRemessa=0
+      // sem concluir, ex.: reinício do servidor no meio do preparo), atualiza o existente
+      // em vez de tentar inserir outro e violar a constraint única de detalheAId.
+      const detalheBExistente = await this.detalheBService.findDetalheBDetalheAId(detalheASavesd.id);
+      if (detalheBExistente) {
+        detalheB.id = detalheBExistente.id;
+      }
       return await this.detalheBService.save(detalheB);
     }
     return null;
@@ -310,8 +388,10 @@ export class RemessaService {
     }
   }
 
-  private getHeaderName(consorcio: string[] | undefined): HeaderName {
-    if (['STPC', 'STPL', 'TEC'].some(i => consorcio?.includes(i))) {
+  private getHeaderName(consorcio: string[] | undefined, gratuidade = false): HeaderName {
+    if (gratuidade) {
+      return HeaderName.GRATUIDADE;
+    } else if (['STPC', 'STPL', 'TEC'].some(i => consorcio?.includes(i))) {
       return HeaderName.MODAL;
     } else if (consorcio && consorcio.length > 0) {
       return HeaderName.CONSORCIO;

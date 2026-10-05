@@ -44,6 +44,8 @@ export class RelatorioNovoRemessaController {
   @ApiQuery({ name: 'eleicao', required: false, type: Boolean, description: ApiDescription({ _: 'eleicao', default: false }) })
   @ApiQuery({ name: 'desativados', required: false, type: Boolean, description: ApiDescription({ _: 'desativados', default: false }) })
   @ApiQuery({ name: 'pendentes', required: false, type: Boolean, description: ApiDescription({ _: 'pendentes', default: false }) })
+  @ApiQuery({ name: 'page', description: 'Página atual (base 1)', required: false, type: Number })
+  @ApiQuery({ name: 'pageSize', description: 'Quantidade de linhas por página', required: false, type: Number })
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'))
   @Get('consolidado')
@@ -71,11 +73,13 @@ export class RelatorioNovoRemessaController {
     @Query('pendentes', new ParseBooleanPipe({ optional: true })) pendentes: boolean | undefined,
     @Query('rejeitado', new ParseBooleanPipe({ optional: true })) rejeitado: boolean | undefined,
     @Query('estorno', new ParseBooleanPipe({ optional: true })) estorno: boolean | undefined,
-    @Query('pendenciaPaga', new ParseBooleanPipe({ optional: true })) pendenciaPaga: boolean | undefined
+    @Query('pendenciaPaga', new ParseBooleanPipe({ optional: true })) pendenciaPaga: boolean | undefined,
+    @Query('page', new ParseNumberPipe({ optional: true })) page: number | undefined,
+    @Query('pageSize', new ParseNumberPipe({ optional: true })) pageSize: number | undefined
   ) {
     try {
       const result = await this.relatorioNovoRemessaService.findConsolidado({
-        dataInicio, dataFim, userIds, consorcioNome, valorMin, valorMax, pago, aPagar, emProcessamento, erro, todosVanzeiros, todosConsorcios, eleicao, desativados, pendentes, rejeitado, estorno, pendenciaPaga
+        dataInicio, dataFim, userIds, consorcioNome, valorMin, valorMax, pago, aPagar, emProcessamento, erro, todosVanzeiros, todosConsorcios, eleicao, desativados, pendentes, rejeitado, estorno, pendenciaPaga, page, pageSize
       });
       return result;
     } catch (e) {

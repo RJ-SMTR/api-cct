@@ -9,5 +9,6 @@ export enum HeaderName{
   CONSORCIO = 'CONSORCIO',
   MODAL = 'MODAL',
   GUARDADOR = 'GUARDADOR',
-  VLT = 'VLT',  
+  VLT = 'VLT',
+  GRATUIDADE = 'GRATUIDADE',
 }

@@ -10,6 +10,7 @@ import { CustomLogger } from "src/utils/custom-logger";
 import { OrdemPagamentoAgrupadoHistorico } from "../entity/ordem-pagamento-agrupado-historico.entity";
 import { OrdemPagamentoAgrupadoHistoricoDTO } from "../dto/ordem-pagamento-agrupado-historico.dto";
 import { CnabTipoInscricao } from "src/cnab/enums/all/cnab-tipo-inscricao.enum";
+import { Cnab104FinalidadeTed } from "src/cnab/enums/104/cnab-104-finalidade-ted.enum";
 
 const sc = structuredClone;
 const PgtoRegistros = Cnab104PgtoTemplates.file104.registros;
@@ -30,6 +31,9 @@ export class DetalhesToCnab {
         detalheACnab.codigoAgenciaDestino.value = historico?.userBankAgency;        
         detalheACnab.contaCorrenteDestino.value = historico?.userBankAccount;
         detalheACnab.dvContaDestino.value = historico?.userBankAccountDigit;
+        detalheACnab.tipoContaFinalidadeTed.value = historico?.userBankAccountType === 'poupanca'
+            ? Cnab104FinalidadeTed.Poupanca
+            : Cnab104FinalidadeTed.ContaCorrente;
         detalheACnab.nomeTerceiro.value = historico.username;
         detalheACnab.numeroDocumentoEmpresa.value = detalheA.numeroDocumentoEmpresa;
         detalheACnab.dataVencimento.value = detalheA.dataVencimento;

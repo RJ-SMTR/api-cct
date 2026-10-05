@@ -10,6 +10,38 @@ export function getDateWithTimezone(date: Date, offsetHours: number, offsetMinut
   return _date;
 }
 
+/**
+ * "Hoje" no calendário de Brasília (UTC-3, sem horário de verão), à meia-noite. O processo
+ * roda inteiro em UTC (`process.env.TZ = 'UTC'` em main.ts), então `startOfDay(new Date())`
+ * sozinho trunca pelo dia UTC — errado justamente nas 21h-23h59 de Brasília, quando o UTC já
+ * virou o dia seguinte mas ainda é "hoje" para o negócio (ex.: dataPagamento de um preparo
+ * feito às 21h ficaria com a data de amanhã, e uma limpeza feita minutos depois no mesmo dia
+ * já não encontraria mais o grupo pra apagar, por dataPagamento não bater).
+ */
+export function getInicioDoDiaBrasilia(): Date {
+  const horaBrasilia = getDateWithTimezone(new Date(), -3);
+  const meiaNoiteBrasilia = startOfDay(horaBrasilia);
+  return getDateWithTimezone(meiaNoiteBrasilia, 3);
+}
+
+/**
+ * Converte uma data 'YYYY-MM-DD' vinda do front (filtro de período) para o início do dia
+ * (00:00:00.000). `new Date('YYYY-MM-DD')` já é meia-noite UTC pela spec do JS, então isso
+ * é só deixar explícito — o par com `parseFimDoDia` é o que importa: sem ele, o dataFim
+ * também vira meia-noite, excluindo tudo que foi capturado depois das 00h do último dia.
+ */
+export function parseInicioDoDia(dataStr: string): Date {
+  return new Date(`${dataStr}T00:00:00.000Z`);
+}
+
+/**
+ * Converte uma data 'YYYY-MM-DD' vinda do front para o fim do dia (23:59:59.999), para que
+ * filtros de período incluam o dia final inteiro.
+ */
+export function parseFimDoDia(dataStr: string): Date {
+  return new Date(`${dataStr}T23:59:59.999Z`);
+}
+
 function getDaysToAdd(currentWeekday: number, desiredWeekday: number) {
   currentWeekday = (currentWeekday + 7) % 7;
   desiredWeekday = (desiredWeekday + 7) % 7;

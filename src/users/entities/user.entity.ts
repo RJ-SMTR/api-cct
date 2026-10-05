@@ -147,6 +147,10 @@ export class User extends EntityHelper {
   @Column({ type: String, nullable: true, length: 2 })
   bankAccountDigit?: string;
 
+  /** 'corrente' | 'poupanca' — hoje só é relevante quando bankCode é 104 (Caixa). */
+  @Column({ type: String, nullable: false, default: 'corrente' })
+  bankAccountType?: string;
+
   @Column({ type: String, nullable: true })
   phone?: string;
 

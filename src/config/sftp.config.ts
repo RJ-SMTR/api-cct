@@ -40,10 +40,11 @@ export default registerAs<SftpConfig>('sftp', () => {
   validateConfig(process.env, EnvironmentVariablesValidator);
 
   return {
-    rootFolder: process.env.SFTP_ROOT_FOLDER || '', 
+    rootFolder: process.env.SFTP_ROOT_FOLDER || '',
     host: String(process.env.SFTP_HOST),
     port: Number(process.env.SFTP_PORT),
     username: String(process.env.SFTP_USERNAME),
     password: String(process.env.SFTP_PASSWORD),
+    remessaModoTeste: process.env.SFTP_REMESSA_MODO_TESTE === 'true',
   };
 });

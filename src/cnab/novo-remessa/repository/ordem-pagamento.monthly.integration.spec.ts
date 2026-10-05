@@ -28,7 +28,8 @@ suite('Monthly consortium capture allocations (PostgreSQL)', () => {
     await runner.query(`
       CREATE TEMP TABLE ordem_pagamento (
         id integer PRIMARY KEY, "userId" integer, "dataCaptura" timestamp,
-        valor numeric(13,5), "ordemPagamentoAgrupadoId" integer
+        valor numeric(13,5), "ordemPagamentoAgrupadoId" integer,
+        "valorGratuidade" numeric(13,5), "ordemPagamentoAgrupadoGratuidadeId" integer
       );
       CREATE TEMP TABLE ordem_pagamento_agrupado (
         id integer PRIMARY KEY, "valorTotal" numeric(13,5), "dataPagamento" timestamp

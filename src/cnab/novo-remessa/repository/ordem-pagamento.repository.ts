@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { Nullable } from 'src/utils/types/nullable.type';
-import { DataSource, DeepPartial, Repository } from 'typeorm';
+import { Between, DataSource, DeepPartial, FindOptionsWhere, ILike, LessThanOrEqual, MoreThanOrEqual, Repository } from 'typeorm';
 import { OrdemPagamento } from '../entity/ordem-pagamento.entity';
 import { OrdemPagamentoAgrupadoMensalDto } from '../dto/ordem-pagamento-agrupado-mensal.dto';
 import { OrdemPagamentoPendenteDto } from '../dto/ordem-pagamento-pendente.dto';
@@ -17,6 +17,13 @@ import { OrdemPagamentoAgrupado } from '../entity/ordem-pagamento-agrupado.entit
 import { formatDateISODate } from 'src/utils/date-utils';
 import { format, getMonth, getYear, isFriday, isTuesday, max, subDays } from 'date-fns';
 import { PagadorDTO } from 'src/cnab/dto/pagamento/pagador.dto';
+
+export interface OrdemPagamentoListFilters {
+  dataOrdemInicio?: Date;
+  dataOrdemFim?: Date;
+  nomeConsorcio?: string;
+  nomeOperadora?: string;
+}
 
 export interface SuspiciousOrdemPagamento {
   id: number;
@@ -60,6 +67,49 @@ export class OrdemPagamentoRepository {
     return await this.ordemPagamentoRepository.find({
       where: fields,
     });
+  }
+
+  private buildListFiltersWhere(filters?: OrdemPagamentoListFilters): FindOptionsWhere<OrdemPagamento> {
+    const where: FindOptionsWhere<OrdemPagamento> = {};
+
+    if (filters?.dataOrdemInicio && filters?.dataOrdemFim) {
+      where.dataOrdem = Between(filters.dataOrdemInicio, filters.dataOrdemFim);
+    } else if (filters?.dataOrdemInicio) {
+      where.dataOrdem = MoreThanOrEqual(filters.dataOrdemInicio);
+    } else if (filters?.dataOrdemFim) {
+      where.dataOrdem = LessThanOrEqual(filters.dataOrdemFim);
+    }
+
+    if (filters?.nomeConsorcio) {
+      where.nomeConsorcio = ILike(`%${filters.nomeConsorcio}%`);
+    }
+
+    if (filters?.nomeOperadora) {
+      where.nomeOperadora = ILike(`%${filters.nomeOperadora}%`);
+    }
+
+    return where;
+  }
+
+  public async findAllPaginated(
+    page: number,
+    limit: number,
+    filters?: OrdemPagamentoListFilters,
+  ): Promise<[OrdemPagamento[], number]> {
+    const where = this.buildListFiltersWhere(filters);
+
+    return this.ordemPagamentoRepository.findAndCount({
+      where,
+      order: { dataOrdem: 'DESC', id: 'DESC' },
+      take: limit,
+      skip: (page - 1) * limit,
+    });
+  }
+
+  public async sumValorFiltered(filters?: OrdemPagamentoListFilters): Promise<number> {
+    const where = this.buildListFiltersWhere(filters);
+    const total = await this.ordemPagamentoRepository.sum('valor', where);
+    return Number(total ?? 0);
   }
 
   public async findOrdensPagamentoAgrupadasPorMes(userId: number, targetDate: Date): Promise<OrdemPagamentoAgrupadoMensalDto[]> {
@@ -112,6 +162,57 @@ WITH
         WHERE c.data_referencia > DATE '2025-08-31'
             OR EXTRACT(dow FROM c.data_referencia) = 5
     ),
+    -- Mesma lógica acima, espelhada pro agrupamento paralelo de Gratuidade (pagador CETT):
+    -- soma "valorGratuidade" e navega por "ordemPagamentoAgrupadoGratuidadeId", nunca por
+    -- "ordemPagamentoAgrupadoId" (os dois agrupamentos são independentes).
+    capturas_com_referencia_gratuidade AS (
+        SELECT
+            op."valorGratuidade" AS "valor",
+            op."ordemPagamentoAgrupadoGratuidadeId" AS "ordemPagamentoAgrupadoId",
+            op."dataCaptura"::date + CASE EXTRACT(dow FROM op."dataCaptura")
+                WHEN 0 THEN 2
+                WHEN 1 THEN 1
+                WHEN 2 THEN 3
+                WHEN 3 THEN 2
+                WHEN 4 THEN 1
+                WHEN 5 THEN 4
+                WHEN 6 THEN 3
+            END AS data_referencia
+        FROM ordem_pagamento op
+        WHERE op."userId" = $2
+          AND op."ordemPagamentoAgrupadoGratuidadeId" IS NOT NULL
+    ),
+    capturas_com_exibicao_gratuidade AS (
+        SELECT
+            c.*,
+            MAX(c.data_referencia) OVER (
+                PARTITION BY c."ordemPagamentoAgrupadoId"
+            ) AS data_exibicao_opa
+        FROM capturas_com_referencia_gratuidade c
+        WHERE c.data_referencia > DATE '2025-08-31'
+            OR EXTRACT(dow FROM c.data_referencia) = 5
+    ),
+    -- Pré-agregado por data (uma linha por data_referencia) ANTES de entrar no join final —
+    -- evita produto cartesiano com "ordens_por_data" (que ainda não está agregado por data)
+    -- e, portanto, evita contar o valor normal em dobro quando há mais de uma ordem no dia.
+    ordens_por_data_gratuidade AS (
+        SELECT
+            db.data_referencia,
+            (array_agg(ophg."statusRemessa" ORDER BY opag.id DESC NULLS LAST))[1] AS "statusRemessaGratuidade",
+            (array_agg(ophg."motivoStatusRemessa" ORDER BY opag.id DESC NULLS LAST))[1] AS "motivoStatusRemessaGratuidade",
+            ROUND(SUM(opg."valor")::numeric, 2) AS "valorGratuidade"
+        FROM datas_base db
+        LEFT JOIN capturas_com_exibicao_gratuidade opg ON opg.data_referencia = db.data_referencia
+        LEFT JOIN ordem_pagamento_agrupado opag ON opg."ordemPagamentoAgrupadoId" = opag.id
+        LEFT JOIN LATERAL (
+            SELECT ophg_i."statusRemessa", ophg_i."motivoStatusRemessa"
+            FROM ordem_pagamento_agrupado_historico ophg_i
+            WHERE ophg_i."ordemPagamentoAgrupadoId" = opag.id
+            ORDER BY ophg_i.id DESC
+            LIMIT 1
+        ) ophg ON true
+        GROUP BY db.data_referencia
+    ),
     ordens_por_data AS (
         SELECT
             db.data_referencia,
@@ -142,8 +243,12 @@ SELECT
     r."motivoStatusRemessa",
     string_agg(DISTINCT r.opaId::text, ', ') as "opaIds",
     ROUND(SUM(r.valorTotalPagamento)::numeric, 2) as valor,
-    max(r."opaDataPagamento") as "dataPagamento"
+    max(r."opaDataPagamento") as "dataPagamento",
+    max(rg."statusRemessaGratuidade") as "statusRemessaGratuidade",
+    max(rg."motivoStatusRemessaGratuidade") as "motivoStatusRemessaGratuidade",
+    max(rg."valorGratuidade") as "valorGratuidade"
 FROM ordens_por_data r
+LEFT JOIN ordens_por_data_gratuidade rg ON rg.data_referencia = r.data_referencia
 GROUP BY
     r.data_referencia,
     r.data_inicial_operacoes,
@@ -166,6 +271,16 @@ ORDER BY r.data_referencia DESC;`;
       if (row.statusRemessa != null) {
         dto.statusRemessa = row.statusRemessa;
         dto.descricaoStatusRemessa = getStatusRemessaEnumByValue(row.statusRemessa);
+      }
+
+      dto.valorGratuidade = row.valorGratuidade != null ? parseFloat(row.valorGratuidade) : undefined;
+      if (row.motivoStatusRemessaGratuidade != null) {
+        dto.motivoStatusRemessaGratuidade = row.motivoStatusRemessaGratuidade;
+        dto.descricaoMotivoStatusRemessaGratuidade = OcorrenciaEnum[row.motivoStatusRemessaGratuidade];
+      }
+      if (row.statusRemessaGratuidade != null) {
+        dto.statusRemessaGratuidade = row.statusRemessaGratuidade;
+        dto.descricaoStatusRemessaGratuidade = getStatusRemessaEnumByValue(row.statusRemessaGratuidade);
       }
 
       return dto;
@@ -279,6 +394,7 @@ ORDER BY r.data_referencia DESC;`;
 
     const params: any[] = [ordemPagamentoAgrupadoIds, userId];
     let whereData = '';
+    let whereDataGratuidade = '';
 
     if (endDateParam) {
       const today = new Date(endDateParam);
@@ -301,18 +417,37 @@ ORDER BY r.data_referencia DESC;`;
 
       whereData = `AND o."dataOrdem" BETWEEN $3 AND $4
       GROUP BY o.id,  o."dataOrdem", o."dataCaptura"`;
+      // Mesmo filtro de data do lado normal, mas sem o GROUP BY (a CTE de gratuidade já
+      // agrega por dia sozinha, antes do LEFT JOIN — evita duplicar o valor normal).
+      whereDataGratuidade = `AND o."dataOrdem" BETWEEN $3 AND $4`;
       params.push(dataInicio, dataFim);
     }
 
+    // Agrupamento de Gratuidade é independente do normal (FK e coluna de valor próprios) —
+    // pré-agregado por dia numa CTE separada antes de entrar no join final, pro mesmo motivo
+    // de sempre: evitar produto cartesiano que dobraria o valor normal por linha.
     const query = `
+    WITH gratuidade_por_dia AS (
+      SELECT
+        date_trunc('day', o."dataCaptura") AS "dataCaptura",
+        ROUND(SUM(o."valorGratuidade")::numeric, 2) AS "valorGratuidade"
+      FROM ordem_pagamento o
+      WHERE o."userId" = $2
+        AND o."ordemPagamentoAgrupadoGratuidadeId" IS NOT NULL
+        AND o."dataCaptura" IS NOT NULL
+        ${whereDataGratuidade}
+      GROUP BY 1
+    )
     SELECT
           o.id,
-           MAX(ROUND(valor, 2)) as valor,
+           MAX(ROUND(o.valor, 2)) as valor,
             date_trunc('day', o."dataCaptura") "dataCaptura",
-           o."dataOrdem"
+           o."dataOrdem",
+           MAX(g."valorGratuidade") as "valorGratuidade"
     FROM ordem_pagamento o
     INNER JOIN ordem_pagamento_agrupado opa
     ON o."ordemPagamentoAgrupadoId" = opa.id
+    LEFT JOIN gratuidade_por_dia g ON g."dataCaptura" = date_trunc('day', o."dataCaptura")
     WHERE 1 = 1
       AND opa.id = ANY(string_to_array($1, ',')::int[])
       AND o."dataCaptura" IS NOT NULL
@@ -329,6 +464,7 @@ ORDER BY r.data_referencia DESC;`;
       ordemPagamento.ordemId = row.id;
       ordemPagamento.dataCaptura = row.dataCaptura;
       ordemPagamento.valor = row.valor ? parseFloat(row.valor) : 0;
+      ordemPagamento.valorGratuidade = row.valorGratuidade != null ? parseFloat(row.valorGratuidade) : undefined;
       return ordemPagamento;
     });
 

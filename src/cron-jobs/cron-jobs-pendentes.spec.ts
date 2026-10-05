@@ -66,15 +66,21 @@ describe('Pending payment job lifecycle', () => {
       await service.remessaPendenteExec('2026-07-01', '2026-09-11', '2026-09-11');
     }
 
-    expect(steps).toEqual(['group', 'prepare', 'generate', 'send']);
     const header = kind === 'guardador' ? HeaderName.GUARDADOR : HeaderName.MODAL;
     expect(remittance.enviarRemessa).toHaveBeenCalledWith(files, header);
     expect(remittance.gerarCnabText).toHaveBeenCalledWith(header, undefined, true);
-    const args = (group.mock.calls as unknown as unknown[][])[0];
-    expect(args.slice(0, 4)).toEqual([
-      new Date('2026-07-01'), new Date('2026-09-07'), new Date('2026-09-11'),
-      kind === 'guardador' ? 'contaRotativo' : 'contaBilhetagem',
-    ]);
+    if (kind === 'guardador') {
+      // pagamentoPendentesGuardadoresExec currently has the group/prepare
+      // steps commented out on main (operational change, not part of this
+      // branch) - only generate/send run.
+      expect(steps).toEqual(['generate', 'send']);
+    } else {
+      expect(steps).toEqual(['group', 'prepare', 'generate', 'send']);
+      const args = (group.mock.calls as unknown as unknown[][])[0];
+      expect(args.slice(0, 4)).toEqual([
+        new Date('2026-07-01'), new Date('2026-09-07'), new Date('2026-09-11'), 'contaBilhetagem',
+      ]);
+    }
     expect(writeFile).not.toHaveBeenCalled();
   });
 });
