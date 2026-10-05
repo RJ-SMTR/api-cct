@@ -809,7 +809,7 @@ export class CronJobsService {
 
 
   
-  async remessaModalExec(pagamentoUnico?: boolean) {
+  async remessaModalExec(pagamentoUnico?: boolean, gratuidade?: boolean) {
     const today = new Date("2026-10-05");
     let subDaysInt = 0;
 
@@ -832,6 +832,17 @@ export class CronJobsService {
     await this.geradorRemessaExec(dataInicio, dataFim, today,
       consorcios, HeaderName.MODAL, pagamentoUnico);
   }
+  /**
+   * Agrupamento da gratuidade: pagador CETT e valor de ordem_pagamento.valorGratuidade.
+   * Não chama limparAgrupamentos (apagaria os agrupamentos normais do intervalo) e ainda não
+   * gera/envia o CNAB, pois prepararRemessa lê os agrupados por ordemPagamentoAgrupadoId.
+   */
+  private async agruparGratuidadeExec(dataInicio: Date, dataFim: Date, dataPagamento: Date, consorcios: string[]) {
+    for (const consorcio of consorcios) {
+      await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupadosGratuidade(dataInicio, dataFim, dataPagamento, "cett", [consorcio]);
+    }
+  }
+
 
   async remessaGuardadorExec(pagamentoUnico?: boolean) {
     const today = new Date();

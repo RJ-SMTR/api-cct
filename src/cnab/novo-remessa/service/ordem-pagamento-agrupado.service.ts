@@ -90,6 +90,17 @@ export class OrdemPagamentoAgrupadoService {
     }
   }
 
+  /** Agrupa o valorGratuidade das ordens; o vínculo fica em ordemPagamentoAgrupadoGratuidadeId. */
+  async prepararPagamentoAgrupadosGratuidade(dataOrdemInicial: Date, dataOrdemFinal: Date, dataPgto: Date,
+    pagadorKey: keyof AllPagadorDict, consorcios: string[]) {
+    this.logger.debug(`Preparando agrupamentos de gratuidade`)
+    const pagador = await this.getPagador(pagadorKey);
+    if (pagador) {
+      this.logger.log(`Agrupando gratuidade para o pagador ${pagador.nomeEmpresa}, data de pagamento ${dataPgto}, data de ordem inicial ${dataOrdemInicial}, data de ordem final ${dataOrdemFinal}, consorcios ${consorcios}`);
+      await this.ordemPagamentoRepository.agruparOrdensDePagamentoGratuidade(dataOrdemInicial, dataOrdemFinal, dataPgto, pagador, consorcios);
+    }
+  }
+
   private async agruparOrdens(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: Pagador, consorcios: string[]) {
     await this.ordemPagamentoRepository.agruparOrdensDePagamento(dataInicial, dataFinal, dataPgto, pagador, consorcios);
   }
