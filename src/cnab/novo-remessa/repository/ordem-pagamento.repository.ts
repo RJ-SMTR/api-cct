@@ -391,6 +391,14 @@ ORDER BY r.data_referencia DESC;`;
     await this.ordemPagamentoRepository.query(`CALL P_AGRUPAR_ORDENS($1, $2, $3, $4, $5)`, [`${dtInicialStr} 00:00:00`, `${dtFinalStr} 23:59:59`, dtPgtoStr, pagador.id, `{${consorciosJoin}}`]);
   }
 
+  public async agruparOrdensDePagamentoGratuidade(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: PagadorDTO, consorcios: string[]): Promise<void> {
+    const dtInicialStr = dataInicial.toISOString().split('T')[0];
+    const dtFinalStr = dataFinal.toISOString().split('T')[0];
+    const dtPgtoStr = dataPgto.toISOString().split('T')[0];
+    const consorciosJoin = consorcios.join(',');
+    await this.ordemPagamentoRepository.query(`CALL P_AGRUPAR_ORDENS_GRATUIDADE($1, $2, $3, $4, $5)`, [dtInicialStr, dtFinalStr, dtPgtoStr, pagador.id, `{${consorciosJoin}}`]);
+  }
+
   public async agruparOrdensDePagamentoUnico(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: Pagador): Promise<void> {
     const dtInicialStr = dataInicial.toISOString().split('T')[0];
     const dtFinalStr = dataFinal.toISOString().split('T')[0];
