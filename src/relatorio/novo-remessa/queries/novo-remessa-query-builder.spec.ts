@@ -2,6 +2,7 @@ import {
   buildBaseQuery,
   buildEleicaoQuery,
   buildPendentesQuery,
+  buildPendenciaPagamentoSingleDateQuery,
   buildPendenciaPagaSingleDateQuery,
 } from './novo-remessa-query-builder';
 
@@ -31,5 +32,18 @@ describe('novo-remessa-query-builder codigoErro', () => {
     ['pendenciaPagaSingleDate', buildPendenciaPagaSingleDateQuery(params)],
   ])('%s query has no occurrence code', (_name, sql) => {
     expect(sql).toContain('NULL::text AS "codigoErro"');
+  });
+
+  it('selects a single-day rejected family through the parent attempt and latest history', () => {
+    const sql = buildPendenciaPagamentoSingleDateQuery({
+      ...params,
+      parentErrorStatuses: ['Rejeitado'],
+    });
+
+    expect(sql).toContain('op_pai."dataPagamento"::date BETWEEN $1::date AND $2::date');
+    expect(sql).toContain('MAX(oph_mais_recente.id)');
+    expect(sql).toContain('oph_pai."motivoStatusRemessa"');
+    expect(sql).toContain("IN ('Rejeitado')");
+    expect(sql).toContain('da."valorLancamento" AS valor');
   });
 });

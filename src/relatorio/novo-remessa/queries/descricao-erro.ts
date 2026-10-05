@@ -10,9 +10,9 @@ const DESCRICOES_CUSTOMIZADAS: Record<string, string> = {
 
 // Occurrence code returned by the bank (motivoStatusRemessa), only for rows shown as an error.
 // It is turned into a description by getDescricaoErro, so the SQL does not need a lookup table.
-export const buildCodigoErroSql = (statusCase: string) => `CASE
+export const buildCodigoErroSql = (statusCase: string, historyAlias = 'oph') => `CASE
         WHEN ${statusCase} IN ('Estorno', 'Rejeitado')
-          THEN NULLIF(TRIM(oph."motivoStatusRemessa"), '')
+          THEN NULLIF(TRIM(${historyAlias}."motivoStatusRemessa"), '')
       END`;
 
 // "codigos" may be an aggregated, comma separated list (rows grouped by date/consorcio/status).
