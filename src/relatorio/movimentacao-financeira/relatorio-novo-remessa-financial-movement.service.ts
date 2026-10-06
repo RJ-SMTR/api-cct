@@ -220,7 +220,8 @@ export class RelatorioNovoRemessaFinancialMovementService {
       if (statuses.includeBase) q.push(this.buildBaseQuery(filter));
       if (statuses.includePendenciaPagaSingleDate) q.push(this.buildPendenciaPagaSingleDateQuery(filter));
       if (statuses.includePendentes) q.push(this.buildPendentesQuery(filter));
-      if (!q.length) return this.buildBaseQuery(filter);
+      // Nenhuma consulta selecionada para o filtro: não deve trazer linhas (antes caía em todos os status).
+      if (!q.length) return `${this.buildBaseQuery(filter)} AND FALSE`;
       return q.join('\nUNION ALL\n');
     })();
     // REMOVE $6 e $7 internos -> substitui por literais tipados que não filtram
