@@ -62,12 +62,6 @@ export enum CronJobsEnum {
   syncWeeklyAgentUsers2 = 'syncWeeklyAgentUsers2',
   sincronizarEAgruparOrdensPagamentoGuardador = 'sincronizarEAgruparOrdensPagamentoGuardador'
 }
-interface ICronjobDebug {
-  /** Define uma data customizada para 'hoje' */
-  today?: Date;
-  /** Ignora validação de cronjob*/
-  force?: boolean;
-}
 interface ICronJob {
   name: string;
   cronJobParameters: CronJobParameters;
@@ -827,9 +821,6 @@ export class CronJobsService {
     const dataInicio = subDays(today, subDaysInt);
     const dataFim = subDays(today, dataFimOffset);
 
-    // const dataInicio = new Date('2026-09-28');
-    // const dataFim = new Date('2026-09-30');
-
     const consorcios = ['STPC', 'STPL', 'TEC'];
     if (gratuidade) {
       await this.geradorRemessaGratuidadeExec(dataInicio, dataFim, today, consorcios, HeaderName.MODAL);
@@ -859,7 +850,6 @@ export class CronJobsService {
 
   async remessaGuardadorExec(pagamentoUnico?: boolean) {
     const today = new Date();
-    let subDaysInt = 2;
 
     // if (isTuesday(today)) {
     //   subDaysInt = 4;
@@ -874,7 +864,7 @@ export class CronJobsService {
 
     const dataInicio = today;
     const dataFim = today;
-    await this.limparAgrupamentos(dataInicio, dataFim, []);
+   // await this.limparAgrupamentos(dataInicio, dataFim, []);
     await this.geradorRemessaExec(dataInicio, dataFim, today, [], HeaderName.GUARDADOR, pagamentoUnico);
   }
 
@@ -1007,7 +997,7 @@ export class CronJobsService {
       let { dataInicio, dataFim, dataPagamento } = this.calcularPeriodoPagamento();
 
       if (tipo === 'GUARDADOR') {
-        const dataHoje = new Date("2026-10-02");
+        const dataHoje = new Date("2026-10-06");
         dataInicio = dataHoje
         dataFim = dataHoje
         dataPagamento = dataHoje
