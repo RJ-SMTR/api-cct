@@ -62,12 +62,6 @@ export enum CronJobsEnum {
   syncWeeklyAgentUsers2 = 'syncWeeklyAgentUsers2',
   sincronizarEAgruparOrdensPagamentoGuardador = 'sincronizarEAgruparOrdensPagamentoGuardador'
 }
-interface ICronjobDebug {
-  /** Define uma data customizada para 'hoje' */
-  today?: Date;
-  /** Ignora validação de cronjob*/
-  force?: boolean;
-}
 interface ICronJob {
   name: string;
   cronJobParameters: CronJobParameters;
@@ -855,7 +849,6 @@ export class CronJobsService {
 
   async remessaGuardadorExec(pagamentoUnico?: boolean) {
     const today = new Date();
-    let subDaysInt = 2;
 
     // if (isTuesday(today)) {
     //   subDaysInt = 4;
