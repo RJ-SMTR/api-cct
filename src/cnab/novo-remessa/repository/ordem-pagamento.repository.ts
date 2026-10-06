@@ -44,6 +44,15 @@ export class OrdemPagamentoRepository {
   public async save(dto: DeepPartial<OrdemPagamento>): Promise<OrdemPagamento> {
     const existing = await this.ordemPagamentoRepository.findOneBy({ id: dto.id });
     if (existing) {
+      // Ordem já sincronizada não é regravada; só o valorGratuidade é atualizado quando mudou.
+      if (dto.valorGratuidade !== undefined) {
+        const novo = dto.valorGratuidade === null ? null : Number(dto.valorGratuidade);
+        const atual = existing.valorGratuidade === null ? null : Number(existing.valorGratuidade);
+        if (novo !== atual) {
+          await this.ordemPagamentoRepository.update({ id: existing.id }, { valorGratuidade: novo });
+          existing.valorGratuidade = novo;
+        }
+      }
       return existing;
     }
     const createdOrdem = this.ordemPagamentoRepository.create(dto);
@@ -389,6 +398,14 @@ ORDER BY r.data_referencia DESC;`;
     const dtPgtoStr = dataPgto.toISOString().split('T')[0];
     const consorciosJoin = consorcios.join(',');
     await this.ordemPagamentoRepository.query(`CALL P_AGRUPAR_ORDENS($1, $2, $3, $4, $5)`, [`${dtInicialStr} 00:00:00`, `${dtFinalStr} 23:59:59`, dtPgtoStr, pagador.id, `{${consorciosJoin}}`]);
+  }
+
+  public async agruparOrdensDePagamentoGratuidade(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: PagadorDTO, consorcios: string[]): Promise<void> {
+    const dtInicialStr = dataInicial.toISOString().split('T')[0];
+    const dtFinalStr = dataFinal.toISOString().split('T')[0];
+    const dtPgtoStr = dataPgto.toISOString().split('T')[0];
+    const consorciosJoin = consorcios.join(',');
+    await this.ordemPagamentoRepository.query(`CALL P_AGRUPAR_ORDENS_GRATUIDADE($1, $2, $3, $4, $5)`, [dtInicialStr, dtFinalStr, dtPgtoStr, pagador.id, `{${consorciosJoin}}`]);
   }
 
   public async agruparOrdensDePagamentoUnico(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: Pagador): Promise<void> {

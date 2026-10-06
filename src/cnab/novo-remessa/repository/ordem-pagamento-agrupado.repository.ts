@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { Nullable } from 'src/utils/types/nullable.type';
-import { DataSource, DeepPartial, In, Repository } from 'typeorm';
+import { DataSource, DeepPartial, Repository } from 'typeorm';
 import { OrdemPagamentoAgrupado } from '../entity/ordem-pagamento-agrupado.entity';
 import { StatusRemessaEnum } from 'src/cnab/enums/novo-remessa/status-remessa.enum';
 import { formatDateISODate } from 'src/utils/date-utils';
@@ -169,17 +169,43 @@ export class OrdemPagamentoAgrupadoRepository {
     return result.map((r) => new OrdemPagamentoAgrupado(r));
   }
 
-  public async findAllUnica(dataInicio: Date, dataFim: Date, dataPgto: Date, statusRemessa?: StatusRemessaEnum): Promise<OrdemPagamentoAgrupado[]> {
+  /** Agrupados de gratuidade ainda não preparados (vínculo em ordem_pagamento."ordemPagamentoAgrupadoGratuidadeId"). */
+  public async findAllGratuidade(dataInicio: Date, dataFim: Date, nomeConsorcio?: string[], dataPagamento?: Date): Promise<OrdemPagamentoAgrupado[]> {
+    if (!(dataInicio !== undefined && dataFim !== undefined && dataFim >= dataInicio)) {
+      return [];
+    }
     const dataIniForm = formatDateISODate(dataInicio)
     const dataFimForm = formatDateISODate(dataFim)
-    const dataPgtoForm = formatDateISODate(dataPgto)
-    let query = ` select distinct opa.* from ordem_pagamento_unico op
-					        inner join ordem_pagamento_agrupado opa on cast(opa.id as varchar) = op."idOrdemPagamento" 
-							    inner join ordem_pagamento_agrupado_historico oph on opa.id = oph."ordemPagamentoAgrupadoId"
-							                            and oph."dataReferencia" =
-                                          (select max(ophh."dataReferencia") from ordem_pagamento_agrupado_historico ophh
-					                                where cast(ophh."ordemPagamentoAgrupadoId" as varchar)=op."idOrdemPagamento") 
-                  where (oph."dataReferencia"='${dataPgtoForm}') `
+
+    let query = ` select distinct opa.* from ordem_pagamento op
+                  inner join ordem_pagamento_agrupado opa on opa.id = op."ordemPagamentoAgrupadoGratuidadeId"
+                  inner join ordem_pagamento_agrupado_historico oph on opa.id = oph."ordemPagamentoAgrupadoId"
+                  where oph."statusRemessa"= 0
+                  and date_trunc('day',op."dataCaptura") between '${dataIniForm}' and '${dataFimForm}' `;
+
+    if (dataPagamento) {
+      query = query + ` and opa."dataPagamento" ='${formatDateISODate(dataPagamento)}' `;
+    }
+    if (nomeConsorcio && nomeConsorcio.length > 0) {
+      query = query + ` and op."nomeConsorcio" in ('${nomeConsorcio.join("','")}') `;
+    }
+
+    this.logger.debug(query);
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    const result: any[] = await queryRunner.query(query);
+    queryRunner.release();
+    return result.map((r) => new OrdemPagamentoAgrupado(r));
+  }
+
+  public async findAllUnica(dataInicio: Date, dataFim: Date, statusRemessa?: StatusRemessaEnum): Promise<OrdemPagamentoAgrupado[]> {
+    const dataIniForm = formatDateISODate(dataInicio)
+    const dataFimForm = formatDateISODate(dataFim)    
+    let query = ` select distinct opa.* 
+                  from ordem_pagamento_unico op
+				          inner join ordem_pagamento_agrupado opa on cast(opa.id as varchar) = op."idOrdemPagamento" 
+                  inner join ordem_pagamento_agrupado_historico oph on opa.id = oph."ordemPagamentoAgrupadoId"
+                  where (1=1)  `
 
     if (statusRemessa === undefined || statusRemessa === StatusRemessaEnum.Criado) {
       query = query + ` and oph."statusRemessa"= 0 `;

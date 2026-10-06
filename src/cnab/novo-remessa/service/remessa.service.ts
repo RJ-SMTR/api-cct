@@ -51,11 +51,12 @@ export class RemessaService {
   ) { }
 
   //PREPARA DADOS AGRUPADOS SALVANDO NAS TABELAS CNAB
-  public async prepararRemessa(dataInicio: Date, dataFim: Date, dataPgto?: Date, consorcio?: string[], pagamentoUnico?: boolean, isPendente?: boolean, idsFavorecidos?: string[]) {
+  public async prepararRemessa(dataInicio: Date, dataFim: Date, dataPgto?: Date, consorcio?: string[], pagamentoUnico?: boolean, isPendente?: boolean, idsFavorecidos?: string[], gratuidade?: boolean) {
     let ordens;
-    if (pagamentoUnico) {
-      ordens = await this.ordemPagamentoAgrupadoService.getOrdensUnicas(dataInicio, dataFim,
-        dataPgto ? dataPgto : new Date());
+    if (gratuidade) {
+      ordens = await this.ordemPagamentoAgrupadoService.getOrdensGratuidade(dataInicio, dataFim, consorcio, dataPgto);
+    } else if (pagamentoUnico) {
+      ordens = await this.ordemPagamentoAgrupadoService.getOrdensUnicas(dataInicio, dataFim);
     } else {
       if (isPendente) {
         ordens = await this.ordemPagamentoAgrupadoService.getOrdensPendentes(dataInicio, dataFim, consorcio, dataPgto, idsFavorecidos);
@@ -76,7 +77,11 @@ export class RemessaService {
           let parentOp = (ordens[i].ordemPagamentoAgrupadoId === null);
           let op;
           let opaChild;
-          if (pagamentoUnico) {
+          if (gratuidade) {
+            // Agrupado de gratuidade não tem pai/filha: a ordem é achada pelo vínculo de gratuidade.
+            parentOp = false;
+            op = await this.ordemPagamentoAgrupadoService.getOrdemPagamentoGratuidade(ordens[i].id);
+          } else if (pagamentoUnico) {
             op = await this.ordemPagamentoAgrupadoService.getOrdemPagamentoUnico(ordens[i].id);
           } else {
             if (!parentOp) {
@@ -121,7 +126,9 @@ export class RemessaService {
               const headerLote = await this.gerarHeaderLote(headerArquivo, pagador, user.bankCode);
               let detB;
               let opa;
-              if (pagamentoUnico) {
+              if (gratuidade) {
+                opa = await this.ordemPagamentoAgrupadoService.getOrdemPagamentoAgrupadoRepo(ordens[i].id);
+              } else if (pagamentoUnico) {
                 opa = await this.ordemPagamentoAgrupadoService.getOrdemPagamentoAgrupado(Number(op.idOrdemPagamento));
               } else {
                 if (parentOp) {
@@ -157,16 +164,16 @@ export class RemessaService {
   }
 
   //PEGA INFORMAÇÕS DAS TABELAS CNAB E GERA O TXT PARA ENVIAR PARA O BANCO
-  async gerarCnabText(headerName: HeaderName, pagamentoUnico?: boolean, isPendente?: boolean, consorcios?: string[]): Promise<ICnabInfo[]> {
+  async gerarCnabText(headerName: HeaderName, pagamentoUnico?: boolean, isPendente?: boolean, consorcios?: string[], gratuidade?: boolean): Promise<ICnabInfo[]> {
     const headerArquivo = await this.headerArquivoService.getExists(HeaderArquivoStatus._2_remessaGerado, headerName);
     if (headerArquivo[0] !== null && headerArquivo[0] !== undefined) {
       const headerArquivoCnab = CnabHeaderArquivo104DTO.fromDTO(headerArquivo[0]);
-      return await this.gerarListaCnab(headerArquivoCnab, headerArquivo[0], pagamentoUnico, isPendente, consorcios)
+      return await this.gerarListaCnab(headerArquivoCnab, headerArquivo[0], pagamentoUnico, isPendente, consorcios, gratuidade)
     }
     return [];
   }
 
-  private async gerarListaCnab(headerArquivoCnab, headerArquivo: HeaderArquivo, pagamentoUnico?: boolean, isPendente?: boolean, consorcios?: string[]): Promise<ICnabInfo[]> {
+  private async gerarListaCnab(headerArquivoCnab, headerArquivo: HeaderArquivo, pagamentoUnico?: boolean, isPendente?: boolean, consorcios?: string[], gratuidade?: boolean): Promise<ICnabInfo[]> {
     const listCnab: ICnabInfo[] = [];
 
     const trailerArquivo104 = structuredClone(Cnab104PgtoTemplates.file104.registros.trailerArquivo);
@@ -185,7 +192,7 @@ export class RemessaService {
         if (isPendente) {
           historico = await this.ordemPagamentoAgrupadoService.getHistoricosOrdemDetalheA(detalhesA[index].id, pagamentoUnico, isPendente);
         } else {
-          historico = await this.ordemPagamentoAgrupadoService.getHistoricosOrdemDetalheA(detalhesA[index].id, pagamentoUnico, false, consorcios);
+          historico = await this.ordemPagamentoAgrupadoService.getHistoricosOrdemDetalheA(detalhesA[index].id, pagamentoUnico, false, consorcios, gratuidade);
         }
 
         this.logger.debug(`BANK: ${historico.userBankCode} - ${historico.username}`)

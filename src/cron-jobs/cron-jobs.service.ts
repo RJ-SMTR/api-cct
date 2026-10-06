@@ -62,12 +62,6 @@ export enum CronJobsEnum {
   syncWeeklyAgentUsers2 = 'syncWeeklyAgentUsers2',
   sincronizarEAgruparOrdensPagamentoGuardador = 'sincronizarEAgruparOrdensPagamentoGuardador'
 }
-interface ICronjobDebug {
-  /** Define uma data customizada para 'hoje' */
-  today?: Date;
-  /** Ignora validação de cronjob*/
-  force?: boolean;
-}
 interface ICronJob {
   name: string;
   cronJobParameters: CronJobParameters;
@@ -727,23 +721,23 @@ export class CronJobsService {
     consorcios: string[], headerName: HeaderName, pagamentoUnico?: boolean) {
     // Agrupa pagamentos        
 
-    // for (let index = 0; index < consorcios.length; index++) {
-    //   if (pagamentoUnico) {
-    //     await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupadosUnico(dataInicio,
-    //        dataFim, dataPagamento, "cett", [consorcios[index]]);
-    //   } else {
-    //     await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(dataInicio,
-    //       dataFim, dataPagamento, "contaBilhetagem", [consorcios[index]]);
-    //   }
-    // }
+    for (let index = 0; index < consorcios.length; index++) {
+      if (pagamentoUnico) {
+        await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupadosUnico(dataInicio,
+           dataFim, dataPagamento, "cett", [consorcios[index]]);
+      } else {
+        await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(dataInicio,
+          dataFim, dataPagamento, "contaBilhetagem", [consorcios[index]]);
+      }
+    }
 
-    // if (consorcios.length == 0) {
-    //   await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(dataInicio, dataFim, dataPagamento, "contaRotativo", []);
-    // }
+    if (consorcios.length == 0) {
+      await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados(dataInicio, dataFim, dataPagamento, "contaRotativo", []);
+    }
 
-    // await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, consorcios, pagamentoUnico);
+    await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, consorcios, pagamentoUnico);
 
-    // Gera o TXT
+    // // Gera o TXT
     const txt = await this.remessaService.gerarCnabText(headerName, pagamentoUnico, false, consorcios);
     // //Envia para o SFTP
     await this.remessaService.enviarRemessa(txt, headerName);
@@ -800,17 +794,22 @@ export class CronJobsService {
     await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, ['STPC', 'STPL', 'TEC'], false, true, idsFavorecidos);
 
     // Gera o TXT
-    // const txt = await this.remessaService.gerarCnabText(headerName, undefined, true);
+    const txt = await this.remessaService.gerarCnabText(headerName, undefined, true);
 
-    // await this.remessaService.enviarRemessa(txt, headerName);
+    await this.remessaService.enviarRemessa(txt, headerName);
   }
 
-  async remessaModalExec(pagamentoUnico?: boolean) {
+
+  
+  async remessaModalExec(pagamentoUnico?: boolean, gratuidade?: boolean) {
     const today = new Date();
     let subDaysInt = 0;
+    let dataFimOffset = 0;
 
     if (isTuesday(today)) {
+      // Terça paga sexta, sábado, domingo e segunda; o dia atual (terça) fica de fora.
       subDaysInt = 4;
+      dataFimOffset = 1;
     } else if (isFriday(today)) {
       subDaysInt = 3;
     } else {
@@ -818,17 +817,37 @@ export class CronJobsService {
     }
 
     const dataInicio = subDays(today, subDaysInt);
-    const dataFim = subDays(today, 1);
+    const dataFim = subDays(today, dataFimOffset);
 
     const consorcios = ['STPC', 'STPL', 'TEC'];
+    if (gratuidade) {
+      await this.geradorRemessaGratuidadeExec(dataInicio, dataFim, today, consorcios, HeaderName.MODAL);
+      return;
+    }
     await this.limparAgrupamentos(dataInicio, dataFim, consorcios);
     await this.geradorRemessaExec(dataInicio, dataFim, today,
       consorcios, HeaderName.MODAL, pagamentoUnico);
   }
 
+  /**
+   * Remessa de gratuidade: agrupa com o pagador CETT usando ordem_pagamento.valorGratuidade
+   * (vínculo em ordemPagamentoAgrupadoGratuidadeId), prepara, gera e envia o CNAB.
+   * Não chama limparAgrupamentos, que apagaria os agrupamentos normais do intervalo.
+   */
+  private async geradorRemessaGratuidadeExec(dataInicio: Date, dataFim: Date, dataPagamento: Date,
+    consorcios: string[], headerName: HeaderName) {
+    for (const consorcio of consorcios) {
+      await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupadosGratuidade(dataInicio, dataFim, dataPagamento, "cett", [consorcio]);
+    }
+
+    await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, consorcios, false, false, undefined, true);
+
+    const txt = await this.remessaService.gerarCnabText(headerName, false, false, consorcios, true);
+    await this.remessaService.enviarRemessa(txt, headerName);
+  }
+
   async remessaGuardadorExec(pagamentoUnico?: boolean) {
     const today = new Date();
-    let subDaysInt = 2;
 
     // if (isTuesday(today)) {
     //   subDaysInt = 4;
@@ -843,7 +862,7 @@ export class CronJobsService {
 
     const dataInicio = today;
     const dataFim = today;
-    await this.limparAgrupamentos(dataInicio, dataFim, []);
+   // await this.limparAgrupamentos(dataInicio, dataFim, []);
     await this.geradorRemessaExec(dataInicio, dataFim, today, [], HeaderName.GUARDADOR, pagamentoUnico);
   }
 
@@ -976,7 +995,7 @@ export class CronJobsService {
       let { dataInicio, dataFim, dataPagamento } = this.calcularPeriodoPagamento();
 
       if (tipo === 'GUARDADOR') {
-        const dataHoje = new Date("2026-10-02");
+        const dataHoje = new Date("2026-10-06");
         dataInicio = dataHoje
         dataFim = dataHoje
         dataPagamento = dataHoje

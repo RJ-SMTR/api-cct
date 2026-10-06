@@ -14,6 +14,8 @@ describe('AgentesService', () => {
     | 'getAgentAssociationOptions'
     | 'findDashboardData'
     | 'getAvailableMonths'
+    | 'findMonthlyByUserId'
+    | 'hasCompleteBankData'
   >;
 
   beforeEach(() => {
@@ -23,6 +25,8 @@ describe('AgentesService', () => {
       getAgentAssociationOptions: jest.fn().mockReturnValue([]),
       findDashboardData: jest.fn(),
       getAvailableMonths: jest.fn().mockResolvedValue([]),
+      findMonthlyByUserId: jest.fn().mockResolvedValue([]),
+      hasCompleteBankData: jest.fn().mockResolvedValue(true),
     };
 
     service = new AgentesService(agentesRepository as AgentesRepository);
@@ -140,5 +144,71 @@ describe('AgentesService', () => {
       },
     ]);
     expect(result.rejectionReasons).toEqual([]);
+  });
+
+  describe('monthly error description (#1164)', () => {
+    const monthlyRow = (motivoStatusRemessa: string | null) => ({
+      data: '2026-10-02',
+      dataTentativaPagamento: '2026-10-02',
+      dataEfetivaPagamento: null,
+      statusRemessa: 4,
+      motivoStatusRemessa,
+      ordemPagamentoAgrupadoIds: '1',
+      valorTotal: '12.00',
+    });
+
+    it('explains an error without motivo code instead of returning an empty description', async () => {
+      jest.spyOn(agentesRepository, 'findMonthlyByUserId').mockResolvedValue([monthlyRow(null)] as any);
+
+      const result = await service.getMonthly('2026-10', 3039);
+
+      expect(result.ordens[0].descricaoMotivoStatusRemessa).toBe('Motivo não informado pelo banco');
+    });
+
+    it('shows the raw code when the motivo code has no description', async () => {
+      jest.spyOn(agentesRepository, 'findMonthlyByUserId').mockResolvedValue([monthlyRow('ANHO')] as any);
+
+      const result = await service.getMonthly('2026-10', 3039);
+
+      expect(result.ordens[0].descricaoMotivoStatusRemessa).toBe('Código ANHO');
+    });
+
+    it('keeps the OcorrenciaEnum description for a known code', async () => {
+      jest.spyOn(agentesRepository, 'findMonthlyByUserId').mockResolvedValue([monthlyRow('AG')] as any);
+
+      const result = await service.getMonthly('2026-10', 3039);
+
+      expect(result.ordens[0].descricaoMotivoStatusRemessa).toBe('Agência/Conta corrente/DV inválido');
+    });
+  });
+
+  describe('monthly bank data flag (#1164)', () => {
+    const monthlyRow = {
+      data: '2026-10-02',
+      dataTentativaPagamento: '2026-10-02',
+      dataEfetivaPagamento: null,
+      statusRemessa: null,
+      motivoStatusRemessa: null,
+      ordemPagamentoAgrupadoIds: null,
+      valorTotal: '258.80',
+    };
+
+    it('flags a monthly payment when the permissionario has no complete bank data', async () => {
+      jest.spyOn(agentesRepository, 'findMonthlyByUserId').mockResolvedValue([monthlyRow] as any);
+      jest.spyOn(agentesRepository, 'hasCompleteBankData').mockResolvedValue(false);
+
+      const result = await service.getMonthly('2026-10', 3039);
+
+      expect(result.ordens[0].dadosBancariosFaltando).toBe(true);
+    });
+
+    it('does not flag a monthly payment when bank data is complete', async () => {
+      jest.spyOn(agentesRepository, 'findMonthlyByUserId').mockResolvedValue([monthlyRow] as any);
+      jest.spyOn(agentesRepository, 'hasCompleteBankData').mockResolvedValue(true);
+
+      const result = await service.getMonthly('2026-10', 3039);
+
+      expect(result.ordens[0].dadosBancariosFaltando).toBe(false);
+    });
   });
 });

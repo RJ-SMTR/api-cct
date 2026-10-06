@@ -52,6 +52,22 @@ export class OrdemPagamento extends EntityHelper {
   @JoinColumn({ foreignKeyConstraintName: 'FK_OrdemPagamentoAgrupado_ManyToOne' })
   ordemPagamentoAgrupado: OrdemPagamentoAgrupado;
 
+  @Column({
+    type: 'decimal',
+    unique: false,
+    nullable: true,
+    precision: 13,
+    scale: 5,
+  })
+  valorGratuidade: number | null;
+
+  @ManyToOne(() => OrdemPagamentoAgrupado, { eager: false, nullable: true })
+  @JoinColumn({
+    name: 'ordemPagamentoAgrupadoGratuidadeId',
+    foreignKeyConstraintName: 'FK_OrdemPagamentoAgrupadoGratuidade_ManyToOne',
+  })
+  ordemPagamentoAgrupadoGratuidade: OrdemPagamentoAgrupado | null;
+
   @Column({ type: Date, unique: false, nullable: true })
   dataCaptura: Date | undefined;
 
