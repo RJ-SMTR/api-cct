@@ -315,6 +315,23 @@ export class RelatorioGuardadorFinancialMovementRepository {
     const allSelectedStatuses = this.getStatusParaFiltro(filter);
 
     if (!allSelectedStatuses?.length) {
+      // Sem status selecionado, numa data única a busca deve trazer o mesmo que com "Pendencia Paga"
+      // selecionada: a pendência paga é filtrada pela data de pagamento, não pelo vencimento.
+      if (this.isSingleDate(filter)) {
+        return {
+          baseStatuses: [
+            StatusPagamento.AGUARDANDO_PAGAMENTO,
+            StatusPagamento.A_PAGAR,
+            StatusPagamento.PAGO,
+            StatusPagamento.ERRO_ESTORNO,
+            StatusPagamento.ERRO_REJEITADO,
+          ],
+          includeAPagar: true,
+          includeBase: true,
+          includePendenciaPagaSingleDate: true,
+        };
+      }
+
       return {
         baseStatuses: null,
         includeAPagar: true,

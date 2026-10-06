@@ -250,6 +250,18 @@ export class AgentesRepository {
     return this.mapAssociationOptions(user?.following ?? []);
   }
 
+  /** Dados bancários completos são pré-requisito para o agrupamento e a remessa (#1164). */
+  async hasCompleteBankData(userId: number): Promise<boolean> {
+    const rows = (await this.dataSource.query(
+      `SELECT ("bankCode" IS NOT NULL AND "bankAgency" IS NOT NULL
+        AND "bankAccount" IS NOT NULL AND "bankAccountDigit" IS NOT NULL) AS complete
+       FROM "user" WHERE id = $1`,
+      [userId],
+    )) as Array<{ complete: boolean }>;
+
+    return rows[0]?.complete === true;
+  }
+
   async findMonthlyByUserId(
     yearMonth: string,
     userId: number,
