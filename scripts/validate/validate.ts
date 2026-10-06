@@ -34,7 +34,14 @@ function runToJson(command: string, args: (outputFile: string) => string[]): any
 
 function collectSuites(): Record<string, SuiteStatus> {
   console.log('Running jest...');
-  return parseJestJson(runToJson(bin('jest'), (out) => ['--json', `--outputFile=${out}`]), ROOT);
+  const report = runToJson(bin('jest'), (out) => ['--json', `--outputFile=${out}`]);
+  // Print why each failing suite failed, so CI logs show more than the status.
+  for (const suite of report.testResults ?? []) {
+    if (suite.status !== 'failed') continue;
+    const messages = [suite.message, ...(suite.assertionResults ?? []).flatMap((a: any) => a.failureMessages ?? [])].filter(Boolean);
+    console.log(`\n--- FAILED ${suite.name}\n${messages.join('\n').slice(0, 4000)}`);
+  }
+  return parseJestJson(report, ROOT);
 }
 
 function collectEslint(): Record<string, number> {
