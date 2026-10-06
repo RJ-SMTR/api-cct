@@ -37,15 +37,15 @@ export class RelatorioFinancialMovementNovoRemessaPageDto {
   pageSize?: number;
   data?: RelatorioFinancialMovementNovoRemessaData[];
   nextCursor?: RelatorioFinancialMovementNovoRemessaCursor | string | null ;
-  count?: Number;
-  valorTotal?: Number;
-  valorPago?: Number;
-  valorRejeitado?: Number;
-  valorEstornado?: Number;
-  valorAguardandoPagamento?: Number;
-  valorAPagar?: Number;
-  valorPendente?: Number;
-  valorPendenciaPaga?: Number;
+  count?: number;
+  valorTotal?: number;
+  valorPago?: number;
+  valorRejeitado?: number;
+  valorEstornado?: number;
+  valorAguardandoPagamento?: number;
+  valorAPagar?: number;
+  valorPendente?: number;
+  valorPendenciaPaga?: number;
 }
 
 export class RelatorioFinancialMovementNovoRemessaData {

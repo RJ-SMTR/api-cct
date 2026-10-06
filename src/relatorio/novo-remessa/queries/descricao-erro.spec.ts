@@ -20,10 +20,10 @@ describe('descricao-erro', () => {
       expect(getDescricaoErro('Pendencia Paga', 'AG')).toBeUndefined();
     });
 
-    it('is empty when the error has no occurrence code', () => {
-      expect(getDescricaoErro('Rejeitado', null)).toBeUndefined();
-      expect(getDescricaoErro('Rejeitado', '')).toBeUndefined();
-      expect(getDescricaoErro('Rejeitado', undefined)).toBeUndefined();
+    it('explains an error that has no occurrence code instead of leaving it empty (#1164)', () => {
+      expect(getDescricaoErro('Rejeitado', null)).toBe('Motivo não informado pelo banco');
+      expect(getDescricaoErro('Rejeitado', '')).toBe('Motivo não informado pelo banco');
+      expect(getDescricaoErro('Estorno', undefined)).toBe('Motivo não informado pelo banco');
     });
 
     it('describes the code ANHO as "Conta digital"', () => {

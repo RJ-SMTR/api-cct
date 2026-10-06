@@ -92,6 +92,8 @@ export class AgentesService {
     );
 
     const result = new OrdemPagamentoMensalDto();
+    const dadosBancariosFaltando = !(await this.agentesRepository.hasCompleteBankData(userId));
+
     result.ordens = rows.map((row) => {
       const dto = new OrdemPagamentoAgrupadoMensalDto();
       const ordemPagamentoAgrupadoIds = row.ordemPagamentoAgrupadoIds
@@ -117,14 +119,19 @@ export class AgentesService {
           ? (null as any)
           : getStatusRemessaEnumByValue(Number(row.statusRemessa) as any) ??
             (null as any);
+      // Erro sem descrição deixava o texto vazio (#1164): usa o código ou um texto padrão.
       dto.descricaoMotivoStatusRemessa = row.motivoStatusRemessa
-        ? OcorrenciaEnum[row.motivoStatusRemessa as keyof typeof OcorrenciaEnum]
-        : (null as any);
+        ? OcorrenciaEnum[row.motivoStatusRemessa as keyof typeof OcorrenciaEnum] ??
+          `Código ${row.motivoStatusRemessa}`
+        : Number(row.statusRemessa) === 4
+          ? 'Motivo não informado pelo banco'
+          : (null as any);
       dto.dataPagamento = row.dataEfetivaPagamento
         ? (new Date(row.dataEfetivaPagamento) as any)
         : (null as any);
       (dto as any).dataTentativaPagamento = row.data ?? null;
       (dto as any).dataEfetivaPagamento = row.dataEfetivaPagamento ?? null;
+      dto.dadosBancariosFaltando = dadosBancariosFaltando;
       return dto;
     });
 

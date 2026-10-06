@@ -54,13 +54,13 @@ export class RelatorioExtratoBancarioRepository {
   }    
 
   public async findExtrato(args: any): Promise<RelatorioExtratoBancarioDto[]> {   
-    let query = this.getQuery(args.dataInicio.toISOString().slice(0,10),
+    const query = this.getQuery(args.dataInicio.toISOString().slice(0,10),
       args.dataFim.toISOString().slice(0,10),args.tipo,args.operacao,args.conta);         
     
     this.logger.debug(query);
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
-    let result: any[] = await queryRunner.query(query);
+    const result: any[] = await queryRunner.query(query);
     queryRunner.release();
     const extratos = result.map((r) => new RelatorioExtratoBancarioDto(r));
     return extratos;

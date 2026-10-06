@@ -8,4 +8,5 @@ export class OrdemPagamentoAgrupadoMensalDto {
   motivoStatusRemessa: string | undefined;
   descricaoStatusRemessa: string | undefined;
   descricaoMotivoStatusRemessa: string | undefined;
+  dadosBancariosFaltando: boolean;
 }

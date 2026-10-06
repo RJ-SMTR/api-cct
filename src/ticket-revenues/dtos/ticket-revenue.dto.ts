@@ -24,7 +24,7 @@ export class TicketRevenueDTO {
   /**
    * Para o frontend exibir o número de passagens arrecadadas - individual é sempre 1
    */
-  count: number = 1;
+  count = 1;
 
   /**
    * Represents `data`

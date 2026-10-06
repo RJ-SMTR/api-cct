@@ -351,7 +351,7 @@ export class CnabService {
   /**
    * Atualiza a tabela TransacaoView com dados novos ou atualizados do bigquery
    */
-  async updateTransacaoViewBigquery(dataOrdemIncial: Date, dataOrdemFinal: Date, daysBack = 0, consorcio: string = 'Todos', idTransacao: string[] = []) {
+  async updateTransacaoViewBigquery(dataOrdemIncial: Date, dataOrdemFinal: Date, daysBack = 0, consorcio = 'Todos', idTransacao: string[] = []) {
     const METHOD = 'updateTransacaoViewBigquery';
     const trs = await this.findBigqueryTransacao(dataOrdemIncial, dataOrdemFinal, daysBack, consorcio);
     const queryRunner = this.dataSource.createQueryRunner();
@@ -510,7 +510,7 @@ export class CnabService {
   async syncTransacaoViewOrdemPgto(args?: ISyncOrdemPgto) {
     this.logger.debug('Inicio Sync TransacaoView');
     const startDate = new Date();
-    let count = await this.transacaoViewService.syncOrdemPgto(args);
+    const count = await this.transacaoViewService.syncOrdemPgto(args);
     const endDate = new Date();
     const duration = formatDateInterval(endDate, startDate);
     this.logger.debug(`Fim Sync TransacaoView - duração: ${duration}`);
@@ -614,8 +614,8 @@ export class CnabService {
  }  
   
   private async geraRemssaCancelamento(args: any, listCnab: ICnabInfo[] = [], currentNSA) {
-    let nsaInicial = args.nsaInicial || currentNSA;
-    let nsaFinal = args.nsaFinal || nsaInicial;
+    const nsaInicial = args.nsaInicial || currentNSA;
+    const nsaFinal = args.nsaFinal || nsaInicial;
     if (this.validateCancel(args.nsaInicial, args.nsaFinal)) {
       this.logger.warn('Cancelamento de validação detectado, não haverá remessas para enviar..');
       return [];
@@ -779,7 +779,7 @@ export class CnabService {
   async clearSyncTransacaoView(args?: IClearSyncOrdemPgto) {
     this.logger.debug('Inicio clear sync TransacaoView');
     const startDate = new Date();
-    let count = await this.transacaoViewService.clearSyncOrdemPgto(args);
+    const count = await this.transacaoViewService.clearSyncOrdemPgto(args);
     const endDate = new Date();
     const duration = formatDateInterval(endDate, startDate);
     this.logger.debug(`Fim clear sync TransacaoView - duração: ${duration}`);

@@ -29,7 +29,7 @@ export function formatSqlQuery(query: string): string {
 
 export function compactQuery(str: string): string {
   if (process.env.NODE_ENV != 'local' || process.env.COMPACT_QUERY == 'true') {
-    let result = str
+    const result = str
       .split('\n')
       .map((l) => l.split('--')[0].trim())
       .join('\n')

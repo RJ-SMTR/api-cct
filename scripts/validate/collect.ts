@@ -9,8 +9,10 @@ const STATUS_MAP: Record<string, SuiteStatus> = {
 };
 
 function relativeTo(rootDir: string, absolutePath: string): string {
-  const root = rootDir.endsWith('/') ? rootDir : `${rootDir}/`;
-  return absolutePath.startsWith(root) ? absolutePath.slice(root.length) : absolutePath;
+  const normalize = (p: string) => p.replace(/\\/g, '/');
+  const root = normalize(rootDir).replace(/\/?$/, '/');
+  const target = normalize(absolutePath);
+  return target.startsWith(root) ? target.slice(root.length) : target;
 }
 
 export function parseJestJson(output: any, rootDir: string): Record<string, SuiteStatus> {

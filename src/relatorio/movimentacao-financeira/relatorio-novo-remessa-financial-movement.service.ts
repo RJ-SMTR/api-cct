@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
-import { format } from 'date-fns';
 import { DataSource } from 'typeorm';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -11,6 +10,7 @@ import {
   buildBaseQuery,
   buildEleicaoQuery,
   buildPendentesQuery,
+  buildPendenciaPagamentoSingleDateQuery,
   buildPendenciaPagaSingleDateQuery,
 } from '../novo-remessa/queries/novo-remessa-query-builder';
 import { IFindPublicacaoRelatorioNovoFinancialMovement } from '../interfaces/filter-publicacao-relatorio-novo-financial-movement.interface';
@@ -34,6 +34,7 @@ type ResolvedStatuses = {
   includePendentes: boolean;
   includeBase: boolean;
   includePendenciaPagaSingleDate: boolean;
+  parentErrorStatusesSingleDate: Array<StatusPagamento.ERRO_ESTORNO | StatusPagamento.ERRO_REJEITADO>;
 };
 
 type CursorValues = {
@@ -127,11 +128,20 @@ export class RelatorioNovoRemessaFinancialMovementService {
       LIMIT $12
     `;
     const dataParams = [...params, cursor.dataReferencia, cursor.nome, cursor.status, cursor.cpfCnpj, pageSize];
-    const rows = await this.executeQuery(dataQuery, dataParams, 'PAGE');
+    const [rows, summary] = await Promise.all([
+      this.executeQuery(dataQuery, dataParams, 'PAGE'),
+      this.findFinancialMovementSummary(safeFilter),
+    ]);
     const data = rows.map((row) => new RelatorioFinancialMovementNovoRemessaData(row));
     const lastRow = rows?.[rows.length - 1];
     const nextCursor = lastRow? { dataReferencia: lastRow.dataReferencia, nomes: lastRow.nomes, status: lastRow.status, cpfCnpj: lastRow.cpfCnpj } : null;
-    return new RelatorioFinancialMovementNovoRemessaPageDto({ currentPage, pageSize, data, nextCursor });
+    return new RelatorioFinancialMovementNovoRemessaPageDto({
+      ...summary,
+      currentPage,
+      pageSize,
+      data,
+      nextCursor,
+    });
   }
 
   public async streamFinancialMovementRows(filter: IFindPublicacaoRelatorioNovoFinancialMovement, onRow: (row: RelatorioFinancialMovementNovoRemessaData) => Promise<void> | void) {
@@ -202,14 +212,17 @@ export class RelatorioNovoRemessaFinancialMovementService {
 
   private resolveStatuses(filter: NormalizedFilter): ResolvedStatuses {
     const all = this.getStatusParaFiltro(filter);
-    if (!all?.length) return { baseStatuses: null, includePendentes: false, includeBase: true, includePendenciaPagaSingleDate: false };
+    if (!all?.length) return { baseStatuses: null, includePendentes: false, includeBase: true, includePendenciaPagaSingleDate: false, parentErrorStatusesSingleDate: [] };
     const isSingle = this.isSingleDate(filter);
     const includePendentes = all.includes(StatusPagamento.PENDENTES);
     const includePendenciaPagaSingleDate = isSingle && all.includes(StatusPagamento.PENDENCIA_PAGA);
+    const parentErrorStatusesSingleDate = isSingle
+      ? all.filter((status): status is StatusPagamento.ERRO_ESTORNO | StatusPagamento.ERRO_REJEITADO => status === StatusPagamento.ERRO_ESTORNO || status === StatusPagamento.ERRO_REJEITADO)
+      : [];
     let baseStatuses = all.filter((s) => s!== StatusPagamento.PENDENTES);
-    if (!isSingle) baseStatuses = baseStatuses.filter((s) => s!== StatusPagamento.PENDENCIA_PAGA);
-    else if (includePendenciaPagaSingleDate) baseStatuses = baseStatuses.filter((s) => s!== StatusPagamento.PENDENCIA_PAGA);
-    return { baseStatuses: baseStatuses.length? baseStatuses : null, includePendentes, includeBase: baseStatuses.length > 0, includePendenciaPagaSingleDate };
+    if (includePendenciaPagaSingleDate) baseStatuses = baseStatuses.filter((s) => s!== StatusPagamento.PENDENCIA_PAGA);
+    baseStatuses = baseStatuses.filter((s) => !parentErrorStatusesSingleDate.includes(s as StatusPagamento.ERRO_ESTORNO | StatusPagamento.ERRO_REJEITADO));
+    return { baseStatuses: baseStatuses.length? baseStatuses : null, includePendentes, includeBase: baseStatuses.length > 0, includePendenciaPagaSingleDate, parentErrorStatusesSingleDate };
   }
 
   private buildFinalBaseQuery(filter: NormalizedFilter, statuses: ResolvedStatuses): string {
@@ -219,6 +232,7 @@ export class RelatorioNovoRemessaFinancialMovementService {
       if (filter.eleicao) q.push(this.buildEleicaoQuery(filter));
       if (statuses.includeBase) q.push(this.buildBaseQuery(filter));
       if (statuses.includePendenciaPagaSingleDate) q.push(this.buildPendenciaPagaSingleDateQuery(filter));
+      if (statuses.parentErrorStatusesSingleDate.length) q.push(this.buildPendenciaPagamentoSingleDateQuery(filter, statuses.parentErrorStatusesSingleDate));
       if (statuses.includePendentes) q.push(this.buildPendentesQuery(filter));
       // Nenhuma consulta selecionada para o filtro: não deve trazer linhas (antes caía em todos os status).
       if (!q.length) return `${this.buildBaseQuery(filter)} AND FALSE`;
@@ -244,7 +258,10 @@ export class RelatorioNovoRemessaFinancialMovementService {
   private buildPendenciaPagaSingleDateQuery(filter: NormalizedFilter): string {
     return `${buildPendenciaPagaSingleDateQuery({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5 }).trim()} ${filter.desativados? 'AND pu.bloqueado = true' : ''}`;
   }
-  private isSingleDate(filter: NormalizedFilter): boolean { return format(filter.dataInicio, 'yyyy-MM-dd') === format(filter.dataFim, 'yyyy-MM-dd'); }
+  private buildPendenciaPagamentoSingleDateQuery(filter: NormalizedFilter, statuses: Array<StatusPagamento.ERRO_ESTORNO | StatusPagamento.ERRO_REJEITADO>): string {
+    return `${buildPendenciaPagamentoSingleDateQuery({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5, parentErrorStatuses: statuses }).trim()} ${filter.desativados ? 'AND pu.bloqueado = true' : ''}`;
+  }
+  private isSingleDate(filter: NormalizedFilter): boolean { return this.toQueryDate(filter.dataInicio) === this.toQueryDate(filter.dataFim); }
   private hasOtherStatusFilters(filter: NormalizedFilter): boolean { return Boolean(filter.pago || filter.aPagar || filter.emProcessamento || filter.erro || filter.pendenciaPaga || filter.pendentes || filter.estorno || filter.rejeitado); }
   private resolvePagination(filter: NormalizedFilter) {
     const cp = Number(filter.page); const ps = Number(filter.pageSize);
@@ -263,9 +280,10 @@ export class RelatorioNovoRemessaFinancialMovementService {
   }
   private getInnerQueryParameters(filter: NormalizedFilter, selectedStatuses: string[] | null): any[] {
     const consorcioNome = filter.consorcioNome?.length? filter.consorcioNome.map((n) => n.toUpperCase().trim()) : null;
-    return [format(filter.dataInicio, 'yyyy-MM-dd'), format(filter.dataFim, 'yyyy-MM-dd'), filter.userIds?.length? filter.userIds : null, selectedStatuses, consorcioNome];
+    return [this.toQueryDate(filter.dataInicio), this.toQueryDate(filter.dataFim), filter.userIds?.length? filter.userIds : null, selectedStatuses, consorcioNome];
   }
   private getQueryParameters(filter: NormalizedFilter, selectedStatuses: string[] | null): any[] { return this.getInnerQueryParameters(filter, selectedStatuses); }
+  private toQueryDate(date: Date): string { return date.toISOString().slice(0, 10); }
   private async executeQuery<T = any>(query: string, params: any[], label: string): Promise<T[]> {
     try { return await this.dataSource.query(query, params); } catch (error) { this.logger.error(`Erro ao executar a query (${label})`, error); throw error; }
   }

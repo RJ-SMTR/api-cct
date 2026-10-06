@@ -24,6 +24,7 @@ Registro único do que foi adiado de propósito, por quê e por quem. Serve para
 | [TD-7](#td-7) | Gate não detecta teste pulado dentro de suíte que passa | aberto | Matthew | 2026-09-30 |
 | [TD-8](#td-8) | 12 imports de `repository` para `service` | aberto | Matthew | 2026-09-30 |
 | [TD-9](#td-9) | Pagamento depende de editar o código e fazer deploy | aberto | Matthew | 2026-09-30 |
+| [TD-10](#td-10) | Baseline de eslint relaxada para `cron-jobs` e `ordem-pagamento-agrupado` | aberto | Rayanne | 2026-10-06 |
 
 ## Entradas
 
@@ -109,3 +110,12 @@ Registro único do que foi adiado de propósito, por quê e por quem. Serve para
 - **Contexto:** os jobs `generateRemessaVLT`, `generateRemessaVanzeiros` e `generateRemessaEmpresa` não geram remessa (corpo vazio ou chamada comentada). No dia de pagamento, alguém coloca uma chamada em `onModuleLoad` de `CronJobsService` (`remessaModalExec`, `remessaGuardadorExec` ou `remessaConsorciosExec`), faz o deploy (a remessa roda quando o app sobe) e depois remove a chamada. Confirmado por Matthew em 2026-09-30. Em `c83718e2` a primeira linha de `onModuleLoad` era `await this.remessaModalExec(true)`, que gerava remessa a cada boot do app; essa linha foi removida em 2026-09-30, e o gatilho continua manual.
 - **Impacto/risco:** a remessa de pagamento depende de uma edição manual de código de produção; qualquer restart do app com a chamada ativa reenvia a remessa; não há trava contra execução dupla nem trilha de quem disparou; agentes podem "consertar" os crons desligados sem saber que é intencional.
 - **Critério de pagamento:** a geração da remessa pode ser disparada sem alterar código nem fazer deploy (por endpoint autenticado com papel restrito, ou pelos crons reativados atrás de uma flag em `settings`), com trava contra execução duplicada e registro de quem disparou e quando; o processo fica descrito em `docs/fluxo-pagamento.md`.
+
+## TD-10
+**Baseline de eslint relaxada para `cron-jobs` e `ordem-pagamento-agrupado`**
+
+- **Status:** aberto
+- **Registrado por:** Rayanne · **Detectado por:** agente · **Data:** 2026-10-06
+- **Contexto:** `npm run validate:update-baseline` foi rodado em 2026-10-06 porque `scripts/validate/baseline.json` (gerada em 2026-09-30) estava defasada: os commits de gratuidade (`2b334b88`, `1fac3367`, `b3b8db6f`) mexeram nesses dois arquivos depois dela. A baseline passou de 4 para 5 erros em `src/cnab/novo-remessa/repository/ordem-pagamento-agrupado.repository.ts` e de 5 para 7 em `src/cron-jobs/cron-jobs.service.ts`. Os erros novos são `@typescript-eslint/no-unused-vars` (`ICronjobDebug`, `dtInicio`, `dtFim`, `dataPagamento`, `subDaysInt`), `@typescript-eslint/no-floating-promises` (4 chamadas em `ordem-pagamento-agrupado.repository.ts`), `@typescript-eslint/require-await` (`onTick`) e `prefer-const` (`subDaysInt`). Aceitos para não mexer em código de remessa ao mesmo tempo que se faz a validação.
+- **Impacto/risco:** o gate deixa de proteger esses dois arquivos contra mais erros de lint; `no-floating-promises` em código de remessa pode esconder uma promise não aguardada, o que é risco real de pagamento. `cron-jobs.service.ts` é o arquivo dos jobs de remessa (ver TD-9).
+- **Critério de pagamento:** os 7 erros de `cron-jobs.service.ts` e os 5 de `ordem-pagamento-agrupado.repository.ts` corrigidos em commit próprio, com teste de remessa antes e depois, e a baseline regenerada com esses números menores.

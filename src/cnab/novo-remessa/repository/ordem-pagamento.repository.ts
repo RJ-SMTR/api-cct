@@ -281,7 +281,7 @@ ORDER BY r.data_referencia DESC;`;
   }
 
   public async findOrdensPagamentoAgrupadasByOrdemPagamentoAgrupadoId(
-    ordemPagamentoAgrupadoIds: String,
+    ordemPagamentoAgrupadoIds: string,
     userId: number,
     endDateParam?: Date
   ): Promise<OrdemPagamentoSemanalDto[]> {
@@ -550,7 +550,7 @@ ORDER BY r.data_referencia DESC;`;
 
     queryRunner.connect();
 
-    let result: any = await queryRunner.query(query);
+    const result: any = await queryRunner.query(query);
 
     queryRunner.release();
 
@@ -564,7 +564,7 @@ ORDER BY r.data_referencia DESC;`;
 
     queryRunner.connect();
 
-    let result: any = await queryRunner.query(query);
+    const result: any = await queryRunner.query(query);
 
     queryRunner.release();
 
@@ -578,7 +578,7 @@ ORDER BY r.data_referencia DESC;`;
 
     queryRunner.connect();
 
-    let result: any = await queryRunner.query(query);
+    const result: any = await queryRunner.query(query);
 
     queryRunner.release();
 
@@ -618,7 +618,7 @@ ORDER BY r.data_referencia DESC;`;
 
     queryRunner.connect();
 
-    let result: any = await queryRunner.query(query);
+    const result: any = await queryRunner.query(query);
 
     queryRunner.release();
 

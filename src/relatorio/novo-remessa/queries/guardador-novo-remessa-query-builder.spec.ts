@@ -1,6 +1,7 @@
 import {
   buildGuardadorAPagarQuery,
   buildGuardadorBaseQuery,
+  buildGuardadorPendenciaPagamentoSingleDateQuery,
   buildGuardadorPendenciaPagaSingleDateQuery,
 } from './guardador-novo-remessa-query-builder';
 
@@ -138,6 +139,30 @@ describe('guardador-novo-remessa-query-builder', () => {
       expect(sql).toMatch(
         /opa\.id NOT IN \(\s*SELECT filha\."ordemPagamentoAgrupadoId"\s+FROM ordem_pagamento_agrupado filha\s+WHERE filha\."ordemPagamentoAgrupadoId" IS NOT NULL\s*\)/,
       );
+    });
+  });
+
+  describe('single-day payment-pending parent query', () => {
+    it('filters the parent attempt date and reads its latest payment history', () => {
+      const sql = buildGuardadorPendenciaPagamentoSingleDateQuery({
+        parentErrorStatuses: ['Rejeitado'],
+      });
+
+      expect(sql).toContain('op_pai."dataPagamento"::date BETWEEN $1::date AND $2::date');
+      expect(sql).toContain('MAX(oph_mais_recente.id)');
+      expect(sql).toContain('oph_pai."motivoStatusRemessa"');
+      expect(sql).toContain("IN ('Rejeitado')");
+    });
+
+    it('keeps the child value while exposing the parent error occurrence', () => {
+      const sql = buildGuardadorPendenciaPagamentoSingleDateQuery({
+        parentErrorStatuses: ['Estorno'],
+      });
+
+      expect(sql).toContain('da."valorLancamento" AS valor');
+      expect(sql).toContain('op_pai."dataPagamento" AS "dataReferencia"');
+      expect(sql).toContain('TRIM(oph_pai."motivoStatusRemessa")');
+      expect(sql).toContain("IN ('Estorno')");
     });
   });
 
