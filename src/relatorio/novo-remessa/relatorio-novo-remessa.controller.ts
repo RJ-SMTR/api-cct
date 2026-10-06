@@ -153,7 +153,7 @@ export class RelatorioNovoRemessaController {
     @Query(new ValidationPipe({ transform: true })) queryParams: FinancialMovementQueryDto,
   ) {
     try {
-      const result = await this.relatorioNovoRemessaService.findMovimentacaoFinanceira(queryParams);
+      const result = await this.relatorioNovoRemessaFinancialMovementService.findFinancialMovementPage(queryParams);
       return result;
     } catch (e) {
       return new HttpException({ error: e.message }, HttpStatus.BAD_REQUEST);

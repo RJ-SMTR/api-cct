@@ -5,6 +5,7 @@ export type GuardadorBaseQueryParams = {
   consorcioFilterParamIndex?: number;
   favorecidoFilterParamIndex?: number;
   todosConsorcios?: boolean;
+  parentErrorStatuses?: Array<'Estorno' | 'Rejeitado'>;
 };
 
 export const GUARDADOR_STATUS_CASE = `
@@ -14,6 +15,17 @@ export const GUARDADOR_STATUS_CASE = `
     WHEN oph."statusRemessa" IN (0,1) THEN 'A Pagar'
     WHEN oph."motivoStatusRemessa" IN ('00', 'BD') OR oph."statusRemessa" = 3 THEN 'Pago'
     WHEN oph."motivoStatusRemessa" = '02' THEN 'Estorno'
+    ELSE 'Rejeitado'
+  END
+`;
+
+const buildGuardadorStatusCase = (historyAlias: string) => `
+  CASE
+    WHEN ${historyAlias}."statusRemessa" = 5 THEN 'Pendencia Paga'
+    WHEN ${historyAlias}."statusRemessa" = 2 THEN 'Aguardando Pagamento'
+    WHEN ${historyAlias}."statusRemessa" IN (0,1) THEN 'A Pagar'
+    WHEN ${historyAlias}."motivoStatusRemessa" IN ('00', 'BD') OR ${historyAlias}."statusRemessa" = 3 THEN 'Pago'
+    WHEN ${historyAlias}."motivoStatusRemessa" = '02' THEN 'Estorno'
     ELSE 'Rejeitado'
   END
 `;
@@ -257,6 +269,61 @@ export const buildGuardadorPendenciaPagaSingleDateQuery = (params: GuardadorBase
       )
       AND (oph."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph."motivoStatusRemessa" IS NULL)
       ${favorecidoClause}
+      ${params.desativados ? 'AND pu.bloqueado = true' : ''}
+  )`.trim();
+};
+
+export const buildGuardadorPendenciaPagamentoSingleDateQuery = (params: GuardadorBaseQueryParams = {}) => {
+  const consorcioParam = `$${params.consorcioFilterParamIndex ?? 5}`;
+  const parentStatusCase = buildGuardadorStatusCase('oph_pai');
+  const requestedStatuses = params.parentErrorStatuses?.length ? params.parentErrorStatuses : ['Estorno', 'Rejeitado'];
+  const requestedStatusSql = requestedStatuses.map((status) => `'${status}'`).join(', ');
+
+  return `(${GUARDADOR_ASSOCIACAO_CTE}
+    SELECT DISTINCT
+      op_pai."dataPagamento" AS "dataReferencia",
+      opa.id,
+      pu."fullName" AS nomes,
+      COALESCE(pu.email, '') AS email,
+      pu."bankCode" AS "codBanco",
+      COALESCE(bc.name, '') AS "nomeBanco",
+      pu."cpfCnpj" AS "cpfCnpj",
+      ${GUARDADOR_CONSORCIO_CASE} AS "nomeConsorcio",
+      da."valorLancamento" AS valor,
+      opa."dataPagamento" AS "dataPagamento",
+      ${parentStatusCase} AS status,
+      ${buildCodigoErroSql(parentStatusCase, 'oph_pai')} AS "codigoErro"
+    FROM ordem_pagamento_guardador opg
+    INNER JOIN ordem_pagamento_agrupado opa
+      ON opg."ordemPagamentoAgrupadoId" = opa.id
+    INNER JOIN ordem_pagamento_agrupado op_pai
+      ON op_pai.id = opa."ordemPagamentoAgrupadoId"
+    INNER JOIN ordem_pagamento_agrupado_historico oph
+      ON oph."ordemPagamentoAgrupadoId" = opa.id
+    INNER JOIN detalhe_a da
+      ON da."ordemPagamentoAgrupadoHistoricoId" = oph.id
+    INNER JOIN ordem_pagamento_agrupado_historico oph_pai
+      ON oph_pai.id = (
+        SELECT MAX(oph_mais_recente.id)
+        FROM ordem_pagamento_agrupado_historico oph_mais_recente
+        WHERE oph_mais_recente."ordemPagamentoAgrupadoId" = op_pai.id
+      )
+    INNER JOIN public."user" pu
+      ON pu.id = opg."userId"
+    LEFT JOIN bank bc
+      ON bc.code = pu."bankCode"
+    ${GUARDADOR_ASSOCIACAO_JOIN}
+    WHERE
+      op_pai."dataPagamento"::date BETWEEN $1::date AND $2::date
+      AND ($3::integer[] IS NULL OR pu.id = ANY($3))
+      AND ($4::text[] IS NULL OR TRUE)
+      AND ${parentStatusCase} IN (${requestedStatusSql})
+      AND ${buildConsorcioFilter(consorcioParam, params.todosConsorcios)}
+      AND (
+        ($6::numeric IS NULL OR da."valorLancamento" >= $6::numeric)
+        AND ($7::numeric IS NULL OR da."valorLancamento" <= $7::numeric)
+      )
+      AND (oph_pai."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph_pai."motivoStatusRemessa" IS NULL)
       ${params.desativados ? 'AND pu.bloqueado = true' : ''}
   )`.trim();
 };
