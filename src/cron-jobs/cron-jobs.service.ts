@@ -106,14 +106,13 @@ export class CronJobsService {
   ) { }
 
   async onModuleInit() {
-    await this.sincronizarEAgruparOrdensPagamento()
+   await this.sincronizarEAgruparOrdensPagamento()
     this.onModuleLoad().catch((error: Error) => {
       throw error;
     });
   }
 
-  async onModuleLoad() {   
-    await this.remessaModalExec(false,true)    
+  async onModuleLoad() {     
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -739,7 +738,7 @@ export class CronJobsService {
 
     await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, consorcios, pagamentoUnico);
 
-    // Gera o TXT
+    // // Gera o TXT
     const txt = await this.remessaService.gerarCnabText(headerName, pagamentoUnico, false, consorcios);
     // //Envia para o SFTP
     await this.remessaService.enviarRemessa(txt, headerName);
@@ -806,9 +805,12 @@ export class CronJobsService {
   async remessaModalExec(pagamentoUnico?: boolean, gratuidade?: boolean) {
     const today = new Date();
     let subDaysInt = 0;
+    let dataFimOffset = 0;
 
     if (isTuesday(today)) {
+      // Terça paga sexta, sábado, domingo e segunda; o dia atual (terça) fica de fora.
       subDaysInt = 4;
+      dataFimOffset = 1;
     } else if (isFriday(today)) {
       subDaysInt = 3;
     } else {
@@ -816,7 +818,7 @@ export class CronJobsService {
     }
 
     const dataInicio = subDays(today, subDaysInt);
-    const dataFim = subDays(today, 0);
+    const dataFim = subDays(today, dataFimOffset);
 
     const consorcios = ['STPC', 'STPL', 'TEC'];
     if (gratuidade) {
