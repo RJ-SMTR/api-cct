@@ -28,6 +28,29 @@ describe('RelatorioGuardadorFinancialMovementRepository', () => {
     );
   });
 
+  describe('resolveStatuses (sem status selecionado)', () => {
+    const resolve = (filter: any) =>
+      (repository as any).resolveStatuses({
+        ...filter,
+        dataInicio: new Date(filter.dataInicio),
+        dataFim: new Date(filter.dataFim),
+      });
+
+    it('includes the pendencia paga single-date query when the date is a single day', () => {
+      const statuses = resolve({ dataInicio: '2026-10-01', dataFim: '2026-10-01' });
+
+      expect(statuses.includePendenciaPagaSingleDate).toBe(true);
+      expect(statuses.baseStatuses).not.toContain(StatusPagamento.PENDENCIA_PAGA);
+    });
+
+    it('keeps the base query without status filter when the range covers several days', () => {
+      const statuses = resolve({ dataInicio: '2026-10-01', dataFim: '2026-10-31' });
+
+      expect(statuses.includePendenciaPagaSingleDate).toBe(false);
+      expect(statuses.baseStatuses).toBeNull();
+    });
+  });
+
   describe('findFinancialMovementSummary', () => {
     it('should query count and aggregates and return RelatorioFinancialMovementNovoRemessaSummaryDto', async () => {
       (mockQueryRunner.query as jest.Mock)
