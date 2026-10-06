@@ -112,14 +112,14 @@ export class CronJobsService {
   ) { }
 
   async onModuleInit() {
-    await this.sincronizarEAgruparOrdensPagamento()
+    await this.sincronizarEAgruparOrdensPagamentoGuardador()
     this.onModuleLoad().catch((error: Error) => {
       throw error;
     });
   }
 
   async onModuleLoad() {   
-    await this.remessaModalExec();     
+    await this.remessaGuardadorExec()    
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -868,7 +868,7 @@ export class CronJobsService {
 
     const dataInicio = today;
     const dataFim = today;
-    await this.limparAgrupamentos(dataInicio, dataFim, []);
+   // await this.limparAgrupamentos(dataInicio, dataFim, []);
     await this.geradorRemessaExec(dataInicio, dataFim, today, [], HeaderName.GUARDADOR, pagamentoUnico);
   }
 
@@ -1001,7 +1001,7 @@ export class CronJobsService {
       let { dataInicio, dataFim, dataPagamento } = this.calcularPeriodoPagamento();
 
       if (tipo === 'GUARDADOR') {
-        const dataHoje = new Date("2026-10-02");
+        const dataHoje = new Date("2026-10-06");
         dataInicio = dataHoje
         dataFim = dataHoje
         dataPagamento = dataHoje
