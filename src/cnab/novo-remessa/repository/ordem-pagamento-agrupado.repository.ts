@@ -88,7 +88,8 @@ export class OrdemPagamentoAgrupadoRepository {
                FROM ordem_pagamento_agrupado opa
                INNER JOIN ordem_pagamento op ON opa.id = op."ordemPagamentoAgrupadoId"
                INNER JOIN ordem_pagamento_agrupado_historico oph ON opa.id = oph."ordemPagamentoAgrupadoId"
-               WHERE oph."statusRemessa" = 0`;
+               WHERE oph."statusRemessa" = 0
+                 AND opa."ordemPagamentoAgrupadoId" IS NULL`;
 
     if (dataPagamento) {
       const dataPagamentoForm = formatDateISODate(dataPagamento);

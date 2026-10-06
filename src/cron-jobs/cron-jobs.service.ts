@@ -752,6 +752,8 @@ export class CronJobsService {
   }
 
   /** Group eligible guardador pendencies, prepare the CNAB and send it. */
+  // Parameters are kept for the public API while group/prepare remains operationally disabled.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async pagamentoPendentesGuardadoresExec(dtInicio: string, dtFim: string, dataPagamento?: string) {
     // const dataInicio = new Date(dtInicio);
     // const dataPgto = dataPagamento ? new Date(dataPagamento) : new Date();
