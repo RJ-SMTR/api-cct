@@ -132,6 +132,10 @@
       "<rootDir>"
     ],
     "testRegex": ".*\\.spec\\.ts$",
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "/.claude/worktrees/"
+    ],
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
     },

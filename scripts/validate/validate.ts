@@ -8,7 +8,8 @@ import { compareEslint, compareSuites, SuiteStatus, Violation } from './ratchet'
 const ROOT = resolve(__dirname, '../..');
 const BASELINE_PATH = join(__dirname, 'baseline.json');
 const ESLINT_TARGETS = '{src,test,scripts}/**/*.ts';
-const bin = (name: string) => join(ROOT, 'node_modules', '.bin', name);
+const WIN = process.platform === 'win32';
+const bin = (name: string) => join(ROOT, 'node_modules', '.bin', WIN ? `${name}.cmd` : name);
 
 interface Baseline {
   generatedAt: string;
@@ -21,7 +22,7 @@ function runToJson(command: string, args: (outputFile: string) => string[]): any
   const dir = mkdtempSync(join(tmpdir(), 'validate-'));
   const outputFile = join(dir, 'out.json');
   try {
-    const result = spawnSync(command, args(outputFile), { cwd: ROOT, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 });
+    const result = spawnSync(command, args(outputFile), { cwd: ROOT, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024, shell: WIN });
     if (!existsSync(outputFile)) {
       throw new Error(`${command} did not produce a JSON report.\n${result.stderr}`);
     }
