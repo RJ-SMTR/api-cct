@@ -56,7 +56,7 @@ describe('Pending payment job lifecycle', () => {
     const service = new CronJobsService(
       unusedDependency, unusedDependency, unusedDependency, unusedDependency, unusedDependency, unusedDependency,
       unusedDependency, unusedDependency,
-      { prepararPagamentoAgrupadosPendentes: group, prepararPagamentoAgrupadosGuardadorPendentes: group } as any,
+      { prepararPagamentoAgrupadosPendentes: group, prepararPagamentoAgrupadosGuardadorPendentes: group, prepararPagamentoAgrupadosGratuidade: group } as any,
       remittance as any, unusedDependency, unusedDependency, unusedDependency, unusedDependency, unusedDependency, unusedDependency,
     );
 

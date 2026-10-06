@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-30",
+  "generatedAt": "2026-10-06",
   "node": "v18.16.0",
   "passingSuites": [
     "scripts/validate/boundaries.spec.ts",
@@ -69,7 +69,7 @@
     "src/cnab/novo-remessa/dto/ordem-pagamento-unico.dto.ts": 5,
     "src/cnab/novo-remessa/entity/ordem-pagamento.entity.ts": 1,
     "src/cnab/novo-remessa/repository/ordem-pagamento-agrupado-historico.repository.ts": 9,
-    "src/cnab/novo-remessa/repository/ordem-pagamento-agrupado.repository.ts": 4,
+    "src/cnab/novo-remessa/repository/ordem-pagamento-agrupado.repository.ts": 5,
     "src/cnab/novo-remessa/repository/ordem-pagamento-guardador.repository.ts": 8,
     "src/cnab/novo-remessa/repository/ordem-pagamento.repository.ts": 15,
     "src/cnab/novo-remessa/service/ordem-pagamento.service.ts": 1,
@@ -84,7 +84,7 @@
     "src/cnab/service/pagamento/item-transacao-agrupado.service.ts": 2,
     "src/cnab/service/pagamento/remessa-retorno.service.ts": 2,
     "src/cnab/utils/cnab/cnab-104-utils.ts": 1,
-    "src/cron-jobs/cron-jobs.service.ts": 5,
+    "src/cron-jobs/cron-jobs.service.ts": 7,
     "src/database/seeds/user/user-seed-data.service.ts": 2,
     "src/lancamento/entities/lancamento-autorizacao.entity.ts": 1,
     "src/lancamento/entities/lancamento-history.entity.ts": 2,
