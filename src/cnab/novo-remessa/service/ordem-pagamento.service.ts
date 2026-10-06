@@ -157,7 +157,7 @@ export class OrdemPagamentoService {
     return await this.ordemPagamentoRepository.findOrdensPagamentoByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoIds, userId);
   }
 
-  async findOrdensPagamentoAgrupadasByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoIds: String, userId: number, endDateParam?: Date): Promise<OrdemPagamentoSemanalDto[]> {
+  async findOrdensPagamentoAgrupadasByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoIds: string, userId: number, endDateParam?: Date): Promise<OrdemPagamentoSemanalDto[]> {
     return await this.ordemPagamentoRepository.findOrdensPagamentoAgrupadasByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoIds, userId, endDateParam);
   }
 

@@ -160,37 +160,37 @@ export class RelatorioNovoRemessaConsolidadoRepository {
     return where;
   }
 
-  private getQueryApagarEleicaoConsorcio(dataInicio: String, dataFim: String): string {
+  private getQueryApagarEleicaoConsorcio(dataInicio: string, dataFim: string): string {
     return ` ${this.headerQueryEleicaoConsorcioApagar}
              ${this.fromQueryEleicaoAPagar}
              where op."dataOrdem" BETWEEN '${dataInicio}' AND '${dataFim}' AND op."idOrdemPagamento" is null`;
   }
 
-  private getQueryApagarEleicaoVanzeiro(dataInicio: String, dataFim: String): string {
+  private getQueryApagarEleicaoVanzeiro(dataInicio: string, dataFim: string): string {
     return ` ${this.headerQueryEleicaoVanzereiroApagar}
              ${this.fromQueryEleicaoAPagar}
              where op."dataOrdem" BETWEEN '${dataInicio}' AND '${dataFim}' AND op."idOrdemPagamento" is null`;
   }
 
-  private getQueryConsorcios(dataInicio: String, dataFim: String): string {
+  private getQueryConsorcios(dataInicio: string, dataFim: string): string {
     return `   ${this.headerQueryConsorcios}
                ${this.fromQueryPrincipal}
                where da."dataVencimento" >= '${dataInicio}'::date AND da."dataVencimento" < '${dataFim}'::date + interval '1 day' `;
   }
 
-  private getQueryVanzeiros(dataInicio: String, dataFim: String): string {
+  private getQueryVanzeiros(dataInicio: string, dataFim: string): string {
     return `  ${this.headerQueryVanzeiros}
               ${this.fromQueryPrincipal}
               where da."dataVencimento" >= '${dataInicio}'::date AND da."dataVencimento" < '${dataFim}'::date + interval '1 day' `;
   }
 
-  private getQueryEleicaoConsorcio(dataInicio: String, dataFim: String): string {
+  private getQueryEleicaoConsorcio(dataInicio: string, dataFim: string): string {
     return `  ${this.headerQueryEleicaoConsorcio}
               ${this.fromQueryEleicao}
               where da."dataVencimento" >= '${dataInicio}'::date AND da."dataVencimento" < '${dataFim}'::date + interval '1 day' `;
   }
 
-  private getQueryEleicaoVanzeiro(dataInicio: String, dataFim: String): string {
+  private getQueryEleicaoVanzeiro(dataInicio: string, dataFim: string): string {
     return `  ${this.headerQueryEleicaoVanzeiro}
               ${this.fromQueryEleicao}
               where da."dataVencimento" >= '${dataInicio}'::date AND da."dataVencimento" < '${dataFim}'::date + interval '1 day' `;
@@ -332,7 +332,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
     }
 
     if (subErroStatus.length > 0) {
-      let motivoStatus =` AND (oph."motivoStatusRemessa" IN (${subErroStatus.map((s) => `'${s}'`).join(',')}))`;      
+      const motivoStatus =` AND (oph."motivoStatusRemessa" IN (${subErroStatus.map((s) => `'${s}'`).join(',')}))`;      
       queryConsorcios += motivoStatus;
       queryVanzeiros += motivoStatus;
       queryEleicaoConsorcio += motivoStatus;
@@ -350,7 +350,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
       });
     }
 
-    let params: any[] = [];
+    const params: any[] = [];
     let paramIndex = 1;
 
     const queries: string[] = [];

@@ -144,7 +144,7 @@ export class HeaderArquivoRepository {
     try{
       await queryRunner.connect();   
       await queryRunner.startTransaction();
-      let result: any = await queryRunner.query(query);
+      const result: any = await queryRunner.query(query);
       if(queryRunner.isTransactionActive){
         await queryRunner.commitTransaction()
       }

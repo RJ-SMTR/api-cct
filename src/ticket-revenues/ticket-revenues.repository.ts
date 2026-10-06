@@ -165,7 +165,7 @@ export class TicketRevenuesRepositoryService {
       order.push(`${tv1.id} ${options.order.id}`);
     }
 
-    let query = `
+    const query = `
     SELECT
         1 AS "count",
         tv.id,

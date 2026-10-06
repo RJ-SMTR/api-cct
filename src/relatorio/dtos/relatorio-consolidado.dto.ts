@@ -9,10 +9,10 @@ export class RelatorioConsolidadoDto {
     }
   }
   @SetValue(val=>+val.toFixed(2))
-  valor: number = 0;
-  nome: String;
+  valor = 0;
+  nome: string;
   @Exclude()
-  agrupadoCount: number = 1;
+  agrupadoCount = 1;
   @Exclude()
-  itemCount: number = 1;
+  itemCount = 1;
 }

@@ -3,11 +3,11 @@ import { DeepPartial } from 'typeorm';
 export class OrdemPagamentoUnicoDto {
   id: number | undefined;
   idOrdemPagamento: number;
-  opradoraCpfCnpj: String;
-  dataOrdem: String;
-  consorcio: String;
-  idOperadora: String;
-  operadora: String;
+  opradoraCpfCnpj: string;
+  dataOrdem: string;
+  consorcio: string;
+  idOperadora: string;
+  operadora: string;
   quantidadeTransacaoGratuidade: number;
   valorTotalTransacaoLiquido: number;
 

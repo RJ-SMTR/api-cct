@@ -157,7 +157,7 @@ export class HeaderLoteRepository {
 
     queryRunner.connect();
      
-    let result: any = await queryRunner.query(query);
+    const result: any = await queryRunner.query(query);
 
     queryRunner.release();
 

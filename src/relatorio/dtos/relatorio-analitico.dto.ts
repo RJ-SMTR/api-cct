@@ -11,7 +11,7 @@ export class RelatorioAnaliticoDto {
   dataVencimento: Date;
   favorecido: string;
   consorcio: string;
-  valorTransacao: number = 0;
+  valorTransacao = 0;
   status: string;
   ocorrencia: string;  
 }

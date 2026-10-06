@@ -73,7 +73,7 @@ export class ItemTransacaoAgrupadoService {
 
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
-    let result: any[] = await queryRunner.query(query);
+    const result: any[] = await queryRunner.query(query);
     queryRunner.release();
     return result.map((r) => new ItemTransacaoAgrupado(r));    
   }
