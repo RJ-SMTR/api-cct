@@ -76,11 +76,9 @@ describe('Pending payment job lifecycle', () => {
       expect(remittance.gerarCnabText).toHaveBeenCalledWith(HeaderName.GUARDADOR, undefined, true);
       expect(remittance.enviarRemessa).toHaveBeenCalledWith(files, HeaderName.GUARDADOR);
     } else {
-      // Modal pending remittances are prepared by the endpoint, but CNAB
-      // generation and sending remain an explicit operational step.
-      expect(steps).toEqual(['group', 'prepare']);
-      expect(remittance.gerarCnabText).not.toHaveBeenCalled();
-      expect(remittance.enviarRemessa).not.toHaveBeenCalled();
+      expect(steps).toEqual(['group', 'prepare', 'generate', 'send']);
+      expect(remittance.gerarCnabText).toHaveBeenCalledWith(HeaderName.MODAL, undefined, true);
+      expect(remittance.enviarRemessa).toHaveBeenCalledWith(files, HeaderName.MODAL);
       const args = (group.mock.calls as unknown as unknown[][])[0];
       expect(args.slice(0, 4)).toEqual([
         new Date('2026-07-01'), new Date('2026-09-07'), new Date('2026-09-11'), 'contaBilhetagem',

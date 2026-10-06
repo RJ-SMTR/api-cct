@@ -331,6 +331,7 @@ export class RelatorioGuardadorFinancialMovementRepository {
           includeAPagar: true,
           includeBase: true,
           includePendenciaPagaSingleDate: true,
+          parentErrorStatusesSingleDate: [],
         };
       }
 
