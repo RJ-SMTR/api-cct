@@ -6,7 +6,8 @@ import { parseJestJson } from './collect';
 import { compareSuites } from './ratchet';
 
 const ROOT = resolve(__dirname, '../..');
-const bin = (name: string) => join(ROOT, 'node_modules', '.bin', name);
+const WIN = process.platform === 'win32';
+const bin = (name: string) => join(ROOT, 'node_modules', '.bin', WIN ? `${name}.cmd` : name);
 
 export function stagedTypeScriptFiles(files: string[]): string[] {
   return files.filter((file) => file.endsWith('.ts'));
@@ -31,7 +32,7 @@ function main(): number {
   }
 
   console.log('pre-commit: build check...');
-  const build = spawnSync(bin('tsc'), ['--noEmit', '-p', 'tsconfig.build.json'], { cwd: ROOT, encoding: 'utf8' });
+  const build = spawnSync(bin('tsc'), ['--noEmit', '-p', 'tsconfig.build.json'], { cwd: ROOT, encoding: 'utf8', shell: WIN });
   if (build.status !== 0) {
     return fail([`Build failed (tsc -p tsconfig.build.json):\n${build.stdout}${build.stderr}`.trim()]);
   }
@@ -40,7 +41,7 @@ function main(): number {
   const dir = mkdtempSync(join(tmpdir(), 'pre-commit-'));
   const outputFile = join(dir, 'jest.json');
   try {
-    spawnSync(bin('jest'), ['--findRelatedTests', ...files, '--passWithNoTests', '--json', `--outputFile=${outputFile}`], { cwd: ROOT, encoding: 'utf8' });
+    spawnSync(bin('jest'), ['--findRelatedTests', ...files, '--passWithNoTests', '--json', `--outputFile=${outputFile}`], { cwd: ROOT, encoding: 'utf8', shell: WIN });
     if (!existsSync(outputFile)) {
       return 0;
     }

@@ -8,7 +8,8 @@ import { compareEslint, compareSuites, SuiteStatus, Violation } from './ratchet'
 const ROOT = resolve(__dirname, '../..');
 const BASELINE_PATH = join(__dirname, 'baseline.json');
 const ESLINT_TARGETS = '{src,test,scripts}/**/*.ts';
-const bin = (name: string) => join(ROOT, 'node_modules', '.bin', name);
+const WIN = process.platform === 'win32';
+const bin = (name: string) => join(ROOT, 'node_modules', '.bin', WIN ? `${name}.cmd` : name);
 
 interface Baseline {
   generatedAt: string;
@@ -21,7 +22,7 @@ function runToJson(command: string, args: (outputFile: string) => string[]): any
   const dir = mkdtempSync(join(tmpdir(), 'validate-'));
   const outputFile = join(dir, 'out.json');
   try {
-    const result = spawnSync(command, args(outputFile), { cwd: ROOT, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 });
+    const result = spawnSync(command, args(outputFile), { cwd: ROOT, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024, shell: WIN });
     if (!existsSync(outputFile)) {
       throw new Error(`${command} did not produce a JSON report.\n${result.stderr}`);
     }
@@ -33,7 +34,14 @@ function runToJson(command: string, args: (outputFile: string) => string[]): any
 
 function collectSuites(): Record<string, SuiteStatus> {
   console.log('Running jest...');
-  return parseJestJson(runToJson(bin('jest'), (out) => ['--json', `--outputFile=${out}`]), ROOT);
+  const report = runToJson(bin('jest'), (out) => ['--json', `--outputFile=${out}`]);
+  // Print why each failing suite failed, so CI logs show more than the status.
+  for (const suite of report.testResults ?? []) {
+    if (suite.status !== 'failed') continue;
+    const messages = [suite.message, ...(suite.assertionResults ?? []).flatMap((a: any) => a.failureMessages ?? [])].filter(Boolean);
+    console.log(`\n--- FAILED ${suite.name}\n${messages.join('\n').slice(0, 4000)}`);
+  }
+  return parseJestJson(report, ROOT);
 }
 
 function collectEslint(): Record<string, number> {

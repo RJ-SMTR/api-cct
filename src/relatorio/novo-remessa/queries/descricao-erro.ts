@@ -2,6 +2,9 @@ import { OcorrenciaEnum } from 'src/cnab/enums/ocorrencia.enum';
 
 const STATUS_COM_ERRO = ['Estorno', 'Rejeitado'];
 
+// Shown when the bank did not return an occurrence code, so the error is never left without text (#1164).
+export const MOTIVO_NAO_INFORMADO = 'Motivo não informado pelo banco';
+
 // Codes returned by the bank that are not in the CNAB table (OcorrenciaEnum) or whose
 // description is worded differently for the user.
 const DESCRICOES_CUSTOMIZADAS: Record<string, string> = {
@@ -10,9 +13,9 @@ const DESCRICOES_CUSTOMIZADAS: Record<string, string> = {
 
 // Occurrence code returned by the bank (motivoStatusRemessa), only for rows shown as an error.
 // It is turned into a description by getDescricaoErro, so the SQL does not need a lookup table.
-export const buildCodigoErroSql = (statusCase: string) => `CASE
+export const buildCodigoErroSql = (statusCase: string, historyAlias = 'oph') => `CASE
         WHEN ${statusCase} IN ('Estorno', 'Rejeitado')
-          THEN NULLIF(TRIM(oph."motivoStatusRemessa"), '')
+          THEN NULLIF(TRIM(${historyAlias}."motivoStatusRemessa"), '')
       END`;
 
 // "codigos" may be an aggregated, comma separated list (rows grouped by date/consorcio/status).
@@ -20,8 +23,12 @@ export function getDescricaoErro(
   status: string | null | undefined,
   codigos: string | null | undefined,
 ): string | undefined {
-  if (!status || !STATUS_COM_ERRO.includes(status) || !codigos) {
+  if (!status || !STATUS_COM_ERRO.includes(status)) {
     return undefined;
+  }
+
+  if (!codigos) {
+    return MOTIVO_NAO_INFORMADO;
   }
 
   const descricoes = new Set<string>();
@@ -36,5 +43,5 @@ export function getDescricaoErro(
     }
   }
 
-  return descricoes.size ? Array.from(descricoes).join(' / ') : undefined;
+  return descricoes.size ? Array.from(descricoes).join(' / ') : MOTIVO_NAO_INFORMADO;
 }

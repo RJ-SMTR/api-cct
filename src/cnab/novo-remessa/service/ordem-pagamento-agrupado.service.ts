@@ -90,6 +90,17 @@ export class OrdemPagamentoAgrupadoService {
     }
   }
 
+  /** Agrupa o valorGratuidade das ordens; o vínculo fica em ordemPagamentoAgrupadoGratuidadeId. */
+  async prepararPagamentoAgrupadosGratuidade(dataOrdemInicial: Date, dataOrdemFinal: Date, dataPgto: Date,
+    pagadorKey: keyof AllPagadorDict, consorcios: string[]) {
+    this.logger.debug(`Preparando agrupamentos de gratuidade`)
+    const pagador = await this.getPagador(pagadorKey);
+    if (pagador) {
+      this.logger.log(`Agrupando gratuidade para o pagador ${pagador.nomeEmpresa}, data de pagamento ${dataPgto}, data de ordem inicial ${dataOrdemInicial}, data de ordem final ${dataOrdemFinal}, consorcios ${consorcios}`);
+      await this.ordemPagamentoRepository.agruparOrdensDePagamentoGratuidade(dataOrdemInicial, dataOrdemFinal, dataPgto, pagador, consorcios);
+    }
+  }
+
   private async agruparOrdens(dataInicial: Date, dataFinal: Date, dataPgto: Date, pagador: Pagador, consorcios: string[]) {
     await this.ordemPagamentoRepository.agruparOrdensDePagamento(dataInicial, dataFinal, dataPgto, pagador, consorcios);
   }
@@ -109,8 +120,12 @@ export class OrdemPagamentoAgrupadoService {
     return await this.ordemPagamentoAgrupadoRepository.findAllPendente(dataInicio, dataFim, consorcio, dataPagamento, idsFavorecidos);
   }
 
-  async getOrdensUnicas(dataInicio: Date, dataFim: Date, dataPgto: Date) {
-    return await this.ordemPagamentoAgrupadoRepository.findAllUnica(dataInicio, dataFim, dataPgto);
+  async getOrdensGratuidade(dataInicio: Date, dataFim: Date, consorcio: string[] | undefined, dataPagamento?: Date) {
+    return await this.ordemPagamentoAgrupadoRepository.findAllGratuidade(dataInicio, dataFim, consorcio, dataPagamento);
+  }
+
+  async getOrdensUnicas(dataInicio: Date, dataFim: Date) {
+    return await this.ordemPagamentoAgrupadoRepository.findAllUnica(dataInicio, dataFim);
   }
 
   async getHistoricosOrdem(idOrdem: number) {
@@ -135,6 +150,10 @@ export class OrdemPagamentoAgrupadoService {
     return await this.ordemPagamentoRepository.findOne({ ordemPagamentoAgrupado: { id: idOrdemPagamentoAg } })
   }
 
+  public async getOrdemPagamentoGratuidade(idOrdemPagamentoAg: number) {
+    return await this.ordemPagamentoRepository.findOne({ ordemPagamentoAgrupadoGratuidade: { id: idOrdemPagamentoAg } })
+  }
+
   public async getOrdemPagamentoGuardador(idOrdemPagamentoAg: number) {
     return await this.ordemPagamentoGuardadorRepository.findOne({ ordemPagamentoAgrupado: { id: idOrdemPagamentoAg } })
   }
@@ -153,8 +172,8 @@ export class OrdemPagamentoAgrupadoService {
     return await this.ordemPagamentoRepository.findOrdemUnica(idOrdemPagamentoAg);
   }
 
-  public async getHistoricosOrdemDetalheA(id: number, pagamentoUnico?: boolean, isPendente?: boolean,consorcios?: string[]) {
-    return await this.ordemPagamentoAgrupadoHistRepository.getHistoricoDetalheA(id, pagamentoUnico, isPendente,consorcios);
+  public async getHistoricosOrdemDetalheA(id: number, pagamentoUnico?: boolean, isPendente?: boolean,consorcios?: string[], gratuidade?: boolean) {
+    return await this.ordemPagamentoAgrupadoHistRepository.getHistoricoDetalheA(id, pagamentoUnico, isPendente,consorcios, gratuidade);
   }
 
   public async getHistorico(id: number) {
