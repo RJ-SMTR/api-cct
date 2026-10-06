@@ -118,7 +118,8 @@ export class CronJobsService {
     });
   }
 
-  async onModuleLoad() {        
+  async onModuleLoad() {   
+    await this.remessaModalExec();     
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -822,9 +823,6 @@ export class CronJobsService {
 
     const dataInicio = subDays(today, subDaysInt);
     const dataFim = subDays(today, 0);
-
-    // const dataInicio = new Date('2026-09-28');
-    // const dataFim = new Date('2026-09-30');
 
     const consorcios = ['STPC', 'STPL', 'TEC'];
     if (gratuidade) {
