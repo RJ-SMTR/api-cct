@@ -44,6 +44,15 @@ export class OrdemPagamentoRepository {
   public async save(dto: DeepPartial<OrdemPagamento>): Promise<OrdemPagamento> {
     const existing = await this.ordemPagamentoRepository.findOneBy({ id: dto.id });
     if (existing) {
+      // Ordem já sincronizada não é regravada; só o valorGratuidade é atualizado quando mudou.
+      if (dto.valorGratuidade !== undefined) {
+        const novo = dto.valorGratuidade === null ? null : Number(dto.valorGratuidade);
+        const atual = existing.valorGratuidade === null ? null : Number(existing.valorGratuidade);
+        if (novo !== atual) {
+          await this.ordemPagamentoRepository.update({ id: existing.id }, { valorGratuidade: novo });
+          existing.valorGratuidade = novo;
+        }
+      }
       return existing;
     }
     const createdOrdem = this.ordemPagamentoRepository.create(dto);

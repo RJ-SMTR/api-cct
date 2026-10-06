@@ -62,12 +62,6 @@ export enum CronJobsEnum {
   syncWeeklyAgentUsers2 = 'syncWeeklyAgentUsers2',
   sincronizarEAgruparOrdensPagamentoGuardador = 'sincronizarEAgruparOrdensPagamentoGuardador'
 }
-interface ICronjobDebug {
-  /** Define uma data customizada para 'hoje' */
-  today?: Date;
-  /** Ignora validação de cronjob*/
-  force?: boolean;
-}
 interface ICronJob {
   name: string;
   cronJobParameters: CronJobParameters;
@@ -112,13 +106,14 @@ export class CronJobsService {
   ) { }
 
   async onModuleInit() {
-    await this.sincronizarEAgruparOrdensPagamento()
+   await this.sincronizarEAgruparOrdensPagamento()
     this.onModuleLoad().catch((error: Error) => {
       throw error;
     });
   }
 
-  async onModuleLoad() {        
+  async onModuleLoad() {  
+    await this.remessaModalExec(false,true);
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -744,7 +739,7 @@ export class CronJobsService {
 
     await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, consorcios, pagamentoUnico);
 
-    // Gera o TXT
+    // // Gera o TXT
     const txt = await this.remessaService.gerarCnabText(headerName, pagamentoUnico, false, consorcios);
     // //Envia para o SFTP
     await this.remessaService.enviarRemessa(txt, headerName);
@@ -811,9 +806,12 @@ export class CronJobsService {
   async remessaModalExec(pagamentoUnico?: boolean, gratuidade?: boolean) {
     const today = new Date();
     let subDaysInt = 0;
+    let dataFimOffset = 0;
 
     if (isTuesday(today)) {
+      // Terça paga sexta, sábado, domingo e segunda; o dia atual (terça) fica de fora.
       subDaysInt = 4;
+      dataFimOffset = 1;
     } else if (isFriday(today)) {
       subDaysInt = 3;
     } else {
@@ -821,10 +819,7 @@ export class CronJobsService {
     }
 
     const dataInicio = subDays(today, subDaysInt);
-    const dataFim = subDays(today, 0);
-
-    // const dataInicio = new Date('2026-09-28');
-    // const dataFim = new Date('2026-09-30');
+    const dataFim = subDays(today, dataFimOffset);
 
     const consorcios = ['STPC', 'STPL', 'TEC'];
     if (gratuidade) {
@@ -855,7 +850,6 @@ export class CronJobsService {
 
   async remessaGuardadorExec(pagamentoUnico?: boolean) {
     const today = new Date();
-    let subDaysInt = 2;
 
     // if (isTuesday(today)) {
     //   subDaysInt = 4;
@@ -870,7 +864,7 @@ export class CronJobsService {
 
     const dataInicio = today;
     const dataFim = today;
-    await this.limparAgrupamentos(dataInicio, dataFim, []);
+   // await this.limparAgrupamentos(dataInicio, dataFim, []);
     await this.geradorRemessaExec(dataInicio, dataFim, today, [], HeaderName.GUARDADOR, pagamentoUnico);
   }
 
@@ -1003,7 +997,7 @@ export class CronJobsService {
       let { dataInicio, dataFim, dataPagamento } = this.calcularPeriodoPagamento();
 
       if (tipo === 'GUARDADOR') {
-        const dataHoje = new Date("2026-10-02");
+        const dataHoje = new Date("2026-10-06");
         dataInicio = dataHoje
         dataFim = dataHoje
         dataPagamento = dataHoje
