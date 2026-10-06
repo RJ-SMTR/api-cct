@@ -220,6 +220,8 @@ export class RelatorioNovoRemessaFinancialMovementService {
       ? all.filter((status): status is StatusPagamento.ERRO_ESTORNO | StatusPagamento.ERRO_REJEITADO => status === StatusPagamento.ERRO_ESTORNO || status === StatusPagamento.ERRO_REJEITADO)
       : [];
     let baseStatuses = all.filter((s) => s!== StatusPagamento.PENDENTES);
+    // Pendencia Paga só existe em data única (pela data de pagamento): fora dela não entra na base por vencimento.
+    if (!isSingle) baseStatuses = baseStatuses.filter((s) => s!== StatusPagamento.PENDENCIA_PAGA);
     if (includePendenciaPagaSingleDate) baseStatuses = baseStatuses.filter((s) => s!== StatusPagamento.PENDENCIA_PAGA);
     baseStatuses = baseStatuses.filter((s) => !parentErrorStatusesSingleDate.includes(s as StatusPagamento.ERRO_ESTORNO | StatusPagamento.ERRO_REJEITADO));
     return { baseStatuses: baseStatuses.length? baseStatuses : null, includePendentes, includeBase: baseStatuses.length > 0, includePendenciaPagaSingleDate, parentErrorStatusesSingleDate };
@@ -234,7 +236,8 @@ export class RelatorioNovoRemessaFinancialMovementService {
       if (statuses.includePendenciaPagaSingleDate) q.push(this.buildPendenciaPagaSingleDateQuery(filter));
       if (statuses.parentErrorStatusesSingleDate.length) q.push(this.buildPendenciaPagamentoSingleDateQuery(filter, statuses.parentErrorStatusesSingleDate));
       if (statuses.includePendentes) q.push(this.buildPendentesQuery(filter));
-      if (!q.length) return this.buildBaseQuery(filter);
+      // Nenhuma consulta selecionada para o filtro: não deve trazer linhas (antes caía em todos os status).
+      if (!q.length) return `${this.buildBaseQuery(filter)} AND FALSE`;
       return q.join('\nUNION ALL\n');
     })();
     // REMOVE $6 e $7 internos -> substitui por literais tipados que não filtram
