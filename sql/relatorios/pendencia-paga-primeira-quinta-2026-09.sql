@@ -62,10 +62,26 @@ pendencia_paga AS (
     AND (oph."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph."motivoStatusRemessa" IS NULL)
 )
 SELECT
-  'Permissionário' AS perfil,
+  "primeiraQuinta",
+  "dataReferencia",
+  nomes,
+  email,
+  "codBanco",
+  "nomeBanco",
+  "cpfCnpj",
+  "nomeConsorcio",
   "dataPagamento",
   'Pendencia Paga' AS status,
-  SUM(valor) AS total
+  SUM(valor) AS valor
 FROM pendencia_paga
-GROUP BY "dataPagamento"
-ORDER BY "dataPagamento";
+GROUP BY
+  "primeiraQuinta",
+  "dataReferencia",
+  nomes,
+  email,
+  "codBanco",
+  "nomeBanco",
+  "cpfCnpj",
+  "nomeConsorcio",
+  "dataPagamento"
+ORDER BY "primeiraQuinta", nomes, "cpfCnpj";
