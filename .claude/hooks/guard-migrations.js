@@ -13,8 +13,6 @@ process.stdin.on('end', () => {
   if (!normalized.includes('src/database/migrations/')) process.exit(0);
   if (!fs.existsSync(filePath)) process.exit(0);
 
-  process.stderr.write(
-    'Blocked: applied migrations must not be edited. Add a new migration instead (see CLAUDE.md).\n',
-  );
+  process.stderr.write('Blocked: applied migrations must not be edited. Add a new migration instead (see CLAUDE.md).\n');
   process.exit(2);
 });

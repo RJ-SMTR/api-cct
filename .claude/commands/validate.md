@@ -1,6 +1,6 @@
 ---
 description: Run the api-cct validation ladder on the changed files
-argument-hint: "[files or spec path]"
+argument-hint: '[files or spec path]'
 ---
 
 Run the validation ladder from PROJECT.md ("Validation ladder") on the current changes. Stop at the first failing step and report its output.
