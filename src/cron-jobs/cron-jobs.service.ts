@@ -811,9 +811,12 @@ export class CronJobsService {
   async remessaModalExec(pagamentoUnico?: boolean, gratuidade?: boolean) {
     const today = new Date();
     let subDaysInt = 0;
+    let dataFimOffset = 0;
 
     if (isTuesday(today)) {
+      // Terça paga sexta, sábado, domingo e segunda; o dia atual (terça) fica de fora.
       subDaysInt = 4;
+      dataFimOffset = 1;
     } else if (isFriday(today)) {
       subDaysInt = 3;
     } else {
@@ -821,7 +824,7 @@ export class CronJobsService {
     }
 
     const dataInicio = subDays(today, subDaysInt);
-    const dataFim = subDays(today, 0);
+    const dataFim = subDays(today, dataFimOffset);
 
     // const dataInicio = new Date('2026-09-28');
     // const dataFim = new Date('2026-09-30');
