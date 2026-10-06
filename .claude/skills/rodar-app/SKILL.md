@@ -9,9 +9,23 @@ description: >
 
 # Rodar o CCT (API + Front)
 
-Sobe a **api-cct** (NestJS 9, raiz deste repositório) e o **cct-app** (React 18 + react-app-rewired,
-`../app-cct`, repositório irmão), já se comunicando, em modo **desenvolvimento** ou **produção**.
-Se o pedido não deixar claro o modo, pergunte antes de agir.
+Sobe a **api-cct** (NestJS 9) e o **cct-app** (React 18 + react-app-rewired), já se comunicando,
+em modo **desenvolvimento** ou **produção**. Se o pedido não deixar claro o modo, pergunte antes de agir.
+
+## Caminhos
+
+Os caminhos não são fixos: a API é o repositório atual e o front é o repositório irmão `app-cct`
+ao lado dele. Antes de qualquer comando, defina as variáveis (no Bash do Git for Windows):
+
+```bash
+API_DIR="$(git rev-parse --show-toplevel)"
+APP_DIR="$(dirname "$API_DIR")/app-cct"
+test -d "$APP_DIR" || { echo "app-cct não encontrado em $APP_DIR"; exit 1; }
+```
+
+Se o `app-cct` não estiver ao lado, pergunte ao usuário onde ele está e use esse caminho em `APP_DIR`.
+Nos comandos abaixo, `$API_DIR` e `$APP_DIR` representam esses caminhos. Cada comando precisa
+definir as variáveis de novo, porque o shell não mantém estado entre chamadas.
 
 Produção aqui é build local rodando na máquina, não um deploy (deploy é `cd.yaml` / `cd_stag.yaml`, fora desta skill).
 
@@ -64,7 +78,7 @@ O Postgres sobe por Docker. Não existe `docker-compose.yaml` versionado (só `d
 e `docker-compose.ci.yaml`); o setup de `PROJECT.md` assume um `docker-compose.yaml` local.
 
 ```bash
-docker ps --filter "name=postgres" --format '{{.Names}} {{.Status}}'
+cd "$API_DIR" && docker ps --filter "name=postgres" --format '{{.Names}} {{.Status}}'
 ```
 
 - Já aparece `Up`: segue.
@@ -81,12 +95,12 @@ pode rodar a migration (é ação que pede confirmação).
 1. Banco: passos acima.
 2. API, em background (`run_in_background: true` no Bash):
    ```bash
-   npm run start:dev
+   cd "$API_DIR" && npm run start:dev
    ```
    Sobe com `nest start --watch`, que recompila ao salvar.
 3. Front, em background, apontando para a API:
    ```bash
-   cd ../app-cct && REACT_APP_BASE_URL_CCT=http://localhost:<APP_PORT>/api/v1/ PORT=3001 BROWSER=none npm start
+   cd "$APP_DIR" && REACT_APP_BASE_URL_CCT=http://localhost:<APP_PORT>/api/v1/ PORT=3001 BROWSER=none npm start
    ```
    `BROWSER=none` evita abrir o navegador sozinho; abra você mesmo o link.
 4. Validar que os dois sobem:
@@ -103,21 +117,21 @@ Objetivo: validar o build antes do pipeline de deploy.
 1. Banco: mesmos passos do modo dev.
 2. API: build, depois start (não em background para o build; ele precisa terminar antes).
    ```bash
-   npm run build
+   cd "$API_DIR" && npm run build
    ```
    ```bash
-   npm run start:prod
+   cd "$API_DIR" && npm run start:prod
    ```
    `start:prod` é `node dist/main`, sem watch. Rode em background.
 3. Front: build com `REACT_APP_BASE_URL_CCT` já definido (CRA grava a URL no bundle no momento do build,
    então passar a variável só no start não adianta):
    ```bash
-   cd ../app-cct && REACT_APP_BASE_URL_CCT=http://localhost:<APP_PORT>/api/v1/ GENERATE_SOURCEMAP=false npm run build
+   cd "$APP_DIR" && REACT_APP_BASE_URL_CCT=http://localhost:<APP_PORT>/api/v1/ GENERATE_SOURCEMAP=false npm run build
    ```
    Depois servir a pasta `build/` na 3001 (sem SPA server no projeto; `npx --yes serve -s build -l 3001`
    serve para o fallback de rotas do React Router):
    ```bash
-   cd ../app-cct && npx --yes serve -s build -l 3001
+   cd "$APP_DIR" && npx --yes serve -s build -l 3001
    ```
 4. Mesma validação de saúde do modo dev (`/docs` na porta da API e `200` na 3001).
 5. Deixar claro que é build de produção rodando local, não deploy.
