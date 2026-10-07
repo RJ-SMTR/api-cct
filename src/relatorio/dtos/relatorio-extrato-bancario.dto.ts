@@ -8,8 +8,8 @@ export class RelatorioExtratoBancarioDto {
   }
   
   dataLancamento: Date;
-  valorLancamento: number = 0;  
-  tipo: String;
-  operacao:String;
+  valorLancamento = 0;  
+  tipo: string;
+  operacao:string;
   valorSaldoInicial: number;
 }

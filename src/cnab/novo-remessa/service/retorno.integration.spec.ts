@@ -290,6 +290,51 @@ suite('RetornoService (integração - banco real)', () => {
     const opaRepo = () => new OrdemPagamentoAgrupadoRepository({} as any, ds);
     const DP = '2026-09-08';
 
+    it('retorna somente a OPA pai quando a filha tambem corresponde a janela da remessa', async () => {
+      await criarUser(B + 1);
+      await criarOpa(B + 100, null, DP);
+      await criarOpa(B + 101, B + 100, DP);
+      await criarOph(B + 110, B + 100, StatusRemessaEnum.Criado);
+      await criarOph(B + 111, B + 101, StatusRemessaEnum.Criado);
+      await ds.query(
+        `INSERT INTO ordem_pagamento(id, "userId", "ordemPagamentoAgrupadoId", valor, "dataOrdem", "dataCaptura", "nomeConsorcio", "createdAt", "updatedAt", "bqUpdatedAt")
+         VALUES ($1,$2,$3,100,'2026-06-10','2026-06-10','STPC',now(),now(),now())`,
+        [B + 130, B + 1, B + 101],
+      );
+
+      const ordens = await opaRepo().findAllPendente(
+        new Date('2026-06-01'),
+        new Date('2026-09-30'),
+        ['STPC', 'STPL', 'TEC'],
+        new Date(DP),
+        [String(B + 1)],
+      );
+
+      expect(ordens.map((o: any) => o.id).sort()).toEqual([B + 100]);
+      expect(ordens.map((o: any) => Number(o.valorTotal))).toEqual([100]);
+    });
+
+    it('continua retornando uma OPA sem pai que corresponde a janela da remessa', async () => {
+      await criarUser(B + 1);
+      await criarOpa(B + 100, null, DP);
+      await criarOph(B + 110, B + 100, StatusRemessaEnum.Criado);
+      await ds.query(
+        `INSERT INTO ordem_pagamento(id, "userId", "ordemPagamentoAgrupadoId", valor, "dataOrdem", "dataCaptura", "nomeConsorcio", "createdAt", "updatedAt", "bqUpdatedAt")
+         VALUES ($1,$2,$3,100,'2026-06-10','2026-06-10','STPC',now(),now(),now())`,
+        [B + 130, B + 1, B + 100],
+      );
+
+      const ordens = await opaRepo().findAllPendente(
+        new Date('2026-06-01'),
+        new Date('2026-09-30'),
+        ['STPC', 'STPL', 'TEC'],
+        new Date(DP),
+        [String(B + 1)],
+      );
+
+      expect(ordens.map((o: any) => o.id)).toEqual([B + 100]);
+    });
+
     it('acha a ordem PAI quando o historico esta em statusRemessa = 0', async () => {
       await criarUser(B + 1);
       await criarOpa(B + 100, null, DP);          // pai, dataPagamento = DP

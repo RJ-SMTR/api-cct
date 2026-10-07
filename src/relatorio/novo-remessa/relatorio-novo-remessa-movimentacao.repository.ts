@@ -318,41 +318,41 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
     return where;
   }
 
-  private getQueryApagarEleicaoConsorcio(dataInicio: String, dataFim: String): string {
+  private getQueryApagarEleicaoConsorcio(dataInicio: string, dataFim: string): string {
     return ` ${this.headerQueryEleicaoConsorcioApagar}                    
              ${this.fromQueryEleicaoAPagar}               
              where op."dataOrdem" BETWEEN '${dataInicio}' AND '${dataFim}' and op."idOrdemPagamento" is null 
              and (pu."bloqueado" is null OR pu."bloqueado" = false) `;
   }
 
-  private getQueryApagarEleicaoVanzeiro(dataInicio: String, dataFim: String): string {
+  private getQueryApagarEleicaoVanzeiro(dataInicio: string, dataFim: string): string {
     return ` ${this.headerQueryEleicaoVanzereiroApagar}                    
              ${this.fromQueryEleicaoAPagar}               
              where op."dataOrdem" BETWEEN '${dataInicio}' AND '${dataFim}' and op."idOrdemPagamento" is null 
              and (pu."bloqueado" is null OR pu."bloqueado" = false) `;
   }
 
-  private getQueryConsorcios(dataInicio: String, dataFim: String): string {
+  private getQueryConsorcios(dataInicio: string, dataFim: string): string {
     return `   ${this.headerQueryConsorcios}
                ${this.fromQueryPrincipal}
                where da."dataVencimento" >= '${dataInicio}'::date AND da."dataVencimento" < '${dataFim}'::date + interval '1 day'
                and (pu."bloqueado" is null OR pu."bloqueado" = false) `;
   }
 
-  private getQueryVanzeiros(dataInicio: String, dataFim: String): string {
+  private getQueryVanzeiros(dataInicio: string, dataFim: string): string {
     return `  ${this.headerQueryVanzeiros}
               ${this.fromQueryPrincipal}
               where da."dataVencimento" >= '${dataInicio}'::date AND da."dataVencimento" < '${dataFim}'::date + interval '1 day'
                and (pu."bloqueado" is null OR pu."bloqueado" = false) `;
   }
 
-  private getQueryEleicaoConsorcio(dataInicio: String, dataFim: String): string {
+  private getQueryEleicaoConsorcio(dataInicio: string, dataFim: string): string {
     return `  ${this.headerQueryEleicaoConsorcio}
               ${this.fromQueryEleicao}
               where da."dataVencimento" >= '${dataInicio}'::date AND da."dataVencimento" < '${dataFim}'::date + interval '1 day' `;
   }
 
-  private getQueryEleicaoVanzeiro(dataInicio: String, dataFim: String): string {
+  private getQueryEleicaoVanzeiro(dataInicio: string, dataFim: string): string {
     return `  ${this.headerQueryEleicaoVanzeiro}
               ${this.fromQueryEleicao}
               where da."dataVencimento" >= '${dataInicio}'::date AND da."dataVencimento" < '${dataFim}'::date + interval '1 day' `;
@@ -387,14 +387,14 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
     let queryPendentesVanzeiro = ``;
 
     let count = 0;
-    let valorTotal:Number = 0;
-    let valorPago:Number = 0;
-    let valorRejeitado:Number = 0;
-    let valorEstornado:Number = 0;
-    let valorAguardandoPagamento:Number = 0;
-    let valorAPagar:Number = 0;
-    let valorPendente:Number = 0;
-    let valorPendenciaPaga:Number = 0;
+    let valorTotal = 0;
+    let valorPago = 0;
+    let valorRejeitado = 0;
+    let valorEstornado = 0;
+    let valorAguardandoPagamento = 0;
+    let valorAPagar = 0;
+    let valorPendente = 0;
+    let valorPendenciaPaga = 0;
 
     //filtro principal 
     //data: filter.dataInicio,filter.dataFim    
@@ -580,7 +580,7 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
 
     this.logger.debug(`Constructed query: ${queries[0]} parts`);
 
-    let query = ``;
+    const query = ``;
 
     if (parts.length === 0) {
       // nada pra buscar
@@ -604,7 +604,7 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
 
     const baseUnion = `SELECT * FROM (${parts.join(' UNION ALL ')}) AS R WHERE (R."nomes" is not null) `;
 
-    let params: any[] = [];
+    const params: any[] = [];
     let paramIndex = 1;
     let whereValor = ``;
 

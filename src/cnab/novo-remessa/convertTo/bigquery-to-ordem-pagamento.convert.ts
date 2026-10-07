@@ -17,7 +17,7 @@ export class BigQueryToOrdemPagamento {
     static convert(ordem: BigqueryOrdemPagamentoDTO, userId: number | undefined) {
         const METHOD = 'convert';
         this.logger.debug(`Sincronizado ${ordem.idOrdemPagamento} `, METHOD);
-        var result = new OrdemPagamento();
+        const result = new OrdemPagamento();
         result.id = ordem.id;
         result.dataOrdem = new Date(ordem.dataOrdem);
         result.idConsorcio = ordem.idConsorcio;
@@ -38,7 +38,7 @@ export class BigQueryToOrdemPagamento {
     static convertOrdemGuardador(ordem: BigqueryOrdemPagamentoGuardadorDTO, userId: number | undefined) {
         const METHOD = 'convertOrdemGuardador';
         this.logger.debug(`Sincronizado ${ordem.dataOrdem} `, METHOD);
-        var result = new OrdemPagamentoGuardador();        
+        const result = new OrdemPagamentoGuardador();        
         result.dataOrdem = new Date(ordem.dataOrdem);
         result.dataInclusao =  new Date(ordem.dataInclusao);
         result.qtdVerificacaoTotal = Number(ordem.quantidadeVerificacaoTotal);

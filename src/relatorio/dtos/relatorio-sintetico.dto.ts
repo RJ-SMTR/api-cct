@@ -8,11 +8,11 @@ export class RelatorioSinteticoDto {
     }
   }
   
-  valor: number = 0;
-  total: number = 0;
-  nome: String;
+  valor = 0;
+  total = 0;
+  nome: string;
   @Exclude()
-  agrupadoCount: number = 1;
+  agrupadoCount = 1;
   @Exclude()
-  itemCount: number = 1;
+  itemCount = 1;
 }

@@ -60,6 +60,12 @@ Um destinatário a ser pago dentro de um `TransacaoAgrupado`: a soma de todos os
 Agrupamento das ordens de pagamento por favorecido para uma data de pagamento; o valor é somado. O Histórico registra cada tentativa de pagamento (cópia) e é o que a remessa lê.
 _Avoid_: agrupamento (genérico)
 
+**OPA filha**:
+Obrigação original vinculada a uma nova tentativa de pagamento pendente. Preserva as ordens e o histórico de origem, mas não representa um segundo pagamento ao banco.
+
+**OPA pai**:
+Tentativa de pagamento pendente que consolida uma ou mais OPAs filhas do mesmo favorecido. É a única representante financeira dessas filhas na remessa.
+
 **TransacaoView**:
 Visão das transações de bilhetagem por dia. **Legado: ninguém mais usa** (confirmado por Matthew em 2026-09-30); não a use em código novo.
 
@@ -102,6 +108,15 @@ Valor pago a mais a um favorecido no passado (issue #488), guardado na tabela `p
 
 **Pagamento pendente**:
 Pagamento que já sofreu uma tentativa de pagamento antes e vai ser reprocessado (`remessaPendenteExec`, entidade `pagamentos-pendentes`, campo `ocorrenciaErro`).
+
+**Data Tentativa Pagamento do guardador**:
+Data da tentativa registrada na ordem de pagamento agrupada. No relatório de movimentação financeira, cada filha continua sendo exibida em sua própria linha. Para uma consulta de um único dia de `Pendência Paga`, a data vem da filha e a data efetiva da pai seleciona a família. Para uma consulta de um único dia de `Pendência de Pagamento` (`Rejeitado` ou `Estorno`), a data de tentativa da pai seleciona e é exibida para a família; o histórico mais recente da pai determina status e ocorrência, enquanto a filha preserva o valor da linha. Consultas de mais de um dia permanecem orientadas pela data da filha.
+
+**Data Efetiva Pagamento do guardador**:
+Data em que a ordem de pagamento agrupada pai foi efetivamente paga. Em uma consulta de `Pendência Paga` para um único dia, essa data seleciona a família pai/filhas e é repetida nas linhas das filhas, sem somar ou repetir seus valores.
+
+**Consulta de família de pagamento no relatório financeiro**:
+Para guardadores e permissionários, uma consulta de um único dia de `Pendência Paga` ou `Pendência de Pagamento` seleciona a família pela ordem pai: as linhas continuam no grão das filhas, com seus valores, e usam os dados de tentativa/status/ocorrência apropriados da pai. Uma consulta por intervalo mantém o grão e as datas das filhas.
 
 **Guardador**:
 Beneficiário do fluxo de pagamento próprio "guardador": ordens em `ordem-pagamento-guardador`, pagador `ContaRotativo`, `HeaderName.GUARDADOR`, sincronismo `sincronizarOrdensPagamentoGuardador` e relatórios específicos. O significado de negócio não está no código _(a confirmar)_.

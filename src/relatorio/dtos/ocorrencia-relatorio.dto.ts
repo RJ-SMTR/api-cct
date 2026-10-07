@@ -33,7 +33,7 @@ export class OcorrenciaRelatorio {
   valor: number;
   valorRealEfetivado: number;
 
-  count: number = 1;
+  count = 1;
 
   @Exclude()
   detalheAId: number;

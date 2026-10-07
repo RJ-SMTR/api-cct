@@ -79,7 +79,7 @@ export class RelatorioNovoRemessaController {
       });
       return result;
     } catch (e) {
-      return new HttpException({ error: e.message }, HttpStatus.BAD_REQUEST);
+      throw new HttpException({ error: e.message }, HttpStatus.BAD_REQUEST);
     }
   }
 
@@ -126,7 +126,7 @@ export class RelatorioNovoRemessaController {
       // });
       return '';
     } catch (e) {
-      return new HttpException({ error: e.message }, HttpStatus.BAD_REQUEST);
+      throw new HttpException({ error: e.message }, HttpStatus.BAD_REQUEST);
     }
   }
 
@@ -141,7 +141,7 @@ export class RelatorioNovoRemessaController {
       const result = await this.relatorioNovoRemessaFinancialMovementService.findFinancialMovementSummary(queryParams);
       return result;
     } catch (e) {
-      return new HttpException({ error: e.message }, HttpStatus.BAD_REQUEST);
+      throw new HttpException({ error: e.message }, HttpStatus.BAD_REQUEST);
     }
   }
 
@@ -153,10 +153,10 @@ export class RelatorioNovoRemessaController {
     @Query(new ValidationPipe({ transform: true })) queryParams: FinancialMovementQueryDto,
   ) {
     try {
-      const result = await this.relatorioNovoRemessaService.findMovimentacaoFinanceira(queryParams);
+      const result = await this.relatorioNovoRemessaFinancialMovementService.findFinancialMovementPage(queryParams);
       return result;
     } catch (e) {
-      return new HttpException({ error: e.message }, HttpStatus.BAD_REQUEST);
+      throw new HttpException({ error: e.message }, HttpStatus.BAD_REQUEST);
     }
   }
 
@@ -201,7 +201,7 @@ export class RelatorioNovoRemessaController {
     try {
       return await this.relatorioNovoRemessaFinancialMovementService.findGuardadorFinancialMovementSummary(queryParams);
     } catch (e) {
-      return new HttpException({ error: e.message }, HttpStatus.BAD_REQUEST);
+      throw new HttpException({ error: e.message }, HttpStatus.BAD_REQUEST);
     }
   }
 
@@ -225,7 +225,7 @@ export class RelatorioNovoRemessaController {
     try {
       return await this.relatorioNovoRemessaFinancialMovementService.findGuardadorFinancialMovementPage(queryParams);
     } catch (e) {
-      return new HttpException({ error: e.message }, HttpStatus.BAD_REQUEST);
+      throw new HttpException({ error: e.message }, HttpStatus.BAD_REQUEST);
     }
   }
 
@@ -307,7 +307,7 @@ export class RelatorioNovoRemessaController {
         dataInicio, dataFim, userIds, consorcioNome, valorMin, valorMax, pago, aPagar, emProcessamento, erro, desativados, pendentes, rejeitado, estorno, pendenciaPaga
       });
     } catch (e) {
-      return new HttpException({ error: e.message }, HttpStatus.BAD_REQUEST);
+      throw new HttpException({ error: e.message }, HttpStatus.BAD_REQUEST);
     }
   }
 

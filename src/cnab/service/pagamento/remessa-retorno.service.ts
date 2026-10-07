@@ -197,9 +197,9 @@ export class RemessaRetornoService {
 
   async debitarPagamentoIndevido(pagamentoIndevido: PagamentoIndevidoDTO, valor: any) {
     let aPagar = 0;      
-    var arr = Number(valor).toFixed(2);
+    const arr = Number(valor).toFixed(2);
     let result = pagamentoIndevido.saldoDevedor - Number(arr);
-    let resultArr = result.toFixed(2);
+    const resultArr = result.toFixed(2);
       result = Number(resultArr);
       if (result > 0) {
         //Vanzeiro continua devendo

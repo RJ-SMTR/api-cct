@@ -30,7 +30,7 @@ export class OrdemPagamentoAgrupadoHistoricoDTO{
 
   motivoStatusRemessa: OcorrenciaEnum;  
   
-  ordemPagamentoAgrupadoId: Number;
+  ordemPagamentoAgrupadoId: number;
 
   userId: number;
 

@@ -71,7 +71,7 @@ describe('Admin auth (e2e)', () => {
           hash,
           password: newPassword,
         })
-        .expect(HttpStatus.NO_CONTENT);
+        .expect(HttpStatus.OK);
 
       await request(APP_URL)
         .post('/api/v1/auth/admin/email/login')

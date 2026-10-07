@@ -31,7 +31,7 @@ export class RelatorioSinteticoRepository {
     this.logger.debug(query);
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
-    let result: any[] = await queryRunner.query(query);
+    const result: any[] = await queryRunner.query(query);
     queryRunner.release();
     const sinteticos = result.map((r) => new RelatorioSinteticoDto(r));
     return sinteticos;
@@ -130,13 +130,13 @@ export class RelatorioSinteticoRepository {
           conditions = conditions +` and tv."nomeConsorcio" in('STPC','STPL') `;
         }           
 
-        let footer =  `) AS res
+        const footer =  `) AS res
         LEFT JOIN subtotal_data sub 
           ON res."consorcio" = sub."nomeConsorcio"          
         CROSS JOIN total_data
         ORDER BY res."consorcio", res."favorecido", res."datapagamento"`
 
-    let result = ` select * from ( `+ query + body + conditions + footer +` ) as tt  where (1=1)`;    
+    const result = ` select * from ( `+ query + body + conditions + footer +` ) as tt  where (1=1)`;    
     return result;
   }
 

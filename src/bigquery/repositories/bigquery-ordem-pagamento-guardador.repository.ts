@@ -63,7 +63,7 @@ export class BigqueryOrdemPagamentoGuardadorRepository {
   private getQueryArgs(args: IBigqueryFindOrdemPagamentoGuardador) {
     const startDate = args.startDate.toISOString().slice(0, 10);
     const endDate = args.endDate.toISOString().slice(0, 10);
-    let qWhere =
+    const qWhere =
       ` date(og.data_ordem) BETWEEN '${startDate}' AND '${endDate}' `;
     return qWhere;
   }

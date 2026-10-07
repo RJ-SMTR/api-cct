@@ -346,7 +346,7 @@ export class RelatorioAnaliticoRepository {
     this.logger.debug(query);
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
-    let result: any[] = await queryRunner.query(query);
+    const result: any[] = await queryRunner.query(query);
     queryRunner.release();
     const analiticos = result.map((r) => new RelatorioAnaliticoDto(r));
     return analiticos;

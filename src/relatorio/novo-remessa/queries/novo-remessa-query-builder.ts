@@ -4,6 +4,7 @@ import { buildCodigoErroSql } from './descricao-erro';
 export type NovoRemessaBaseParams = {
   todosVanzeiros?: boolean;
   consorcioFilterParamIndex: number;
+  parentErrorStatuses?: Array<'Estorno' | 'Rejeitado'>;
 };
 
 export type NovoRemessaPendentesParams = {
@@ -27,6 +28,17 @@ export const STATUS_CASE = `
     WHEN oph."statusRemessa" IN (0,1) THEN 'A Pagar'
     WHEN oph."motivoStatusRemessa" IN ('00', 'BD') OR oph."statusRemessa" = 3 THEN 'Pago'
     WHEN oph."motivoStatusRemessa" = '02' THEN 'Estorno'
+    ELSE 'Rejeitado'
+  END
+`;
+
+const buildStatusCase = (historyAlias: string) => `
+  CASE
+    WHEN ${historyAlias}."statusRemessa" = 5 THEN 'Pendencia Paga'
+    WHEN ${historyAlias}."statusRemessa" = 2 THEN 'Aguardando Pagamento'
+    WHEN ${historyAlias}."statusRemessa" IN (0,1) THEN 'A Pagar'
+    WHEN ${historyAlias}."motivoStatusRemessa" IN ('00', 'BD') OR ${historyAlias}."statusRemessa" = 3 THEN 'Pago'
+    WHEN ${historyAlias}."motivoStatusRemessa" = '02' THEN 'Estorno'
     ELSE 'Rejeitado'
   END
 `;
@@ -241,6 +253,58 @@ export const buildPendenciaPagaSingleDateQuery = (params: NovoRemessaBaseParams)
         )
       )
       AND (oph."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph."motivoStatusRemessa" IS NULL)
+      ${params.todosVanzeiros ? NOT_CPF_FILTER : ''}
+  `;
+};
+
+export const buildPendenciaPagamentoSingleDateQuery = (params: NovoRemessaBaseParams) => {
+  const consorcioParam = `$${params.consorcioFilterParamIndex}`;
+  const parentStatusCase = buildStatusCase('oph_pai');
+  const requestedStatuses = params.parentErrorStatuses?.length
+    ? params.parentErrorStatuses
+    : ['Estorno', 'Rejeitado'];
+  const requestedStatusSql = requestedStatuses.map((status) => `'${status}'`).join(', ');
+
+  return `
+    SELECT DISTINCT
+      op_pai."dataPagamento" AS "dataReferencia",
+      opa.id,
+      pu."fullName" AS nomes,
+      pu.email,
+      pu."bankCode" AS "codBanco",
+      bc.name AS "nomeBanco",
+      pu."cpfCnpj" AS "cpfCnpj",
+      ${CONSORCIO_CASE} AS "nomeConsorcio",
+      da."valorLancamento" AS valor,
+      opa."dataPagamento" AS "dataPagamento",
+      ${parentStatusCase} AS status,
+      ${buildCodigoErroSql(parentStatusCase, 'oph_pai')} AS "codigoErro"
+    FROM ordem_pagamento op
+    INNER JOIN ordem_pagamento_agrupado opa
+      ON op."ordemPagamentoAgrupadoId" = opa.id
+    INNER JOIN ordem_pagamento_agrupado op_pai
+      ON op_pai.id = opa."ordemPagamentoAgrupadoId"
+    INNER JOIN ordem_pagamento_agrupado_historico oph
+      ON oph."ordemPagamentoAgrupadoId" = opa.id
+    INNER JOIN detalhe_a da
+      ON da."ordemPagamentoAgrupadoHistoricoId" = oph.id
+    INNER JOIN ordem_pagamento_agrupado_historico oph_pai
+      ON oph_pai.id = (
+        SELECT MAX(oph_mais_recente.id)
+        FROM ordem_pagamento_agrupado_historico oph_mais_recente
+        WHERE oph_mais_recente."ordemPagamentoAgrupadoId" = op_pai.id
+      )
+    INNER JOIN public."user" pu
+      ON pu.id = op."userId"
+    INNER JOIN bank bc
+      ON bc.code = pu."bankCode"
+    WHERE
+      op_pai."dataPagamento"::date BETWEEN $1::date AND $2::date
+      AND ($3::integer[] IS NULL OR pu.id = ANY($3))
+      AND ($4::text[] IS NULL OR TRUE)
+      AND ${parentStatusCase} IN (${requestedStatusSql})
+      AND (${consorcioParam}::text[] IS NULL OR UPPER(TRIM(${CONSORCIO_CASE})) = ANY(${consorcioParam}))
+      AND (oph_pai."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph_pai."motivoStatusRemessa" IS NULL)
       ${params.todosVanzeiros ? NOT_CPF_FILTER : ''}
   `;
 };
