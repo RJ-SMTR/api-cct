@@ -8,7 +8,8 @@ import { ADMIN_EMAIL, ADMIN_PASSWORD, APP_URL } from '../utils/constants';
  *
  * Cobre:
  * - filtros obrigatórios (dataInicio/dataFim) e a validação de ordem das datas;
- * - que o valor agregado por favorecido (Guardador) bate com uma consulta SQL independente;
+ * - que o valor agregado por favorecido (Guardador) bate com uma consulta SQL independente,
+ *   incluindo Pendência Paga em data única (por dataPagamento) e em intervalo (por dataVencimento);
  * - no Permissionário, sem consórcio/favorecido/"todos" selecionado, /consolidado assume
  *   "todos" como padrão em vez de devolver sempre vazio (ver nota na suíte correspondente).
  * Requer uma API rodando em APP_URL apontando para um banco de teste (nunca o banco local).
@@ -32,28 +33,62 @@ const sumValor = (rows: { valor: string | number }[]) =>
 // o valor do segmento A, restrito a quem é guardador (roleId 6, como em buildConsorcioFilter
 // quando nenhum consórcio é informado), sem ordens agrupadas que têm filhas e sem motivos AM/AE.
 // O status é o mesmo CASE usado pela API (GUARDADOR_STATUS_CASE em guardador-novo-remessa-query-builder.ts).
+//
+// O SELECT DISTINCT na camada mais interna é necessário: um "opa" (ordem agrupada) pode reunir
+// várias ordens individuais do guardador (ordem_pagamento_guardador) de dias diferentes num único
+// pagamento. Sem o DISTINCT, o JOIN com ordem_pagamento_guardador multiplica a linha de
+// detalhe_a/valorLancamento uma vez por ordem individual do grupo, somando o mesmo valor várias
+// vezes — é isso que buildGuardadorBaseQuery (SELECT DISTINCT opa.id, nomes, valor, ...) evita.
 const SQL_GUARDADOR_CONSOLIDADO_STATUS = `
-  SELECT pu."fullName" AS nomes, SUM(da."valorLancamento") AS valor
-  FROM ordem_pagamento_guardador opg
-  INNER JOIN ordem_pagamento_agrupado opa ON opg."ordemPagamentoAgrupadoId" = opa.id
-  INNER JOIN ordem_pagamento_agrupado_historico oph ON oph."ordemPagamentoAgrupadoId" = opa.id
-  INNER JOIN detalhe_a da ON da."ordemPagamentoAgrupadoHistoricoId" = oph.id
-  INNER JOIN public."user" pu ON pu.id = opg."userId"
-  WHERE da."dataVencimento" BETWEEN $1::date AND $2::date
-    AND pu."roleId" = 6
-    AND opa.id NOT IN (SELECT filha."ordemPagamentoAgrupadoId" FROM ordem_pagamento_agrupado filha WHERE filha."ordemPagamentoAgrupadoId" IS NOT NULL)
-    AND (oph."motivoStatusRemessa" NOT IN ('AM','AE') OR oph."motivoStatusRemessa" IS NULL)
-    AND (
-      CASE
-        WHEN oph."statusRemessa" = 5 THEN 'Pendencia Paga'
-        WHEN oph."statusRemessa" = 2 THEN 'Aguardando Pagamento'
-        WHEN oph."statusRemessa" IN (0,1) THEN 'A Pagar'
-        WHEN oph."motivoStatusRemessa" IN ('00', 'BD') OR oph."statusRemessa" = 3 THEN 'Pago'
-        WHEN oph."motivoStatusRemessa" = '02' THEN 'Estorno'
-        ELSE 'Rejeitado'
-      END
-    ) = $3
-  GROUP BY pu."fullName"
+  SELECT nomes, SUM(valor) AS valor
+  FROM (
+    SELECT DISTINCT opa.id, pu."fullName" AS nomes, da."valorLancamento" AS valor
+    FROM ordem_pagamento_guardador opg
+    INNER JOIN ordem_pagamento_agrupado opa ON opg."ordemPagamentoAgrupadoId" = opa.id
+    INNER JOIN ordem_pagamento_agrupado_historico oph ON oph."ordemPagamentoAgrupadoId" = opa.id
+    INNER JOIN detalhe_a da ON da."ordemPagamentoAgrupadoHistoricoId" = oph.id
+    INNER JOIN public."user" pu ON pu.id = opg."userId"
+    WHERE da."dataVencimento" BETWEEN $1::date AND $2::date
+      AND pu."roleId" = 6
+      AND opa.id NOT IN (SELECT filha."ordemPagamentoAgrupadoId" FROM ordem_pagamento_agrupado filha WHERE filha."ordemPagamentoAgrupadoId" IS NOT NULL)
+      AND (oph."motivoStatusRemessa" NOT IN ('AM','AE') OR oph."motivoStatusRemessa" IS NULL)
+      AND (
+        CASE
+          WHEN oph."statusRemessa" = 5 THEN 'Pendencia Paga'
+          WHEN oph."statusRemessa" = 2 THEN 'Aguardando Pagamento'
+          WHEN oph."statusRemessa" IN (0,1) THEN 'A Pagar'
+          WHEN oph."motivoStatusRemessa" IN ('00', 'BD') OR oph."statusRemessa" = 3 THEN 'Pago'
+          WHEN oph."motivoStatusRemessa" = '02' THEN 'Estorno'
+          ELSE 'Rejeitado'
+        END
+      ) = $3
+  ) base
+  GROUP BY nomes
+`;
+
+// Pendência Paga tem sua própria sub-consulta (buildGuardadorPendenciaPagaSingleDateQuery),
+// filtrando pela data de pagamento da ordem (ou da ordem pai, se a OPA foi reagrupada em uma
+// família de pendência), não pela dataVencimento usada pelos outros status. Usada quando
+// dataInicio == dataFim (ver isSingleDate / includePendenciaPagaSingleDate no repositório);
+// fora de uma data única ela cai na mesma consulta base de SQL_GUARDADOR_CONSOLIDADO_STATUS,
+// filtrada por dataVencimento.
+const SQL_GUARDADOR_PENDENCIA_PAGA_DATA_PAGAMENTO = `
+  SELECT nomes, SUM(valor) AS valor
+  FROM (
+    SELECT DISTINCT opa.id, pu."fullName" AS nomes, da."valorLancamento" AS valor
+    FROM ordem_pagamento_guardador opg
+    INNER JOIN ordem_pagamento_agrupado opa ON opg."ordemPagamentoAgrupadoId" = opa.id
+    LEFT JOIN ordem_pagamento_agrupado op_pai ON op_pai.id = opa."ordemPagamentoAgrupadoId"
+    INNER JOIN ordem_pagamento_agrupado_historico oph ON oph."ordemPagamentoAgrupadoId" = opa.id
+    INNER JOIN detalhe_a da ON da."ordemPagamentoAgrupadoHistoricoId" = oph.id
+    INNER JOIN public."user" pu ON pu.id = opg."userId"
+    WHERE oph."statusRemessa" = 5
+      AND pu."roleId" = 6
+      AND opa.id NOT IN (SELECT filha."ordemPagamentoAgrupadoId" FROM ordem_pagamento_agrupado filha WHERE filha."ordemPagamentoAgrupadoId" IS NOT NULL)
+      AND (oph."motivoStatusRemessa" NOT IN ('AM','AE') OR oph."motivoStatusRemessa" IS NULL)
+      AND (CASE WHEN opa."ordemPagamentoAgrupadoId" IS NOT NULL THEN op_pai."dataPagamento" ELSE opa."dataPagamento" END)::date BETWEEN $1::date AND $2::date
+  ) base
+  GROUP BY nomes
 `;
 
 describe('Relatório consolidado (e2e)', () => {
@@ -121,12 +156,33 @@ describe('Relatório consolidado (e2e)', () => {
       expect(res.body.data.length).toBe(expected.length);
     });
 
-    // Pendência Paga não foi coberta aqui: o consolidado usa uma sub-consulta própria para esse
-    // status (buildGuardadorPendenciaPagaSingleDateQuery, filtrando por dataPagamento via OPA
-    // pai/filha) unida com a consulta base (que ainda filtra os mesmos status por dataVencimento).
-    // Uma tentativa de reconstruir essa combinação de forma independente não bateu com a API
-    // (nem por dataVencimento nem por dataPagamento) dentro do tempo deste teste — então, em vez
-    // de arriscar uma referência errada, este caso fica como lacuna de cobertura conhecida.
+    it('status Pendência Paga / data única 23/09/2026 bate com o SQL (por dataPagamento)', async () => {
+      const res = await get('/guardador/consolidado', {
+        dataInicio: '2026-09-23',
+        dataFim: '2026-09-23',
+        pendenciaPaga: true,
+      }).expect(HttpStatus.OK);
+
+      const expected = await sqlRows(SQL_GUARDADOR_PENDENCIA_PAGA_DATA_PAGAMENTO, ['2026-09-23', '2026-09-23']);
+      expect(sumValor(res.body.data)).toBe(sumValor(expected));
+      expect(res.body.data.length).toBe(expected.length);
+    });
+
+    it('status Pendência Paga / intervalo 01/09 a 10/10/2026 bate com o SQL (por dataVencimento)', async () => {
+      const res = await get('/guardador/consolidado', {
+        dataInicio: '2026-09-01',
+        dataFim: '2026-10-10',
+        pendenciaPaga: true,
+      }).expect(HttpStatus.OK);
+
+      const expected = await sqlRows(SQL_GUARDADOR_CONSOLIDADO_STATUS, [
+        '2026-09-01',
+        '2026-10-10',
+        'Pendencia Paga',
+      ]);
+      expect(sumValor(res.body.data)).toBe(sumValor(expected));
+      expect(res.body.data.length).toBe(expected.length);
+    });
   });
 
   describe('Permissionário: sem seletor de consórcio/favorecido, assume "todos"', () => {
