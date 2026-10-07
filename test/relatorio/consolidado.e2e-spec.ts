@@ -9,8 +9,8 @@ import { ADMIN_EMAIL, ADMIN_PASSWORD, APP_URL } from '../utils/constants';
  * Cobre:
  * - filtros obrigatórios (dataInicio/dataFim) e a validação de ordem das datas;
  * - que o valor agregado por favorecido (Guardador) bate com uma consulta SQL independente;
- * - um achado confirmado no Permissionário: sem consórcio/favorecido/"todos" selecionado,
- *   /consolidado sempre devolve vazio (ver nota na suíte "filtro de consórcio é obrigatório").
+ * - no Permissionário, sem consórcio/favorecido/"todos" selecionado, /consolidado assume
+ *   "todos" como padrão em vez de devolver sempre vazio (ver nota na suíte correspondente).
  * Requer uma API rodando em APP_URL apontando para um banco de teste (nunca o banco local).
  */
 
@@ -129,36 +129,51 @@ describe('Relatório consolidado (e2e)', () => {
     // de arriscar uma referência errada, este caso fica como lacuna de cobertura conhecida.
   });
 
-  describe('Permissionário: filtro de consórcio é obrigatório na prática', () => {
-    // Achado confirmado (não é suposição): findConsolidado só empilha alguma sub-consulta em
-    // "queries" (relatorio-novo-remessa-consolidado.repository.ts, por volta da linha 370) dentro
-    // de "if (temFiltroConsorcio)" / "if (temFiltroVanzeiros)", e essas duas flags só ficam
-    // verdadeiras quando a requisição informa consorcioNome, todosConsorcios, userIds ou
-    // todosVanzeiros. Sem nenhum desses, "parts" fica vazio e a API sempre devolve {data: [], count: 0}
-    // — mesmo com data válida, status válido e dados reais no banco. A tela de Relatório Consolidado
-    // (Permissionário) não envia nenhum desses por padrão, então o filtro de Consórcios/Favorecido é,
-    // na prática, obrigatório, apesar de não ser validado nem documentado como tal.
-    it('sem consórcio, favorecido ou "todos" selecionado retorna sempre vazio', async () => {
-      const res = await get('/consolidado', {
-        dataInicio: '2026-09-01',
-        dataFim: '2026-10-10',
-        pago: true,
-      }).expect(HttpStatus.OK);
-
-      expect(res.body).toEqual({ data: [], count: 0 });
-    });
-
+  describe('Permissionário: sem seletor de consórcio/favorecido, assume "todos"', () => {
+    // findConsolidado só empilhava alguma sub-consulta em "queries" dentro de
+    // "if (temFiltroConsorcio)" / "if (temFiltroVanzeiros)", e essas duas flags só ficavam
+    // verdadeiras quando a requisição informava consorcioNome, todosConsorcios, userIds ou
+    // todosVanzeiros. Sem nenhum desses, o método sempre devolvia {data: [], count: 0}, mesmo com
+    // data válida, status válido e dados reais no banco — e a tela de Relatório Consolidado
+    // (Permissionário) não envia nenhum desses por padrão. O fix assume todosConsorcios e
+    // todosVanzeiros quando nenhum seletor é informado, em vez de retornar sempre vazio.
     it(
-      'com todosConsorcios=true, o mesmo filtro passa a trazer dados',
+      'sem consórcio, favorecido ou "todos" selecionado equivale a todosConsorcios=true + todosVanzeiros=true',
       async () => {
-        const res = await get('/consolidado', {
-          dataInicio: '2026-09-01',
-          dataFim: '2026-10-10',
+        const dataInicio = '2026-09-01';
+        const dataFim = '2026-10-10';
+
+        const semSeletor = await get('/consolidado', { dataInicio, dataFim, pago: true }).expect(HttpStatus.OK);
+        const comTodos = await get('/consolidado', {
+          dataInicio,
+          dataFim,
           pago: true,
           todosConsorcios: true,
+          todosVanzeiros: true,
         }).expect(HttpStatus.OK);
 
-        expect(res.body.count).toBeGreaterThan(0);
+        expect(semSeletor.body.count).toBeGreaterThan(0);
+        expect(sumValor(semSeletor.body.data)).toBe(sumValor(comTodos.body.data));
+      },
+      60000,
+    );
+
+    it(
+      'com um consórcio específico, o resultado difere do padrão "todos"',
+      async () => {
+        const dataInicio = '2026-09-01';
+        const dataFim = '2026-10-10';
+
+        const semSeletor = await get('/consolidado', { dataInicio, dataFim, pago: true }).expect(HttpStatus.OK);
+        const umConsorcio = await get('/consolidado', {
+          dataInicio,
+          dataFim,
+          pago: true,
+          consorcioNome: 'STPC',
+        }).expect(HttpStatus.OK);
+
+        expect(umConsorcio.body.count).toBeGreaterThan(0);
+        expect(umConsorcio.body.count).toBeLessThan(semSeletor.body.count);
       },
       30000,
     );
