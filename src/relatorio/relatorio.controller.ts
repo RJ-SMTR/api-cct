@@ -69,7 +69,7 @@ export class RelatorioController {
       });
       return result;
     } catch (e) {
-      return new HttpException({ error: e.message }, HttpStatus.BAD_REQUEST);
+      throw new HttpException({ error: e.message }, HttpStatus.BAD_REQUEST);
     }
   }
 
@@ -96,7 +96,7 @@ export class RelatorioController {
       });
       return result;
     } catch (e) {
-      return new HttpException({ error: e.message }, HttpStatus.BAD_REQUEST);
+      throw new HttpException({ error: e.message }, HttpStatus.BAD_REQUEST);
     }
   }
 }
