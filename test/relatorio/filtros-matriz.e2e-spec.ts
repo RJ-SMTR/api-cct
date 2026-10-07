@@ -89,6 +89,11 @@ describe('Matriz de filtros do relatório de movimentação financeira (e2e)', (
         .get(`${BASE}${combo.perfil.pagina}`)
         .set('Authorization', `Bearer ${token}`)
         .query(query);
+      if (combo.data === 'sem data') {
+        // Back-end exige dataInicio e dataFim: sem datas a consulta é rejeitada (422).
+        expect(pagina.status).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
+        return;
+      }
       expect(pagina.status).toBe(HttpStatus.OK);
 
       const resumo = await request(APP_URL)
