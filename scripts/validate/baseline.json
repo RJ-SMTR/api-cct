@@ -25,6 +25,7 @@
     "src/relatorio/novo-remessa/queries/descricao-erro.spec.ts",
     "src/relatorio/novo-remessa/queries/guardador-novo-remessa-query-builder.spec.ts",
     "src/relatorio/novo-remessa/queries/novo-remessa-query-builder.spec.ts",
+    "src/relatorio/novo-remessa/relatorio-novo-remessa-consolidado.repository.spec.ts",
     "src/relatorio/novo-remessa/relatorio-novo-remessa-movimentacao.repository.spec.ts",
     "src/relatorio/novo-remessa/relatorio-novo-remessa.controller.spec.ts",
     "src/relatorio/novo-remessa/relatorio-novo-remessa.service.spec.ts",

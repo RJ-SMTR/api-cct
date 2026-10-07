@@ -418,8 +418,9 @@ export class RelatorioNovoRemessaConsolidadoRepository {
       }
     }
 
-    // Junta só as queries que realmente existem
-    const parts = queries.filter(q => q !== ``);
+    // Junta só as queries que realmente existem, sem duplicar a mesma subquery
+    // quando mais de uma condição acima a empurra (ex.: cenário "todos" sem filtro de status).
+    const parts = Array.from(new Set(queries.filter(q => q !== ``)));
 
     let query = ``;
 
@@ -466,10 +467,24 @@ export class RelatorioNovoRemessaConsolidadoRepository {
       return elem;
     });
 
+    // Um favorecido individual de STPC/STPL/TEC aparece tanto na linha agregada do consórcio
+    // quanto na linha individual de vanzeiro. Quando o filtro de consórcio cobre todo o MODAIS
+    // (todosConsorcios, que inclui STPC/STPL/TEC), a linha individual já está contida no total
+    // do consórcio e não deve ser somada de novo no valor geral — mas continua aparecendo em "data".
+    const consorciosLabels = new Set<string>(this.CONSORCIOS);
+    const consorcioCobreModais = !!filter.todosConsorcios
+      || !!filter.consorcioNome?.some((nome) => this.MODAIS.includes(nome));
+    const vanzeiroJaIncluidoNoConsorcio = !!filter.todosVanzeiros && consorcioCobreModais;
+
+    const valor = mappedResults.reduce((acc: number, curr: { nomefavorecido: string; valor: number }) => {
+      const eDuplicidadeVanzeiroModal = vanzeiroJaIncluidoNoConsorcio && !consorciosLabels.has(curr.nomefavorecido);
+      return eDuplicidadeVanzeiroModal ? acc : acc + curr.valor;
+    }, 0);
+
     return new RelatorioConsolidadoNovoRemessaDto({
       data: mappedResults,
       count: mappedResults.length,
-      valor: mappedResults.reduce((acc: any, curr: { valor: any; }) => acc + curr.valor, 0),
+      valor,
     });
   }
 
