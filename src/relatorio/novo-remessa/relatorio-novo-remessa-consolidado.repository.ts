@@ -198,6 +198,14 @@ export class RelatorioNovoRemessaConsolidadoRepository {
 
   public async findConsolidado(filter: IFindPublicacaoRelatorioNovoRemessa): Promise<RelatorioConsolidadoNovoRemessaDto> {
 
+    // Sem consorcioNome/userIds nem todosConsorcios/todosVanzeiros, nenhuma das consultas abaixo é
+    // incluída (ver "temFiltroConsorcio"/"temFiltroVanzeiros" mais adiante) e o método sempre
+    // devolve {data: [], count: 0}, mesmo com datas e status válidos e dados no banco. Sem um
+    // seletor explícito, assume "todos" como padrão.
+    if (!filter.consorcioNome?.length && !filter.todosConsorcios && !filter.userIds?.length && !filter.todosVanzeiros) {
+      filter = { ...filter, todosConsorcios: true, todosVanzeiros: true };
+    }
+
     const dataInicio = filter.dataInicio.toISOString().split('T')[0];
     const dataFim = filter.dataFim.toISOString().split('T')[0];
 
