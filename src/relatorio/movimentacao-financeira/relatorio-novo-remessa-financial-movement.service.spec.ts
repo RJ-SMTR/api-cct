@@ -9,6 +9,7 @@ import { RelatorioGuardadorFinancialMovementRepository } from './relatorio-guard
 describe('RelatorioNovoRemessaFinancialMovementService', () => {
   let service: RelatorioNovoRemessaFinancialMovementService;
   let guardadorRepo: RelatorioGuardadorFinancialMovementRepository;
+  let dataSource: { query: jest.Mock };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -47,6 +48,7 @@ describe('RelatorioNovoRemessaFinancialMovementService', () => {
     guardadorRepo = module.get<RelatorioGuardadorFinancialMovementRepository>(
       RelatorioGuardadorFinancialMovementRepository,
     );
+    dataSource = module.get(getDataSourceToken());
   });
 
   afterEach(() => {
@@ -119,5 +121,61 @@ describe('RelatorioNovoRemessaFinancialMovementService', () => {
     expect(line.endsWith(';Pago;""')).toBe(true);
 
     await service.removeGeneratedExportFile(response.filePath);
+  });
+
+  describe('Pendencia Paga status filter', () => {
+    // Trecho exclusivo da sub-consulta de Pendencia Paga (buildPendenciaPagaSingleDateQuery):
+    // filtra pela data de pagamento da própria OPA, não da "pai".
+    const PENDENCIA_PAGA_MARKER = 'opa."dataPagamento"::date BETWEEN $1::date AND $2::date';
+
+    it('includes Pendencia Paga filtered by payment date even over a multi-day range', async () => {
+      await service.findFinancialMovementSummary({
+        dataInicio: new Date('2026-04-01'),
+        dataFim: new Date('2026-04-22'),
+        pendenciaPaga: true,
+        pago: true,
+      } as any);
+
+      const [countQuery] = dataSource.query.mock.calls[0];
+      expect(countQuery).toContain(PENDENCIA_PAGA_MARKER);
+    });
+
+    it('keeps including Pendencia Paga when the range is a single day (no regression)', async () => {
+      await service.findFinancialMovementSummary({
+        dataInicio: new Date('2026-04-01'),
+        dataFim: new Date('2026-04-01'),
+        pendenciaPaga: true,
+      } as any);
+
+      const [countQuery] = dataSource.query.mock.calls[0];
+      expect(countQuery).toContain(PENDENCIA_PAGA_MARKER);
+    });
+
+    it('does not include Pendencia Paga when it was not selected', async () => {
+      await service.findFinancialMovementSummary({
+        dataInicio: new Date('2026-04-01'),
+        dataFim: new Date('2026-04-22'),
+        pago: true,
+      } as any);
+
+      const [countQuery] = dataSource.query.mock.calls[0];
+      expect(countQuery).not.toContain(PENDENCIA_PAGA_MARKER);
+    });
+
+    it('still requires a single day for Estorno/Rejeitado while Pendencia Paga uses the full range', async () => {
+      // Alias exclusivo de buildPendenciaPagamentoSingleDateQuery (join com o histórico mais recente da "pai").
+      const PENDENCIA_PAGAMENTO_MARKER = 'oph_pai';
+
+      await service.findFinancialMovementSummary({
+        dataInicio: new Date('2026-04-01'),
+        dataFim: new Date('2026-04-22'),
+        pendenciaPaga: true,
+        estorno: true,
+      } as any);
+
+      const [countQuery] = dataSource.query.mock.calls[0];
+      expect(countQuery).toContain(PENDENCIA_PAGA_MARKER);
+      expect(countQuery).not.toContain(PENDENCIA_PAGAMENTO_MARKER);
+    });
   });
 });
