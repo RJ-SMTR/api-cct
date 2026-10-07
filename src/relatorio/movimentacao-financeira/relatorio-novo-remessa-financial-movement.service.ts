@@ -220,6 +220,8 @@ export class RelatorioNovoRemessaFinancialMovementService {
       ? all.filter((status): status is StatusPagamento.ERRO_ESTORNO | StatusPagamento.ERRO_REJEITADO => status === StatusPagamento.ERRO_ESTORNO || status === StatusPagamento.ERRO_REJEITADO)
       : [];
     let baseStatuses = all.filter((s) => s!== StatusPagamento.PENDENTES);
+    // Pendencia Paga só existe em data única (pela data de pagamento): fora dela não entra na base por vencimento.
+    if (!isSingle) baseStatuses = baseStatuses.filter((s) => s!== StatusPagamento.PENDENCIA_PAGA);
     if (includePendenciaPagaSingleDate) baseStatuses = baseStatuses.filter((s) => s!== StatusPagamento.PENDENCIA_PAGA);
     // Pendencia Paga só existe em data única (pela data de pagamento): fora dela não entra na base por vencimento.
     if (!isSingle) baseStatuses = baseStatuses.filter((s) => s!== StatusPagamento.PENDENCIA_PAGA);
