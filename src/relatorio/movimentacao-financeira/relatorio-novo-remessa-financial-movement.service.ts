@@ -223,8 +223,6 @@ export class RelatorioNovoRemessaFinancialMovementService {
     // Pendencia Paga só existe em data única (pela data de pagamento): fora dela não entra na base por vencimento.
     if (!isSingle) baseStatuses = baseStatuses.filter((s) => s!== StatusPagamento.PENDENCIA_PAGA);
     if (includePendenciaPagaSingleDate) baseStatuses = baseStatuses.filter((s) => s!== StatusPagamento.PENDENCIA_PAGA);
-    // Pendencia Paga só existe em data única (pela data de pagamento): fora dela não entra na base por vencimento.
-    if (!isSingle) baseStatuses = baseStatuses.filter((s) => s!== StatusPagamento.PENDENCIA_PAGA);
     baseStatuses = baseStatuses.filter((s) => !parentErrorStatusesSingleDate.includes(s as StatusPagamento.ERRO_ESTORNO | StatusPagamento.ERRO_REJEITADO));
     return { baseStatuses: baseStatuses.length? baseStatuses : null, includePendentes, includeBase: baseStatuses.length > 0, includePendenciaPagaSingleDate, parentErrorStatusesSingleDate };
   }
