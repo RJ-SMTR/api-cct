@@ -802,6 +802,7 @@ export class CronJobsService {
     const txt = await this.remessaService.gerarCnabText(headerName, undefined, true);
 
     await this.remessaService.enviarRemessa(txt, headerName);
+    
   }
 
 
