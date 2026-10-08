@@ -18,6 +18,35 @@ export class RelatorioNovoRemessaConsolidadoRepository {
 
   private readonly CONSORCIOS = ['VLT', 'Intersul', 'Transcarioca', 'Internorte', 'MobiRio', 'Santa Cruz', 'MOBI-Rio BUM', 'TUSE', 'STPC', 'STPL', 'TEC', 'GTU'];
 
+  // Mesmo CASE usado nos headerQuery* abaixo para rotular "nome": o permitCode do usuário tem
+  // prioridade sobre o nomeConsorcio/consorcio bruto do pagamento. O filtro de consorcioNome
+  // precisa comparar contra este mesmo CASE (não a coluna bruta), senão um pagamento cujo
+  // nomeConsorcio bruto diverge do permitCode do usuário aparece rotulado num consórcio mas é
+  // selecionado pelo filtro de outro.
+  private readonly consorcioCaseSimples = `CASE
+    WHEN pu."permitCode" = '8' THEN 'VLT'
+    WHEN pu."permitCode" LIKE '4%' THEN 'STPC'
+    WHEN pu."permitCode" LIKE '81%' THEN 'STPL'
+    WHEN pu."permitCode" LIKE '7%' THEN 'TEC'
+    ELSE op."nomeConsorcio"
+  END`;
+
+  private readonly consorcioCaseDuplo = `CASE
+    WHEN pu."permitCode" = '8' OR puu."permitCode" = '8' THEN 'VLT'
+    WHEN pu."permitCode" LIKE '4%' OR puu."permitCode" LIKE '4%' THEN 'STPC'
+    WHEN pu."permitCode" LIKE '81%' OR puu."permitCode" LIKE '81%' THEN 'STPL'
+    WHEN pu."permitCode" LIKE '7%' OR puu."permitCode" LIKE '7%' THEN 'TEC'
+    ELSE COALESCE(op."nomeConsorcio", opp."nomeConsorcio")
+  END`;
+
+  private readonly consorcioCaseEleicao = `CASE
+    WHEN pu."permitCode" = '8' THEN 'VLT'
+    WHEN pu."permitCode" LIKE '4%' THEN 'STPC'
+    WHEN pu."permitCode" LIKE '81%' THEN 'STPL'
+    WHEN pu."permitCode" LIKE '7%' THEN 'TEC'
+    ELSE op."consorcio"
+  END`;
+
   private readonly headerQueryConsorciosApagar = ` select distinct CASE
                                                     WHEN pu."permitCode" = '8'  THEN 'VLT'
                                                       WHEN pu."permitCode" LIKE '4%' THEN 'STPC'
@@ -287,12 +316,13 @@ export class RelatorioNovoRemessaConsolidadoRepository {
     // em ordem_pagamento (usada pelas demais sub-queries abaixo).
     if ((filter.consorcioNome && filter.consorcioNome.length > 0) || filter.todosConsorcios) {
       if (!filter.todosConsorcios) {
-        const consorcioPlaceholders = filter.consorcioNome?.join(`','`);
-        if (queryAPagarConsorcios) queryAPagarConsorcios += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') `;
-        if (queryConsorcios) queryConsorcios += ` AND (op."nomeConsorcio" IN('${consorcioPlaceholders}') or opp."nomeConsorcio" IN('${consorcioPlaceholders}'))  `;
-        if (queryAPagarEleicaoConsorcio) queryAPagarEleicaoConsorcio += ` AND op."consorcio" IN('${consorcioPlaceholders}') `;
-        if (queryEleicaoConsorcio) queryEleicaoConsorcio += ` AND op."consorcio" IN('${consorcioPlaceholders}') `;
-        if (queryPendentesConsorcio) queryPendentesConsorcio += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') `;
+        // Sem distinção de acento ou maiúsculas (ver @ApiQuery em RelatorioNovoRemessaController).
+        const consorcioPlaceholders = filter.consorcioNome?.map((c) => c.trim().toUpperCase()).join(`','`);
+        if (queryAPagarConsorcios) queryAPagarConsorcios += ` AND UPPER(TRIM(${this.consorcioCaseSimples})) IN('${consorcioPlaceholders}') `;
+        if (queryConsorcios) queryConsorcios += ` AND UPPER(TRIM(${this.consorcioCaseDuplo})) IN('${consorcioPlaceholders}') `;
+        if (queryAPagarEleicaoConsorcio) queryAPagarEleicaoConsorcio += ` AND UPPER(TRIM(${this.consorcioCaseEleicao})) IN('${consorcioPlaceholders}') `;
+        if (queryEleicaoConsorcio) queryEleicaoConsorcio += ` AND UPPER(TRIM(${this.consorcioCaseEleicao})) IN('${consorcioPlaceholders}') `;
+        if (queryPendentesConsorcio) queryPendentesConsorcio += ` AND UPPER(TRIM(${this.consorcioCaseSimples})) IN('${consorcioPlaceholders}') `;
       } else {
         const consorcioPlaceholders = this.CONSORCIOS.join(`','`);
         if (queryAPagarConsorcios) queryAPagarConsorcios += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') `;

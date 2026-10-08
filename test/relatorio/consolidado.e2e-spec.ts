@@ -258,4 +258,71 @@ describe('Relatório consolidado (e2e)', () => {
       }).expect(HttpStatus.OK);
     }, 30000);
   });
+
+  describe('Permissionário: consorcioNome ignora acento e maiúsculas', () => {
+    // O @ApiQuery documenta "sem distinção de acento ou maiúsculas" para consorcioNome.
+    it('consorcioNome=stpc (minúsculo) devolve o mesmo resultado que STPC', async () => {
+      const dataInicio = '2026-09-01';
+      const dataFim = '2026-10-10';
+
+      const exato = await get('/consolidado', { dataInicio, dataFim, pago: true, consorcioNome: 'STPC' }).expect(
+        HttpStatus.OK,
+      );
+      const minusculo = await get('/consolidado', { dataInicio, dataFim, pago: true, consorcioNome: 'stpc' }).expect(
+        HttpStatus.OK,
+      );
+
+      expect(exato.body.count).toBeGreaterThan(0);
+      expect(minusculo.body.count).toBe(exato.body.count);
+      expect(sumValor(minusculo.body.data)).toBe(sumValor(exato.body.data));
+    }, 30000);
+  });
+
+  describe('Permissionário: consorcioNome não vaza outro consórcio', () => {
+    // O rótulo exibido (campo "nome") prioriza o permitCode do usuário sobre o nomeConsorcio
+    // bruto do pagamento (ver headerQueryConsorcios). Filtrar por STPL não deve incluir uma
+    // linha rotulada STPC (nem o inverso), mesmo quando o nomeConsorcio bruto e o permitCode
+    // do usuário divergem para o mesmo pagamento.
+    it('consorcioNome=STPL só devolve a linha "STPL"', async () => {
+      const res = await get('/consolidado', {
+        dataInicio: '2026-09-01',
+        dataFim: '2026-10-10',
+        pago: true,
+        consorcioNome: 'STPL',
+      }).expect(HttpStatus.OK);
+
+      const nomes = res.body.data.map((d: { nomefavorecido: string }) => d.nomefavorecido);
+      expect(nomes).toEqual(['STPL']);
+    }, 30000);
+
+    it('consorcioNome=STPC só devolve a linha "STPC"', async () => {
+      const res = await get('/consolidado', {
+        dataInicio: '2026-09-01',
+        dataFim: '2026-10-10',
+        pago: true,
+        consorcioNome: 'STPC',
+      }).expect(HttpStatus.OK);
+
+      const nomes = res.body.data.map((d: { nomefavorecido: string }) => d.nomefavorecido);
+      expect(nomes).toEqual(['STPC']);
+    }, 30000);
+  });
+
+  describe('Guardador: todosConsorcios restringe aos pagamentos diretos de associação', () => {
+    // Associações (SINGAERJ, ANGLAE) recebem pagamento direto em ordem_pagamento_guardador
+    // com "permitCode" nulo - não são guardadores comuns. todosConsorcios deve restringir a
+    // elas (ver comentário de buildConsorcioFilter em guardador-novo-remessa-query-builder.ts),
+    // em vez de devolver a mesma lista de guardadores que a busca sem filtro de consórcio.
+    it('todosConsorcios=true difere do resultado sem filtro de consórcio', async () => {
+      const dataInicio = '2026-09-01';
+      const dataFim = '2026-10-10';
+
+      const semFiltro = await get('/guardador/consolidado', { dataInicio, dataFim }).expect(HttpStatus.OK);
+      const todosConsorcios = await get('/guardador/consolidado', { dataInicio, dataFim, todosConsorcios: true }).expect(
+        HttpStatus.OK,
+      );
+
+      expect(todosConsorcios.body.count).toBeLessThan(semFiltro.body.count);
+    }, 30000);
+  });
 });
