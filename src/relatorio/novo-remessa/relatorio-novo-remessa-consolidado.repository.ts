@@ -274,29 +274,32 @@ export class RelatorioNovoRemessaConsolidadoRepository {
         queryEleicaoVanzeiro += usersVanzeiros;
       } else {
         const consorcioPlaceholders = this.MODAIS.join(`','`);
-        queryPendentesVanzeiro += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') AND length(op."operadoraCpfCnpj")<=11`;
-        queryVanzeiros += ` AND (op."nomeConsorcio" IN('${consorcioPlaceholders}') or opp."nomeConsorcio" IN('${consorcioPlaceholders}')) 
+        if (queryPendentesVanzeiro) queryPendentesVanzeiro += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') AND length(op."operadoraCpfCnpj")<=11`;
+        if (queryVanzeiros) queryVanzeiros += ` AND (op."nomeConsorcio" IN('${consorcioPlaceholders}') or opp."nomeConsorcio" IN('${consorcioPlaceholders}'))
                             AND (length(op."operadoraCpfCnpj")<=11  or length(opp."operadoraCpfCnpj")<=11) `;
-        queryAPagarVanzeiros += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') AND length(op."operadoraCpfCnpj")<=11`;
-        queryAPagarEleicaoVanzeiro += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') AND length(op."operadoraCpfCnpj")<=11 `;
+        if (queryAPagarVanzeiros) queryAPagarVanzeiros += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') AND length(op."operadoraCpfCnpj")<=11`;
+        if (queryAPagarEleicaoVanzeiro) queryAPagarEleicaoVanzeiro += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') AND length(op."operadoraCpfCnpj")<=11 `;
       }
     }
 
+    // queryAPagarEleicaoConsorcio/queryEleicaoConsorcio correm sobre ordem_pagamento_unico
+    // (alias "op"), cuja coluna de consórcio é "consorcio" - não "nomeConsorcio", que só existe
+    // em ordem_pagamento (usada pelas demais sub-queries abaixo).
     if ((filter.consorcioNome && filter.consorcioNome.length > 0) || filter.todosConsorcios) {
       if (!filter.todosConsorcios) {
         const consorcioPlaceholders = filter.consorcioNome?.join(`','`);
-        queryAPagarConsorcios += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') `;
-        queryConsorcios += ` AND (op."nomeConsorcio" IN('${consorcioPlaceholders}') or opp."nomeConsorcio" IN('${consorcioPlaceholders}'))  `;
-        queryAPagarEleicaoConsorcio += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') `;
-        queryEleicaoConsorcio += ` AND op."consorcio" IN('${consorcioPlaceholders}') `;
-        queryPendentesConsorcio += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') `;
+        if (queryAPagarConsorcios) queryAPagarConsorcios += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') `;
+        if (queryConsorcios) queryConsorcios += ` AND (op."nomeConsorcio" IN('${consorcioPlaceholders}') or opp."nomeConsorcio" IN('${consorcioPlaceholders}'))  `;
+        if (queryAPagarEleicaoConsorcio) queryAPagarEleicaoConsorcio += ` AND op."consorcio" IN('${consorcioPlaceholders}') `;
+        if (queryEleicaoConsorcio) queryEleicaoConsorcio += ` AND op."consorcio" IN('${consorcioPlaceholders}') `;
+        if (queryPendentesConsorcio) queryPendentesConsorcio += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') `;
       } else {
         const consorcioPlaceholders = this.CONSORCIOS.join(`','`);
-        queryAPagarConsorcios += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') `;
-        queryConsorcios += ` AND (op."nomeConsorcio" IN('${consorcioPlaceholders}') or opp."nomeConsorcio" IN('${consorcioPlaceholders}')) `;
-        queryAPagarEleicaoConsorcio += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') `;
-        queryEleicaoConsorcio += ` AND op."consorcio" IN('${consorcioPlaceholders}') `;
-        queryPendentesConsorcio += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') `;
+        if (queryAPagarConsorcios) queryAPagarConsorcios += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') `;
+        if (queryConsorcios) queryConsorcios += ` AND (op."nomeConsorcio" IN('${consorcioPlaceholders}') or opp."nomeConsorcio" IN('${consorcioPlaceholders}')) `;
+        if (queryAPagarEleicaoConsorcio) queryAPagarEleicaoConsorcio += ` AND op."consorcio" IN('${consorcioPlaceholders}') `;
+        if (queryEleicaoConsorcio) queryEleicaoConsorcio += ` AND op."consorcio" IN('${consorcioPlaceholders}') `;
+        if (queryPendentesConsorcio) queryPendentesConsorcio += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') `;
       }
     }
 

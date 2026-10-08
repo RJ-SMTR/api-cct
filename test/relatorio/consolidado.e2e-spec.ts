@@ -234,4 +234,28 @@ describe('Relatório consolidado (e2e)', () => {
       30000,
     );
   });
+
+  describe('Permissionário: filtros isolados que não levam consórcio/favorecido explícito', () => {
+    // O fallback "assume todos" (ver suíte acima) faz temFiltroVanzeiros/temFiltroConsorcio
+    // ficarem true mesmo sem seletor explícito. Algumas sub-queries só recebem um SELECT base
+    // quando um subconjunto específico de flags de status está marcado; fora desse subconjunto
+    // elas ficam como string vazia, mas o bloco de todosConsorcios/todosVanzeiros ainda concatena
+    // um "AND ..." nelas e o resultado (um fragmento SQL solto) acaba entrando no UNION ALL.
+    it('aPagar=true sozinho não quebra com erro de sintaxe SQL', async () => {
+      await get('/consolidado', { dataInicio: '2026-09-01', dataFim: '2026-10-10', aPagar: true }).expect(HttpStatus.OK);
+    }, 30000);
+
+    it('eleicao=true sozinho não quebra com erro de sintaxe SQL', async () => {
+      await get('/consolidado', { dataInicio: '2026-09-01', dataFim: '2026-10-10', eleicao: true }).expect(HttpStatus.OK);
+    }, 30000);
+
+    it('eleicao=true combinado com todosConsorcios=true não quebra por coluna inexistente', async () => {
+      await get('/consolidado', {
+        dataInicio: '2026-09-01',
+        dataFim: '2026-10-10',
+        eleicao: true,
+        todosConsorcios: true,
+      }).expect(HttpStatus.OK);
+    }, 30000);
+  });
 });
