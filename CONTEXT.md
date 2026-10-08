@@ -134,6 +134,10 @@ Email enviado ao usuário para concluir o cadastro; estados `queued`, `sent`, `u
 
 Fonte entre parênteses. Revisado por Matthew em 2026-09-30 (janelas de pagamento, pagamento manual, entidades, legado); o que ainda não foi validado por pessoa fica marcado _(a confirmar)_. Baseado no código da `main` (commit `c83718e2`).
 
+### Relatório de Movimentação Financeira
+
+- **Pendência Paga é consultada por data de pagamento, em qualquer intervalo** (ADR 0001, 2026-10-07). A consulta principal do relatório (`buildBaseQuery`) filtra por data de vencimento, onde Pendência Paga nunca aparece; uma consulta dedicada (`buildPendenciaPagaSingleDateQuery`, nome desatualizado) sempre trouxe esse status pela data de pagamento com um `BETWEEN`, aceitando intervalo — o antigo gate de "dia único" vivia só em JS (`resolveStatuses`) e no front, e por isso Pendência Paga desaparecia silenciosamente ao selecionar todos os status num intervalo de mais de um dia. Vale só para Movimentação Financeira do Permissionário; o Consolidado do Permissionário não tem essa lógica, e o fluxo de Guardador tem cópia própria (não alterada).
+
 ### Pagamento
 
 - **Janelas de pagamento.** Ordens de sexta a segunda são pagas na terça seguinte; ordens de terça a quinta são pagas na sexta seguinte (`calcularPeriodoPagamento`, `src/cron-jobs/cron-jobs.service.ts`). Vale para modais e consórcios (confirmado por Matthew em 2026-09-30).
