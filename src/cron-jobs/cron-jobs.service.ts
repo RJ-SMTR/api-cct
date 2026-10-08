@@ -785,23 +785,23 @@ export class CronJobsService {
     headerName: HeaderName, idsFavorecidos?: string[]) {
     this.logger.debug('iniciando o agrupamento pendente')
 
-    // Exclude the current normal payment cycle from never-paid candidates.
-    const limiteSeguro = this.getLimiteSeguroPendentes();
-    const dataFim = dataFimSolicitada >= limiteSeguro ? subDays(limiteSeguro, 1) : dataFimSolicitada;
-    if (dataFim.getTime() !== dataFimSolicitada.getTime()) {
-      this.logger.warn(`Pendentes consórcio: dtFim ${dataFimSolicitada.toISOString()} alcançava o ciclo em curso (limite ${limiteSeguro.toISOString()}) - ajustado para ${dataFim.toISOString()}`);
-    }
+    // // Exclude the current normal payment cycle from never-paid candidates.
+    // const limiteSeguro = this.getLimiteSeguroPendentes();
+    // const dataFim = dataFimSolicitada >= limiteSeguro ? subDays(limiteSeguro, 1) : dataFimSolicitada;
+    // if (dataFim.getTime() !== dataFimSolicitada.getTime()) {
+    //   this.logger.warn(`Pendentes consórcio: dtFim ${dataFimSolicitada.toISOString()} alcançava o ciclo em curso (limite ${limiteSeguro.toISOString()}) - ajustado para ${dataFim.toISOString()}`);
+    // }
 
-    // AGRUPAR ORDENS POR INDIVIDUO
-    await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupadosPendentes(dataInicio, dataFim, dataPagamento, "contaBilhetagem", idsFavorecidos);
+    // // AGRUPAR ORDENS POR INDIVIDUO
+    // await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupadosPendentes(dataInicio, dataFim, dataPagamento, "contaBilhetagem", idsFavorecidos);
 
-    // Create bank details and prepare parent histories for sending.
-    await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, ['STPC', 'STPL', 'TEC'], false, true, idsFavorecidos);
+    // // Create bank details and prepare parent histories for sending.
+    // await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, ['STPC', 'STPL', 'TEC'], false, true, idsFavorecidos);
 
     // // Gera o TXT
-    // const txt = await this.remessaService.gerarCnabText(headerName, undefined, true);
+    const txt = await this.remessaService.gerarCnabText(headerName, undefined, true);
 
-    // await this.remessaService.enviarRemessa(txt, headerName);
+    await this.remessaService.enviarRemessa(txt, headerName);
   }
 
 
