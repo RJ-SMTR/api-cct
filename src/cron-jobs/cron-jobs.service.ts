@@ -801,8 +801,7 @@ export class CronJobsService {
     // // Gera o TXT
     const txt = await this.remessaService.gerarCnabText(headerName, undefined, true);
 
-    await this.remessaService.enviarRemessa(txt, headerName);
-    
+    await this.remessaService.enviarRemessa(txt, headerName);    
   }
 
 
