@@ -359,4 +359,59 @@ describe('RelatorioNovoRemessaFinancialMovementService', () => {
       expect(countQuery).not.toContain(PENDENCIA_PAGAMENTO_MARKER);
     });
   });
+
+  describe('STUC - Gratuidade filter', () => {
+    const PENDENTES_MARKER = 'op."ordemPagamentoAgrupadoId" IS NULL';
+
+    it('reads ordem_pagamento.valorGratuidade through the gratuidade grouping', async () => {
+      await service.findFinancialMovementSummary({
+        dataInicio: new Date('2026-04-01'),
+        dataFim: new Date('2026-04-22'),
+        stucGratuidade: true,
+        pago: true,
+      } as any);
+
+      const [countQuery] = dataSource.query.mock.calls[0];
+      expect(countQuery).toContain('op."valorGratuidade"');
+      expect(countQuery).toContain('op."ordemPagamentoAgrupadoGratuidadeId" = opa.id');
+    });
+
+    it('never includes the Pendentes/OPs atrasadas query, even without a restrictive status filter', async () => {
+      await service.findFinancialMovementSummary({
+        dataInicio: new Date('2026-04-01'),
+        dataFim: new Date('2026-04-22'),
+        stucGratuidade: true,
+      } as any);
+
+      const [countQuery] = dataSource.query.mock.calls[0];
+      expect(countQuery).not.toContain(PENDENTES_MARKER);
+    });
+
+    it('includes Pendencia Paga filtered by payment date, following the gratuidade grouping', async () => {
+      await service.findFinancialMovementSummary({
+        dataInicio: new Date('2026-04-01'),
+        dataFim: new Date('2026-04-22'),
+        stucGratuidade: true,
+        pendenciaPaga: true,
+      } as any);
+
+      const [countQuery] = dataSource.query.mock.calls[0];
+      expect(countQuery).toContain('opa."dataPagamento"::date BETWEEN $1::date AND $2::date');
+      expect(countQuery).toContain('op."ordemPagamentoAgrupadoGratuidadeId" = opa.id');
+    });
+
+    it('includes Pendencia de Pagamento in a single day through the parent attempt, following the gratuidade grouping', async () => {
+      await service.findFinancialMovementSummary({
+        dataInicio: new Date('2026-04-01'),
+        dataFim: new Date('2026-04-01'),
+        stucGratuidade: true,
+        pendenciaPaga: true,
+        estorno: true,
+      } as any);
+
+      const [countQuery] = dataSource.query.mock.calls[0];
+      expect(countQuery).toContain('oph_pai');
+      expect(countQuery).toContain('op."ordemPagamentoAgrupadoGratuidadeId" = opa.id');
+    });
+  });
 });
