@@ -32,6 +32,7 @@
     "src/sftp/sftp-client/sftp-client.service.spec.ts",
     "src/sftp/sftp.service.spec.ts",
     "src/users/users.repository.spec.ts",
+    "src/users/workers/worksheet-parser.worker.spec.ts",
     "src/utils/all-exteptions-filter/filters/all-exceptions.filter.spec.ts",
     "src/utils/date-utils.spec.ts",
     "src/utils/payment-date-utils.spec.ts",
