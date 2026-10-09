@@ -86,4 +86,59 @@ describe('RelatorioNovoRemessaConsolidadoRepository', () => {
       expect(result.valor).toBe(140);
     });
   });
+
+  describe('findConsolidado - STUC - Gratuidade', () => {
+    it('reads valorGratuidade through the gratuidade grouping, filtered by userIds, with no bind placeholder left over', async () => {
+      await repository.findConsolidado({
+        dataInicio: new Date('2026-01-01'),
+        dataFim: new Date('2026-01-05'),
+        userIds: [10, 20],
+        stucGratuidade: true,
+      } as any);
+
+      const sql = (mockQueryRunner.query as jest.Mock).mock.calls[0][0];
+      expect(sql).toContain('op."valorGratuidade"');
+      expect(sql).toContain('op."ordemPagamentoAgrupadoGratuidadeId" = opa.id');
+      expect(sql).toContain(`pu."id" IN('10','20')`);
+      expect(sql).not.toMatch(/\$[1-5]\b/);
+    });
+
+    it('filters by MODAIS when todosVanzeiros is selected', async () => {
+      await repository.findConsolidado({
+        dataInicio: new Date('2026-01-01'),
+        dataFim: new Date('2026-01-05'),
+        todosVanzeiros: true,
+        stucGratuidade: true,
+      } as any);
+
+      const sql = (mockQueryRunner.query as jest.Mock).mock.calls[0][0];
+      expect(sql).toContain(`op."nomeConsorcio" IN('STPC','STPL','TEC')`);
+      expect(sql).toContain(`length(op."operadoraCpfCnpj")<=11`);
+    });
+
+    it('filters by a specific consorcio selection', async () => {
+      await repository.findConsolidado({
+        dataInicio: new Date('2026-01-01'),
+        dataFim: new Date('2026-01-05'),
+        consorcioNome: ['VLT'],
+        stucGratuidade: true,
+      } as any);
+
+      const sql = (mockQueryRunner.query as jest.Mock).mock.calls[0][0];
+      expect(sql).toContain(`IN('VLT')`);
+    });
+
+    it('does not include any Eleicao/Pendentes marker', async () => {
+      await repository.findConsolidado({
+        dataInicio: new Date('2026-01-01'),
+        dataFim: new Date('2026-01-05'),
+        userIds: [10],
+        stucGratuidade: true,
+      } as any);
+
+      const sql = (mockQueryRunner.query as jest.Mock).mock.calls[0][0];
+      expect(sql).not.toContain('op."consorcio"');
+      expect(sql).not.toContain('"ordemPagamentoAgrupadoId" is null');
+    });
+  });
 });
