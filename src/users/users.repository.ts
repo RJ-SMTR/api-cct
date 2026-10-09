@@ -394,6 +394,10 @@ export class UsersRepository {
       dataToUpdate.previousBankCode = user.bankCode;
     }
 
+    if (this.hasBankDataChanged(user, dataToUpdate)) {
+      dataToUpdate.bankDataUpdatedAt = new Date();
+    }
+
     // If email is different, update invite email
     if (
       dataToUpdate.email &&
@@ -436,6 +440,19 @@ export class UsersRepository {
     }
 
     return 'Object failed passing through DTO';
+  }
+
+  /**
+   * True when any bank field sent in `dataToUpdate` differs from the stored value.
+   * Values are compared as trimmed strings, so `104` equals `"104"` and
+   * `null`, `undefined` and `""` are the same (empty).
+   */
+  private hasBankDataChanged(user: User, dataToUpdate: DeepPartial<User>): boolean {
+    const bankFields = ['bankCode', 'bankAgency', 'bankAccount', 'bankAccountDigit'] as const;
+    const normalize = (value: unknown) => String(value ?? '').trim();
+    return bankFields.some(
+      (field) => field in dataToUpdate && normalize(dataToUpdate[field]) !== normalize(user[field]),
+    );
   }
 
   /**
