@@ -25,6 +25,7 @@ Registro único do que foi adiado de propósito, por quê e por quem. Serve para
 | [TD-8](#td-8) | 12 imports de `repository` para `service` | aberto | Matthew | 2026-09-30 |
 | [TD-9](#td-9) | Pagamento depende de editar o código e fazer deploy | aberto | Matthew | 2026-09-30 |
 | [TD-10](#td-10) | Baseline de eslint relaxada para `cron-jobs` e `ordem-pagamento-agrupado` | aberto | Rayanne | 2026-10-06 |
+| [TD-12](#td-12) | `cron-jobs-pendentes.spec` quebrado na `main` bloqueia o pre-commit | aberto | Matthew | 2026-10-09 |
 
 ## Entradas
 
@@ -119,3 +120,12 @@ Registro único do que foi adiado de propósito, por quê e por quem. Serve para
 - **Contexto:** `npm run validate:update-baseline` foi rodado em 2026-10-06 porque `scripts/validate/baseline.json` (gerada em 2026-09-30) estava defasada: os commits de gratuidade (`2b334b88`, `1fac3367`, `b3b8db6f`) mexeram nesses dois arquivos depois dela. A baseline passou de 4 para 5 erros em `src/cnab/novo-remessa/repository/ordem-pagamento-agrupado.repository.ts` e de 5 para 7 em `src/cron-jobs/cron-jobs.service.ts`. Os erros novos são `@typescript-eslint/no-unused-vars` (`ICronjobDebug`, `dtInicio`, `dtFim`, `dataPagamento`, `subDaysInt`), `@typescript-eslint/no-floating-promises` (4 chamadas em `ordem-pagamento-agrupado.repository.ts`), `@typescript-eslint/require-await` (`onTick`) e `prefer-const` (`subDaysInt`). Aceitos para não mexer em código de remessa ao mesmo tempo que se faz a validação.
 - **Impacto/risco:** o gate deixa de proteger esses dois arquivos contra mais erros de lint; `no-floating-promises` em código de remessa pode esconder uma promise não aguardada, o que é risco real de pagamento. `cron-jobs.service.ts` é o arquivo dos jobs de remessa (ver TD-9).
 - **Critério de pagamento:** os 7 erros de `cron-jobs.service.ts` e os 5 de `ordem-pagamento-agrupado.repository.ts` corrigidos em commit próprio, com teste de remessa antes e depois, e a baseline regenerada com esses números menores.
+
+## TD-12
+**`cron-jobs-pendentes.spec` quebrado na `main` bloqueia o pre-commit**
+
+- **Status:** aberto
+- **Registrado por:** Matthew · **Detectado por:** agente · **Data:** 2026-10-09
+- **Contexto:** os commits de geração de remessa que estão na `main` e ainda não na `release` (`859b9ffb`, `24253f09`, `99b5652d`) fazem `src/cron-jobs/cron-jobs-pendentes.spec.ts` falhar 2 de 3 testes (`this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados is not a function`, em `geradorRemessaExec`). A suíte passa na baseline, então, sobre a `main`, o pre-commit bloqueia qualquer commit cujo `jest --findRelatedTests` a alcance (ex.: mudar `src/users/entities/user.entity.ts`) e `npm run validate` falha. Detectado ao trabalhar na issue #1192, que acabou rebaseada sobre a `release`. Na mesma `main`, `onModuleLoad` de `CronJobsService` chama `await this.remessaGuardadorExec()` (ver TD-9).
+- **Impacto/risco:** commits sobre a `main` sem relação com pagamento precisam de `--no-verify`, o que desliga também o build check; o spec deixou de proteger o ciclo de vida do job de pendentes; quando a `main` for integrada à `release`, a falha vem junto.
+- **Critério de pagamento:** `cron-jobs-pendentes.spec.ts` volta a passar na `main` (mock atualizado para a API atual de `OrdemPagamentoAgrupadoService` ou código corrigido), `npm run validate` verde e commits voltam a passar no pre-commit sem `--no-verify`.
