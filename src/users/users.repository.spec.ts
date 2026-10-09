@@ -214,5 +214,18 @@ describe('UsersRepository', () => {
       const agencyChange = await updatePayloadFor(existingUserWithBankData(), { bankAgency: '9999' });
       expect(agencyChange).not.toHaveProperty('previousBankCode');
     });
+
+    it.each<[string, Partial<User>, Partial<User>]>([
+      ['the same bank code is sent as a string', {}, { bankCode: '104' as any }],
+      [
+        'the bank code is filled for the first time',
+        { bankCode: undefined, bankDataUpdatedAt: null },
+        { bankCode: 104 },
+      ],
+    ])('should not set previousBankCode when %s', async (_case, existing, dataToUpdate) => {
+      const payload = await updatePayloadFor(existingUserWithBankData(existing), dataToUpdate);
+
+      expect(payload).not.toHaveProperty('previousBankCode');
+    });
   });
 });
