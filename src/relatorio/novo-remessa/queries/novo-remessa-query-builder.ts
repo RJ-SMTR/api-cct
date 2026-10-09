@@ -76,7 +76,33 @@ export const NOT_CPF_FILTER = `
   )
 `;
 
-export const buildBaseQuery = (params: NovoRemessaBaseParams) => {
+/**
+ * buildBaseQuery/buildStucGratuidadeQuery (e as duas famílias de dia único abaixo) só
+ * diferem na origem do agrupamento (normal vs gratuidade) e na coluna de valor - os
+ * templates abaixo capturam essa diferença uma vez, para as duas famílias não divergirem
+ * silenciosamente entre si (ex.: um fix no filtro de valor aplicado só numa das duas).
+ */
+type AgrupamentoSource = {
+  /** Coluna de ordem_pagamento usada para chegar no agrupamento (normal ou de gratuidade). */
+  agrupamentoJoinColumn: 'ordemPagamentoAgrupadoId' | 'ordemPagamentoAgrupadoGratuidadeId';
+  /** Expressão (com alias) da coluna de valor. */
+  valorSelect: string;
+  /** Filtro extra de WHERE (sem o "AND" final), ou undefined para o fluxo normal. */
+  extraWhere?: string;
+};
+
+const AGRUPAMENTO_NORMAL: AgrupamentoSource = {
+  agrupamentoJoinColumn: 'ordemPagamentoAgrupadoId',
+  valorSelect: 'da."valorLancamento" AS valor',
+};
+
+const AGRUPAMENTO_GRATUIDADE: AgrupamentoSource = {
+  agrupamentoJoinColumn: 'ordemPagamentoAgrupadoGratuidadeId',
+  valorSelect: 'op."valorGratuidade" AS valor',
+  extraWhere: 'op."valorGratuidade" IS NOT NULL AND op."valorGratuidade" <> 0',
+};
+
+const buildGroupedQuery = (params: NovoRemessaBaseParams, source: AgrupamentoSource) => {
   const consorcioParam = `$${params.consorcioFilterParamIndex}`;
   return `
     SELECT DISTINCT
@@ -88,7 +114,7 @@ export const buildBaseQuery = (params: NovoRemessaBaseParams) => {
       bc.name AS "nomeBanco",
       pu."cpfCnpj" AS "cpfCnpj",
       ${CONSORCIO_CASE} AS "nomeConsorcio",
-      da."valorLancamento" AS valor,
+      ${source.valorSelect},
       CASE
         WHEN oph."statusRemessa" = 5
           AND opa."ordemPagamentoAgrupadoId" IS NOT NULL
@@ -99,7 +125,7 @@ export const buildBaseQuery = (params: NovoRemessaBaseParams) => {
       ${buildCodigoErroSql(STATUS_CASE)} AS "codigoErro"
     FROM ordem_pagamento op
     INNER JOIN ordem_pagamento_agrupado opa
-      ON op."ordemPagamentoAgrupadoId" = opa.id
+      ON op."${source.agrupamentoJoinColumn}" = opa.id
     LEFT JOIN ordem_pagamento_agrupado op_pai
       ON op_pai.id = opa."ordemPagamentoAgrupadoId"
     INNER JOIN ordem_pagamento_agrupado_historico oph
@@ -111,10 +137,10 @@ export const buildBaseQuery = (params: NovoRemessaBaseParams) => {
     INNER JOIN bank bc
       ON bc.code = pu."bankCode"
     WHERE
-      da."dataVencimento" BETWEEN $1 AND $2
+      ${source.extraWhere ? `${source.extraWhere}\n      AND ` : ''}da."dataVencimento" BETWEEN $1 AND $2
       AND ($3::integer[] IS NULL OR pu.id = ANY($3))
       AND ($4::text[] IS NULL OR ${STATUS_CASE} = ANY($4))
-      AND (${consorcioParam}::text[] IS NULL OR UPPER(TRIM(${CONSORCIO_CASE})) = ANY(${consorcioParam}))     
+      AND (${consorcioParam}::text[] IS NULL OR UPPER(TRIM(${CONSORCIO_CASE})) = ANY(${consorcioParam}))
       AND NOT EXISTS (
         SELECT 1
         FROM ordem_pagamento_agrupado filha
@@ -124,6 +150,122 @@ export const buildBaseQuery = (params: NovoRemessaBaseParams) => {
       ${params.todosVanzeiros ? NOT_CPF_FILTER : ''}
   `;
 };
+
+const buildPendenciaPagaTemplate = (params: NovoRemessaBaseParams, source: AgrupamentoSource) => {
+  const consorcioParam = `$${params.consorcioFilterParamIndex}`;
+  return `
+    SELECT DISTINCT
+      da."dataVencimento" AS "dataReferencia",
+      opa.id,
+      pu."fullName" AS nomes,
+      pu.email,
+      pu."bankCode" AS "codBanco",
+      bc.name AS "nomeBanco",
+      pu."cpfCnpj" AS "cpfCnpj",
+      ${CONSORCIO_CASE} AS "nomeConsorcio",
+      ${source.valorSelect},
+      CASE
+        WHEN oph."statusRemessa" = 5
+          AND opa."ordemPagamentoAgrupadoId" IS NOT NULL
+          THEN op_pai."dataPagamento"
+        ELSE opa."dataPagamento"
+      END AS "dataPagamento",
+      ${STATUS_CASE} AS status,
+      NULL::text AS "codigoErro"
+      FROM ordem_pagamento op
+      INNER JOIN ordem_pagamento_agrupado opa
+        ON op."${source.agrupamentoJoinColumn}" = opa.id
+      LEFT JOIN ordem_pagamento_agrupado op_pai
+        ON op_pai.id = opa."ordemPagamentoAgrupadoId"
+      INNER JOIN ordem_pagamento_agrupado_historico oph
+        ON oph."ordemPagamentoAgrupadoId" = opa.id
+      INNER JOIN detalhe_a da
+        ON da."ordemPagamentoAgrupadoHistoricoId" = oph.id
+      INNER JOIN public."user" pu
+        ON pu.id = op."userId"
+      INNER JOIN bank bc
+        ON bc.code = pu."bankCode"
+    WHERE
+      ${source.extraWhere ? `${source.extraWhere}\n      AND ` : ''}($3::integer[] IS NULL OR pu.id = ANY($3))
+      AND ($4::text[] IS NULL OR TRUE)
+      AND (${consorcioParam}::text[] IS NULL OR UPPER(TRIM(${CONSORCIO_CASE})) = ANY(${consorcioParam}))
+      AND NOT EXISTS (
+        SELECT 1
+        FROM ordem_pagamento_agrupado filha
+        WHERE filha."ordemPagamentoAgrupadoId" = opa.id
+      )
+      AND oph."statusRemessa" = 5
+      AND (
+        (
+          opa."ordemPagamentoAgrupadoId" IS NOT NULL
+          AND op_pai."dataPagamento"::date BETWEEN $1::date AND $2::date
+        )
+        OR (
+          opa."ordemPagamentoAgrupadoId" IS NULL
+          AND opa."dataPagamento"::date BETWEEN $1::date AND $2::date
+        )
+      )
+      AND (oph."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph."motivoStatusRemessa" IS NULL)
+      ${params.todosVanzeiros ? NOT_CPF_FILTER : ''}
+  `;
+};
+
+const buildPendenciaPagamentoTemplate = (
+  params: NovoRemessaBaseParams,
+  source: AgrupamentoSource,
+) => {
+  const consorcioParam = `$${params.consorcioFilterParamIndex}`;
+  const parentStatusCase = buildStatusCase('oph_pai');
+  const requestedStatuses = params.parentErrorStatuses?.length
+    ? params.parentErrorStatuses
+    : ['Estorno', 'Rejeitado'];
+  const requestedStatusSql = requestedStatuses.map((status) => `'${status}'`).join(', ');
+
+  return `
+    SELECT DISTINCT
+      op_pai."dataPagamento" AS "dataReferencia",
+      opa.id,
+      pu."fullName" AS nomes,
+      pu.email,
+      pu."bankCode" AS "codBanco",
+      bc.name AS "nomeBanco",
+      pu."cpfCnpj" AS "cpfCnpj",
+      ${CONSORCIO_CASE} AS "nomeConsorcio",
+      ${source.valorSelect},
+      opa."dataPagamento" AS "dataPagamento",
+      ${parentStatusCase} AS status,
+      ${buildCodigoErroSql(parentStatusCase, 'oph_pai')} AS "codigoErro"
+    FROM ordem_pagamento op
+    INNER JOIN ordem_pagamento_agrupado opa
+      ON op."${source.agrupamentoJoinColumn}" = opa.id
+    INNER JOIN ordem_pagamento_agrupado op_pai
+      ON op_pai.id = opa."ordemPagamentoAgrupadoId"
+    INNER JOIN ordem_pagamento_agrupado_historico oph
+      ON oph."ordemPagamentoAgrupadoId" = opa.id
+    INNER JOIN detalhe_a da
+      ON da."ordemPagamentoAgrupadoHistoricoId" = oph.id
+    INNER JOIN ordem_pagamento_agrupado_historico oph_pai
+      ON oph_pai.id = (
+        SELECT MAX(oph_mais_recente.id)
+        FROM ordem_pagamento_agrupado_historico oph_mais_recente
+        WHERE oph_mais_recente."ordemPagamentoAgrupadoId" = op_pai.id
+      )
+    INNER JOIN public."user" pu
+      ON pu.id = op."userId"
+    INNER JOIN bank bc
+      ON bc.code = pu."bankCode"
+    WHERE
+      ${source.extraWhere ? `${source.extraWhere}\n      AND ` : ''}op_pai."dataPagamento"::date BETWEEN $1::date AND $2::date
+      AND ($3::integer[] IS NULL OR pu.id = ANY($3))
+      AND ($4::text[] IS NULL OR TRUE)
+      AND ${parentStatusCase} IN (${requestedStatusSql})
+      AND (${consorcioParam}::text[] IS NULL OR UPPER(TRIM(${CONSORCIO_CASE})) = ANY(${consorcioParam}))
+      AND (oph_pai."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph_pai."motivoStatusRemessa" IS NULL)
+      ${params.todosVanzeiros ? NOT_CPF_FILTER : ''}
+  `;
+};
+
+export const buildBaseQuery = (params: NovoRemessaBaseParams) => buildGroupedQuery(params, AGRUPAMENTO_NORMAL);
 
 export const buildEleicaoQuery = (params: NovoRemessaBaseParams) => {
   const consorcioParam = `$${params.consorcioFilterParamIndex}`;
@@ -162,56 +304,7 @@ export const buildEleicaoQuery = (params: NovoRemessaBaseParams) => {
   `;
 };
 
-export const buildStucGratuidadeQuery = (params: NovoRemessaBaseParams) => {
-  const consorcioParam = `$${params.consorcioFilterParamIndex}`;
-  return `
-    SELECT DISTINCT
-      da."dataVencimento" AS "dataReferencia",
-      opa.id,
-      pu."fullName" AS nomes,
-      pu.email,
-      pu."bankCode" AS "codBanco",
-      bc.name AS "nomeBanco",
-      pu."cpfCnpj" AS "cpfCnpj",
-      ${CONSORCIO_CASE} AS "nomeConsorcio",
-      op."valorGratuidade" AS valor,
-      CASE
-        WHEN oph."statusRemessa" = 5
-          AND opa."ordemPagamentoAgrupadoId" IS NOT NULL
-          THEN op_pai."dataPagamento"
-        ELSE opa."dataPagamento"
-      END AS "dataPagamento",
-      ${STATUS_CASE} AS status,
-      ${buildCodigoErroSql(STATUS_CASE)} AS "codigoErro"
-    FROM ordem_pagamento op
-    INNER JOIN ordem_pagamento_agrupado opa
-      ON op."ordemPagamentoAgrupadoGratuidadeId" = opa.id
-    LEFT JOIN ordem_pagamento_agrupado op_pai
-      ON op_pai.id = opa."ordemPagamentoAgrupadoId"
-    INNER JOIN ordem_pagamento_agrupado_historico oph
-      ON oph."ordemPagamentoAgrupadoId" = opa.id
-    INNER JOIN detalhe_a da
-      ON da."ordemPagamentoAgrupadoHistoricoId" = oph.id
-    INNER JOIN public."user" pu
-      ON pu.id = op."userId"
-    INNER JOIN bank bc
-      ON bc.code = pu."bankCode"
-    WHERE
-      op."valorGratuidade" IS NOT NULL
-      AND op."valorGratuidade" <> 0
-      AND da."dataVencimento" BETWEEN $1 AND $2
-      AND ($3::integer[] IS NULL OR pu.id = ANY($3))
-      AND ($4::text[] IS NULL OR ${STATUS_CASE} = ANY($4))
-      AND (${consorcioParam}::text[] IS NULL OR UPPER(TRIM(${CONSORCIO_CASE})) = ANY(${consorcioParam}))
-      AND NOT EXISTS (
-        SELECT 1
-        FROM ordem_pagamento_agrupado filha
-        WHERE filha."ordemPagamentoAgrupadoId" = opa.id
-      )
-      AND (oph."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph."motivoStatusRemessa" IS NULL)
-      ${params.todosVanzeiros ? NOT_CPF_FILTER : ''}
-  `;
-};
+export const buildStucGratuidadeQuery = (params: NovoRemessaBaseParams) => buildGroupedQuery(params, AGRUPAMENTO_GRATUIDADE);
 
 export const buildPendentesQuery = (params: NovoRemessaPendentesParams) => {
   return `
@@ -249,228 +342,14 @@ export const buildPendentesQuery = (params: NovoRemessaPendentesParams) => {
   `;
 };
 
-export const buildPendenciaPagaSingleDateQuery = (params: NovoRemessaBaseParams) => {
-  const consorcioParam = `$${params.consorcioFilterParamIndex}`;
-  return `
-    SELECT DISTINCT
-      da."dataVencimento" AS "dataReferencia",
-      opa.id,
-      pu."fullName" AS nomes,
-      pu.email,
-      pu."bankCode" AS "codBanco",
-      bc.name AS "nomeBanco",
-      pu."cpfCnpj" AS "cpfCnpj",
-      ${CONSORCIO_CASE} AS "nomeConsorcio",
-      da."valorLancamento" AS valor,
-      CASE
-        WHEN oph."statusRemessa" = 5
-          AND opa."ordemPagamentoAgrupadoId" IS NOT NULL
-          THEN op_pai."dataPagamento"
-        ELSE opa."dataPagamento"
-      END AS "dataPagamento",
-      ${STATUS_CASE} AS status,
-      NULL::text AS "codigoErro"
-      FROM ordem_pagamento op
-      INNER JOIN ordem_pagamento_agrupado opa
-        ON op."ordemPagamentoAgrupadoId" = opa.id
-      LEFT JOIN ordem_pagamento_agrupado op_pai
-        ON op_pai.id = opa."ordemPagamentoAgrupadoId"
-      INNER JOIN ordem_pagamento_agrupado_historico oph
-        ON oph."ordemPagamentoAgrupadoId" = opa.id
-      INNER JOIN detalhe_a da
-        ON da."ordemPagamentoAgrupadoHistoricoId" = oph.id
-      INNER JOIN public."user" pu
-        ON pu.id = op."userId"
-      INNER JOIN bank bc
-        ON bc.code = pu."bankCode"
-    WHERE
-       ($3::integer[] IS NULL OR pu.id = ANY($3))
-      AND ($4::text[] IS NULL OR TRUE)
-      AND (${consorcioParam}::text[] IS NULL OR UPPER(TRIM(${CONSORCIO_CASE})) = ANY(${consorcioParam}))    
-      AND NOT EXISTS (
-        SELECT 1
-        FROM ordem_pagamento_agrupado filha
-        WHERE filha."ordemPagamentoAgrupadoId" = opa.id
-      )
-      AND oph."statusRemessa" = 5
-      AND (
-        (
-          opa."ordemPagamentoAgrupadoId" IS NOT NULL
-          AND op_pai."dataPagamento"::date BETWEEN $1::date AND $2::date
-        )
-        OR (
-          opa."ordemPagamentoAgrupadoId" IS NULL
-          AND opa."dataPagamento"::date BETWEEN $1::date AND $2::date
-        )
-      )
-      AND (oph."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph."motivoStatusRemessa" IS NULL)
-      ${params.todosVanzeiros ? NOT_CPF_FILTER : ''}
-  `;
-};
+export const buildPendenciaPagaSingleDateQuery = (params: NovoRemessaBaseParams) =>
+  buildPendenciaPagaTemplate(params, AGRUPAMENTO_NORMAL);
 
-export const buildStucGratuidadePendenciaPagaSingleDateQuery = (params: NovoRemessaBaseParams) => {
-  const consorcioParam = `$${params.consorcioFilterParamIndex}`;
-  return `
-    SELECT DISTINCT
-      da."dataVencimento" AS "dataReferencia",
-      opa.id,
-      pu."fullName" AS nomes,
-      pu.email,
-      pu."bankCode" AS "codBanco",
-      bc.name AS "nomeBanco",
-      pu."cpfCnpj" AS "cpfCnpj",
-      ${CONSORCIO_CASE} AS "nomeConsorcio",
-      op."valorGratuidade" AS valor,
-      CASE
-        WHEN oph."statusRemessa" = 5
-          AND opa."ordemPagamentoAgrupadoId" IS NOT NULL
-          THEN op_pai."dataPagamento"
-        ELSE opa."dataPagamento"
-      END AS "dataPagamento",
-      ${STATUS_CASE} AS status,
-      NULL::text AS "codigoErro"
-      FROM ordem_pagamento op
-      INNER JOIN ordem_pagamento_agrupado opa
-        ON op."ordemPagamentoAgrupadoGratuidadeId" = opa.id
-      LEFT JOIN ordem_pagamento_agrupado op_pai
-        ON op_pai.id = opa."ordemPagamentoAgrupadoId"
-      INNER JOIN ordem_pagamento_agrupado_historico oph
-        ON oph."ordemPagamentoAgrupadoId" = opa.id
-      INNER JOIN detalhe_a da
-        ON da."ordemPagamentoAgrupadoHistoricoId" = oph.id
-      INNER JOIN public."user" pu
-        ON pu.id = op."userId"
-      INNER JOIN bank bc
-        ON bc.code = pu."bankCode"
-    WHERE
-       op."valorGratuidade" IS NOT NULL
-      AND op."valorGratuidade" <> 0
-      AND ($3::integer[] IS NULL OR pu.id = ANY($3))
-      AND ($4::text[] IS NULL OR TRUE)
-      AND (${consorcioParam}::text[] IS NULL OR UPPER(TRIM(${CONSORCIO_CASE})) = ANY(${consorcioParam}))
-      AND NOT EXISTS (
-        SELECT 1
-        FROM ordem_pagamento_agrupado filha
-        WHERE filha."ordemPagamentoAgrupadoId" = opa.id
-      )
-      AND oph."statusRemessa" = 5
-      AND (
-        (
-          opa."ordemPagamentoAgrupadoId" IS NOT NULL
-          AND op_pai."dataPagamento"::date BETWEEN $1::date AND $2::date
-        )
-        OR (
-          opa."ordemPagamentoAgrupadoId" IS NULL
-          AND opa."dataPagamento"::date BETWEEN $1::date AND $2::date
-        )
-      )
-      AND (oph."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph."motivoStatusRemessa" IS NULL)
-      ${params.todosVanzeiros ? NOT_CPF_FILTER : ''}
-  `;
-};
+export const buildStucGratuidadePendenciaPagaSingleDateQuery = (params: NovoRemessaBaseParams) =>
+  buildPendenciaPagaTemplate(params, AGRUPAMENTO_GRATUIDADE);
 
-export const buildStucGratuidadePendenciaPagamentoSingleDateQuery = (params: NovoRemessaBaseParams) => {
-  const consorcioParam = `$${params.consorcioFilterParamIndex}`;
-  const parentStatusCase = buildStatusCase('oph_pai');
-  const requestedStatuses = params.parentErrorStatuses?.length
-    ? params.parentErrorStatuses
-    : ['Estorno', 'Rejeitado'];
-  const requestedStatusSql = requestedStatuses.map((status) => `'${status}'`).join(', ');
+export const buildStucGratuidadePendenciaPagamentoSingleDateQuery = (params: NovoRemessaBaseParams) =>
+  buildPendenciaPagamentoTemplate(params, AGRUPAMENTO_GRATUIDADE);
 
-  return `
-    SELECT DISTINCT
-      op_pai."dataPagamento" AS "dataReferencia",
-      opa.id,
-      pu."fullName" AS nomes,
-      pu.email,
-      pu."bankCode" AS "codBanco",
-      bc.name AS "nomeBanco",
-      pu."cpfCnpj" AS "cpfCnpj",
-      ${CONSORCIO_CASE} AS "nomeConsorcio",
-      op."valorGratuidade" AS valor,
-      opa."dataPagamento" AS "dataPagamento",
-      ${parentStatusCase} AS status,
-      ${buildCodigoErroSql(parentStatusCase, 'oph_pai')} AS "codigoErro"
-    FROM ordem_pagamento op
-    INNER JOIN ordem_pagamento_agrupado opa
-      ON op."ordemPagamentoAgrupadoGratuidadeId" = opa.id
-    INNER JOIN ordem_pagamento_agrupado op_pai
-      ON op_pai.id = opa."ordemPagamentoAgrupadoId"
-    INNER JOIN ordem_pagamento_agrupado_historico oph
-      ON oph."ordemPagamentoAgrupadoId" = opa.id
-    INNER JOIN detalhe_a da
-      ON da."ordemPagamentoAgrupadoHistoricoId" = oph.id
-    INNER JOIN ordem_pagamento_agrupado_historico oph_pai
-      ON oph_pai.id = (
-        SELECT MAX(oph_mais_recente.id)
-        FROM ordem_pagamento_agrupado_historico oph_mais_recente
-        WHERE oph_mais_recente."ordemPagamentoAgrupadoId" = op_pai.id
-      )
-    INNER JOIN public."user" pu
-      ON pu.id = op."userId"
-    INNER JOIN bank bc
-      ON bc.code = pu."bankCode"
-    WHERE
-      op."valorGratuidade" IS NOT NULL
-      AND op."valorGratuidade" <> 0
-      AND op_pai."dataPagamento"::date BETWEEN $1::date AND $2::date
-      AND ($3::integer[] IS NULL OR pu.id = ANY($3))
-      AND ($4::text[] IS NULL OR TRUE)
-      AND ${parentStatusCase} IN (${requestedStatusSql})
-      AND (${consorcioParam}::text[] IS NULL OR UPPER(TRIM(${CONSORCIO_CASE})) = ANY(${consorcioParam}))
-      AND (oph_pai."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph_pai."motivoStatusRemessa" IS NULL)
-      ${params.todosVanzeiros ? NOT_CPF_FILTER : ''}
-  `;
-};
-
-export const buildPendenciaPagamentoSingleDateQuery = (params: NovoRemessaBaseParams) => {
-  const consorcioParam = `$${params.consorcioFilterParamIndex}`;
-  const parentStatusCase = buildStatusCase('oph_pai');
-  const requestedStatuses = params.parentErrorStatuses?.length
-    ? params.parentErrorStatuses
-    : ['Estorno', 'Rejeitado'];
-  const requestedStatusSql = requestedStatuses.map((status) => `'${status}'`).join(', ');
-
-  return `
-    SELECT DISTINCT
-      op_pai."dataPagamento" AS "dataReferencia",
-      opa.id,
-      pu."fullName" AS nomes,
-      pu.email,
-      pu."bankCode" AS "codBanco",
-      bc.name AS "nomeBanco",
-      pu."cpfCnpj" AS "cpfCnpj",
-      ${CONSORCIO_CASE} AS "nomeConsorcio",
-      da."valorLancamento" AS valor,
-      opa."dataPagamento" AS "dataPagamento",
-      ${parentStatusCase} AS status,
-      ${buildCodigoErroSql(parentStatusCase, 'oph_pai')} AS "codigoErro"
-    FROM ordem_pagamento op
-    INNER JOIN ordem_pagamento_agrupado opa
-      ON op."ordemPagamentoAgrupadoId" = opa.id
-    INNER JOIN ordem_pagamento_agrupado op_pai
-      ON op_pai.id = opa."ordemPagamentoAgrupadoId"
-    INNER JOIN ordem_pagamento_agrupado_historico oph
-      ON oph."ordemPagamentoAgrupadoId" = opa.id
-    INNER JOIN detalhe_a da
-      ON da."ordemPagamentoAgrupadoHistoricoId" = oph.id
-    INNER JOIN ordem_pagamento_agrupado_historico oph_pai
-      ON oph_pai.id = (
-        SELECT MAX(oph_mais_recente.id)
-        FROM ordem_pagamento_agrupado_historico oph_mais_recente
-        WHERE oph_mais_recente."ordemPagamentoAgrupadoId" = op_pai.id
-      )
-    INNER JOIN public."user" pu
-      ON pu.id = op."userId"
-    INNER JOIN bank bc
-      ON bc.code = pu."bankCode"
-    WHERE
-      op_pai."dataPagamento"::date BETWEEN $1::date AND $2::date
-      AND ($3::integer[] IS NULL OR pu.id = ANY($3))
-      AND ($4::text[] IS NULL OR TRUE)
-      AND ${parentStatusCase} IN (${requestedStatusSql})
-      AND (${consorcioParam}::text[] IS NULL OR UPPER(TRIM(${CONSORCIO_CASE})) = ANY(${consorcioParam}))
-      AND (oph_pai."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph_pai."motivoStatusRemessa" IS NULL)
-      ${params.todosVanzeiros ? NOT_CPF_FILTER : ''}
-  `;
-};
+export const buildPendenciaPagamentoSingleDateQuery = (params: NovoRemessaBaseParams) =>
+  buildPendenciaPagamentoTemplate(params, AGRUPAMENTO_NORMAL);
