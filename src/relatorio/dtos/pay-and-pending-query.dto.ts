@@ -135,6 +135,14 @@ export class FinancialMovementQueryDto {
   pendentes?: boolean;
 
   @ApiPropertyOptional({
+    description: 'Pesquisa pagamentos de STUC - Gratuidade (ordem_pagamento.valorGratuidade).', default: false
+  })
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) => value === 'true' || value === true)
+  stucGratuidade?: boolean;
+
+  @ApiPropertyOptional({
     description: 'Pesquisa o id dos usuários.',
     type: String,
     isArray: true,
