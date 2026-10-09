@@ -420,7 +420,9 @@ export class RelatorioNovoRemessaConsolidadoRepository {
       if ((filter.consorcioNome && filter.consorcioNome.length > 0) || filter.todosConsorcios) {
         let literal = buildStucGratuidadeLiteral();
         if (!filter.todosConsorcios) {
-          const consorcioPlaceholders = filter.consorcioNome?.map((c) => c.trim().toUpperCase()).join(`','`);
+          // filter.consorcioNome vem direto da query string (sem validação de charset) e é
+          // interpolado num literal SQL - escapa aspas simples para não permitir sair do IN(...).
+          const consorcioPlaceholders = filter.consorcioNome?.map((c) => c.trim().toUpperCase().replace(/'/g, `''`)).join(`','`);
           literal += ` AND UPPER(TRIM(${this.consorcioCaseSimples})) IN('${consorcioPlaceholders}') `;
         } else {
           const consorcioPlaceholders = this.CONSORCIOS.join(`','`);

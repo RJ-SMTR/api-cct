@@ -140,5 +140,18 @@ describe('RelatorioNovoRemessaConsolidadoRepository', () => {
       expect(sql).not.toContain('op."consorcio"');
       expect(sql).not.toContain('"ordemPagamentoAgrupadoId" is null');
     });
+
+    it('escapes a single quote in consorcioNome instead of breaking out of the SQL string literal', async () => {
+      await repository.findConsolidado({
+        dataInicio: new Date('2026-01-01'),
+        dataFim: new Date('2026-01-05'),
+        consorcioNome: [`VLT'); DROP TABLE ordem_pagamento; --`],
+        stucGratuidade: true,
+      } as any);
+
+      const sql = (mockQueryRunner.query as jest.Mock).mock.calls[0][0];
+      expect(sql).toContain(`IN('VLT''); DROP TABLE ORDEM_PAGAMENTO; --')`);
+      expect(sql).not.toContain(`IN('VLT'); DROP TABLE`);
+    });
   });
 });
