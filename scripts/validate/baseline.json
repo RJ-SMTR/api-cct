@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-08",
+  "generatedAt": "2026-10-09",
   "node": "v18.16.0",
   "passingSuites": [
     "scripts/validate/boundaries.spec.ts",
@@ -34,7 +34,8 @@
     "src/users/users.repository.spec.ts",
     "src/utils/all-exteptions-filter/filters/all-exceptions.filter.spec.ts",
     "src/utils/date-utils.spec.ts",
-    "src/utils/payment-date-utils.spec.ts"
+    "src/utils/payment-date-utils.spec.ts",
+    "src/utils/worker-thread/run-with-worker-timeout.spec.ts"
   ],
   "eslintErrors": {
     "src/agentes/agentes-bigquery.repository.ts": 1,
