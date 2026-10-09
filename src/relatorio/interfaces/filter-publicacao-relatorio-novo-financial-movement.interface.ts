@@ -7,6 +7,11 @@ export interface IFindPublicacaoRelatorioNovoFinancialMovement {
   cursorNome?: string;
   cursorStatus?: string;
   cursorCpfCnpj?: string;
+  cursorNomeConsorcio?: string;
+  cursorCodBanco?: string;
+  cursorDataPagamento?: string;
+  cursorCodigoErro?: string;
+  cursorEmail?: string;
   userIds?: number[];
   consorcioNome?: string[];
   todosVanzeiros?: boolean;
@@ -17,6 +22,7 @@ export interface IFindPublicacaoRelatorioNovoFinancialMovement {
   pago?: boolean;
   desativados?: boolean;
   pendentes?: boolean;
+  stucGratuidade?: boolean;
   erro?: boolean;
   estorno?: boolean;
   rejeitado?: boolean;

@@ -11,7 +11,19 @@ export enum FinancialMovementExportFormat {
 
 export class FinancialMovementExportRequestDto extends OmitType(
   FinancialMovementQueryDto,
-  ['page', 'pageSize', 'cursorDataReferencia', 'cursorNome', 'cursorStatus', 'cursorCpfCnpj'] as const,
+  [
+    'page',
+    'pageSize',
+    'cursorDataReferencia',
+    'cursorNome',
+    'cursorStatus',
+    'cursorCpfCnpj',
+    'cursorNomeConsorcio',
+    'cursorCodBanco',
+    'cursorDataPagamento',
+    'cursorCodigoErro',
+    'cursorEmail',
+  ] as const,
 ) {
   @ApiProperty({
     enum: FinancialMovementExportFormat,

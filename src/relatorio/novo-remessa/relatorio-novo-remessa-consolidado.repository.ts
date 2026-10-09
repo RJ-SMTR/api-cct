@@ -3,6 +3,7 @@ import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 
 import { CustomLogger } from 'src/utils/custom-logger';
+import { buildStucGratuidadeQuery } from './queries/novo-remessa-query-builder';
 import { IFindPublicacaoRelatorioNovoRemessa } from '../interfaces/find-publicacao-relatorio-novo-remessa.interface';
 import {
   RelatorioConsolidadoNovoRemessaData,
@@ -17,6 +18,35 @@ export class RelatorioNovoRemessaConsolidadoRepository {
   private readonly MODAIS = ['STPC', 'STPL', 'TEC'];
 
   private readonly CONSORCIOS = ['VLT', 'Intersul', 'Transcarioca', 'Internorte', 'MobiRio', 'Santa Cruz', 'MOBI-Rio BUM', 'TUSE', 'STPC', 'STPL', 'TEC', 'GTU'];
+
+  // Mesmo CASE usado nos headerQuery* abaixo para rotular "nome": o permitCode do usuário tem
+  // prioridade sobre o nomeConsorcio/consorcio bruto do pagamento. O filtro de consorcioNome
+  // precisa comparar contra este mesmo CASE (não a coluna bruta), senão um pagamento cujo
+  // nomeConsorcio bruto diverge do permitCode do usuário aparece rotulado num consórcio mas é
+  // selecionado pelo filtro de outro.
+  private readonly consorcioCaseSimples = `CASE
+    WHEN pu."permitCode" = '8' THEN 'VLT'
+    WHEN pu."permitCode" LIKE '4%' THEN 'STPC'
+    WHEN pu."permitCode" LIKE '81%' THEN 'STPL'
+    WHEN pu."permitCode" LIKE '7%' THEN 'TEC'
+    ELSE op."nomeConsorcio"
+  END`;
+
+  private readonly consorcioCaseDuplo = `CASE
+    WHEN pu."permitCode" = '8' OR puu."permitCode" = '8' THEN 'VLT'
+    WHEN pu."permitCode" LIKE '4%' OR puu."permitCode" LIKE '4%' THEN 'STPC'
+    WHEN pu."permitCode" LIKE '81%' OR puu."permitCode" LIKE '81%' THEN 'STPL'
+    WHEN pu."permitCode" LIKE '7%' OR puu."permitCode" LIKE '7%' THEN 'TEC'
+    ELSE COALESCE(op."nomeConsorcio", opp."nomeConsorcio")
+  END`;
+
+  private readonly consorcioCaseEleicao = `CASE
+    WHEN pu."permitCode" = '8' THEN 'VLT'
+    WHEN pu."permitCode" LIKE '4%' THEN 'STPC'
+    WHEN pu."permitCode" LIKE '81%' THEN 'STPL'
+    WHEN pu."permitCode" LIKE '7%' THEN 'TEC'
+    ELSE op."consorcio"
+  END`;
 
   private readonly headerQueryConsorciosApagar = ` select distinct CASE
                                                     WHEN pu."permitCode" = '8'  THEN 'VLT'
@@ -274,29 +304,33 @@ export class RelatorioNovoRemessaConsolidadoRepository {
         queryEleicaoVanzeiro += usersVanzeiros;
       } else {
         const consorcioPlaceholders = this.MODAIS.join(`','`);
-        queryPendentesVanzeiro += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') AND length(op."operadoraCpfCnpj")<=11`;
-        queryVanzeiros += ` AND (op."nomeConsorcio" IN('${consorcioPlaceholders}') or opp."nomeConsorcio" IN('${consorcioPlaceholders}')) 
+        if (queryPendentesVanzeiro) queryPendentesVanzeiro += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') AND length(op."operadoraCpfCnpj")<=11`;
+        if (queryVanzeiros) queryVanzeiros += ` AND (op."nomeConsorcio" IN('${consorcioPlaceholders}') or opp."nomeConsorcio" IN('${consorcioPlaceholders}'))
                             AND (length(op."operadoraCpfCnpj")<=11  or length(opp."operadoraCpfCnpj")<=11) `;
-        queryAPagarVanzeiros += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') AND length(op."operadoraCpfCnpj")<=11`;
-        queryAPagarEleicaoVanzeiro += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') AND length(op."operadoraCpfCnpj")<=11 `;
+        if (queryAPagarVanzeiros) queryAPagarVanzeiros += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') AND length(op."operadoraCpfCnpj")<=11`;
+        if (queryAPagarEleicaoVanzeiro) queryAPagarEleicaoVanzeiro += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') AND length(op."operadoraCpfCnpj")<=11 `;
       }
     }
 
+    // queryAPagarEleicaoConsorcio/queryEleicaoConsorcio correm sobre ordem_pagamento_unico
+    // (alias "op"), cuja coluna de consórcio é "consorcio" - não "nomeConsorcio", que só existe
+    // em ordem_pagamento (usada pelas demais sub-queries abaixo).
     if ((filter.consorcioNome && filter.consorcioNome.length > 0) || filter.todosConsorcios) {
       if (!filter.todosConsorcios) {
-        const consorcioPlaceholders = filter.consorcioNome?.join(`','`);
-        queryAPagarConsorcios += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') `;
-        queryConsorcios += ` AND (op."nomeConsorcio" IN('${consorcioPlaceholders}') or opp."nomeConsorcio" IN('${consorcioPlaceholders}'))  `;
-        queryAPagarEleicaoConsorcio += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') `;
-        queryEleicaoConsorcio += ` AND op."consorcio" IN('${consorcioPlaceholders}') `;
-        queryPendentesConsorcio += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') `;
+        // Sem distinção de acento ou maiúsculas (ver @ApiQuery em RelatorioNovoRemessaController).
+        const consorcioPlaceholders = filter.consorcioNome?.map((c) => c.trim().toUpperCase()).join(`','`);
+        if (queryAPagarConsorcios) queryAPagarConsorcios += ` AND UPPER(TRIM(${this.consorcioCaseSimples})) IN('${consorcioPlaceholders}') `;
+        if (queryConsorcios) queryConsorcios += ` AND UPPER(TRIM(${this.consorcioCaseDuplo})) IN('${consorcioPlaceholders}') `;
+        if (queryAPagarEleicaoConsorcio) queryAPagarEleicaoConsorcio += ` AND UPPER(TRIM(${this.consorcioCaseEleicao})) IN('${consorcioPlaceholders}') `;
+        if (queryEleicaoConsorcio) queryEleicaoConsorcio += ` AND UPPER(TRIM(${this.consorcioCaseEleicao})) IN('${consorcioPlaceholders}') `;
+        if (queryPendentesConsorcio) queryPendentesConsorcio += ` AND UPPER(TRIM(${this.consorcioCaseSimples})) IN('${consorcioPlaceholders}') `;
       } else {
         const consorcioPlaceholders = this.CONSORCIOS.join(`','`);
-        queryAPagarConsorcios += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') `;
-        queryConsorcios += ` AND (op."nomeConsorcio" IN('${consorcioPlaceholders}') or opp."nomeConsorcio" IN('${consorcioPlaceholders}')) `;
-        queryAPagarEleicaoConsorcio += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') `;
-        queryEleicaoConsorcio += ` AND op."consorcio" IN('${consorcioPlaceholders}') `;
-        queryPendentesConsorcio += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') `;
+        if (queryAPagarConsorcios) queryAPagarConsorcios += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') `;
+        if (queryConsorcios) queryConsorcios += ` AND (op."nomeConsorcio" IN('${consorcioPlaceholders}') or opp."nomeConsorcio" IN('${consorcioPlaceholders}')) `;
+        if (queryAPagarEleicaoConsorcio) queryAPagarEleicaoConsorcio += ` AND op."consorcio" IN('${consorcioPlaceholders}') `;
+        if (queryEleicaoConsorcio) queryEleicaoConsorcio += ` AND op."consorcio" IN('${consorcioPlaceholders}') `;
+        if (queryPendentesConsorcio) queryPendentesConsorcio += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') `;
       }
     }
 
@@ -340,16 +374,68 @@ export class RelatorioNovoRemessaConsolidadoRepository {
     }
 
     if (subErroStatus.length > 0) {
-      const motivoStatus =` AND (oph."motivoStatusRemessa" IN (${subErroStatus.map((s) => `'${s}'`).join(',')}))`;      
+      const motivoStatus =` AND (oph."motivoStatusRemessa" IN (${subErroStatus.map((s) => `'${s}'`).join(',')}))`;
       queryConsorcios += motivoStatus;
       queryVanzeiros += motivoStatus;
       queryEleicaoConsorcio += motivoStatus;
       queryEleicaoVanzeiro += motivoStatus;
     }
 
+    // STUC - Gratuidade: fonte de dados separada (valorGratuidade / agrupamento de gratuidade),
+    // mutuamente exclusiva com Eleição/Desativados/Pendentes na UI (ADR 0004). Isolado dos
+    // blocos acima para não arriscar a lógica já existente: reaproveita buildStucGratuidadeQuery
+    // (query builder compartilhada, estilo bind params $1..$5) substituindo os placeholders por
+    // literais, já que este repository monta toda a SQL por interpolação de string.
+    let queryStucGratuidadeVanzeiro = ``;
+    let queryStucGratuidadeConsorcio = ``;
+
+    if (filter.stucGratuidade) {
+      const buildStucGratuidadeLiteral = (): string => {
+        // $3/$4/$5 aparecem duas vezes cada em buildStucGratuidadeQuery (uma com o cast
+        // ::integer[]/::text[], outra solta dentro do "= ANY($N)" do mesmo OR) - as duas
+        // precisam ser substituídas, senão sobra um placeholder de bind sem valor correspondente.
+        let literal = buildStucGratuidadeQuery({ consorcioFilterParamIndex: 5 })
+          .replace(/\$1/g, `'${dataInicio}'`)
+          .replace(/\$2/g, `'${dataFim}'`)
+          .replace(/\$3/g, 'NULL::integer[]')
+          .replace(/\$4/g, 'NULL::text[]')
+          .replace(/\$5/g, 'NULL::text[]');
+        if (status.length > 0) literal += ` AND oph."statusRemessa" IN (${status.join(',')}) `;
+        if (subErroStatus.length > 0) literal += ` AND (oph."motivoStatusRemessa" IN (${subErroStatus.map((s) => `'${s}'`).join(',')})) `;
+        return literal;
+      };
+
+      if ((filter.userIds && filter.userIds.length > 0) || filter.todosVanzeiros) {
+        let literal = buildStucGratuidadeLiteral();
+        if (!filter.todosVanzeiros) {
+          const userPlaceholders = filter.userIds?.join(`','`);
+          literal += ` AND pu."id" IN('${userPlaceholders}') `;
+        } else {
+          const consorcioPlaceholders = this.MODAIS.join(`','`);
+          literal += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') AND length(op."operadoraCpfCnpj")<=11 `;
+        }
+        queryStucGratuidadeVanzeiro = `SELECT nomes AS "nome", "nomeConsorcio" AS "nome2", valor AS valor FROM (${literal}) q`;
+      }
+
+      if ((filter.consorcioNome && filter.consorcioNome.length > 0) || filter.todosConsorcios) {
+        let literal = buildStucGratuidadeLiteral();
+        if (!filter.todosConsorcios) {
+          // filter.consorcioNome vem direto da query string (sem validação de charset) e é
+          // interpolado num literal SQL - escapa aspas simples para não permitir sair do IN(...).
+          const consorcioPlaceholders = filter.consorcioNome?.map((c) => c.trim().toUpperCase().replace(/'/g, `''`)).join(`','`);
+          literal += ` AND UPPER(TRIM(${this.consorcioCaseSimples})) IN('${consorcioPlaceholders}') `;
+        } else {
+          const consorcioPlaceholders = this.CONSORCIOS.join(`','`);
+          literal += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') `;
+        }
+        queryStucGratuidadeConsorcio = `SELECT nomes AS "nome", "nomeConsorcio" AS "nome2", valor AS valor FROM (${literal}) q`;
+      }
+    }
+
     const hasQuery = queryAPagarConsorcios !== `` || queryAPagarVanzeiros !== `` || queryConsorcios !== `` || queryVanzeiros !== ``
       || queryAPagarEleicaoConsorcio !== `` || queryAPagarConsorcios !== `` || queryEleicaoConsorcio !== `` || queryAPagarEleicaoVanzeiro !== ``
-      || queryPendentesConsorcio !== `` || queryPendentesVanzeiro !== ``;
+      || queryPendentesConsorcio !== `` || queryPendentesVanzeiro !== ``
+      || queryStucGratuidadeVanzeiro !== `` || queryStucGratuidadeConsorcio !== ``;
     if (!hasQuery) {
       return new RelatorioConsolidadoNovoRemessaDto({
         data: [],
@@ -372,54 +458,60 @@ export class RelatorioNovoRemessaConsolidadoRepository {
     const todosStatus = (!filter.aPagar && !filter.pago && !filter.emProcessamento && !filter.pendentes && !filter.erro && !filter.rejeitado && !filter.estorno
       && !filter.pendenciaPaga );
 
-    if (temFiltroConsorcio) {
-      if (incluirAPagar || todosStatus) {
-        if (filter.eleicao) {
-          queries.push(queryAPagarEleicaoConsorcio);
-        } else {
-          if (filter.aPagar || todosStatus) queries.push(queryAPagarConsorcios);
-          if (filter.pendentes || (filter.erro && !filter.rejeitado && !filter.estorno) || todosStatus) queries.push(queryPendentesConsorcio);
-          if (filter.erro || todosStatus) queries.push(queryConsorcios);
+    if (filter.stucGratuidade) {
+      if (queryStucGratuidadeConsorcio) queries.push(queryStucGratuidadeConsorcio);
+      if (queryStucGratuidadeVanzeiro) queries.push(queryStucGratuidadeVanzeiro);
+    } else {
+      if (temFiltroConsorcio) {
+        if (incluirAPagar || todosStatus) {
+          if (filter.eleicao) {
+            queries.push(queryAPagarEleicaoConsorcio);
+          } else {
+            if (filter.aPagar || todosStatus) queries.push(queryAPagarConsorcios);
+            if (filter.pendentes || (filter.erro && !filter.rejeitado && !filter.estorno) || todosStatus) queries.push(queryPendentesConsorcio);
+            if (filter.erro || todosStatus) queries.push(queryConsorcios);
+          }
         }
-      }
-      
-      if((filter.todosConsorcios && !filter.pendentes && !filter.aPagar && !filter.erro) || filter.pago || filter.pendenciaPaga || filter.emProcessamento ||filter.rejeitado || filter.estorno) {
-        if (filter.eleicao) {
-          queries.push(queryEleicaoConsorcio);
-        } else {
-          queries.push(queryConsorcios);
-        }
-      }
-    }
 
-    if (temFiltroVanzeiros) {
-      if (incluirAPagar || todosStatus) {
-        if (filter.eleicao) {
-          queries.push(queryAPagarEleicaoVanzeiro);
-        } else {
-          if (filter.aPagar || todosStatus) queries.push(queryAPagarVanzeiros);
-          if (filter.pendentes || (filter.erro && !filter.rejeitado && !filter.estorno) || todosStatus) queries.push(queryPendentesVanzeiro);
-          if (filter.erro  || todosStatus)queries.push(queryVanzeiros);
+        if((filter.todosConsorcios && !filter.pendentes && !filter.aPagar && !filter.erro) || filter.pago || filter.pendenciaPaga || filter.emProcessamento ||filter.rejeitado || filter.estorno) {
+          if (filter.eleicao) {
+            queries.push(queryEleicaoConsorcio);
+          } else {
+            queries.push(queryConsorcios);
+          }
         }
       }
-      
-     if((filter.todosVanzeiros && !filter.pendentes) || filter.pago || filter.pendenciaPaga || filter.emProcessamento ||filter.rejeitado || filter.estorno) {
+
+      if (temFiltroVanzeiros) {
+        if (incluirAPagar || todosStatus) {
+          if (filter.eleicao) {
+            queries.push(queryAPagarEleicaoVanzeiro);
+          } else {
+            if (filter.aPagar || todosStatus) queries.push(queryAPagarVanzeiros);
+            if (filter.pendentes || (filter.erro && !filter.rejeitado && !filter.estorno) || todosStatus) queries.push(queryPendentesVanzeiro);
+            if (filter.erro  || todosStatus)queries.push(queryVanzeiros);
+          }
+        }
+
+       if((filter.todosVanzeiros && !filter.pendentes) || filter.pago || filter.pendenciaPaga || filter.emProcessamento ||filter.rejeitado || filter.estorno) {
+          if (filter.eleicao) {
+            queries.push(queryEleicaoVanzeiro);
+          } else {
+            queries.push(queryVanzeiros);
+          }
+        }
+      }
+
+      if (!temFiltroVanzeiros && !temFiltroConsorcio) {
         if (filter.eleicao) {
           queries.push(queryEleicaoVanzeiro);
-        } else {
-          queries.push(queryVanzeiros);
         }
       }
     }
 
-    if (!temFiltroVanzeiros && !temFiltroConsorcio) {
-      if (filter.eleicao) {
-        queries.push(queryEleicaoVanzeiro);
-      }
-    }
-
-    // Junta só as queries que realmente existem
-    const parts = queries.filter(q => q !== ``);
+    // Junta só as queries que realmente existem, sem duplicar a mesma subquery
+    // quando mais de uma condição acima a empurra (ex.: cenário "todos" sem filtro de status).
+    const parts = Array.from(new Set(queries.filter(q => q !== ``)));
 
     let query = ``;
 
@@ -466,10 +558,24 @@ export class RelatorioNovoRemessaConsolidadoRepository {
       return elem;
     });
 
+    // Um favorecido individual de STPC/STPL/TEC aparece tanto na linha agregada do consórcio
+    // quanto na linha individual de vanzeiro. Quando o filtro de consórcio cobre todo o MODAIS
+    // (todosConsorcios, que inclui STPC/STPL/TEC), a linha individual já está contida no total
+    // do consórcio e não deve ser somada de novo no valor geral — mas continua aparecendo em "data".
+    const consorciosLabels = new Set<string>(this.CONSORCIOS);
+    const consorcioCobreModais = !!filter.todosConsorcios
+      || !!filter.consorcioNome?.some((nome) => this.MODAIS.includes(nome));
+    const vanzeiroJaIncluidoNoConsorcio = !!filter.todosVanzeiros && consorcioCobreModais;
+
+    const valor = mappedResults.reduce((acc: number, curr: { nomefavorecido: string; valor: number }) => {
+      const eDuplicidadeVanzeiroModal = vanzeiroJaIncluidoNoConsorcio && !consorciosLabels.has(curr.nomefavorecido);
+      return eDuplicidadeVanzeiroModal ? acc : acc + curr.valor;
+    }, 0);
+
     return new RelatorioConsolidadoNovoRemessaDto({
       data: mappedResults,
       count: mappedResults.length,
-      valor: mappedResults.reduce((acc: any, curr: { valor: any; }) => acc + curr.valor, 0),
+      valor,
     });
   }
 

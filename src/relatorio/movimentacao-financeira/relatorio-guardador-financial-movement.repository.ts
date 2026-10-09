@@ -38,7 +38,35 @@ type CursorValues = {
   nome: string | null;
   status: string | null;
   cpfCnpj: string | null;
+  // Tie-breakers: the "grouped" CTE aggregates by more columns than the 4 above, so two
+  // grouped rows can share the same (dataReferencia, nomes, status, cpfCnpj) tuple (e.g. the
+  // same guardador paid under two different consórcios on the same date/status). Without
+  // these, a page boundary landing inside such a tie silently drops the remaining rows.
+  nomeConsorcio: string | null;
+  codBanco: string | null;
+  dataPagamento: string | null;
+  codigoErro: string | null;
+  email: string | null;
 };
+
+// Tuple columns/expressions shared by the ORDER BY and the keyset WHERE comparison.
+// COALESCE avoids Postgres row-comparison returning NULL (and silently excluding the row)
+// whenever a tie-breaker column is NULL.
+// Recomputes the same expression as the "dataPagamentoCursor" SELECT column below: the WHERE
+// clause is appended to the same statement as that SELECT, so it cannot reference the
+// SELECT-list alias (Postgres only allows that in ORDER BY), only the underlying "grouped"
+// column via the table alias.
+const CURSOR_TUPLE_COLUMNS = `
+  g."dataReferencia",
+  g.nomes,
+  g.status,
+  g."cpfCnpj",
+  COALESCE(g."nomeConsorcio", ''),
+  COALESCE(g."codBanco"::text, ''),
+  COALESCE(to_char(g."dataPagamento", 'YYYY-MM-DD"T"HH24:MI:SS'), ''),
+  COALESCE(g."codigoErro", ''),
+  COALESCE(g.email, '')
+`;
 
 export { GUARDADOR_STATUS_CASE };
 
@@ -94,12 +122,15 @@ export class RelatorioGuardadorFinancialMovementRepository {
 
     const dataQuery = `
       ${query}
-      WHERE (
+      AND (
         $8::text IS NULL
-        OR (g."dataReferencia", g.nomes, g.status, g."cpfCnpj") > (to_date($8, 'DD/MM/YYYY'), $9::text, $10::text, $11::text)
+        OR (${CURSOR_TUPLE_COLUMNS}) > (
+          to_date($8, 'DD/MM/YYYY'), $9::text, $10::text, $11::text,
+          COALESCE($12::text, ''), COALESCE($13::text, ''), COALESCE($14::text, ''), COALESCE($15::text, ''), COALESCE($16::text, '')
+        )
       )
-      ORDER BY g."dataReferencia" ASC, g.nomes ASC, g.status ASC, g."cpfCnpj" ASC
-      LIMIT $12
+      ORDER BY ${CURSOR_TUPLE_COLUMNS}
+      LIMIT $17
     `;
 
     const dataParams = [
@@ -108,6 +139,11 @@ export class RelatorioGuardadorFinancialMovementRepository {
       cursor.nome,
       cursor.status,
       cursor.cpfCnpj,
+      cursor.nomeConsorcio,
+      cursor.codBanco,
+      cursor.dataPagamento,
+      cursor.codigoErro,
+      cursor.email,
       pageSize,
     ];
 
@@ -121,6 +157,11 @@ export class RelatorioGuardadorFinancialMovementRepository {
           nomes: lastRow.nomes,
           status: lastRow.status,
           cpfCnpj: lastRow.cpfCnpj,
+          nomeConsorcio: lastRow.consorcio,
+          codBanco: lastRow.codBanco,
+          dataPagamento: lastRow.dataPagamentoCursor,
+          codigoErro: lastRow.codigoErro,
+          email: lastRow.email,
         }
       : null;
 
@@ -142,6 +183,11 @@ export class RelatorioGuardadorFinancialMovementRepository {
       nome: null,
       status: null,
       cpfCnpj: null,
+      nomeConsorcio: null,
+      codBanco: null,
+      dataPagamento: null,
+      codigoErro: null,
+      email: null,
     };
     const batchSize = 500;
 
@@ -167,6 +213,11 @@ export class RelatorioGuardadorFinancialMovementRepository {
         nome: lastRow.nomes,
         status: lastRow.status,
         cpfCnpj: lastRow.cpfCnpj,
+        nomeConsorcio: lastRow.consorcio,
+        codBanco: lastRow.codBanco,
+        dataPagamento: lastRow.dataPagamentoCursor,
+        codigoErro: lastRow.codigoErro,
+        email: lastRow.email,
       };
 
       if (rows.length < batchSize) {
@@ -221,10 +272,13 @@ export class RelatorioGuardadorFinancialMovementRepository {
       ${groupedCte}
       SELECT COUNT(*)::int AS count
       FROM grouped
+      WHERE 1=1
+        AND ($6::numeric IS NULL OR valor >= $6::numeric)
+        AND ($7::numeric IS NULL OR valor <= $7::numeric)
     `;
 
     const aggregatesQuery = `
-      ${this.buildBaseCte(finalBaseQuery)}
+      ${groupedCte}
       SELECT
         COALESCE(SUM(valor), 0) AS "valorTotal",
         COALESCE(SUM(CASE WHEN status = 'Pago' THEN valor ELSE 0 END), 0) AS "valorPago",
@@ -234,7 +288,10 @@ export class RelatorioGuardadorFinancialMovementRepository {
         COALESCE(SUM(CASE WHEN status = 'A Pagar' THEN valor ELSE 0 END), 0) AS "valorAPagar",
         COALESCE(SUM(CASE WHEN status = 'Pendentes' THEN valor ELSE 0 END), 0) AS "valorPendente",
         COALESCE(SUM(CASE WHEN status = 'Pendencia Paga' THEN valor ELSE 0 END), 0) AS "valorPendenciaPaga"
-      FROM base
+      FROM grouped
+      WHERE 1=1
+        AND ($6::numeric IS NULL OR valor >= $6::numeric)
+        AND ($7::numeric IS NULL OR valor <= $7::numeric)
     `;
 
     return {
@@ -268,8 +325,14 @@ export class RelatorioGuardadorFinancialMovementRepository {
           g."nomeConsorcio" AS consorcio,
           g.valor,
           g.status,
-          g."codigoErro"
+          g."codigoErro",
+          -- Sortable, NULL-preserving cursor value for "dataPagamento" (ISO text sorts
+          -- chronologically); distinct from the DD/MM/YYYY-or-'-' display column above.
+          to_char(g."dataPagamento", 'YYYY-MM-DD"T"HH24:MI:SS') AS "dataPagamentoCursor"
         FROM grouped g
+        WHERE 1=1
+          AND ($6::numeric IS NULL OR g.valor >= $6::numeric)
+          AND ($7::numeric IS NULL OR g.valor <= $7::numeric)
       `,
     };
   }
@@ -283,12 +346,15 @@ export class RelatorioGuardadorFinancialMovementRepository {
     const { query, params } = this.buildBaseDataQuery(filter);
     const dataQuery = `
       ${query}
-      WHERE (
+      AND (
         $8::text IS NULL
-        OR (g."dataReferencia", g.nomes, g.status, g."cpfCnpj") > (to_date($8, 'DD/MM/YYYY'), $9::text, $10::text, $11::text)
+        OR (${CURSOR_TUPLE_COLUMNS}) > (
+          to_date($8, 'DD/MM/YYYY'), $9::text, $10::text, $11::text,
+          COALESCE($12::text, ''), COALESCE($13::text, ''), COALESCE($14::text, ''), COALESCE($15::text, ''), COALESCE($16::text, '')
+        )
       )
-      ORDER BY g."dataReferencia" ASC, g.nomes ASC, g.status ASC, g."cpfCnpj" ASC
-      LIMIT $12
+      ORDER BY ${CURSOR_TUPLE_COLUMNS}
+      LIMIT $17
     `;
 
     return this.executeQuery(dataQuery, [
@@ -297,6 +363,11 @@ export class RelatorioGuardadorFinancialMovementRepository {
       cursor.nome,
       cursor.status,
       cursor.cpfCnpj,
+      cursor.nomeConsorcio,
+      cursor.codBanco,
+      cursor.dataPagamento,
+      cursor.codigoErro,
+      cursor.email,
       limit,
     ], label);
   }
@@ -457,6 +528,11 @@ export class RelatorioGuardadorFinancialMovementRepository {
       nome: filter.cursorNome ?? null,
       status: filter.cursorStatus ?? null,
       cpfCnpj: filter.cursorCpfCnpj ?? null,
+      nomeConsorcio: filter.cursorNomeConsorcio ?? null,
+      codBanco: filter.cursorCodBanco ?? null,
+      dataPagamento: filter.cursorDataPagamento ?? null,
+      codigoErro: filter.cursorCodigoErro ?? null,
+      email: filter.cursorEmail ?? null,
     };
   }
 

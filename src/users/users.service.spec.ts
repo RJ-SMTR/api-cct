@@ -1,4 +1,4 @@
-import { Provider } from '@nestjs/common';
+import { HttpException, HttpStatus, Provider } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { BanksService } from 'src/banks/banks.service';
 import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-status.entity';
@@ -13,6 +13,10 @@ import { ICreateUserFile } from './interfaces/create-user-file.interface';
 import { IFileUser } from './interfaces/file-user.interface';
 import { UsersRepository } from './users.repository';
 import { UsersService } from './users.service';
+import { runWithWorkerTimeout, WorkerTimeoutError } from 'src/utils/worker-thread/run-with-worker-timeout';
+
+jest.mock('src/utils/worker-thread/run-with-worker-timeout');
+const runWithWorkerTimeoutMock = runWithWorkerTimeout as jest.Mock;
 
 describe('UsersService', () => {
   let usersService: UsersService;
@@ -123,6 +127,7 @@ describe('UsersService', () => {
         email: `email@example.com`,
         inviteStatus: new InviteStatus(InviteStatusEnum.queued),
       });
+      runWithWorkerTimeoutMock.mockResolvedValue({});
       jest
         .spyOn(usersService, 'getUserFilesFromWorksheet')
         .mockResolvedValue(expectedFileUsers);
@@ -160,6 +165,7 @@ describe('UsersService', () => {
           },
         } as IFileUser);
       }
+      runWithWorkerTimeoutMock.mockResolvedValue({});
       jest
         .spyOn(usersService, 'getUserFilesFromWorksheet')
         .mockResolvedValue(expectedFileUsers);
@@ -168,6 +174,42 @@ describe('UsersService', () => {
       await expect(
         usersService.createFromFile(fileMock),
       ).rejects.toThrowError();
+    });
+
+    it('throws a timeout-specific error when the worksheet parser worker times out', async () => {
+      // Arrange
+      const fileMock = { buffer: {} } as Express.Multer.File;
+      runWithWorkerTimeoutMock.mockRejectedValue(new WorkerTimeoutError(10_000));
+
+      // Act
+      let caught: HttpException | undefined;
+      try {
+        await usersService.createFromFile(fileMock);
+      } catch (error) {
+        caught = error as HttpException;
+      }
+
+      // Assert
+      expect(caught).toBeInstanceOf(HttpException);
+      expect(caught?.getStatus()).toBe(HttpStatus.REQUEST_TIMEOUT);
+    });
+
+    it('throws a generic parse error when the worksheet parser worker fails for another reason', async () => {
+      // Arrange
+      const fileMock = { buffer: {} } as Express.Multer.File;
+      runWithWorkerTimeoutMock.mockRejectedValue(new Error('corrupted file'));
+
+      // Act
+      let caught: HttpException | undefined;
+      try {
+        await usersService.createFromFile(fileMock);
+      } catch (error) {
+        caught = error as HttpException;
+      }
+
+      // Assert
+      expect(caught).toBeInstanceOf(HttpException);
+      expect(caught?.getStatus()).toBe(HttpStatus.INTERNAL_SERVER_ERROR);
     });
   });
 
@@ -305,5 +347,6 @@ describe('UsersService', () => {
 
   afterEach(() => {
     jest.clearAllMocks();
+    runWithWorkerTimeoutMock.mockReset();
   });
 });
