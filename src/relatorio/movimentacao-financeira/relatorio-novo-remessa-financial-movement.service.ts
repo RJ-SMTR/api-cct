@@ -12,6 +12,9 @@ import {
   buildPendentesQuery,
   buildPendenciaPagamentoSingleDateQuery,
   buildPendenciaPagaSingleDateQuery,
+  buildStucGratuidadeQuery,
+  buildStucGratuidadePendenciaPagaSingleDateQuery,
+  buildStucGratuidadePendenciaPagamentoSingleDateQuery,
 } from '../novo-remessa/queries/novo-remessa-query-builder';
 import { IFindPublicacaoRelatorioNovoFinancialMovement } from '../interfaces/filter-publicacao-relatorio-novo-financial-movement.interface';
 import {
@@ -316,6 +319,17 @@ export class RelatorioNovoRemessaFinancialMovementService {
 
   private buildFinalBaseQuery(filter: NormalizedFilter, statuses: ResolvedStatuses): string {
     const raw = (() => {
+      // STUC - Gratuidade lê de uma fonte diferente (valorGratuidade / agrupamento de
+      // gratuidade), mutuamente exclusiva com Eleição/Desativados/Pendentes na UI. Nunca
+      // inclui buildPendentesQuery: "OPs atrasadas" não existe para esse fluxo.
+      if (filter.stucGratuidade) {
+        const q: string[] = [];
+        if (statuses.includeBase) q.push(this.buildStucGratuidadeQuery(filter));
+        if (statuses.includePendenciaPaga) q.push(this.buildStucGratuidadePendenciaPagaSingleDateQuery(filter));
+        if (statuses.parentErrorStatusesSingleDate.length) q.push(this.buildStucGratuidadePendenciaPagamentoSingleDateQuery(filter, statuses.parentErrorStatusesSingleDate));
+        if (!q.length) return `${this.buildStucGratuidadeQuery(filter)} AND FALSE`;
+        return q.join('\nUNION ALL\n');
+      }
       if (filter.eleicao &&!this.hasOtherStatusFilters(filter)) return this.buildEleicaoQuery(filter);
       const q: string[] = [];
       if (filter.eleicao) q.push(this.buildEleicaoQuery(filter));
@@ -340,6 +354,15 @@ export class RelatorioNovoRemessaFinancialMovementService {
   }
   private buildEleicaoQuery(filter: NormalizedFilter): string {
     return `${buildEleicaoQuery({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5 }).trim()} ${filter.desativados? 'AND pu.bloqueado = true' : ''}`;
+  }
+  private buildStucGratuidadeQuery(filter: NormalizedFilter): string {
+    return `${buildStucGratuidadeQuery({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5 }).trim()} ${filter.desativados? 'AND pu.bloqueado = true' : ''}`;
+  }
+  private buildStucGratuidadePendenciaPagaSingleDateQuery(filter: NormalizedFilter): string {
+    return `${buildStucGratuidadePendenciaPagaSingleDateQuery({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5 }).trim()} ${filter.desativados? 'AND pu.bloqueado = true' : ''}`;
+  }
+  private buildStucGratuidadePendenciaPagamentoSingleDateQuery(filter: NormalizedFilter, statuses: Array<StatusPagamento.ERRO_ESTORNO | StatusPagamento.ERRO_REJEITADO>): string {
+    return `${buildStucGratuidadePendenciaPagamentoSingleDateQuery({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5, parentErrorStatuses: statuses }).trim()} ${filter.desativados ? 'AND pu.bloqueado = true' : ''}`;
   }
   private buildPendentesQuery(filter: NormalizedFilter): string {
     return `${buildPendentesQuery({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5 } as any).trim()} ${filter.desativados? 'AND pu.bloqueado = true' : ''}`;
