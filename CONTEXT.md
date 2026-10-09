@@ -163,6 +163,7 @@ Fonte entre parênteses. Revisado por Matthew em 2026-09-30 (janelas de pagament
 ### Usuários
 
 - **Ciclo do usuário:** register → upload de planilha → concluir cadastro → ativo/inativo. **Histórico de email (convite):** queued → sent → used; reenvio pelo cron `bulkResendInvites` todo dia 15 às 11:45 BRT; `bulkSendInvites` usa a cron das settings e `bulkSendInvitesFixedTime` roda todo dia às 10:30 GMT (`docs/bilhetagem/estado-usuario-historico-email.drawio`).
+- **Upload de planilha (`POST /users/upload`) mitigado, não corrigido, contra as CVEs do `xlsx`** (ADR 0003, 2026-10-08). `xlsx.read`/`sheet_to_json` (`users.service.ts`) parseiam um arquivo controlado por quem faz upload; o pacote `xlsx` tem CVEs de Prototype Pollution/ReDoS sem fix no npm (TD-11). Mitigação: limite de 10 MB no `FileInterceptor`, sniff real de conteúdo (não só o `mimetype` do client, hoje falsificável) antes do parse, e isolamento do parse em `worker_thread` com timeout de 10s (necessário porque `xlsx.read` é síncrono e bloqueia a thread única do Node — um timeout sem worker não interrompe o bloqueio). O endpoint exige JWT mas não tem `@Roles`; se deveria restringir a admin ficou como pergunta em aberto, não resolvida aqui.
 
 ## Arquitetura em camadas
 
