@@ -66,6 +66,9 @@ Obrigação original vinculada a uma nova tentativa de pagamento pendente. Prese
 **OPA pai**:
 Tentativa de pagamento pendente que consolida uma ou mais OPAs filhas do mesmo favorecido. É a única representante financeira dessas filhas na remessa.
 
+**STUC - Gratuidade**:
+Item do combo "Específico" nos relatórios Consolidado e Movimentação Financeira (perfil Permissionário, `app-cct`). Busca em `ordem_pagamento` pelo campo `valorGratuidade` (não nulo), seguindo o agrupamento de gratuidade separado do agrupamento normal: `ordem_pagamento.ordemPagamentoAgrupadoGratuidadeId` → `ordem_pagamento_agrupado` → `ordem_pagamento_agrupado_historico` (ver ADR 0004). O valor exibido é `valorGratuidade`, não o `valor` total da ordem.
+
 **TransacaoView**:
 Visão das transações de bilhetagem por dia. **Legado: ninguém mais usa** (confirmado por Matthew em 2026-09-30); não a use em código novo.
 
@@ -139,6 +142,15 @@ Fonte entre parênteses. Revisado por Matthew em 2026-09-30 (janelas de pagament
 - **Pendência Paga é consultada por data de pagamento, em qualquer intervalo** (ADR 0001, 2026-10-07). A consulta principal do relatório (`buildBaseQuery`) filtra por data de vencimento, onde Pendência Paga nunca aparece; uma consulta dedicada (`buildPendenciaPagaSingleDateQuery`, nome desatualizado) sempre trouxe esse status pela data de pagamento com um `BETWEEN`, aceitando intervalo — o antigo gate de "dia único" vivia só em JS (`resolveStatuses`) e no front, e por isso Pendência Paga desaparecia silenciosamente ao selecionar todos os status num intervalo de mais de um dia. Vale só para Movimentação Financeira do Permissionário; o Consolidado do Permissionário não tem essa lógica, e o fluxo de Guardador tem cópia própria (não alterada).
 - **Cursor de paginação precisa de tie-breakers além de `(dataReferencia, nomes, status, cpfCnpj)`** (ADR 0002, 2026-10-08). O `GROUP BY` do CTE `grouped` usa mais colunas que essas 4; duas linhas agrupadas podem empatar nessa tupla (ex.: mesmo favorecido pago sob dois `nomeConsorcio` diferentes na mesma data/status), e um limite de página caindo dentro do empate perde linhas silenciosamente. Guardador (`relatorio-guardador-financial-movement.repository.ts`) já ganhou os tie-breakers `nomeConsorcio, codBanco, dataPagamento, codigoErro, email`; Permissionário (**serviço** `relatorio-novo-remessa-financial-movement.service.ts`, não o repository homônimo — esse é código morto, ver ADR 0001) tem o mesmo bug e ainda não foi corrigido (próxima tarefa, mesmo ADR). `nextCursor` deixou de ser opaco para o front por causa disso — o app-cct monta/lê os campos do cursor manualmente e precisa de PR espelhado a cada campo novo.
 - **Filtro de valor (`valorMin`/`valorMax`) só é correto se aplicado depois do agrupamento** (ADR 0002, 2026-10-08). Antes do `GROUP BY`, o valor é de um lançamento individual, não o total somado que o relatório exibe e pagina. O serviço do Permissionário já aplicava corretamente (literais neutros substituindo `$6`/`$7` dentro do CTE `base`, filtro real só sobre `grouped`); Guardador aplicava antes (em `guardador-novo-remessa-query-builder.ts`, sobre `da."valorLancamento"`) e foi corrigido para aplicar depois, igual ao Permissionário. Esse ponto já está fechado nos dois fluxos.
+
+### Relatório Consolidado e Movimentação Financeira (filtro Específico, Permissionário)
+
+- **STUC - Gratuidade é exclusivo com os demais itens do combo Específico** (Eleição, Desativados, Pendentes) (ADR 0004, 2026-10-09, Rayanne). Selecionar um limpa/desabilita os outros na UI — a query muda de fonte de dados (agrupamento de gratuidade em vez do normal), misturar não tem sentido de negócio.
+- **Todos os status principais continuam disponíveis com STUC selecionado** (Todos, A pagar, Aguardando Pagamento, Pago, Pendência de Pagamento, Pendencia Paga) (ADR 0004). Diferente do item Eleição, que já restringe via `ELEICAO_STATUS_CASE`.
+- **"OPs atrasadas" não fica disponível como motivo de Pendência de Pagamento quando STUC está selecionado** (ADR 0004). Esse motivo corresponde à query `buildPendentesQuery`, que opera sobre o fluxo normal sem agrupamento e não se aplica à gratuidade.
+- **Seleção de usuário "Todos" continua válida com STUC selecionado**; não há exigência de escolher permissionários específicos.
+- Datas, Vlr Min./Vlr Max. e a mensagem para "data de pagamento não encontrada" seguem o comportamento padrão já usado pelos demais itens do combo — nenhuma regra nova.
+- Escopo: relatórios Consolidado e Movimentação Financeira do perfil **Permissionário** em `app-cct`. Não se aplica a Guardador.
 
 ### Pagamento
 

@@ -22,6 +22,7 @@ export interface IFindPublicacaoRelatorioNovoFinancialMovement {
   pago?: boolean;
   desativados?: boolean;
   pendentes?: boolean;
+  stucGratuidade?: boolean;
   erro?: boolean;
   estorno?: boolean;
   rejeitado?: boolean;

@@ -3,6 +3,7 @@ import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 
 import { CustomLogger } from 'src/utils/custom-logger';
+import { buildStucGratuidadeQuery } from './queries/novo-remessa-query-builder';
 import { IFindPublicacaoRelatorioNovoRemessa } from '../interfaces/find-publicacao-relatorio-novo-remessa.interface';
 import {
   RelatorioConsolidadoNovoRemessaData,
@@ -373,16 +374,66 @@ export class RelatorioNovoRemessaConsolidadoRepository {
     }
 
     if (subErroStatus.length > 0) {
-      const motivoStatus =` AND (oph."motivoStatusRemessa" IN (${subErroStatus.map((s) => `'${s}'`).join(',')}))`;      
+      const motivoStatus =` AND (oph."motivoStatusRemessa" IN (${subErroStatus.map((s) => `'${s}'`).join(',')}))`;
       queryConsorcios += motivoStatus;
       queryVanzeiros += motivoStatus;
       queryEleicaoConsorcio += motivoStatus;
       queryEleicaoVanzeiro += motivoStatus;
     }
 
+    // STUC - Gratuidade: fonte de dados separada (valorGratuidade / agrupamento de gratuidade),
+    // mutuamente exclusiva com Eleição/Desativados/Pendentes na UI (ADR 0004). Isolado dos
+    // blocos acima para não arriscar a lógica já existente: reaproveita buildStucGratuidadeQuery
+    // (query builder compartilhada, estilo bind params $1..$5) substituindo os placeholders por
+    // literais, já que este repository monta toda a SQL por interpolação de string.
+    let queryStucGratuidadeVanzeiro = ``;
+    let queryStucGratuidadeConsorcio = ``;
+
+    if (filter.stucGratuidade) {
+      const buildStucGratuidadeLiteral = (): string => {
+        // $3/$4/$5 aparecem duas vezes cada em buildStucGratuidadeQuery (uma com o cast
+        // ::integer[]/::text[], outra solta dentro do "= ANY($N)" do mesmo OR) - as duas
+        // precisam ser substituídas, senão sobra um placeholder de bind sem valor correspondente.
+        let literal = buildStucGratuidadeQuery({ consorcioFilterParamIndex: 5 })
+          .replace(/\$1/g, `'${dataInicio}'`)
+          .replace(/\$2/g, `'${dataFim}'`)
+          .replace(/\$3/g, 'NULL::integer[]')
+          .replace(/\$4/g, 'NULL::text[]')
+          .replace(/\$5/g, 'NULL::text[]');
+        if (status.length > 0) literal += ` AND oph."statusRemessa" IN (${status.join(',')}) `;
+        if (subErroStatus.length > 0) literal += ` AND (oph."motivoStatusRemessa" IN (${subErroStatus.map((s) => `'${s}'`).join(',')})) `;
+        return literal;
+      };
+
+      if ((filter.userIds && filter.userIds.length > 0) || filter.todosVanzeiros) {
+        let literal = buildStucGratuidadeLiteral();
+        if (!filter.todosVanzeiros) {
+          const userPlaceholders = filter.userIds?.join(`','`);
+          literal += ` AND pu."id" IN('${userPlaceholders}') `;
+        } else {
+          const consorcioPlaceholders = this.MODAIS.join(`','`);
+          literal += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') AND length(op."operadoraCpfCnpj")<=11 `;
+        }
+        queryStucGratuidadeVanzeiro = `SELECT nomes AS "nome", "nomeConsorcio" AS "nome2", valor AS valor FROM (${literal}) q`;
+      }
+
+      if ((filter.consorcioNome && filter.consorcioNome.length > 0) || filter.todosConsorcios) {
+        let literal = buildStucGratuidadeLiteral();
+        if (!filter.todosConsorcios) {
+          const consorcioPlaceholders = filter.consorcioNome?.map((c) => c.trim().toUpperCase()).join(`','`);
+          literal += ` AND UPPER(TRIM(${this.consorcioCaseSimples})) IN('${consorcioPlaceholders}') `;
+        } else {
+          const consorcioPlaceholders = this.CONSORCIOS.join(`','`);
+          literal += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') `;
+        }
+        queryStucGratuidadeConsorcio = `SELECT nomes AS "nome", "nomeConsorcio" AS "nome2", valor AS valor FROM (${literal}) q`;
+      }
+    }
+
     const hasQuery = queryAPagarConsorcios !== `` || queryAPagarVanzeiros !== `` || queryConsorcios !== `` || queryVanzeiros !== ``
       || queryAPagarEleicaoConsorcio !== `` || queryAPagarConsorcios !== `` || queryEleicaoConsorcio !== `` || queryAPagarEleicaoVanzeiro !== ``
-      || queryPendentesConsorcio !== `` || queryPendentesVanzeiro !== ``;
+      || queryPendentesConsorcio !== `` || queryPendentesVanzeiro !== ``
+      || queryStucGratuidadeVanzeiro !== `` || queryStucGratuidadeConsorcio !== ``;
     if (!hasQuery) {
       return new RelatorioConsolidadoNovoRemessaDto({
         data: [],
@@ -405,49 +456,54 @@ export class RelatorioNovoRemessaConsolidadoRepository {
     const todosStatus = (!filter.aPagar && !filter.pago && !filter.emProcessamento && !filter.pendentes && !filter.erro && !filter.rejeitado && !filter.estorno
       && !filter.pendenciaPaga );
 
-    if (temFiltroConsorcio) {
-      if (incluirAPagar || todosStatus) {
-        if (filter.eleicao) {
-          queries.push(queryAPagarEleicaoConsorcio);
-        } else {
-          if (filter.aPagar || todosStatus) queries.push(queryAPagarConsorcios);
-          if (filter.pendentes || (filter.erro && !filter.rejeitado && !filter.estorno) || todosStatus) queries.push(queryPendentesConsorcio);
-          if (filter.erro || todosStatus) queries.push(queryConsorcios);
+    if (filter.stucGratuidade) {
+      if (queryStucGratuidadeConsorcio) queries.push(queryStucGratuidadeConsorcio);
+      if (queryStucGratuidadeVanzeiro) queries.push(queryStucGratuidadeVanzeiro);
+    } else {
+      if (temFiltroConsorcio) {
+        if (incluirAPagar || todosStatus) {
+          if (filter.eleicao) {
+            queries.push(queryAPagarEleicaoConsorcio);
+          } else {
+            if (filter.aPagar || todosStatus) queries.push(queryAPagarConsorcios);
+            if (filter.pendentes || (filter.erro && !filter.rejeitado && !filter.estorno) || todosStatus) queries.push(queryPendentesConsorcio);
+            if (filter.erro || todosStatus) queries.push(queryConsorcios);
+          }
         }
-      }
-      
-      if((filter.todosConsorcios && !filter.pendentes && !filter.aPagar && !filter.erro) || filter.pago || filter.pendenciaPaga || filter.emProcessamento ||filter.rejeitado || filter.estorno) {
-        if (filter.eleicao) {
-          queries.push(queryEleicaoConsorcio);
-        } else {
-          queries.push(queryConsorcios);
-        }
-      }
-    }
 
-    if (temFiltroVanzeiros) {
-      if (incluirAPagar || todosStatus) {
-        if (filter.eleicao) {
-          queries.push(queryAPagarEleicaoVanzeiro);
-        } else {
-          if (filter.aPagar || todosStatus) queries.push(queryAPagarVanzeiros);
-          if (filter.pendentes || (filter.erro && !filter.rejeitado && !filter.estorno) || todosStatus) queries.push(queryPendentesVanzeiro);
-          if (filter.erro  || todosStatus)queries.push(queryVanzeiros);
+        if((filter.todosConsorcios && !filter.pendentes && !filter.aPagar && !filter.erro) || filter.pago || filter.pendenciaPaga || filter.emProcessamento ||filter.rejeitado || filter.estorno) {
+          if (filter.eleicao) {
+            queries.push(queryEleicaoConsorcio);
+          } else {
+            queries.push(queryConsorcios);
+          }
         }
       }
-      
-     if((filter.todosVanzeiros && !filter.pendentes) || filter.pago || filter.pendenciaPaga || filter.emProcessamento ||filter.rejeitado || filter.estorno) {
+
+      if (temFiltroVanzeiros) {
+        if (incluirAPagar || todosStatus) {
+          if (filter.eleicao) {
+            queries.push(queryAPagarEleicaoVanzeiro);
+          } else {
+            if (filter.aPagar || todosStatus) queries.push(queryAPagarVanzeiros);
+            if (filter.pendentes || (filter.erro && !filter.rejeitado && !filter.estorno) || todosStatus) queries.push(queryPendentesVanzeiro);
+            if (filter.erro  || todosStatus)queries.push(queryVanzeiros);
+          }
+        }
+
+       if((filter.todosVanzeiros && !filter.pendentes) || filter.pago || filter.pendenciaPaga || filter.emProcessamento ||filter.rejeitado || filter.estorno) {
+          if (filter.eleicao) {
+            queries.push(queryEleicaoVanzeiro);
+          } else {
+            queries.push(queryVanzeiros);
+          }
+        }
+      }
+
+      if (!temFiltroVanzeiros && !temFiltroConsorcio) {
         if (filter.eleicao) {
           queries.push(queryEleicaoVanzeiro);
-        } else {
-          queries.push(queryVanzeiros);
         }
-      }
-    }
-
-    if (!temFiltroVanzeiros && !temFiltroConsorcio) {
-      if (filter.eleicao) {
-        queries.push(queryEleicaoVanzeiro);
       }
     }
 

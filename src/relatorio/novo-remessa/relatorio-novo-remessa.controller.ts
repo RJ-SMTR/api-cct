@@ -44,6 +44,7 @@ export class RelatorioNovoRemessaController {
   @ApiQuery({ name: 'eleicao', required: false, type: Boolean, description: ApiDescription({ _: 'eleicao', default: false }) })
   @ApiQuery({ name: 'desativados', required: false, type: Boolean, description: ApiDescription({ _: 'desativados', default: false }) })
   @ApiQuery({ name: 'pendentes', required: false, type: Boolean, description: ApiDescription({ _: 'pendentes', default: false }) })
+  @ApiQuery({ name: 'stucGratuidade', required: false, type: Boolean, description: ApiDescription({ _: 'stucGratuidade', default: false }) })
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'))
   @Get('consolidado')
@@ -71,11 +72,12 @@ export class RelatorioNovoRemessaController {
     @Query('pendentes', new ParseBooleanPipe({ optional: true })) pendentes: boolean | undefined,
     @Query('rejeitado', new ParseBooleanPipe({ optional: true })) rejeitado: boolean | undefined,
     @Query('estorno', new ParseBooleanPipe({ optional: true })) estorno: boolean | undefined,
-    @Query('pendenciaPaga', new ParseBooleanPipe({ optional: true })) pendenciaPaga: boolean | undefined
+    @Query('pendenciaPaga', new ParseBooleanPipe({ optional: true })) pendenciaPaga: boolean | undefined,
+    @Query('stucGratuidade', new ParseBooleanPipe({ optional: true })) stucGratuidade: boolean | undefined
   ) {
     try {
       const result = await this.relatorioNovoRemessaService.findConsolidado({
-        dataInicio, dataFim, userIds, consorcioNome, valorMin, valorMax, pago, aPagar, emProcessamento, erro, todosVanzeiros, todosConsorcios, eleicao, desativados, pendentes, rejeitado, estorno, pendenciaPaga
+        dataInicio, dataFim, userIds, consorcioNome, valorMin, valorMax, pago, aPagar, emProcessamento, erro, todosVanzeiros, todosConsorcios, eleicao, desativados, pendentes, rejeitado, estorno, pendenciaPaga, stucGratuidade
       });
       return result;
     } catch (e) {
