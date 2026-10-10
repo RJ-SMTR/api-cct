@@ -176,6 +176,7 @@ Fonte entre parênteses. Revisado por Matthew em 2026-09-30 (janelas de pagament
 
 - **Ciclo do usuário:** register → upload de planilha → concluir cadastro → ativo/inativo. **Histórico de email (convite):** queued → sent → used; reenvio pelo cron `bulkResendInvites` todo dia 15 às 11:45 BRT; `bulkSendInvites` usa a cron das settings e `bulkSendInvitesFixedTime` roda todo dia às 10:30 GMT (`docs/bilhetagem/estado-usuario-historico-email.drawio`).
 - **Upload de planilha (`POST /users/upload`) mitigado, não corrigido, contra as CVEs do `xlsx`** (ADR 0003, 2026-10-08). `xlsx.read`/`sheet_to_json` (`users.service.ts`) parseiam um arquivo controlado por quem faz upload; o pacote `xlsx` tem CVEs de Prototype Pollution/ReDoS sem fix no npm (TD-11). Mitigação: limite de 10 MB no `FileInterceptor`, sniff real de conteúdo (não só o `mimetype` do client, hoje falsificável) antes do parse, e isolamento do parse em `worker_thread` com timeout de 10s (necessário porque `xlsx.read` é síncrono e bloqueia a thread única do Node — um timeout sem worker não interrompe o bloqueio). O endpoint exige JWT mas não tem `@Roles`; se deveria restringir a admin ficou como pergunta em aberto, não resolvida aqui.
+- **Data dos dados bancários** (`user.bankDataUpdatedAt`, issue #1192): gravada sempre que o valor de `bankCode`, `bankAgency`, `bankAccount` ou `bankAccountDigit` muda de fato, inclusive no primeiro preenchimento; reenviar o mesmo valor não conta. `previousBankCode` continua sendo preenchido só na troca de banco. Na tela de Dados Bancários: sem `previousBankCode` → "Primeiro cadastro realizado em: `bankDataUpdatedAt`"; com `previousBankCode` → "Banco anterior" + "Última atualização em: `bankDataUpdatedAt`"; coluna `null` (nunca preencheu) → nenhuma data.
 
 ## Arquitetura em camadas
 
@@ -194,6 +195,7 @@ Não são impostos: acesso direto ao banco (`InjectRepository`, `DataSource`, `c
 - **Specs desabilitados de propósito.** `cron-jobs.service.spec.ts` (ignorado) e o cliente SFTP (8 blocos em `xdescribe`): SFTP e cron jobs nunca terão testes automatizados (TD-6, descartado). O gate também não enxerga testes pulados dentro de suítes que passam (TD-7).
 - **Código de pagamento em desenvolvimento ativo** (commits de 2026-09-29): o sincronismo de guardadores usa data fixa (`new Date('2026-09-29')`); o job `sincronizarEAgruparOrdensPagamentoGuardador` chama o método dos modais; em `submitCnabRemessa` o `return` está num `finally` e o caminho é definido antes do upload, então uma falha de upload pode deixar o header como `remessaEnviado`. São observações do código, não decisões.
 - **Lógica antiga de "sexta de pagamento" semanal é legado** (confirmado por Matthew em 2026-09-30: ninguém mais usa). A regra vigente é terça e sexta (`calcularPeriodoPagamento`). O código antigo ainda existe (`nextFriday` em `src/utils/payment-date-utils.ts`, DTOs, entidades, extrato e receitas): não o use como referência nem o estenda em código novo.
+- **Trigger `user_update_trigger` em `"user"`** (fora das migrations; capturado em `local_dev_example/sql/prod-routines.sql`): grava cada UPDATE em `user_changes_log`. A função `user_update_function` usa `OLD.permitCode` sem aspas e quebra com `record "old" has no field "permitcode"`; no banco local, com essa versão, todo UPDATE em `"user"` falha (visto em 2026-10-09). Não confirmado se produção tem a mesma função ou o trigger desativado. Migrations que fazem UPDATE em massa em `"user"` devem desativar o trigger e restaurar o estado (ex.: `1791300000000-AddBankDataUpdatedAtToUser`).
 
 ## Decisões
 
@@ -206,6 +208,7 @@ Não são impostos: acesso direto ao banco (`InjectRepository`, `DataSource`, `c
 - **Hook local** roda só build e specs relacionados aos arquivos staged; prettier não é imposto e eslint fica no CI.
 - **Documentos de trabalho do fluxo de IA** (`docs/PRD.md`, `docs/TASKS.md`, `docs/tasks/`, `docs/task-runs/`, `docs/archive/`) ficam fora do git. `CONTEXT.md`, `docs/adr/` e `docs/TECH-DEBT.md` são versionados.
 - **Trabalho refeito sobre a `main`** (2026-09-30): uma primeira versão foi feita sobre a `master`, que tem outra estrutura de pastas; foi descartada e refeita a partir da `main`.
+- **Uma única coluna de data bancária** (2026-10-09, Matthew, #1192). Rejeitado: duas colunas (`bankDataCreatedAt` + `bankDataUpdatedAt`). Limitação aceita: quem altera só agência/conta/dígito, sem trocar o banco, continua vendo "Primeiro cadastro realizado em", agora com a data dessa alteração. Backfill: `updatedAt` para quem tem `previousBankCode` e `createdAt` para quem tem dados bancários sem `previousBankCode` (as datas que a tela já mostrava), então a data de quem tinha `previousBankCode` é aproximada.
 
 ## Perguntas em aberto
 

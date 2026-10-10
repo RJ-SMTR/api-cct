@@ -389,9 +389,13 @@ export class UsersRepository {
     if (
       dataToUpdate.bankCode &&
       user.bankCode &&
-      dataToUpdate.bankCode !== user.bankCode
+      !this.isSameBankValue(dataToUpdate.bankCode, user.bankCode)
     ) {
       dataToUpdate.previousBankCode = user.bankCode;
+    }
+
+    if (this.hasBankDataChanged(user, dataToUpdate)) {
+      dataToUpdate.bankDataUpdatedAt = new Date();
     }
 
     // If email is different, update invite email
@@ -436,6 +440,22 @@ export class UsersRepository {
     }
 
     return 'Object failed passing through DTO';
+  }
+
+  /** True when any bank field sent in `dataToUpdate` differs from the stored value. */
+  private hasBankDataChanged(user: User, dataToUpdate: DeepPartial<User>): boolean {
+    const bankFields = ['bankCode', 'bankAgency', 'bankAccount', 'bankAccountDigit'] as const;
+    return bankFields.some(
+      (field) => field in dataToUpdate && !this.isSameBankValue(dataToUpdate[field], user[field]),
+    );
+  }
+
+  /**
+   * Bank values are compared as trimmed strings, so `104` equals `"104"` and
+   * `null`, `undefined` and `""` are the same (empty).
+   */
+  private isSameBankValue(a: unknown, b: unknown): boolean {
+    return String(a ?? '').trim() === String(b ?? '').trim();
   }
 
   /**

@@ -162,6 +162,9 @@ export class User extends EntityHelper {
   @Column({ type: Number, nullable: true })
   previousBankCode?: number;
 
+  @Column({ type: 'timestamp', nullable: true })
+  bankDataUpdatedAt?: Date | null;
+
   @ManyToMany(() => Lancamento, (lancamento) => lancamento)
   lancamentos: Lancamento[];
 

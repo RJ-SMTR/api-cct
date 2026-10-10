@@ -134,4 +134,98 @@ describe('UsersRepository', () => {
     );
     expect(typeormRepository.update).not.toHaveBeenCalled();
   });
+
+  describe('update: bankDataUpdatedAt (#1192)', () => {
+    const PREVIOUS_BANK_DATA_DATE = new Date('2026-01-10T10:00:00.000Z');
+
+    function existingUserWithBankData(overrides: Partial<User> = {}): User {
+      const user = new User({
+        id: 20,
+        email: 'favorecido@test.com',
+        phone: '21999999999',
+        mailHistories: [],
+        bankCode: 104,
+        bankAgency: '1234',
+        bankAccount: '56789',
+        bankAccountDigit: '0',
+        bankDataUpdatedAt: PREVIOUS_BANK_DATA_DATE,
+        ...overrides,
+      });
+      user.parseNewPassword = jest.fn().mockResolvedValue(undefined) as any;
+      return user;
+    }
+
+    async function updatePayloadFor(existingUser: User, dataToUpdate: Partial<User>): Promise<Partial<User>> {
+      jest.spyOn(usersRepository, 'getOne').mockResolvedValue(existingUser);
+      (validateDTO as jest.Mock).mockResolvedValue({});
+
+      await usersRepository.update(20, dataToUpdate, 'UsersRepositorySpec.update');
+
+      return (typeormRepository.update as jest.Mock).mock.calls[0][1];
+    }
+
+    it('should set bankDataUpdatedAt when only the bank agency changes', async () => {
+      const payload = await updatePayloadFor(existingUserWithBankData(), { bankAgency: '9999' });
+
+      expect(payload.bankDataUpdatedAt).toBeInstanceOf(Date);
+      expect(payload.bankDataUpdatedAt).not.toEqual(PREVIOUS_BANK_DATA_DATE);
+    });
+
+    it.each<[string, Partial<User>, Partial<User>]>([
+      ['the bank code changes', {}, { bankCode: 1 }],
+      ['only the bank account changes', {}, { bankAccount: '11111' }],
+      ['only the bank account digit changes', {}, { bankAccountDigit: '7' }],
+      [
+        'bank data is filled for the first time',
+        { bankCode: undefined, bankAgency: undefined, bankAccount: undefined, bankAccountDigit: undefined, bankDataUpdatedAt: null },
+        { bankCode: 104, bankAgency: '1234', bankAccount: '56789', bankAccountDigit: '0' },
+      ],
+    ])('should set bankDataUpdatedAt when %s', async (_case, existing, dataToUpdate) => {
+      const payload = await updatePayloadFor(existingUserWithBankData(existing), dataToUpdate);
+
+      expect(payload.bankDataUpdatedAt).toBeInstanceOf(Date);
+      expect(payload.bankDataUpdatedAt).not.toEqual(PREVIOUS_BANK_DATA_DATE);
+    });
+
+    it.each<[string, Partial<User>]>([
+      ['the same bank values are sent again', { bankCode: 104, bankAgency: '1234', bankAccount: '56789', bankAccountDigit: '0' }],
+      ['bank values differ only in type or surrounding spaces', { bankCode: '104' as any, bankAgency: ' 1234 ' }],
+      ['only non-bank fields change', { phone: '21888888888', email: 'novo@test.com' }],
+    ])('should not touch bankDataUpdatedAt when %s', async (_case, dataToUpdate) => {
+      const payload = await updatePayloadFor(existingUserWithBankData(), dataToUpdate);
+
+      expect(payload).not.toHaveProperty('bankDataUpdatedAt');
+    });
+
+    it('should keep the stored bankDataUpdatedAt when the whole unchanged user is sent back', async () => {
+      const existingUser = existingUserWithBankData();
+      const wholeUser = existingUserWithBankData({ phone: '21777777777' });
+
+      const payload = await updatePayloadFor(existingUser, wholeUser);
+
+      expect(payload.bankDataUpdatedAt).toEqual(PREVIOUS_BANK_DATA_DATE);
+    });
+
+    it('should keep previousBankCode as the old bank code only when the bank code changes', async () => {
+      const bankChange = await updatePayloadFor(existingUserWithBankData(), { bankCode: 1 });
+      expect(bankChange.previousBankCode).toBe(104);
+
+      (typeormRepository.update as jest.Mock).mockClear();
+      const agencyChange = await updatePayloadFor(existingUserWithBankData(), { bankAgency: '9999' });
+      expect(agencyChange).not.toHaveProperty('previousBankCode');
+    });
+
+    it.each<[string, Partial<User>, Partial<User>]>([
+      ['the same bank code is sent as a string', {}, { bankCode: '104' as any }],
+      [
+        'the bank code is filled for the first time',
+        { bankCode: undefined, bankDataUpdatedAt: null },
+        { bankCode: 104 },
+      ],
+    ])('should not set previousBankCode when %s', async (_case, existing, dataToUpdate) => {
+      const payload = await updatePayloadFor(existingUserWithBankData(existing), dataToUpdate);
+
+      expect(payload).not.toHaveProperty('previousBankCode');
+    });
+  });
 });
