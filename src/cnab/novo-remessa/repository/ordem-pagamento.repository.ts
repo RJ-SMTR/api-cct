@@ -42,7 +42,9 @@ export class OrdemPagamentoRepository {
 
 
   public async save(dto: DeepPartial<OrdemPagamento>): Promise<OrdemPagamento> {
-    const existing = await this.ordemPagamentoRepository.findOneBy({ id: dto.id });
+    // Identifica a ordem pelo id do BigQuery (bqId), nunca pelo id local: o id do BigQuery
+    // já colidiu com ids locais e a ordem nova era descartada como "já existe".
+    const existing = dto.bqId != null ? await this.ordemPagamentoRepository.findOneBy({ bqId: dto.bqId }) : null;
     if (existing) {
       // Ordem já sincronizada não é regravada; só o valorGratuidade é atualizado quando mudou.
       if (dto.valorGratuidade !== undefined) {
@@ -57,6 +59,21 @@ export class OrdemPagamentoRepository {
     }
     const createdOrdem = this.ordemPagamentoRepository.create(dto);
     return this.ordemPagamentoRepository.save(createdOrdem);
+  }
+
+  /**
+   * Converte ids locais de ordem_pagamento nos ids do BigQuery (bqId), que é o que as
+   * tabelas/consultas de transação usam. Ordens sem bqId (reimportadas) ficam de fora.
+   */
+  public async findBqIdsByIds(ids: number[]): Promise<number[]> {
+    if (!ids.length) {
+      return [];
+    }
+    const rows: { bqId: number }[] = await this.dataSource.query(
+      `SELECT "bqId" FROM ordem_pagamento WHERE id = ANY($1::int[]) AND "bqId" IS NOT NULL`,
+      [ids],
+    );
+    return rows.map((r) => Number(r.bqId));
   }
 
   public async findOne(fields: EntityCondition<OrdemPagamento>): Promise<Nullable<OrdemPagamento>> {

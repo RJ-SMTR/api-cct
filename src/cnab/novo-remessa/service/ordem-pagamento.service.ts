@@ -1,4 +1,4 @@
-import { HttpException, Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { BigqueryOrdemPagamentoDTO } from 'src/bigquery/dtos/bigquery-ordem-pagamento.dto';
 import { BigqueryOrdemPagamentoService } from 'src/bigquery/services/bigquery-ordem-pagamento.service';
 import { UsersService } from 'src/users/users.service';
@@ -11,11 +11,28 @@ import { OrdemPagamentoMensalDto } from '../dto/ordem-pagamento-mensal.dto';
 import { OrdemPagamentoPendenteNuncaRemetidasDto } from '../dto/ordem-pagamento-pendente-nunca-remetidas.dto';
 import { OrdemPagamentoAgrupadoMensalDto } from '../dto/ordem-pagamento-agrupado-mensal.dto';
 import { replaceUndefinedWithNull } from '../../../utils/type-utils';
-import { endOfDay, startOfDay } from 'date-fns';
+import { endOfDay, isValid, startOfDay } from 'date-fns';
 import { OrdemPagamento } from '../entity/ordem-pagamento.entity';
 import { BigqueryOrdemPagamentoGuardadorDTO } from 'src/bigquery/dtos/bigquery-ordem-pagamento-guardador.dto';
 import { OrdemPagamentoGuardadorRepository } from '../repository/ordem-pagamento-guardador.repository';
 import { OrdemPagamentoGuardador } from '../entity/ordem-pagamento-guardador.entity';
+
+/** Mesma lista sincronizada pelo cron (CronJobsService.CONSORCIOS + MODAIS). */
+export const CONSORCIOS_E_MODAIS_SINCRONIZADOS = [
+  'VLT', 'Intersul', 'Transcarioca', 'Internorte', 'MobiRio', 'Santa Cruz', 'MOBI-Rio BUM', 'TUSE', 'GTU',
+  'STPC', 'STPL', 'TEC',
+];
+
+/** Limite de dias do sincronismo manual, para uma chamada não varrer o BigQuery inteiro. */
+export const MAX_DIAS_SINCRONISMO_MANUAL = 31;
+
+export interface ResultadoSincronismoOrdens {
+  dataInicio: string;
+  dataFim: string;
+  encontradasNoBigQuery: number;
+  inseridas: number;
+  puladoPorContagemIgual: boolean;
+}
 
 @Injectable()
 export class OrdemPagamentoService {
@@ -27,16 +44,41 @@ export class OrdemPagamentoService {
     private ordemPagamentoGuardadorRepository: OrdemPagamentoGuardadorRepository,
     private bigqueryOrdemPagamentoService: BigqueryOrdemPagamentoService, private usersService: UsersService) { }
 
-  async sincronizarOrdensPagamento(dataCapturaInicialDate: Date, dataCapturaFinalDate: Date, consorcio: string[]) {
+  /** Ids locais de ordem_pagamento -> ids do BigQuery, para consultar transações. */
+  async converterParaBqIds(ids: (number | undefined)[]): Promise<number[]> {
+    return this.ordemPagamentoRepository.findBqIdsByIds(ids.filter((id): id is number => id != null).map(Number));
+  }
+
+  /**
+   * Busca no BigQuery as ordens capturadas entre as datas (pela data de captura) e grava as que
+   * ainda não existem localmente (identificadas por bqId). É idempotente: reexecutar não duplica.
+   *
+   * @param forcar ignora o atalho "número de ordens local == BigQuery", que deixa passar uma ordem
+   *               faltante quando a contagem local por acaso bate com a do BigQuery.
+   */
+  async sincronizarOrdensPagamento(
+    dataCapturaInicialDate: Date,
+    dataCapturaFinalDate: Date,
+    consorcio: string[],
+    forcar = false,
+  ): Promise<ResultadoSincronismoOrdens> {
     const METHOD = 'sincronizarOrdensPagamento';
     const ordens = await this.bigqueryOrdemPagamentoService.getFromWeek(dataCapturaInicialDate, dataCapturaFinalDate, 0, { consorcioName: consorcio });
 
     const numOrdensSemana = await this.findNumeroDeOrdensPorIntervalo(startOfDay(dataCapturaInicialDate), endOfDay(dataCapturaFinalDate));
     // Verifica se a ultima data de captura é igual a data atual
     // E se o número de ordens é diferente.
-    if (numOrdensSemana === ordens.length) {
+    const resultado: ResultadoSincronismoOrdens = {
+      dataInicio: dataCapturaInicialDate.toISOString().slice(0, 10),
+      dataFim: dataCapturaFinalDate.toISOString().slice(0, 10),
+      encontradasNoBigQuery: ordens.length,
+      inseridas: 0,
+      puladoPorContagemIgual: false,
+    };
+    if (!forcar && numOrdensSemana === ordens.length) {
       this.logger.log(`Já foi feita a captura de ordens de pagamento para o dia de hoje.`, METHOD);
-      return;
+      resultado.puladoPorContagemIgual = true;
+      return resultado;
     }
 
     this.logger.debug(`Iniciando sincronismo de ${ordens.length} ordens`, METHOD);
@@ -71,6 +113,28 @@ export class OrdemPagamentoService {
       }
     }
     this.logger.debug(`Sincronizado ${ordens.length} ordens`, METHOD);
+    const depois = await this.findNumeroDeOrdensPorIntervalo(startOfDay(dataCapturaInicialDate), endOfDay(dataCapturaFinalDate));
+    resultado.inseridas = Math.max(0, (depois ?? numOrdensSemana ?? 0) - (numOrdensSemana ?? 0));
+    return resultado;
+  }
+
+  /**
+   * Sincronismo manual de um intervalo de datas de captura, para recuperar ordens que o cron não
+   * trouxe (janela errada, ordem gerada depois). Sempre força a busca e aceita no máximo
+   * MAX_DIAS_SINCRONISMO_MANUAL dias. Não agrupa nada: o agrupamento continua sendo o fluxo normal.
+   */
+  async sincronizarOrdensPorPeriodo(dataInicio: Date, dataFim: Date, consorcio?: string[]): Promise<ResultadoSincronismoOrdens> {
+    if (!isValid(dataInicio) || !isValid(dataFim)) {
+      throw new HttpException({ error: 'Datas inválidas.' }, HttpStatus.BAD_REQUEST);
+    }
+    if (dataInicio > dataFim) {
+      throw new HttpException({ error: 'dataInicio deve ser menor ou igual a dataFim.' }, HttpStatus.BAD_REQUEST);
+    }
+    const dias = Math.round((dataFim.getTime() - dataInicio.getTime()) / 86_400_000) + 1;
+    if (dias > MAX_DIAS_SINCRONISMO_MANUAL) {
+      throw new HttpException({ error: `O período máximo é de ${MAX_DIAS_SINCRONISMO_MANUAL} dias (pedido: ${dias}).` }, HttpStatus.BAD_REQUEST);
+    }
+    return this.sincronizarOrdensPagamento(dataInicio, dataFim, consorcio?.length ? consorcio : CONSORCIOS_E_MODAIS_SINCRONIZADOS, true);
   }
 
   async sincronizarOrdensPagamentoGuardador(dataCapturaInicialDate: Date, dataCapturaFinalDate: Date) {
