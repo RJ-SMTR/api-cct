@@ -15,7 +15,9 @@ import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { InvalidRows } from 'src/utils/types/invalid-rows.type';
 import { PaginationOptions } from 'src/utils/types/pagination-options';
 import { DeepPartial, FindManyOptions } from 'typeorm';
+import * as path from 'path';
 import * as xlsx from 'xlsx';
+import { runWithWorkerTimeout, WorkerTimeoutError } from 'src/utils/worker-thread/run-with-worker-timeout';
 import { CreateUserFileDto } from './dto/create-user-file.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { User } from './entities/user.entity';
@@ -32,6 +34,12 @@ export enum userUploadEnum {
   DUPLICATED_FIELD = 'Campo duplicado no arquivo de upload',
   FIELD_EXISTS = 'Campo existe no banco de dados',
 }
+
+// Points at the compiled sibling .js (nest-cli's default tsc builder writes dist/ for both
+// start:dev and start:prod), so this resolves correctly in dev and prod; it is never hit in
+// Jest, where runWithWorkerTimeout is mocked as a boundary (see users.service.spec.ts).
+const WORKSHEET_PARSER_WORKER_PATH = path.join(__dirname, 'workers', 'worksheet-parser.worker.js');
+const WORKSHEET_PARSER_TIMEOUT_MS = 10_000;
 
 const AGENT_PRIVILEGED_EDITOR_EMAILS = new Set([
   'jessicasimas.smtr@gmail.com',
@@ -163,7 +171,7 @@ export class UsersService {
 
   async createFromFile(file: Express.Multer.File, requestUser?: DeepPartial<User>): Promise<IUserUploadResponse> {
     const reqUser = new User(requestUser);
-    const worksheet = this.getWorksheetFromFile(file);
+    const worksheet = await this.getWorksheetFromFile(file);
     const fileUsers = await this.getUserFilesFromWorksheet(worksheet);
     const invalidUsers = fileUsers.filter((i) => Object.keys(i.errors).length > 0);
     const validUsers = fileUsers.filter((i) => Object.keys(i.errors).length === 0);
@@ -242,7 +250,7 @@ export class UsersService {
     return result;
   }
 
-  private getWorksheetFromFile(file: Express.Multer.File): xlsx.WorkSheet {
+  private async getWorksheetFromFile(file: Express.Multer.File): Promise<xlsx.WorkSheet> {
     if (!file) {
       throw new HttpException(
         {
@@ -254,19 +262,18 @@ export class UsersService {
       );
     }
 
-    let worksheet: xlsx.WorkSheet | undefined = undefined;
-
     try {
-      const workbook = xlsx.read(file.buffer, {
-        type: 'buffer',
-        codepage: 65001 /* UTF8 */,
-      });
-      const sheetName = workbook.SheetNames[0];
-      worksheet = workbook.Sheets[sheetName];
+      return await runWithWorkerTimeout<xlsx.WorkSheet>(
+        WORKSHEET_PARSER_WORKER_PATH,
+        file.buffer,
+        WORKSHEET_PARSER_TIMEOUT_MS,
+      );
     } catch (error) {
+      if (error instanceof WorkerTimeoutError) {
+        throw new HttpException(`Timeout parsing file`, HttpStatus.REQUEST_TIMEOUT);
+      }
       throw new HttpException(`Error parsing file`, HttpStatus.INTERNAL_SERVER_ERROR);
     }
-    return worksheet;
   }
 
   async getUserFilesFromWorksheet(worksheet: xlsx.WorkSheet): Promise<IFileUser[]> {

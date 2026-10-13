@@ -48,6 +48,34 @@ export class FinancialMovementQueryDto {
   cursorCpfCnpj?: string;
 
   @ApiPropertyOptional({
+    description: 'Cursor (Guardador apenas): nomeConsorcio. Necessário para desempatar linhas com dataReferencia/nomes/status/cpfCnpj iguais.',
+    type: String,
+  })
+  @IsOptional()
+  @IsString()
+  cursorNomeConsorcio?: string;
+
+  @ApiPropertyOptional({ description: 'Cursor (Guardador apenas): codBanco.', type: String })
+  @IsOptional()
+  @IsString()
+  cursorCodBanco?: string;
+
+  @ApiPropertyOptional({ description: 'Cursor (Guardador apenas): dataPagamento (valor opaco devolvido em nextCursor).', type: String })
+  @IsOptional()
+  @IsString()
+  cursorDataPagamento?: string;
+
+  @ApiPropertyOptional({ description: 'Cursor (Guardador apenas): codigoErro.', type: String })
+  @IsOptional()
+  @IsString()
+  cursorCodigoErro?: string;
+
+  @ApiPropertyOptional({ description: 'Cursor (Guardador apenas): email.', type: String })
+  @IsOptional()
+  @IsString()
+  cursorEmail?: string;
+
+  @ApiPropertyOptional({
     description: 'Pesquisa o nome parcial dos consórcios, sem distinção de acento ou maiúsculas. Para STPC/STPL, agrupa todos os vanzeiros sob o consórcio.',
     type: String,
     isArray: true,
@@ -105,6 +133,14 @@ export class FinancialMovementQueryDto {
   @IsBoolean()
   @Transform(({ value }) => value === 'true' || value === true)
   pendentes?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Pesquisa pagamentos de STUC - Gratuidade (ordem_pagamento.valorGratuidade).', default: false
+  })
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) => value === 'true' || value === true)
+  stucGratuidade?: boolean;
 
   @ApiPropertyOptional({
     description: 'Pesquisa o id dos usuários.',

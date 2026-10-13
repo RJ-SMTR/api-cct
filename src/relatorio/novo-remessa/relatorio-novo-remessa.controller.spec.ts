@@ -11,6 +11,7 @@ import { FinancialMovementExportFormat } from '../dtos/financial-movement-export
 describe('RelatorioNovoRemessaController', () => {
   let controller: RelatorioNovoRemessaController;
   let financialMovementService: RelatorioNovoRemessaFinancialMovementService;
+  let novoRemessaService: RelatorioNovoRemessaService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -18,7 +19,7 @@ describe('RelatorioNovoRemessaController', () => {
       providers: [
         {
           provide: RelatorioNovoRemessaService,
-          useValue: {},
+          useValue: { findConsolidado: jest.fn() },
         },
         {
           provide: RelatorioNovoRemessaFinancialMovementService,
@@ -34,6 +35,7 @@ describe('RelatorioNovoRemessaController', () => {
     financialMovementService = module.get<RelatorioNovoRemessaFinancialMovementService>(
       RelatorioNovoRemessaFinancialMovementService,
     );
+    novoRemessaService = module.get<RelatorioNovoRemessaService>(RelatorioNovoRemessaService);
   });
 
   afterEach(() => {
@@ -88,6 +90,36 @@ describe('RelatorioNovoRemessaController', () => {
     );
     expect(financialMovementService.removeGeneratedExportFile).toHaveBeenCalledWith(
       generatedFile.filePath,
+    );
+  });
+
+  it('passes stucGratuidade through to findConsolidado', async () => {
+    jest.spyOn(novoRemessaService, 'findConsolidado').mockResolvedValue({} as any);
+
+    await controller.getConsolidado(
+      new Date('2026-04-01'),
+      new Date('2026-04-22'),
+      undefined, // userIds
+      undefined, // consorcioNome
+      undefined, // valorMin
+      undefined, // valorMax
+      undefined, // pago
+      undefined, // aPagar
+      undefined, // emProcessamento
+      undefined, // erro
+      undefined, // todosVanzeiros
+      undefined, // todosConsorcios
+      undefined, // eleicao
+      undefined, // desativados
+      undefined, // pendentes
+      undefined, // rejeitado
+      undefined, // estorno
+      undefined, // pendenciaPaga
+      true, // stucGratuidade
+    );
+
+    expect(novoRemessaService.findConsolidado).toHaveBeenCalledWith(
+      expect.objectContaining({ stucGratuidade: true }),
     );
   });
 });

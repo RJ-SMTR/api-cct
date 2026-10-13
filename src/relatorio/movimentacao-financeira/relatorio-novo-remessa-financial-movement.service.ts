@@ -12,6 +12,9 @@ import {
   buildPendentesQuery,
   buildPendenciaPagamentoSingleDateQuery,
   buildPendenciaPagaSingleDateQuery,
+  buildStucGratuidadeQuery,
+  buildStucGratuidadePendenciaPagaSingleDateQuery,
+  buildStucGratuidadePendenciaPagamentoSingleDateQuery,
 } from '../novo-remessa/queries/novo-remessa-query-builder';
 import { IFindPublicacaoRelatorioNovoFinancialMovement } from '../interfaces/filter-publicacao-relatorio-novo-financial-movement.interface';
 import {
@@ -33,7 +36,7 @@ type ResolvedStatuses = {
   baseStatuses: string[] | null;
   includePendentes: boolean;
   includeBase: boolean;
-  includePendenciaPagaSingleDate: boolean;
+  includePendenciaPaga: boolean;
   parentErrorStatusesSingleDate: Array<StatusPagamento.ERRO_ESTORNO | StatusPagamento.ERRO_REJEITADO>;
 };
 
@@ -42,7 +45,29 @@ type CursorValues = {
   nome: string | null;
   status: string | null;
   cpfCnpj: string | null;
+  // Tie-breakers: "grouped" aggregates by more columns than the 4 above, so two grouped
+  // rows can share the same (dataReferencia, nomes, status, cpfCnpj) tuple (e.g. the same
+  // favorecido paid under two different consórcios on the same date/status). Without these,
+  // a page boundary landing inside such a tie silently drops the remaining rows.
+  nomeConsorcio: string | null;
+  codBanco: string | null;
+  dataPagamento: string | null;
+  email: string | null;
 };
+
+// Tuple columns shared by the ORDER BY and the keyset WHERE comparison. COALESCE avoids
+// Postgres row-comparison returning NULL (and silently excluding the row) whenever a
+// tie-breaker column is NULL.
+const CURSOR_TUPLE_COLUMNS = `
+  g."dataReferencia",
+  g.nomes,
+  g.status,
+  g."cpfCnpj",
+  COALESCE(g."nomeConsorcio", ''),
+  COALESCE(g."codBanco"::text, ''),
+  COALESCE(to_char(g."dataPagamento", 'YYYY-MM-DD"T"HH24:MI:SS'), ''),
+  COALESCE(g.email, '')
+`;
 
 @Injectable()
 export class RelatorioNovoRemessaFinancialMovementService {
@@ -122,19 +147,44 @@ export class RelatorioNovoRemessaFinancialMovementService {
       ${query}
       AND (
         $8::text IS NULL
-        OR (g."dataReferencia", g.nomes, g.status, g."cpfCnpj") > (to_date($8, 'DD/MM/YYYY'), $9::text, $10::text, $11::text)
+        OR (${CURSOR_TUPLE_COLUMNS}) > (
+          to_date($8, 'DD/MM/YYYY'), $9::text, $10::text, $11::text,
+          COALESCE($13::text, ''), COALESCE($14::text, ''), COALESCE($15::text, ''), COALESCE($16::text, '')
+        )
       )
-      ORDER BY g."dataReferencia" ASC, g.nomes ASC, g.status ASC, g."cpfCnpj" ASC
+      ORDER BY ${CURSOR_TUPLE_COLUMNS}
       LIMIT $12
     `;
-    const dataParams = [...params, cursor.dataReferencia, cursor.nome, cursor.status, cursor.cpfCnpj, pageSize];
+    const dataParams = [
+      ...params,
+      cursor.dataReferencia,
+      cursor.nome,
+      cursor.status,
+      cursor.cpfCnpj,
+      pageSize,
+      cursor.nomeConsorcio,
+      cursor.codBanco,
+      cursor.dataPagamento,
+      cursor.email,
+    ];
     const [rows, summary] = await Promise.all([
       this.executeQuery(dataQuery, dataParams, 'PAGE'),
       this.findFinancialMovementSummary(safeFilter),
     ]);
     const data = rows.map((row) => new RelatorioFinancialMovementNovoRemessaData(row));
     const lastRow = rows?.[rows.length - 1];
-    const nextCursor = lastRow? { dataReferencia: lastRow.dataReferencia, nomes: lastRow.nomes, status: lastRow.status, cpfCnpj: lastRow.cpfCnpj } : null;
+    const nextCursor = lastRow
+      ? {
+          dataReferencia: lastRow.dataReferencia,
+          nomes: lastRow.nomes,
+          status: lastRow.status,
+          cpfCnpj: lastRow.cpfCnpj,
+          nomeConsorcio: lastRow.consorcio,
+          codBanco: lastRow.codBanco,
+          dataPagamento: lastRow.dataPagamentoCursor,
+          email: lastRow.email,
+        }
+      : null;
     return new RelatorioFinancialMovementNovoRemessaPageDto({
       ...summary,
       currentPage,
@@ -146,14 +196,32 @@ export class RelatorioNovoRemessaFinancialMovementService {
 
   public async streamFinancialMovementRows(filter: IFindPublicacaoRelatorioNovoFinancialMovement, onRow: (row: RelatorioFinancialMovementNovoRemessaData) => Promise<void> | void) {
     const safeFilter = this.normalizeFilter(filter);
-    let cursor: CursorValues = { dataReferencia: null, nome: null, status: null, cpfCnpj: null };
+    let cursor: CursorValues = {
+      dataReferencia: null,
+      nome: null,
+      status: null,
+      cpfCnpj: null,
+      nomeConsorcio: null,
+      codBanco: null,
+      dataPagamento: null,
+      email: null,
+    };
     const batchSize = 500;
     while (true) {
       const rows = await this.findFinancialMovementBatchRows(safeFilter, cursor, batchSize, 'EXPORT');
       if (!rows.length) break;
       for (const row of rows) await onRow(new RelatorioFinancialMovementNovoRemessaData(row));
       const lastRow = rows[rows.length - 1];
-      cursor = { dataReferencia: lastRow.dataReferencia, nome: lastRow.nomes, status: lastRow.status, cpfCnpj: lastRow.cpfCnpj };
+      cursor = {
+        dataReferencia: lastRow.dataReferencia,
+        nome: lastRow.nomes,
+        status: lastRow.status,
+        cpfCnpj: lastRow.cpfCnpj,
+        nomeConsorcio: lastRow.consorcio,
+        codBanco: lastRow.codBanco,
+        dataPagamento: lastRow.dataPagamentoCursor,
+        email: lastRow.email,
+      };
       if (rows.length < batchSize) break;
     }
   }
@@ -196,14 +264,36 @@ export class RelatorioNovoRemessaFinancialMovementService {
     const groupedCte = this.buildGroupedCte(finalBaseQuery);
     return {
       params,
-      query: `${groupedCte} SELECT to_char(g."dataReferencia" AT TIME ZONE 'America/Sao_Paulo','DD/MM/YYYY') AS "dataReferencia", to_char(g."dataPagamento" AT TIME ZONE 'America/Sao_Paulo','DD/MM/YYYY') AS "dataPagamento", g.nomes, g.email, g."codBanco", g."nomeBanco", g."cpfCnpj", g."nomeConsorcio" AS consorcio, g.valor, g.status, g."codigoErro" FROM grouped g WHERE 1=1 AND ($6::numeric IS NULL OR g.valor >= $6::numeric) AND ($7::numeric IS NULL OR g.valor <= $7::numeric)`,
+      query: `${groupedCte} SELECT to_char(g."dataReferencia" AT TIME ZONE 'America/Sao_Paulo','DD/MM/YYYY') AS "dataReferencia", to_char(g."dataPagamento" AT TIME ZONE 'America/Sao_Paulo','DD/MM/YYYY') AS "dataPagamento", g.nomes, g.email, g."codBanco", g."nomeBanco", g."cpfCnpj", g."nomeConsorcio" AS consorcio, g.valor, g.status, g."codigoErro", to_char(g."dataPagamento", 'YYYY-MM-DD"T"HH24:MI:SS') AS "dataPagamentoCursor" FROM grouped g WHERE 1=1 AND ($6::numeric IS NULL OR g.valor >= $6::numeric) AND ($7::numeric IS NULL OR g.valor <= $7::numeric)`,
     };
   }
 
   private async findFinancialMovementBatchRows(filter: NormalizedFilter, cursor: CursorValues, limit: number, label: string) {
     const { query, params } = this.buildBaseDataQuery(filter);
-    const dataQuery = `${query} AND ($8::text IS NULL OR (g."dataReferencia", g.nomes, g.status, g."cpfCnpj") > (to_date($8,'DD/MM/YYYY'), $9::text, $10::text, $11::text)) ORDER BY g."dataReferencia" ASC, g.nomes ASC, g.status ASC, g."cpfCnpj" ASC LIMIT $12`;
-    return this.executeQuery(dataQuery, [...params, cursor.dataReferencia, cursor.nome, cursor.status, cursor.cpfCnpj, limit], label);
+    const dataQuery = `
+      ${query}
+      AND (
+        $8::text IS NULL
+        OR (${CURSOR_TUPLE_COLUMNS}) > (
+          to_date($8, 'DD/MM/YYYY'), $9::text, $10::text, $11::text,
+          COALESCE($13::text, ''), COALESCE($14::text, ''), COALESCE($15::text, ''), COALESCE($16::text, '')
+        )
+      )
+      ORDER BY ${CURSOR_TUPLE_COLUMNS}
+      LIMIT $12
+    `;
+    return this.executeQuery(dataQuery, [
+      ...params,
+      cursor.dataReferencia,
+      cursor.nome,
+      cursor.status,
+      cursor.cpfCnpj,
+      limit,
+      cursor.nomeConsorcio,
+      cursor.codBanco,
+      cursor.dataPagamento,
+      cursor.email,
+    ], label);
   }
 
   private normalizeFilter(filter: IFindPublicacaoRelatorioNovoFinancialMovement): NormalizedFilter {
@@ -212,28 +302,39 @@ export class RelatorioNovoRemessaFinancialMovementService {
 
   private resolveStatuses(filter: NormalizedFilter): ResolvedStatuses {
     const all = this.getStatusParaFiltro(filter);
-    if (!all?.length) return { baseStatuses: null, includePendentes: false, includeBase: true, includePendenciaPagaSingleDate: false, parentErrorStatusesSingleDate: [] };
+    if (!all?.length) return { baseStatuses: null, includePendentes: false, includeBase: true, includePendenciaPaga: false, parentErrorStatusesSingleDate: [] };
     const isSingle = this.isSingleDate(filter);
     const includePendentes = all.includes(StatusPagamento.PENDENTES);
-    const includePendenciaPagaSingleDate = isSingle && all.includes(StatusPagamento.PENDENCIA_PAGA);
+    // Pendencia Paga é consultada pela data de pagamento em qualquer intervalo (ADR 0001), não só em dia único.
+    const includePendenciaPaga = all.includes(StatusPagamento.PENDENCIA_PAGA);
     const parentErrorStatusesSingleDate = isSingle
       ? all.filter((status): status is StatusPagamento.ERRO_ESTORNO | StatusPagamento.ERRO_REJEITADO => status === StatusPagamento.ERRO_ESTORNO || status === StatusPagamento.ERRO_REJEITADO)
       : [];
     let baseStatuses = all.filter((s) => s!== StatusPagamento.PENDENTES);
-    // Pendencia Paga só existe em data única (pela data de pagamento): fora dela não entra na base por vencimento.
-    if (!isSingle) baseStatuses = baseStatuses.filter((s) => s!== StatusPagamento.PENDENCIA_PAGA);
-    if (includePendenciaPagaSingleDate) baseStatuses = baseStatuses.filter((s) => s!== StatusPagamento.PENDENCIA_PAGA);
+    // Pendencia Paga nunca pertence à base por vencimento (ela é identificada pela data de pagamento).
+    baseStatuses = baseStatuses.filter((s) => s!== StatusPagamento.PENDENCIA_PAGA);
     baseStatuses = baseStatuses.filter((s) => !parentErrorStatusesSingleDate.includes(s as StatusPagamento.ERRO_ESTORNO | StatusPagamento.ERRO_REJEITADO));
-    return { baseStatuses: baseStatuses.length? baseStatuses : null, includePendentes, includeBase: baseStatuses.length > 0, includePendenciaPagaSingleDate, parentErrorStatusesSingleDate };
+    return { baseStatuses: baseStatuses.length? baseStatuses : null, includePendentes, includeBase: baseStatuses.length > 0, includePendenciaPaga, parentErrorStatusesSingleDate };
   }
 
   private buildFinalBaseQuery(filter: NormalizedFilter, statuses: ResolvedStatuses): string {
     const raw = (() => {
+      // STUC - Gratuidade lê de uma fonte diferente (valorGratuidade / agrupamento de
+      // gratuidade), mutuamente exclusiva com Eleição/Desativados/Pendentes na UI. Nunca
+      // inclui buildPendentesQuery: "OPs atrasadas" não existe para esse fluxo.
+      if (filter.stucGratuidade) {
+        const q: string[] = [];
+        if (statuses.includeBase) q.push(this.buildStucGratuidadeQuery(filter));
+        if (statuses.includePendenciaPaga) q.push(this.buildStucGratuidadePendenciaPagaSingleDateQuery(filter));
+        if (statuses.parentErrorStatusesSingleDate.length) q.push(this.buildStucGratuidadePendenciaPagamentoSingleDateQuery(filter, statuses.parentErrorStatusesSingleDate));
+        if (!q.length) return `${this.buildStucGratuidadeQuery(filter)} AND FALSE`;
+        return q.join('\nUNION ALL\n');
+      }
       if (filter.eleicao &&!this.hasOtherStatusFilters(filter)) return this.buildEleicaoQuery(filter);
       const q: string[] = [];
       if (filter.eleicao) q.push(this.buildEleicaoQuery(filter));
       if (statuses.includeBase) q.push(this.buildBaseQuery(filter));
-      if (statuses.includePendenciaPagaSingleDate) q.push(this.buildPendenciaPagaSingleDateQuery(filter));
+      if (statuses.includePendenciaPaga) q.push(this.buildPendenciaPagaSingleDateQuery(filter));
       if (statuses.parentErrorStatusesSingleDate.length) q.push(this.buildPendenciaPagamentoSingleDateQuery(filter, statuses.parentErrorStatusesSingleDate));
       if (statuses.includePendentes) q.push(this.buildPendentesQuery(filter));
       // Nenhuma consulta selecionada para o filtro: não deve trazer linhas (antes caía em todos os status).
@@ -254,6 +355,15 @@ export class RelatorioNovoRemessaFinancialMovementService {
   private buildEleicaoQuery(filter: NormalizedFilter): string {
     return `${buildEleicaoQuery({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5 }).trim()} ${filter.desativados? 'AND pu.bloqueado = true' : ''}`;
   }
+  private buildStucGratuidadeQuery(filter: NormalizedFilter): string {
+    return `${buildStucGratuidadeQuery({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5 }).trim()} ${filter.desativados? 'AND pu.bloqueado = true' : ''}`;
+  }
+  private buildStucGratuidadePendenciaPagaSingleDateQuery(filter: NormalizedFilter): string {
+    return `${buildStucGratuidadePendenciaPagaSingleDateQuery({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5 }).trim()} ${filter.desativados? 'AND pu.bloqueado = true' : ''}`;
+  }
+  private buildStucGratuidadePendenciaPagamentoSingleDateQuery(filter: NormalizedFilter, statuses: Array<StatusPagamento.ERRO_ESTORNO | StatusPagamento.ERRO_REJEITADO>): string {
+    return `${buildStucGratuidadePendenciaPagamentoSingleDateQuery({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5, parentErrorStatuses: statuses }).trim()} ${filter.desativados ? 'AND pu.bloqueado = true' : ''}`;
+  }
   private buildPendentesQuery(filter: NormalizedFilter): string {
     return `${buildPendentesQuery({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5 } as any).trim()} ${filter.desativados? 'AND pu.bloqueado = true' : ''}`;
   }
@@ -271,8 +381,17 @@ export class RelatorioNovoRemessaFinancialMovementService {
   }
   private resolveCursor(filter: NormalizedFilter): CursorValues {
     const has = Boolean(filter.cursorDataReferencia) && Boolean(filter.cursorNome) && Boolean(filter.cursorStatus) && Boolean(filter.cursorCpfCnpj);
-    if (!has) return { dataReferencia: null, nome: null, status: null, cpfCnpj: null };
-    return { dataReferencia: filter.cursorDataReferencia?? null, nome: filter.cursorNome?? null, status: filter.cursorStatus?? null, cpfCnpj: filter.cursorCpfCnpj?? null };
+    if (!has) return { dataReferencia: null, nome: null, status: null, cpfCnpj: null, nomeConsorcio: null, codBanco: null, dataPagamento: null, email: null };
+    return {
+      dataReferencia: filter.cursorDataReferencia?? null,
+      nome: filter.cursorNome?? null,
+      status: filter.cursorStatus?? null,
+      cpfCnpj: filter.cursorCpfCnpj?? null,
+      nomeConsorcio: filter.cursorNomeConsorcio?? null,
+      codBanco: filter.cursorCodBanco?? null,
+      dataPagamento: filter.cursorDataPagamento?? null,
+      email: filter.cursorEmail?? null,
+    };
   }
   private getStatusParaFiltro(filter: any): string[] | null {
     const statuses: string[] = [];
