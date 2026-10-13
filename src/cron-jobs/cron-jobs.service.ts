@@ -1004,8 +1004,8 @@ export class CronJobsService {
         dataPagamento = dataHoje
       }
       
-      dataInicio = new Date('2026-10-08')
-      dataFim = new Date('2026-10-13')
+      dataInicio = new Date('2026-10-09')
+      dataFim = new Date('2026-10-10')
       dataPagamento = new Date('2026-10-13')
 
       this.logger.log(
