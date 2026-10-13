@@ -26,6 +26,7 @@ Registro único do que foi adiado de propósito, por quê e por quem. Serve para
 | [TD-9](#td-9) | Pagamento depende de editar o código e fazer deploy | aberto | Matthew | 2026-09-30 |
 | [TD-10](#td-10) | Baseline de eslint relaxada para `cron-jobs` e `ordem-pagamento-agrupado` | aberto | Rayanne | 2026-10-06 |
 | [TD-11](#td-11) | Vulnerabilidades de dependências não tratadas (npm audit / Dependabot) | aberto | Rayanne | 2026-10-08 |
+| [TD-12](#td-12) | `cron-jobs-pendentes.spec` quebrado na `main` bloqueia o pre-commit | aberto | Matthew | 2026-10-09 |
 
 ## Entradas
 
@@ -135,3 +136,12 @@ Registro único do que foi adiado de propósito, por quê e por quem. Serve para
 - **Impacto/risco:** o item concreto é `xlsx` recebendo arquivo de upload de usuário sem patch disponível (Prototype Pollution/ReDoS explorável por arquivo malicioso). O restante é risco difuso de biblioteca desatualizada; o maior bloco de esforço é o upgrade de `@nestjs/*` 9→12, que arrasta `multer`, `typeorm`-adjacentes e outros.
 - **Critério de pagamento:** `xlsx` substituído ou mitigado (ex.: validação/sandboxing do arquivo antes do parse, ou troca de biblioteca); fixes não-breaking do Tier 1 aplicados; decisão tomada (manter, trocar ou remover) sobre `twitter`/`fb` conforme uso real do login social; `npm audit` sem CRITICAL/HIGH em dependências de produção (`dependencies`, não `devDependencies`).
 - **Progresso parcial (2026-10-08, commit `295faeb4`):** `handlebars` 4.7.7→4.7.10 e `typeorm` 0.3.16→0.3.31 atualizados (bumps não-major, dentro do range já aceito); `proxy-addr` 2.0.7→2.0.8 resolvido só com `npm update` (estava defasado no lockfile, `express` já aceitava a versão corrigida). `npm audit` caiu de 144 para 141 vulnerabilidades (5→3 críticas). `fast-xml-parser` segue sem fix aplicado: resolver exigiria saltar `@aws-sdk/client-s3` de 3.350.0 para 3.1147.0 — tecnicamente não-major pelo semver do SDK, mas um salto grande demais para tratar como baixo risco junto dos outros; fica para a rodada dos breaking. `xlsx`, `twitter`/`fb` e os bumps breaking (`multer`, `nodemailer`, `google-auth-library`, `@nestjs/*`) continuam sem tratamento — critério de pagamento completo não foi atingido, status continua `aberto`.
+
+## TD-12
+**`cron-jobs-pendentes.spec` quebrado na `main` bloqueia o pre-commit**
+
+- **Status:** aberto
+- **Registrado por:** Matthew · **Detectado por:** agente · **Data:** 2026-10-09
+- **Contexto:** os commits de geração de remessa que estão na `main` e ainda não na `release` (`859b9ffb`, `24253f09`, `99b5652d`) fazem `src/cron-jobs/cron-jobs-pendentes.spec.ts` falhar 2 de 3 testes (`this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados is not a function`, em `geradorRemessaExec`). A suíte passa na baseline, então, sobre a `main`, o pre-commit bloqueia qualquer commit cujo `jest --findRelatedTests` a alcance (ex.: mudar `src/users/entities/user.entity.ts`) e `npm run validate` falha. Detectado ao trabalhar na issue #1192, que acabou rebaseada sobre a `release`. Na mesma `main`, `onModuleLoad` de `CronJobsService` chama `await this.remessaGuardadorExec()` (ver TD-9).
+- **Impacto/risco:** commits sobre a `main` sem relação com pagamento precisam de `--no-verify`, o que desliga também o build check; o spec deixou de proteger o ciclo de vida do job de pendentes; quando a `main` for integrada à `release`, a falha vem junto.
+- **Critério de pagamento:** `cron-jobs-pendentes.spec.ts` volta a passar na `main` (mock atualizado para a API atual de `OrdemPagamentoAgrupadoService` ou código corrigido), `npm run validate` verde e commits voltam a passar no pre-commit sem `--no-verify`.
