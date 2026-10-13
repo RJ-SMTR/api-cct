@@ -3,6 +3,7 @@ import { Column, DeepPartial, Entity, JoinColumn, ManyToOne, PrimaryGeneratedCol
 import { OrdemPagamentoAgrupado } from './ordem-pagamento-agrupado.entity';
 import { StatusRemessaEnum } from 'src/cnab/enums/novo-remessa/status-remessa.enum';
 import { OcorrenciaEnum } from 'src/cnab/enums/ocorrencia.enum';
+import { User } from 'src/users/entities/user.entity';
 
 @Entity()
 export class OrdemPagamentoAgrupadoHistorico extends EntityHelper {
@@ -41,4 +42,10 @@ export class OrdemPagamentoAgrupadoHistorico extends EntityHelper {
   @JoinColumn({ foreignKeyConstraintName: 'FK_OrdemPagamentoAgrupadoHistorico_ordensPagamento_OneToMany' })
   ordemPagamentoAgrupado: OrdemPagamentoAgrupado; 
 
+  @Column({ type: Number, unique: false, nullable: true })
+  userId?: number | null;
+
+  @ManyToOne(() => User, { eager: false, nullable: true })
+  @JoinColumn({ name: 'userId', foreignKeyConstraintName: 'FK_OrdemPagamentoAgrupadoHistorico_user_ManyToOne' })
+  user?: User | null;
 }
