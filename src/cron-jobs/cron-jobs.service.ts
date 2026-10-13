@@ -113,7 +113,6 @@ export class CronJobsService {
   }
 
   async onModuleLoad() {
-    await this.remessaModalExec(false, true);
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -1004,6 +1003,10 @@ export class CronJobsService {
         dataFim = dataHoje
         dataPagamento = dataHoje
       }
+      
+      dataInicio = new Date('2026-10-08')
+      dataFim = new Date('2026-10-13')
+      dataPagamento = new Date('2026-10-13')
 
       this.logger.log(
         `Iniciando sincronização das ordens de pagamento (${tipo}) do BigQuery. Data de Início: ${dataInicio.toISOString()}, Data Fim: ${dataFim.toISOString()}`,
