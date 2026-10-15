@@ -30,7 +30,10 @@ export class OrdemPagamentoAgrupadoHistorico extends EntityHelper {
   userBankAccount: string;
 
   @Column({ type: String, unique: false, nullable: false })
-  userBankAccountDigit: string;  
+  userBankAccountDigit: string;
+
+  @Column({ type: String, unique: false, nullable: false, default: 'corrente' })
+  userBankAccountType: string;
 
   @Column({ enum: StatusRemessaEnum, unique: false, nullable: false })
   statusRemessa: StatusRemessaEnum; 

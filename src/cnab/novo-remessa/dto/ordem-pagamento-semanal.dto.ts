@@ -9,6 +9,8 @@ export class OrdemPagamentoSemanalDto {
   motivoStatusRemessa: string | undefined;
   dataCaptura: Date | undefined;
   ids: any[];
+  /** Total de Gratuidade do dia (agrupamento paralelo, independente do valor normal). */
+  valorGratuidade: number | undefined;
 
   constructor(dto?: DeepPartial<OrdemPagamentoSemanalDto>) {
     if (dto) {
