@@ -79,7 +79,7 @@ export class RetornoService {
                 ` - statusAtual: ${getStatusRemessaEnumByValue(historico.statusRemessa)}`,
             );
             if (detalheA && historico) {
-                if (historico.statusRemessa === StatusRemessaEnum.PreparadoParaEnvio) {
+                if (historico.statusRemessa === StatusRemessaEnum.PreparadoParaEnvio && cnabLote.headerLote.ocorrencias.value.trim() !== historico.motivoStatusRemessa) {
                     //SE O HEADER LOTE ESTIVER COM ERRO TODOS OS DETALHES FICAM COMO NÃO EFETIVADOS
                     if (cnabLote.headerLote.ocorrencias.value.trim() !== 'BD' && cnabLote.headerLote.ocorrencias.value.trim() !== '00') {
                         historico.motivoStatusRemessa = cnabLote.headerLote.ocorrencias.value.trim();
