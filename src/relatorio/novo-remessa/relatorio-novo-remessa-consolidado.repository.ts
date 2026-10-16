@@ -260,7 +260,8 @@ export class RelatorioNovoRemessaConsolidadoRepository {
         const userPlaceholders = filter.userIds?.join(`','`);
         const usersVanzeiros = ` AND pu."id" IN('${userPlaceholders}') `
         queryAPagarVanzeiros += usersVanzeiros;
-        queryVanzeiros += usersVanzeiros;
+        // A pendência paid through a pai has its orders in the filhas (puu), not in the pai (#1204).
+        queryVanzeiros += ` AND (pu."id" IN('${userPlaceholders}') OR puu."id" IN('${userPlaceholders}')) `;
         queryAPagarEleicaoVanzeiro += usersVanzeiros;
         queryPendentesVanzeiro += usersVanzeiros;
         queryEleicaoVanzeiro += usersVanzeiros;

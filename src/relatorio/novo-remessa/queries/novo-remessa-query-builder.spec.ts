@@ -34,6 +34,18 @@ describe('novo-remessa-query-builder codigoErro', () => {
     expect(sql).toContain('NULL::text AS "codigoErro"');
   });
 
+  // #1204: a filha that never went to the bank has no detalhe_a; it must still be listed,
+  // dated by the pai payment and valued by its own total. Behavior is covered against
+  // PostgreSQL in relatorio-novo-remessa-pendencia-paga.integration.spec.ts.
+  it('keeps a paid pendência whose filha has no remittance line of its own', () => {
+    const sql = buildPendenciaPagaSingleDateQuery(params);
+
+    expect(sql).toContain('LEFT JOIN detalhe_a da');
+    expect(sql).toContain('COALESCE(da."dataVencimento", op_pai."dataPagamento") AS "dataReferencia"');
+    expect(sql).toContain('COALESCE(da."valorLancamento", ROUND(opa."valorTotal", 2)) AS valor');
+    expect(sql).toContain('da_filha."ordemPagamentoAgrupadoHistoricoId" = oph_filha.id');
+  });
+
   it('selects a single-day rejected family through the parent attempt and latest history', () => {
     const sql = buildPendenciaPagamentoSingleDateQuery({
       ...params,

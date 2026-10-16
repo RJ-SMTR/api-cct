@@ -198,11 +198,14 @@ export const buildPendentesQuery = (params: NovoRemessaPendentesParams) => {
   `;
 };
 
+// A filha whose orders never went to the bank (late orders grouped straight into a pendente
+// pai) has only status-5 histories and no detalhe_a of its own (#1204). It is dated by the
+// pai payment and valued by its own valorTotal; filhas with a detalhe_a keep using it.
 export const buildPendenciaPagaSingleDateQuery = (params: NovoRemessaBaseParams) => {
   const consorcioParam = `$${params.consorcioFilterParamIndex}`;
   return `
     SELECT DISTINCT
-      da."dataVencimento" AS "dataReferencia",
+      COALESCE(da."dataVencimento", op_pai."dataPagamento") AS "dataReferencia",
       opa.id,
       pu."fullName" AS nomes,
       pu.email,
@@ -210,7 +213,7 @@ export const buildPendenciaPagaSingleDateQuery = (params: NovoRemessaBaseParams)
       bc.name AS "nomeBanco",
       pu."cpfCnpj" AS "cpfCnpj",
       ${CONSORCIO_CASE} AS "nomeConsorcio",
-      da."valorLancamento" AS valor,
+      COALESCE(da."valorLancamento", ROUND(opa."valorTotal", 2)) AS valor,
       CASE
         WHEN oph."statusRemessa" = 5
           AND opa."ordemPagamentoAgrupadoId" IS NOT NULL
@@ -226,7 +229,7 @@ export const buildPendenciaPagaSingleDateQuery = (params: NovoRemessaBaseParams)
         ON op_pai.id = opa."ordemPagamentoAgrupadoId"
       INNER JOIN ordem_pagamento_agrupado_historico oph
         ON oph."ordemPagamentoAgrupadoId" = opa.id
-      INNER JOIN detalhe_a da
+      LEFT JOIN detalhe_a da
         ON da."ordemPagamentoAgrupadoHistoricoId" = oph.id
       INNER JOIN public."user" pu
         ON pu.id = op."userId"
@@ -235,13 +238,26 @@ export const buildPendenciaPagaSingleDateQuery = (params: NovoRemessaBaseParams)
     WHERE
        ($3::integer[] IS NULL OR pu.id = ANY($3))
       AND ($4::text[] IS NULL OR TRUE)
-      AND (${consorcioParam}::text[] IS NULL OR UPPER(TRIM(${CONSORCIO_CASE})) = ANY(${consorcioParam}))    
+      AND (${consorcioParam}::text[] IS NULL OR UPPER(TRIM(${CONSORCIO_CASE})) = ANY(${consorcioParam}))
       AND NOT EXISTS (
         SELECT 1
         FROM ordem_pagamento_agrupado filha
         WHERE filha."ordemPagamentoAgrupadoId" = opa.id
       )
       AND oph."statusRemessa" = 5
+      AND (
+        da.id IS NOT NULL
+        OR (
+          opa."ordemPagamentoAgrupadoId" IS NOT NULL
+          AND NOT EXISTS (
+            SELECT 1
+            FROM ordem_pagamento_agrupado_historico oph_filha
+            INNER JOIN detalhe_a da_filha
+              ON da_filha."ordemPagamentoAgrupadoHistoricoId" = oph_filha.id
+            WHERE oph_filha."ordemPagamentoAgrupadoId" = opa.id
+          )
+        )
+      )
       AND (
         (
           opa."ordemPagamentoAgrupadoId" IS NOT NULL
