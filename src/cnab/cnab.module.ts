@@ -101,6 +101,9 @@ import { PagamentoModalController } from './novo-remessa/controller/pagamento-mo
 import { PagamentoGuardadorRepository } from './novo-remessa/repository/pagamento-guardador.repository';
 import { PagamentoGuardadorService } from './novo-remessa/service/pagamento-guardador.service';
 import { PagamentoGuardadorController } from './novo-remessa/controller/pagamento-guardador.controller';
+import { DashboardPagamentosController } from './novo-remessa/controller/dashboard-pagamentos.controller';
+import { DashboardPagamentosService } from './novo-remessa/service/dashboard-pagamentos.service';
+import { DashboardPagamentosRepository } from './novo-remessa/repository/dashboard-pagamentos.repository';
 
 @Module({
   imports: [
@@ -141,6 +144,8 @@ import { PagamentoGuardadorController } from './novo-remessa/controller/pagament
     ]),
   ],
   providers: [
+    DashboardPagamentosService,
+    DashboardPagamentosRepository,
     ArquivoPublicacaoRepository, //
     ArquivoPublicacaoService,
     BigqueryTransacaoService,
@@ -254,6 +259,6 @@ import { PagamentoGuardadorController } from './novo-remessa/controller/pagament
     DistributedLockService,
     DistributedLockRepository
   ],
-  controllers: [CnabController, OrdemPagamentoController, OrdemPagamentoGuardadorController, PagamentoConsorcioController, PagamentoModalController, PagamentoGuardadorController],
+  controllers: [CnabController, OrdemPagamentoController, OrdemPagamentoGuardadorController, PagamentoConsorcioController, PagamentoModalController, PagamentoGuardadorController, DashboardPagamentosController],
 })
 export class CnabModule {}
