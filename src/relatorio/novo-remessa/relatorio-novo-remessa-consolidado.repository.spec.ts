@@ -238,4 +238,34 @@ describe('RelatorioNovoRemessaConsolidadoRepository.findConsolidado — filtros'
     const sql = await executar({ pago: true });
     expect(sql).toContain(`da."id" AS "idLinha"`);
   });
+
+  describe('Pendência Paga: filtra por data de pagamento, não por vencimento', () => {
+    it('só Pendência Paga: usa dataPagamento (não dataVencimento) e não some com status=5 solto no filtro de vencimento', async () => {
+      const sql = await executar({ pendenciaPaga: true });
+
+      expect(sql).toContain(`op_pai."dataPagamento"::date BETWEEN '2026-09-01'::date AND '2026-09-30'::date`);
+      expect(sql).toContain(`opafi."dataPagamento"::date BETWEEN '2026-09-01'::date AND '2026-09-30'::date`);
+      // Sem outro status selecionado, a consulta por dataVencimento não deve nem entrar no UNION
+      // (senão voltaria status=4 em diante sem filtro de status nenhum).
+      expect(sql).not.toContain('da."dataVencimento"');
+      expect(sql).not.toContain('oph."statusRemessa" IN (5)');
+      expect(parentesesBalanceados(sql)).toBe(true);
+    });
+
+    it('replica as guard clauses da query compartilhada: exclui histórico AM/AE e agrupamento com filha', async () => {
+      const sql = await executar({ pendenciaPaga: true });
+
+      expect(sql).toContain(`oph."motivoStatusRemessa" NOT IN ('AM', 'AE')`);
+      expect(sql).toContain(`NOT EXISTS (SELECT 1 FROM ordem_pagamento_agrupado filha WHERE filha."ordemPagamentoAgrupadoId" = opafi.id)`);
+    });
+
+    it('Pendência Paga + Pago: mantém a consulta por dataVencimento para Pago, e soma Pendência Paga à parte por dataPagamento', async () => {
+      const sql = await executar({ pendenciaPaga: true, pago: true });
+
+      expect(sql).toContain(`oph."statusRemessa" IN (3)`);
+      expect(sql).toContain('da."dataVencimento"');
+      expect(sql).toContain(`op_pai."dataPagamento"::date BETWEEN`);
+      expect(parentesesBalanceados(sql)).toBe(true);
+    });
+  });
 });
