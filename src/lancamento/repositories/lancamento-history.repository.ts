@@ -36,7 +36,11 @@ export class LancamentoHistoryRepository {
   }
 
   update(criteria: FindOptionsWhere<LancamentoHistory>, partialEntity: QueryDeepPartialEntity<LancamentoHistory>, queryRunner?: QueryRunner): Promise<UpdateResult> {
-    return (queryRunner?.manager?.getRepository(Lancamento) || this.lancamentoHistoryRepository).update(criteria, partialEntity);
+    // getRepository(Lancamento) here is pre-existing, unrelated to this cast: stricter typing
+    // in typeorm 0.3.31 (vs 0.3.16) now rejects mixing it with LancamentoHistory-shaped
+    // criteria. Not changed here - this method has no caller in the codebase.
+    const repository = (queryRunner?.manager?.getRepository(Lancamento) || this.lancamentoHistoryRepository) as Repository<LancamentoHistory>;
+    return repository.update(criteria, partialEntity);
   }
 
   async findOne(options: FindOneOptions<LancamentoHistory>): Promise<LancamentoHistory | null> {

@@ -107,6 +107,7 @@ describe('RelatorioGuardadorFinancialMovementRepository', () => {
         {
           dataReferencia: '01/01/2026',
           dataPagamento: '05/01/2026',
+          dataPagamentoCursor: '2026-01-05T00:00:00',
           nomes: 'GUARDADOR TESTE',
           email: 'guardador@email.com',
           codBanco: '001',
@@ -115,6 +116,7 @@ describe('RelatorioGuardadorFinancialMovementRepository', () => {
           consorcio: 'Guardador Autônomo',
           valor: 150.50,
           status: 'Pago',
+          codigoErro: null,
         },
       ]);
 
@@ -135,6 +137,11 @@ describe('RelatorioGuardadorFinancialMovementRepository', () => {
         nomes: 'GUARDADOR TESTE',
         status: 'Pago',
         cpfCnpj: '12345678900',
+        nomeConsorcio: 'Guardador Autônomo',
+        codBanco: '001',
+        dataPagamento: '2026-01-05T00:00:00',
+        codigoErro: null,
+        email: 'guardador@email.com',
       });
     });
   });

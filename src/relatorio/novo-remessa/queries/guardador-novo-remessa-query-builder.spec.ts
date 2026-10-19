@@ -142,6 +142,20 @@ describe('guardador-novo-remessa-query-builder', () => {
     });
   });
 
+  // buildGuardadorAPagarQuery already bound $6/$7 to a valor range; buildGuardadorBaseQuery
+  // silently ignored them, so filtering by valor on the base statuses returned nothing.
+  describe.each([
+    ['base', buildGuardadorBaseQuery],
+    ['aPagar', buildGuardadorAPagarQuery],
+  ])('%s query valor range', (_name, build) => {
+    it('binds $6/$7 as an optional valor range filter', () => {
+      const sql = build();
+
+      expect(sql).toMatch(/\$6::numeric IS NULL OR .*>= \$6::numeric/);
+      expect(sql).toMatch(/\$7::numeric IS NULL OR .*<= \$7::numeric/);
+    });
+  });
+
   describe('single-day payment-pending parent query', () => {
     it('filters the parent attempt date and reads its latest payment history', () => {
       const sql = buildGuardadorPendenciaPagamentoSingleDateQuery({
@@ -163,6 +177,25 @@ describe('guardador-novo-remessa-query-builder', () => {
       expect(sql).toContain('op_pai."dataPagamento" AS "dataReferencia"');
       expect(sql).toContain('TRIM(oph_pai."motivoStatusRemessa")');
       expect(sql).toContain("IN ('Estorno')");
+    });
+  });
+
+  // da.dataVencimento is a `timestamp without time zone` column written at 03:00:00 (midnight
+  // in Brasília). A plain BETWEEN $1 AND $2 compares it against the implicit
+  // 'yyyy-MM-dd 00:00:00', silently excluding the last day of the period (ADR 0005).
+  describe('período (dataVencimento)', () => {
+    it('base query casts the period filter to date', () => {
+      const sql = buildGuardadorBaseQuery();
+
+      expect(sql).toContain('da."dataVencimento"::date BETWEEN $1::date AND $2::date');
+    });
+
+    // opg.dataOrdem is a plain `date` column (no time component): it never had this bug and
+    // must not get the cast.
+    it('aPagar query keeps filtering dataOrdem without a date cast', () => {
+      const sql = buildGuardadorAPagarQuery();
+
+      expect(sql).toContain('opg."dataOrdem" BETWEEN $1 AND $2');
     });
   });
 

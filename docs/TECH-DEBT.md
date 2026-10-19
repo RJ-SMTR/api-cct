@@ -25,7 +25,9 @@ Registro único do que foi adiado de propósito, por quê e por quem. Serve para
 | [TD-8](#td-8) | 12 imports de `repository` para `service` | aberto | Matthew | 2026-09-30 |
 | [TD-9](#td-9) | Pagamento depende de editar o código e fazer deploy | aberto | Matthew | 2026-09-30 |
 | [TD-10](#td-10) | Baseline de eslint relaxada para `cron-jobs` e `ordem-pagamento-agrupado` | aberto | Rayanne | 2026-10-06 |
+| [TD-11](#td-11) | Vulnerabilidades de dependências não tratadas (npm audit / Dependabot) | aberto | Rayanne | 2026-10-08 |
 | [TD-12](#td-12) | `cron-jobs-pendentes.spec` quebrado na `main` bloqueia o pre-commit | aberto | Matthew | 2026-10-09 |
+| [TD-13](#td-13) | Hook de pre-commit não funciona no Windows (`spawnSync` do `.bin/tsc`) e o ratchet fica vazio | aberto | William | 2026-10-04 |
 
 ## Entradas
 
@@ -121,6 +123,21 @@ Registro único do que foi adiado de propósito, por quê e por quem. Serve para
 - **Impacto/risco:** o gate deixa de proteger esses dois arquivos contra mais erros de lint; `no-floating-promises` em código de remessa pode esconder uma promise não aguardada, o que é risco real de pagamento. `cron-jobs.service.ts` é o arquivo dos jobs de remessa (ver TD-9).
 - **Critério de pagamento:** os 7 erros de `cron-jobs.service.ts` e os 5 de `ordem-pagamento-agrupado.repository.ts` corrigidos em commit próprio, com teste de remessa antes e depois, e a baseline regenerada com esses números menores.
 
+## TD-11
+**Vulnerabilidades de dependências não tratadas (npm audit / Dependabot)**
+
+- **Status:** aberto
+- **Registrado por:** Rayanne · **Detectado por:** agente · **Data:** 2026-10-08
+- **Contexto:** revisão da branch `release` após o GitHub reportar 89 vulnerabilidades (4 críticas, 39 altas, 31 moderadas, 15 baixas) no push de `be8abb8b`. `npm audit` local (árvore completa) mede 144 (5 críticas, 94 altas, 40 moderadas, 5 baixas) — contagem diferente do Dependabot, mesma árvore. Destaques:
+  - **`xlsx` (HIGH, sem fix disponível no npm)**: Prototype Pollution e ReDoS. Usado em `src/users/users.service.ts` (`getWorksheetFromFile`, via `xlsx.read(file.buffer, ...)`) para parsear a planilha do cadastro em massa de usuários — **entrada controlada por quem faz upload**, não um arquivo interno; é o item de maior risco concreto da lista.
+  - **Fixes não-breaking disponíveis, não aplicados**: `handlebars` 4.7.7→4.7.10 (CRITICAL, via `@nestjs-modules/mailer`), `typeorm` 0.3.16→0.3.31 (HIGH, SQL injection em `repository.save`/`update`), `proxy-addr`/`fast-xml-parser` (CRITICAL, transitivos via `@aws-sdk/client-s3`/express). _Pago em parte, ver nota abaixo._
+  - **Fixes exigem bump major (breaking), não aplicados**: `multer` 1.4.4→2.4.0 (HIGH, DoS em upload — mesmo caminho do risco do `xlsx`), `nodemailer` 6.9.3→10.0.16 (HIGH, incl. SMTP command injection), `google-auth-library` 8.8.0→11.2.0 (HIGH), e toda a família `@nestjs/*` 9.x→12.x (HIGH/MODERATE).
+  - **Dependências de login social abandonadas, sem fix**: `twitter` e `fb` dependem de `request`/`form-data`/`qs`/`tough-cookie` vulneráveis; pacotes sem manutenção.
+  - **Dev-only (jest, ts-jest, `@nestjs/cli`, `@typescript-eslint/*`, webpack, `tmp`, `inquirer`...)**: HIGH/MODERATE, mas em `devDependencies`, não vão para produção; o scan do GitHub conta de todo jeito.
+- **Impacto/risco:** o item concreto é `xlsx` recebendo arquivo de upload de usuário sem patch disponível (Prototype Pollution/ReDoS explorável por arquivo malicioso). O restante é risco difuso de biblioteca desatualizada; o maior bloco de esforço é o upgrade de `@nestjs/*` 9→12, que arrasta `multer`, `typeorm`-adjacentes e outros.
+- **Critério de pagamento:** `xlsx` substituído ou mitigado (ex.: validação/sandboxing do arquivo antes do parse, ou troca de biblioteca); fixes não-breaking do Tier 1 aplicados; decisão tomada (manter, trocar ou remover) sobre `twitter`/`fb` conforme uso real do login social; `npm audit` sem CRITICAL/HIGH em dependências de produção (`dependencies`, não `devDependencies`).
+- **Progresso parcial (2026-10-08, commit `295faeb4`):** `handlebars` 4.7.7→4.7.10 e `typeorm` 0.3.16→0.3.31 atualizados (bumps não-major, dentro do range já aceito); `proxy-addr` 2.0.7→2.0.8 resolvido só com `npm update` (estava defasado no lockfile, `express` já aceitava a versão corrigida). `npm audit` caiu de 144 para 141 vulnerabilidades (5→3 críticas). `fast-xml-parser` segue sem fix aplicado: resolver exigiria saltar `@aws-sdk/client-s3` de 3.350.0 para 3.1147.0 — tecnicamente não-major pelo semver do SDK, mas um salto grande demais para tratar como baixo risco junto dos outros; fica para a rodada dos breaking. `xlsx`, `twitter`/`fb` e os bumps breaking (`multer`, `nodemailer`, `google-auth-library`, `@nestjs/*`) continuam sem tratamento — critério de pagamento completo não foi atingido, status continua `aberto`.
+
 ## TD-12
 **`cron-jobs-pendentes.spec` quebrado na `main` bloqueia o pre-commit**
 
@@ -140,4 +157,3 @@ Registro único do que foi adiado de propósito, por quê e por quem. Serve para
 - **Contexto:** `scripts/validate/pre-commit.ts` chama `spawnSync(bin('tsc'), ...)` sem `shell`. No Windows `node_modules/.bin/tsc` não é executável direto, então o hook sai com erro sem stdout/stderr ("undefinedundefined") e bloqueia todo commit com `.ts` staged, mesmo com o build verde. Além disso, `compareSuites` compara os caminhos de suíte do baseline (`src/...`) com caminhos absolutos do Windows e acaba checando 0 suítes, ou seja, o ratchet não protege nada nessa plataforma. O commit do merge de `origin/main` (2026-10-04) usou `git commit --no-verify`; antes disso as mesmas etapas rodaram à mão: `tsc --noEmit -p tsconfig.build.json` (ok), `jest --findRelatedTests` e ratchet com caminhos normalizados. Única diferença contra o baseline: `cron-jobs-pendentes.spec.ts`, que falha idêntico no `origin/main` (arquivos iguais ao upstream).
 - **Impacto/risco:** quem commita no Windows precisa de `--no-verify` e perde a validação automática; o baseline não é aplicado.
 - **Critério de pagamento:** o hook roda no Windows (`spawnSync` com `shell: true` ou `npx`), `compareSuites` normaliza separadores e raiz dos caminhos, e um commit com `.ts` staged passa pelo hook sem `--no-verify`.
-

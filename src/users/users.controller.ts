@@ -177,7 +177,10 @@ export class UsersController {
       },
     },
   })
-  @UseInterceptors(FileInterceptor('file'))
+  // busboy/multer's limits.fileSize rejects a file of exactly the configured size (it flags
+  // "truncated" at the Nth byte without waiting to see if more data follows), so "+ 1" here
+  // makes a real 10 MB file (10 * 1024 * 1024 bytes) succeed, matching the stated 10 MB limit.
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024 + 1 } }))
   @UsePipes(new FileTypeValidationPipe(['spreadsheet', 'csv']))
   async postUpload(
     @Request() request: IRequest,

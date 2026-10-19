@@ -24,7 +24,7 @@ export class PagamentoModalController {
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
-  async preparar(@Body() dto: PagamentoConsorcioPrepararDto) {
+  preparar(@Body() dto: PagamentoConsorcioPrepararDto) {
     this.pagamentoModalService.iniciarPreparacaoAssincrona(
       parseInicioDoDia(dto.dataInicio),
       parseFimDoDia(dto.dataFim),
@@ -38,7 +38,7 @@ export class PagamentoModalController {
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
-  async statusPreparacao() {
+  statusPreparacao() {
     return this.pagamentoModalService.getStatusPreparacao();
   }
 

@@ -44,6 +44,7 @@ export class RelatorioNovoRemessaController {
   @ApiQuery({ name: 'eleicao', required: false, type: Boolean, description: ApiDescription({ _: 'eleicao', default: false }) })
   @ApiQuery({ name: 'desativados', required: false, type: Boolean, description: ApiDescription({ _: 'desativados', default: false }) })
   @ApiQuery({ name: 'pendentes', required: false, type: Boolean, description: ApiDescription({ _: 'pendentes', default: false }) })
+  @ApiQuery({ name: 'stucGratuidade', required: false, type: Boolean, description: ApiDescription({ _: 'stucGratuidade', default: false }) })
   @ApiQuery({ name: 'page', description: 'Página atual (base 1)', required: false, type: Number })
   @ApiQuery({ name: 'pageSize', description: 'Quantidade de linhas por página', required: false, type: Number })
   @ApiBearerAuth()
@@ -74,12 +75,13 @@ export class RelatorioNovoRemessaController {
     @Query('rejeitado', new ParseBooleanPipe({ optional: true })) rejeitado: boolean | undefined,
     @Query('estorno', new ParseBooleanPipe({ optional: true })) estorno: boolean | undefined,
     @Query('pendenciaPaga', new ParseBooleanPipe({ optional: true })) pendenciaPaga: boolean | undefined,
+    @Query('stucGratuidade', new ParseBooleanPipe({ optional: true })) stucGratuidade: boolean | undefined,
     @Query('page', new ParseNumberPipe({ optional: true })) page: number | undefined,
     @Query('pageSize', new ParseNumberPipe({ optional: true })) pageSize: number | undefined
   ) {
     try {
       const result = await this.relatorioNovoRemessaService.findConsolidado({
-        dataInicio, dataFim, userIds, consorcioNome, valorMin, valorMax, pago, aPagar, emProcessamento, erro, todosVanzeiros, todosConsorcios, eleicao, desativados, pendentes, rejeitado, estorno, pendenciaPaga, page, pageSize
+        dataInicio, dataFim, userIds, consorcioNome, valorMin, valorMax, pago, aPagar, emProcessamento, erro, todosVanzeiros, todosConsorcios, eleicao, desativados, pendentes, rejeitado, estorno, pendenciaPaga, stucGratuidade, page, pageSize
       });
       return result;
     } catch (e) {
@@ -286,6 +288,7 @@ export class RelatorioNovoRemessaController {
     return this.downloadGuardadorFinancialMovementReport(body, response);
   }
 
+  @ApiQuery({ name: 'todosConsorcios', required: false, type: Boolean, description: ApiDescription({ _: 'Se a pesquisa deve trazer os pagamentos diretos das associações cadastradas, em vez dos guardadores', default: false }) })
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'))
   @Get('guardador/consolidado')
@@ -305,16 +308,18 @@ export class RelatorioNovoRemessaController {
     @Query('rejeitado', new ParseBooleanPipe({ optional: true })) rejeitado: boolean | undefined,
     @Query('estorno', new ParseBooleanPipe({ optional: true })) estorno: boolean | undefined,
     @Query('pendenciaPaga', new ParseBooleanPipe({ optional: true })) pendenciaPaga: boolean | undefined,
+    @Query('todosConsorcios', new ParseBooleanPipe({ optional: true })) todosConsorcios: boolean | undefined,
   ) {
     try {
       return await this.relatorioNovoRemessaService.findConsolidadoGuardadorNovoRemessa({
-        dataInicio, dataFim, userIds, consorcioNome, valorMin, valorMax, pago, aPagar, emProcessamento, erro, desativados, pendentes, rejeitado, estorno, pendenciaPaga
+        dataInicio, dataFim, userIds, consorcioNome, valorMin, valorMax, pago, aPagar, emProcessamento, erro, desativados, pendentes, rejeitado, estorno, pendenciaPaga, todosConsorcios
       });
     } catch (e) {
       throw new HttpException({ error: e.message }, HttpStatus.BAD_REQUEST);
     }
   }
 
+  @ApiQuery({ name: 'todosConsorcios', required: false, type: Boolean, description: ApiDescription({ _: 'Se a pesquisa deve trazer os pagamentos diretos das associações cadastradas, em vez dos guardadores', default: false }) })
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'))
   @Get('agentes/consolidado')
@@ -334,9 +339,10 @@ export class RelatorioNovoRemessaController {
     @Query('rejeitado', new ParseBooleanPipe({ optional: true })) rejeitado: boolean | undefined,
     @Query('estorno', new ParseBooleanPipe({ optional: true })) estorno: boolean | undefined,
     @Query('pendenciaPaga', new ParseBooleanPipe({ optional: true })) pendenciaPaga: boolean | undefined,
+    @Query('todosConsorcios', new ParseBooleanPipe({ optional: true })) todosConsorcios: boolean | undefined,
   ) {
     return this.getGuardadorConsolidado(
-      dataInicio, dataFim, userIds, consorcioNome, valorMin, valorMax, pago, aPagar, emProcessamento, erro, desativados, pendentes, rejeitado, estorno, pendenciaPaga
+      dataInicio, dataFim, userIds, consorcioNome, valorMin, valorMax, pago, aPagar, emProcessamento, erro, desativados, pendentes, rejeitado, estorno, pendenciaPaga, todosConsorcios
     );
   }
 }

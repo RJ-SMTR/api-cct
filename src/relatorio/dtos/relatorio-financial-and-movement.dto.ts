@@ -6,6 +6,15 @@ export type RelatorioFinancialMovementNovoRemessaCursor = {
   nomes: string;
   status: string;
   cpfCnpj: string;
+  // Extra tie-breakers so the cursor uniquely identifies a grouped row even when two rows
+  // share dataReferencia/nomes/status/cpfCnpj (e.g. same favorecido paid under two
+  // different consórcios on the same date). Populated by both the Guardador and the
+  // Permissionário report; codigoErro is Guardador-only (no such column there).
+  nomeConsorcio?: string;
+  codBanco?: string;
+  dataPagamento?: string;
+  codigoErro?: string;
+  email?: string;
 };
 
 export class RelatorioFinancialMovementNovoRemessaSummaryDto {

@@ -13,7 +13,7 @@ describe('OrdemPagamentoRepository.save (identificação pelo id do BigQuery)', 
     const typeormRepo = {
       findOneBy: jest.fn(),
       create: jest.fn((dto) => ({ ...dto })),
-      save: jest.fn(async (e) => ({ id: 1000217, ...e })),
+      save: jest.fn((e) => ({ id: 1000217, ...e })),
     };
     const dataSource = { query: jest.fn() };
     const repo = new OrdemPagamentoRepository(typeormRepo as any, dataSource as any);

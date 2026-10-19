@@ -66,6 +66,9 @@ Obrigação original vinculada a uma nova tentativa de pagamento pendente. Prese
 **OPA pai**:
 Tentativa de pagamento pendente que consolida uma ou mais OPAs filhas do mesmo favorecido. É a única representante financeira dessas filhas na remessa.
 
+**STUC - Gratuidade**:
+Item do combo "Específico" nos relatórios Consolidado e Movimentação Financeira (perfil Permissionário, `app-cct`). Busca em `ordem_pagamento` pelo campo `valorGratuidade` (não nulo), seguindo o agrupamento de gratuidade separado do agrupamento normal: `ordem_pagamento.ordemPagamentoAgrupadoGratuidadeId` → `ordem_pagamento_agrupado` → `ordem_pagamento_agrupado_historico` (ver ADR 0004). O valor exibido é `valorGratuidade`, não o `valor` total da ordem.
+
 **TransacaoView**:
 Visão das transações de bilhetagem por dia. **Legado: ninguém mais usa** (confirmado por Matthew em 2026-09-30); não a use em código novo.
 
@@ -134,6 +137,26 @@ Email enviado ao usuário para concluir o cadastro; estados `queued`, `sent`, `u
 
 Fonte entre parênteses. Revisado por Matthew em 2026-09-30 (janelas de pagamento, pagamento manual, entidades, legado); o que ainda não foi validado por pessoa fica marcado _(a confirmar)_. Baseado no código da `main` (commit `c83718e2`).
 
+### Relatório de Movimentação Financeira
+
+- **Pendência Paga é consultada por data de pagamento, em qualquer intervalo** (ADR 0001, 2026-10-07). A consulta principal do relatório (`buildBaseQuery`) filtra por data de vencimento, onde Pendência Paga nunca aparece; uma consulta dedicada (`buildPendenciaPagaSingleDateQuery`, nome desatualizado) sempre trouxe esse status pela data de pagamento com um `BETWEEN`, aceitando intervalo — o antigo gate de "dia único" vivia só em JS (`resolveStatuses`) e no front, e por isso Pendência Paga desaparecia silenciosamente ao selecionar todos os status num intervalo de mais de um dia. Vale só para Movimentação Financeira do Permissionário; o Consolidado do Permissionário não tem essa lógica, e o fluxo de Guardador tem cópia própria (não alterada).
+- **Cursor de paginação precisa de tie-breakers além de `(dataReferencia, nomes, status, cpfCnpj)`** (ADR 0002, 2026-10-08). O `GROUP BY` do CTE `grouped` usa mais colunas que essas 4; duas linhas agrupadas podem empatar nessa tupla (ex.: mesmo favorecido pago sob dois `nomeConsorcio` diferentes na mesma data/status), e um limite de página caindo dentro do empate perde linhas silenciosamente. Guardador (`relatorio-guardador-financial-movement.repository.ts`) já ganhou os tie-breakers `nomeConsorcio, codBanco, dataPagamento, codigoErro, email`; Permissionário (**serviço** `relatorio-novo-remessa-financial-movement.service.ts`, não o repository homônimo — esse é código morto, ver ADR 0001) tem o mesmo bug e ainda não foi corrigido (próxima tarefa, mesmo ADR). `nextCursor` deixou de ser opaco para o front por causa disso — o app-cct monta/lê os campos do cursor manualmente e precisa de PR espelhado a cada campo novo.
+- **Filtro de valor (`valorMin`/`valorMax`) só é correto se aplicado depois do agrupamento** (ADR 0002, 2026-10-08). Antes do `GROUP BY`, o valor é de um lançamento individual, não o total somado que o relatório exibe e pagina. O serviço do Permissionário já aplicava corretamente (literais neutros substituindo `$6`/`$7` dentro do CTE `base`, filtro real só sobre `grouped`); Guardador aplicava antes (em `guardador-novo-remessa-query-builder.ts`, sobre `da."valorLancamento"`) e foi corrigido para aplicar depois, igual ao Permissionário. Esse ponto já está fechado nos dois fluxos.
+
+### Filtro de período (todos os relatórios Consolidado/Movimentação Financeira)
+
+- **`dataVencimento`/`dataPagamento` são `timestamp` gravados às 03:00:00 (meia-noite de Brasília)** (ADR 0005, 2026-10-19). `getInicioDoDiaBrasilia()` grava meia-noite de Brasília, que em UTC (coluna sem timezone) é `03:00:00`. Um `BETWEEN $1 AND $2` sem cast, com `$1`/`$2` em `'yyyy-MM-dd'`, compara contra `00:00:00` e exclui silenciosamente o registro do último dia do período — corrigido com `coluna::date BETWEEN $1::date AND $2::date` (cast na coluna **e** nos parâmetros; só nos parâmetros não resolve, o Postgres promove de volta para `timestamp`). `dataOrdem` (`ordem_pagamento` e `ordem_pagamento_guardador`) é `date` puro e não tem esse problema — não confundir os dois ao investigar bugs de data nos relatórios.
+- **Escopo do bug corrigido**: `buildGroupedQuery`/`buildBaseQuery`/`buildStucGratuidadeQuery` e `buildEleicaoQuery` (`novo-remessa-query-builder.ts`), e `buildGuardadorBaseQuery` (`guardador-novo-remessa-query-builder.ts`). Afetava a busca normal de Movimentação Financeira (Permissionário e Guardador) e Consolidado Guardador; o Consolidado Permissionário só era afetado no filtro STUC-Gratuidade (sua busca normal usa queries próprias já corretas).
+
+### Relatório Consolidado e Movimentação Financeira (filtro Específico, Permissionário)
+
+- **STUC - Gratuidade é exclusivo com os demais itens do combo Específico** (Eleição, Desativados, Pendentes) (ADR 0004, 2026-10-09, Rayanne). Selecionar um limpa/desabilita os outros na UI — a query muda de fonte de dados (agrupamento de gratuidade em vez do normal), misturar não tem sentido de negócio.
+- **Todos os status principais continuam disponíveis com STUC selecionado** (Todos, A pagar, Aguardando Pagamento, Pago, Pendência de Pagamento, Pendencia Paga) (ADR 0004). Diferente do item Eleição, que já restringe via `ELEICAO_STATUS_CASE`.
+- **"OPs atrasadas" não fica disponível como motivo de Pendência de Pagamento quando STUC está selecionado** (ADR 0004). Esse motivo corresponde à query `buildPendentesQuery`, que opera sobre o fluxo normal sem agrupamento e não se aplica à gratuidade.
+- **Seleção de usuário "Todos" continua válida com STUC selecionado**; não há exigência de escolher permissionários específicos.
+- Datas, Vlr Min./Vlr Max. e a mensagem para "data de pagamento não encontrada" seguem o comportamento padrão já usado pelos demais itens do combo — nenhuma regra nova.
+- Escopo: relatórios Consolidado e Movimentação Financeira do perfil **Permissionário** em `app-cct`. Não se aplica a Guardador.
+
 ### Pagamento
 
 - **Janelas de pagamento.** Ordens de sexta a segunda são pagas na terça seguinte; ordens de terça a quinta são pagas na sexta seguinte (`calcularPeriodoPagamento`, `src/cron-jobs/cron-jobs.service.ts`). Vale para modais e consórcios (confirmado por Matthew em 2026-09-30).
@@ -157,6 +180,7 @@ Fonte entre parênteses. Revisado por Matthew em 2026-09-30 (janelas de pagament
 ### Usuários
 
 - **Ciclo do usuário:** register → upload de planilha → concluir cadastro → ativo/inativo. **Histórico de email (convite):** queued → sent → used; reenvio pelo cron `bulkResendInvites` todo dia 15 às 11:45 BRT; `bulkSendInvites` usa a cron das settings e `bulkSendInvitesFixedTime` roda todo dia às 10:30 GMT (`docs/bilhetagem/estado-usuario-historico-email.drawio`).
+- **Upload de planilha (`POST /users/upload`) mitigado, não corrigido, contra as CVEs do `xlsx`** (ADR 0003, 2026-10-08). `xlsx.read`/`sheet_to_json` (`users.service.ts`) parseiam um arquivo controlado por quem faz upload; o pacote `xlsx` tem CVEs de Prototype Pollution/ReDoS sem fix no npm (TD-11). Mitigação: limite de 10 MB no `FileInterceptor`, sniff real de conteúdo (não só o `mimetype` do client, hoje falsificável) antes do parse, e isolamento do parse em `worker_thread` com timeout de 10s (necessário porque `xlsx.read` é síncrono e bloqueia a thread única do Node — um timeout sem worker não interrompe o bloqueio). O endpoint exige JWT mas não tem `@Roles`; se deveria restringir a admin ficou como pergunta em aberto, não resolvida aqui.
 - **Data dos dados bancários** (`user.bankDataUpdatedAt`, issue #1192): gravada sempre que o valor de `bankCode`, `bankAgency`, `bankAccount` ou `bankAccountDigit` muda de fato, inclusive no primeiro preenchimento; reenviar o mesmo valor não conta. `previousBankCode` continua sendo preenchido só na troca de banco. Na tela de Dados Bancários: sem `previousBankCode` → "Primeiro cadastro realizado em: `bankDataUpdatedAt`"; com `previousBankCode` → "Banco anterior" + "Última atualização em: `bankDataUpdatedAt`"; coluna `null` (nunca preencheu) → nenhuma data.
 
 ## Arquitetura em camadas
@@ -176,6 +200,7 @@ Não são impostos: acesso direto ao banco (`InjectRepository`, `DataSource`, `c
 - **Specs desabilitados de propósito.** `cron-jobs.service.spec.ts` (ignorado) e o cliente SFTP (8 blocos em `xdescribe`): SFTP e cron jobs nunca terão testes automatizados (TD-6, descartado). O gate também não enxerga testes pulados dentro de suítes que passam (TD-7).
 - **Código de pagamento em desenvolvimento ativo** (commits de 2026-09-29): o sincronismo de guardadores usa data fixa (`new Date('2026-09-29')`); o job `sincronizarEAgruparOrdensPagamentoGuardador` chama o método dos modais; em `submitCnabRemessa` o `return` está num `finally` e o caminho é definido antes do upload, então uma falha de upload pode deixar o header como `remessaEnviado`. São observações do código, não decisões.
 - **Lógica antiga de "sexta de pagamento" semanal é legado** (confirmado por Matthew em 2026-09-30: ninguém mais usa). A regra vigente é terça e sexta (`calcularPeriodoPagamento`). O código antigo ainda existe (`nextFriday` em `src/utils/payment-date-utils.ts`, DTOs, entidades, extrato e receitas): não o use como referência nem o estenda em código novo.
+- **`RemessaService.prepararRemessa` não aguardava `atualizaStatusRemessa`** (ADR 0006, 2026-10-19), nem este aguardava `saveStatusHistorico` — 4 floating promises num loop sequencial. Já era contornado em `remessa-retorno.integration.spec.ts` por um helper de polling (`esperarStatusPai`) com comentário explícito sobre a causa. Corrigido com `await` nos 4 pontos; nenhuma mudança de assinatura ou regra de negócio. Não havia nenhum spec para `remessa.service.ts` antes desta correção.
 - **Trigger `user_update_trigger` em `"user"`** (fora das migrations; capturado em `local_dev_example/sql/prod-routines.sql`): grava cada UPDATE em `user_changes_log`. A função `user_update_function` usa `OLD.permitCode` sem aspas e quebra com `record "old" has no field "permitcode"`; no banco local, com essa versão, todo UPDATE em `"user"` falha (visto em 2026-10-09). Não confirmado se produção tem a mesma função ou o trigger desativado. Migrations que fazem UPDATE em massa em `"user"` devem desativar o trigger e restaurar o estado (ex.: `1791300000000-AddBankDataUpdatedAtToUser`).
 
 ## Decisões

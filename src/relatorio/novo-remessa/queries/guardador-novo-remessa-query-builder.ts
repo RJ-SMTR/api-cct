@@ -152,16 +152,16 @@ export const buildGuardadorBaseQuery = (params: GuardadorBaseQueryParams = {}) =
       ON bc.code = pu."bankCode"
     ${GUARDADOR_ASSOCIACAO_JOIN}
     WHERE
-      da."dataVencimento" BETWEEN $1 AND $2
+      da."dataVencimento"::date BETWEEN $1::date AND $2::date
       AND ($3::integer[] IS NULL OR pu.id = ANY($3))
       AND ($4::text[] IS NULL OR ${GUARDADOR_STATUS_CASE} = ANY($4))
       AND ${buildConsorcioFilter(consorcioParam, params.todosConsorcios)}
+      AND ${GUARDADOR_OPA_WITHOUT_CHILDREN}
+      AND (oph."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph."motivoStatusRemessa" IS NULL)
       AND (
         ($6::numeric IS NULL OR da."valorLancamento" >= $6::numeric)
         AND ($7::numeric IS NULL OR da."valorLancamento" <= $7::numeric)
       )
-      AND ${GUARDADOR_OPA_WITHOUT_CHILDREN}
-      AND (oph."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph."motivoStatusRemessa" IS NULL)
       ${favorecidoClause}
       ${params.desativados ? 'AND pu.bloqueado = true' : ''}
   )`.trim();
@@ -251,10 +251,6 @@ export const buildGuardadorPendenciaPagaSingleDateQuery = (params: GuardadorBase
       ($3::integer[] IS NULL OR pu.id = ANY($3))
       AND ($4::text[] IS NULL OR TRUE)
       AND ${buildConsorcioFilter(consorcioParam, params.todosConsorcios)}
-      AND (
-        ($6::numeric IS NULL OR da."valorLancamento" >= $6::numeric)
-        AND ($7::numeric IS NULL OR da."valorLancamento" <= $7::numeric)
-      )
       AND ${GUARDADOR_OPA_WITHOUT_CHILDREN}
       AND oph."statusRemessa" = 5
       AND (
@@ -319,10 +315,6 @@ export const buildGuardadorPendenciaPagamentoSingleDateQuery = (params: Guardado
       AND ($4::text[] IS NULL OR TRUE)
       AND ${parentStatusCase} IN (${requestedStatusSql})
       AND ${buildConsorcioFilter(consorcioParam, params.todosConsorcios)}
-      AND (
-        ($6::numeric IS NULL OR da."valorLancamento" >= $6::numeric)
-        AND ($7::numeric IS NULL OR da."valorLancamento" <= $7::numeric)
-      )
       AND (oph_pai."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph_pai."motivoStatusRemessa" IS NULL)
       ${params.desativados ? 'AND pu.bloqueado = true' : ''}
   )`.trim();
