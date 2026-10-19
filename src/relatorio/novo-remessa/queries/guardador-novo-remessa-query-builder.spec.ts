@@ -142,6 +142,20 @@ describe('guardador-novo-remessa-query-builder', () => {
     });
   });
 
+  // buildGuardadorAPagarQuery already bound $6/$7 to a valor range; buildGuardadorBaseQuery
+  // silently ignored them, so filtering by valor on the base statuses returned nothing.
+  describe.each([
+    ['base', buildGuardadorBaseQuery],
+    ['aPagar', buildGuardadorAPagarQuery],
+  ])('%s query valor range', (_name, build) => {
+    it('binds $6/$7 as an optional valor range filter', () => {
+      const sql = build();
+
+      expect(sql).toMatch(/\$6::numeric IS NULL OR .*>= \$6::numeric/);
+      expect(sql).toMatch(/\$7::numeric IS NULL OR .*<= \$7::numeric/);
+    });
+  });
+
   describe('single-day payment-pending parent query', () => {
     it('filters the parent attempt date and reads its latest payment history', () => {
       const sql = buildGuardadorPendenciaPagamentoSingleDateQuery({

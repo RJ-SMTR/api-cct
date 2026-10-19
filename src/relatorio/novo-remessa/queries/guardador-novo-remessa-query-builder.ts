@@ -158,6 +158,10 @@ export const buildGuardadorBaseQuery = (params: GuardadorBaseQueryParams = {}) =
       AND ${buildConsorcioFilter(consorcioParam, params.todosConsorcios)}
       AND ${GUARDADOR_OPA_WITHOUT_CHILDREN}
       AND (oph."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph."motivoStatusRemessa" IS NULL)
+      AND (
+        ($6::numeric IS NULL OR da."valorLancamento" >= $6::numeric)
+        AND ($7::numeric IS NULL OR da."valorLancamento" <= $7::numeric)
+      )
       ${favorecidoClause}
       ${params.desativados ? 'AND pu.bloqueado = true' : ''}
   )`.trim();
