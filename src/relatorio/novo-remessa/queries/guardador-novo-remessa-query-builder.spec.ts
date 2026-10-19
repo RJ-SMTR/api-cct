@@ -166,6 +166,25 @@ describe('guardador-novo-remessa-query-builder', () => {
     });
   });
 
+  // da.dataVencimento is a `timestamp without time zone` column written at 03:00:00 (midnight
+  // in Brasília). A plain BETWEEN $1 AND $2 compares it against the implicit
+  // 'yyyy-MM-dd 00:00:00', silently excluding the last day of the period (ADR 0005).
+  describe('período (dataVencimento)', () => {
+    it('base query casts the period filter to date', () => {
+      const sql = buildGuardadorBaseQuery();
+
+      expect(sql).toContain('da."dataVencimento"::date BETWEEN $1::date AND $2::date');
+    });
+
+    // opg.dataOrdem is a plain `date` column (no time component): it never had this bug and
+    // must not get the cast.
+    it('aPagar query keeps filtering dataOrdem without a date cast', () => {
+      const sql = buildGuardadorAPagarQuery();
+
+      expect(sql).toContain('opg."dataOrdem" BETWEEN $1 AND $2');
+    });
+  });
+
   // Every select of the UNION ALL must expose the same columns. The occurrence code (used to
   // describe the error) only exists for rows read from the payment history.
   describe.each(Object.entries(builders))('%s query codigoErro', (name, build) => {

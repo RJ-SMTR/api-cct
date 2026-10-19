@@ -152,7 +152,7 @@ export const buildGuardadorBaseQuery = (params: GuardadorBaseQueryParams = {}) =
       ON bc.code = pu."bankCode"
     ${GUARDADOR_ASSOCIACAO_JOIN}
     WHERE
-      da."dataVencimento" BETWEEN $1 AND $2
+      da."dataVencimento"::date BETWEEN $1::date AND $2::date
       AND ($3::integer[] IS NULL OR pu.id = ANY($3))
       AND ($4::text[] IS NULL OR ${GUARDADOR_STATUS_CASE} = ANY($4))
       AND ${buildConsorcioFilter(consorcioParam, params.todosConsorcios)}
