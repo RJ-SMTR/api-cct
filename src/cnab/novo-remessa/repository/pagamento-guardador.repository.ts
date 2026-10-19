@@ -27,17 +27,6 @@ export interface IPagamentoGuardadorPreparadoPaginado {
 }
 
 
-interface IGrupoPorUsuario {
-  userId: number;
-  valorTotal: string;
-  orderIds: number[];
-  bankCode: string | null;
-  bankAgency: string | null;
-  bankAccount: string | null;
-  bankAccountDigit: string | null;
-  bloqueado: boolean | null;
-}
-
 /**
  * Mesma ideia do PagamentoConsorcioRepository, mas para `ordem_pagamento_guardador` — uma
  * tabela própria (não `ordem_pagamento`), sem conceito de consórcio, com `dataOrdem` no

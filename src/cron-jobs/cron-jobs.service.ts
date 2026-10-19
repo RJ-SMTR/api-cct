@@ -199,7 +199,7 @@ export class CronJobsService {
         name: CronJobsEnum.generateRemessaVLT,
         cronJobParameters: {
           cronTime: '0 12 * * *', // Every day, 12:00 GMT = 9:00 BRT (GMT-3)
-          onTick: async () => {
+          onTick: () => {
             const today = new Date();
             if (isSaturday(today) || isSunday(today)) {
               return;
@@ -806,8 +806,6 @@ export class CronJobsService {
   
   async remessaModalExec(pagamentoUnico?: boolean, gratuidade?: boolean) {
     const today = new Date();
-    let subDaysInt = 0;
-    let dataFimOffset = 1;
 
     // if (isTuesday(today)) {
     //   // Terça paga sexta, sábado, domingo e segunda; o dia atual (terça) fica de fora.
