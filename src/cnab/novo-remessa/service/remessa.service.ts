@@ -203,21 +203,21 @@ export class RemessaService {
             if (headerLote.formaLancamento === Cnab104FormaLancamento.TED) {
               detB = await this.gerarDetalheAB(headerLote, opa, nsrTed, indevido ? indevido[0] : indevido, pagamentoUnico, numeroDocumentoRef);
               if (detB !== null) {
-                this.atualizaStatusRemessa(ordens[i], StatusRemessaEnum.PreparadoParaEnvio);
+                await this.atualizaStatusRemessa(ordens[i], StatusRemessaEnum.PreparadoParaEnvio);
                 this.logger.debug(`Remessa preparado para: ${user.fullName} - TED`);
                 nsrTed = detB.nsr + 1;
               }
             } else if (headerLote.formaLancamento === Cnab104FormaLancamento.CreditoContaPoupanca) {
               detB = await this.gerarDetalheAB(headerLote, opa, nsrPoupanca, indevido ? indevido[0] : indevido, pagamentoUnico, numeroDocumentoRef);
               if (detB !== null) {
-                this.atualizaStatusRemessa(ordens[i], StatusRemessaEnum.PreparadoParaEnvio);
+                await this.atualizaStatusRemessa(ordens[i], StatusRemessaEnum.PreparadoParaEnvio);
                 this.logger.debug(`Remessa preparado para: ${user.fullName} - Poupança`);
                 nsrPoupanca = detB.nsr + 1;
               }
             } else {
               detB = await this.gerarDetalheAB(headerLote, opa, nsrCC, indevido ? indevido[0] : indevido, pagamentoUnico, numeroDocumentoRef);
               if (detB !== null) {
-                this.atualizaStatusRemessa(ordens[i], StatusRemessaEnum.PreparadoParaEnvio);
+                await this.atualizaStatusRemessa(ordens[i], StatusRemessaEnum.PreparadoParaEnvio);
                 this.logger.debug(`Remessa preparado para: ${user.fullName} - CC`);
                 nsrCC = detB.nsr + 1;
               }
@@ -392,7 +392,7 @@ export class RemessaService {
   private async atualizaStatusRemessa(opa: OrdemPagamentoAgrupado, statusRemessa: StatusRemessaEnum) {
     const historico = await this.ordemPagamentoAgrupadoService.getHistoricosOrdem(opa.id);
     if (historico) {
-      this.ordemPagamentoAgrupadoService.saveStatusHistorico(historico[historico.length - 1], statusRemessa);
+      await this.ordemPagamentoAgrupadoService.saveStatusHistorico(historico[historico.length - 1], statusRemessa);
     }
   }
 
