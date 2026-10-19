@@ -137,7 +137,7 @@ const buildGroupedQuery = (params: NovoRemessaBaseParams, source: AgrupamentoSou
     INNER JOIN bank bc
       ON bc.code = pu."bankCode"
     WHERE
-      ${source.extraWhere ? `${source.extraWhere}\n      AND ` : ''}da."dataVencimento" BETWEEN $1 AND $2
+      ${source.extraWhere ? `${source.extraWhere}\n      AND ` : ''}da."dataVencimento"::date BETWEEN $1::date AND $2::date
       AND ($3::integer[] IS NULL OR pu.id = ANY($3))
       AND ($4::text[] IS NULL OR ${STATUS_CASE} = ANY($4))
       AND (${consorcioParam}::text[] IS NULL OR UPPER(TRIM(${CONSORCIO_CASE})) = ANY(${consorcioParam}))
@@ -296,7 +296,7 @@ export const buildEleicaoQuery = (params: NovoRemessaBaseParams) => {
     INNER JOIN bank bc
       ON bc.code = pu."bankCode"
     WHERE
-      da."dataVencimento" BETWEEN $1 AND $2
+      da."dataVencimento"::date BETWEEN $1::date AND $2::date
       AND ($3::integer[] IS NULL OR pu."id" = ANY($3))
       AND ${ELEICAO_STATUS_FILTER}
       AND (${consorcioParam}::text[] IS NULL OR TRIM(UPPER(opu."consorcio")) = ANY(${consorcioParam}))      

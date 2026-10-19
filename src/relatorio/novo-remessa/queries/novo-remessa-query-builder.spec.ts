@@ -91,3 +91,31 @@ describe('novo-remessa-query-builder codigoErro', () => {
     expect(sql).toContain('da."valorLancamento" AS valor');
   });
 });
+
+describe('novo-remessa-query-builder período (dataVencimento)', () => {
+  const params = { consorcioFilterParamIndex: 5 };
+
+  // dataVencimento is a `timestamp without time zone` column written at 03:00:00 (midnight
+  // in Brasília). A plain BETWEEN $1 AND $2 compares it against the implicit
+  // 'yyyy-MM-dd 00:00:00', silently excluding the last day of the period (ADR 0005).
+  it.each([
+    ['base', buildBaseQuery(params)],
+    ['stucGratuidade', buildStucGratuidadeQuery(params)],
+  ])('%s query casts the period filter to date', (_name, sql) => {
+    expect(sql).toContain('da."dataVencimento"::date BETWEEN $1::date AND $2::date');
+  });
+
+  it('eleicao query casts the period filter to date', () => {
+    const sql = buildEleicaoQuery(params);
+
+    expect(sql).toContain('da."dataVencimento"::date BETWEEN $1::date AND $2::date');
+  });
+
+  // op.dataOrdem is a plain `date` column (no time component): it never had this bug and
+  // must not get the cast.
+  it('pendentes query keeps filtering dataOrdem without a date cast', () => {
+    const sql = buildPendentesQuery({});
+
+    expect(sql).toContain('op."dataOrdem" BETWEEN $1 AND $2');
+  });
+});
