@@ -33,6 +33,9 @@ import { CnabHeaderArquivo104DTO } from "src/cnab/dto/cnab-240/104/cnab-header-a
 import { PagamentoIndevidoService } from "src/pagamento_indevido/service/pgamento-indevido-service";
 import { PagamentoIndevidoDTO } from "src/pagamento_indevido/dto/pagamento-indevido.dto";
 
+/** Quando false, prepararRemessa não abate pagamentos indevidos do valor remetido (nem altera o saldo devedor). */
+export const DESCONTAR_PAGAMENTO_INDEVIDO = false;
+
 @Injectable()
 export class RemessaService {
   private logger = new CustomLogger(RemessaService.name, { timestamp: true });
@@ -154,7 +157,11 @@ export class RemessaService {
             return;
           }
 
-          const indevido = await this.pagamentoIndevidoService.findByNome(user.fullName);
+          // Desconto de pagamentos indevidos inativo (mudança operacional): sem "indevido" o valor da remessa
+          // não é abatido nem o saldo devedor é alterado. Para reativar, ligue DESCONTAR_PAGAMENTO_INDEVIDO.
+          const indevido = DESCONTAR_PAGAMENTO_INDEVIDO
+            ? await this.pagamentoIndevidoService.findByNome(user.fullName)
+            : undefined;
 
           let opa;
           if (gratuidade) {
@@ -424,7 +431,7 @@ export class RemessaService {
     result = Number(resultArr);
     if (result > 0) {
       //Vanzeiro continua devendo
-      //Atualizar o banco com o debito restante  
+      //Atualizar o banco com o debito restante
       pagamentoIndevido.saldoDevedor = result;
       pagamentoIndevido.dataReferencia = new Date();
       await this.pagamentoIndevidoService.save(pagamentoIndevido);
@@ -432,7 +439,7 @@ export class RemessaService {
     } else {
       //debito encerrado
       if (result <= 0) {
-        //ex: result = -10          
+        //ex: result = -10
         //pagar diferença para o vanzeiro
         aPagar = Math.abs(result);
         pagamentoIndevido.saldoDevedor = 0;
