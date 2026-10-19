@@ -18,7 +18,7 @@ export class BigQueryToOrdemPagamento {
         const METHOD = 'convert';
         this.logger.debug(`Sincronizado ${ordem.idOrdemPagamento} `, METHOD);
         const result = new OrdemPagamento();
-        result.id = ordem.id;
+        result.bqId = Number(ordem.id);
         result.dataOrdem = new Date(ordem.dataOrdem);
         result.idConsorcio = ordem.idConsorcio;
         result.idOperadora = ordem.idOperadora;

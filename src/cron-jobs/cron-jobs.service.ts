@@ -106,12 +106,13 @@ export class CronJobsService {
   ) { }
 
   async onModuleInit() {
+    await this.sincronizarEAgruparOrdensPagamento();
     this.onModuleLoad().catch((error: Error) => {
       throw error;
     });
   }
 
-  async onModuleLoad() {
+  async onModuleLoad() {       
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -719,7 +720,7 @@ export class CronJobsService {
 
   private async geradorRemessaExec(dataInicio: Date, dataFim: Date, dataPagamento: Date,
     consorcios: string[], headerName: HeaderName, pagamentoUnico?: boolean) {
-    // Agrupa pagamentos        
+    // // Agrupa pagamentos        
 
     for (let index = 0; index < consorcios.length; index++) {
       if (pagamentoUnico) {
@@ -737,9 +738,9 @@ export class CronJobsService {
 
     await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, consorcios, pagamentoUnico);
 
-    // // Gera o TXT
+    // Gera o TXT
     const txt = await this.remessaService.gerarCnabText(headerName, pagamentoUnico, false, consorcios);
-    // //Envia para o SFTP
+    //Envia para o SFTP
     await this.remessaService.enviarRemessa(txt, headerName);
   }
 
@@ -782,23 +783,23 @@ export class CronJobsService {
     headerName: HeaderName, idsFavorecidos?: string[]) {
     this.logger.debug('iniciando o agrupamento pendente')
 
-    // Exclude the current normal payment cycle from never-paid candidates.
-    const limiteSeguro = this.getLimiteSeguroPendentes();
-    const dataFim = dataFimSolicitada >= limiteSeguro ? subDays(limiteSeguro, 1) : dataFimSolicitada;
-    if (dataFim.getTime() !== dataFimSolicitada.getTime()) {
-      this.logger.warn(`Pendentes consórcio: dtFim ${dataFimSolicitada.toISOString()} alcançava o ciclo em curso (limite ${limiteSeguro.toISOString()}) - ajustado para ${dataFim.toISOString()}`);
-    }
+    // // Exclude the current normal payment cycle from never-paid candidates.
+    // const limiteSeguro = this.getLimiteSeguroPendentes();
+    // const dataFim = dataFimSolicitada >= limiteSeguro ? subDays(limiteSeguro, 1) : dataFimSolicitada;
+    // if (dataFim.getTime() !== dataFimSolicitada.getTime()) {
+    //   this.logger.warn(`Pendentes consórcio: dtFim ${dataFimSolicitada.toISOString()} alcançava o ciclo em curso (limite ${limiteSeguro.toISOString()}) - ajustado para ${dataFim.toISOString()}`);
+    // }
 
-    // AGRUPAR ORDENS POR INDIVIDUO
-    await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupadosPendentes(dataInicio, dataFim, dataPagamento, "contaBilhetagem", idsFavorecidos);
+    // // AGRUPAR ORDENS POR INDIVIDUO
+    // await this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupadosPendentes(dataInicio, dataFim, dataPagamento, "contaBilhetagem", idsFavorecidos);
 
-    // Create bank details and prepare parent histories for sending.
-    await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, ['STPC', 'STPL', 'TEC'], false, true, idsFavorecidos);
+    // // Create bank details and prepare parent histories for sending.
+    // await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, ['STPC', 'STPL', 'TEC'], false, true, idsFavorecidos);
 
-    // Gera o TXT
+    // // Gera o TXT
     const txt = await this.remessaService.gerarCnabText(headerName, undefined, true);
 
-    await this.remessaService.enviarRemessa(txt, headerName);
+    await this.remessaService.enviarRemessa(txt, headerName);    
   }
 
 
@@ -806,20 +807,23 @@ export class CronJobsService {
   async remessaModalExec(pagamentoUnico?: boolean, gratuidade?: boolean) {
     const today = new Date();
     let subDaysInt = 0;
-    let dataFimOffset = 0;
+    let dataFimOffset = 1;
 
-    if (isTuesday(today)) {
-      // Terça paga sexta, sábado, domingo e segunda; o dia atual (terça) fica de fora.
-      subDaysInt = 4;
-      dataFimOffset = 1;
-    } else if (isFriday(today)) {
-      subDaysInt = 3;
-    } else {
-      return;
-    }
+    // if (isTuesday(today)) {
+    //   // Terça paga sexta, sábado, domingo e segunda; o dia atual (terça) fica de fora.
+    //   subDaysInt = 4;
+     
+    // } else if (isFriday(today)) {
+    //   subDaysInt = 3;
+    // } else {
+    //   return;
+    // }
 
-    const dataInicio = subDays(today, subDaysInt);
-    const dataFim = subDays(today, dataFimOffset);
+    const dataInicio = today;
+    const dataFim = today;
+
+    // const dataInicio = subDays(today, subDaysInt);
+    // const dataFim = subDays(today, dataFimOffset);
 
     const consorcios = ['STPC', 'STPL', 'TEC'];
     if (gratuidade) {
@@ -909,7 +913,7 @@ export class CronJobsService {
     const dataInicio = subDays(today, subDaysInt);
     const dataFim = subDays(today, 1);
 
-    // await this.limparAgrupamentos(dataInicio, dataFim, CronJobsService.CONSORCIOS);
+    //await this.limparAgrupamentos(dataInicio, dataFim, CronJobsService.CONSORCIOS);
     await this.geradorRemessaExec(dataInicio, dataFim, today, CronJobsService.CONSORCIOS, HeaderName.CONSORCIO, pagamentoUnico);
   }
 
@@ -997,11 +1001,11 @@ export class CronJobsService {
       let { dataInicio, dataFim, dataPagamento } = this.calcularPeriodoPagamento();
 
       if (tipo === 'GUARDADOR') {
-        const dataHoje = new Date("2026-10-06");
+        const dataHoje = new Date("2026-10-16");
         dataInicio = dataHoje
         dataFim = dataHoje
         dataPagamento = dataHoje
-      }
+      }     
 
       this.logger.log(
         `Iniciando sincronização das ordens de pagamento (${tipo}) do BigQuery. Data de Início: ${dataInicio.toISOString()}, Data Fim: ${dataFim.toISOString()}`,

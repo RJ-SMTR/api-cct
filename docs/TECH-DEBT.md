@@ -27,6 +27,7 @@ Registro único do que foi adiado de propósito, por quê e por quem. Serve para
 | [TD-10](#td-10) | Baseline de eslint relaxada para `cron-jobs` e `ordem-pagamento-agrupado` | aberto | Rayanne | 2026-10-06 |
 | [TD-11](#td-11) | Vulnerabilidades de dependências não tratadas (npm audit / Dependabot) | aberto | Rayanne | 2026-10-08 |
 | [TD-12](#td-12) | `cron-jobs-pendentes.spec` quebrado na `main` bloqueia o pre-commit | aberto | Matthew | 2026-10-09 |
+| [TD-13](#td-13) | Hook de pre-commit não funciona no Windows (`spawnSync` do `.bin/tsc`) e o ratchet fica vazio | aberto | William | 2026-10-04 |
 
 ## Entradas
 
@@ -145,3 +146,14 @@ Registro único do que foi adiado de propósito, por quê e por quem. Serve para
 - **Contexto:** os commits de geração de remessa que estão na `main` e ainda não na `release` (`859b9ffb`, `24253f09`, `99b5652d`) fazem `src/cron-jobs/cron-jobs-pendentes.spec.ts` falhar 2 de 3 testes (`this.ordemPagamentoAgrupadoService.prepararPagamentoAgrupados is not a function`, em `geradorRemessaExec`). A suíte passa na baseline, então, sobre a `main`, o pre-commit bloqueia qualquer commit cujo `jest --findRelatedTests` a alcance (ex.: mudar `src/users/entities/user.entity.ts`) e `npm run validate` falha. Detectado ao trabalhar na issue #1192, que acabou rebaseada sobre a `release`. Na mesma `main`, `onModuleLoad` de `CronJobsService` chama `await this.remessaGuardadorExec()` (ver TD-9).
 - **Impacto/risco:** commits sobre a `main` sem relação com pagamento precisam de `--no-verify`, o que desliga também o build check; o spec deixou de proteger o ciclo de vida do job de pendentes; quando a `main` for integrada à `release`, a falha vem junto.
 - **Critério de pagamento:** `cron-jobs-pendentes.spec.ts` volta a passar na `main` (mock atualizado para a API atual de `OrdemPagamentoAgrupadoService` ou código corrigido), `npm run validate` verde e commits voltam a passar no pre-commit sem `--no-verify`.
+- **Atualização (2026-10-13):** os commits manuais de `main` de 08/10 (`e4d96b98`, agrupamento e `prepararRemessa` dos pendentes de consórcio comentados em `geradorRemessaPendenteExec`) mantêm 1 de 3 testes falhando (consórcio). O commit que remove `remessaModalExec()` do `onModuleLoad` (PR da issue #1192 para a `main`) usou `--no-verify` por causa disso; o teste do `onModuleLoad` voltou a passar com ele.
+- **Atualização (2026-10-15):** o commit do merge de `origin/stag` na `feature/mergeStagProd` foi feito com `--no-verify`, autorizado por William, porque esse spec (1 de 3 testes) bloqueava o pre-commit. O type-check de produção e os demais specs de `novo-remessa` passaram antes do commit.
+
+## TD-13
+**Hook de pre-commit não funciona no Windows (`spawnSync` do `.bin/tsc`) e o ratchet fica vazio**
+
+- **Status:** aberto
+- **Registrado por:** William · **Detectado por:** agente · **Data:** 2026-10-04
+- **Contexto:** `scripts/validate/pre-commit.ts` chama `spawnSync(bin('tsc'), ...)` sem `shell`. No Windows `node_modules/.bin/tsc` não é executável direto, então o hook sai com erro sem stdout/stderr ("undefinedundefined") e bloqueia todo commit com `.ts` staged, mesmo com o build verde. Além disso, `compareSuites` compara os caminhos de suíte do baseline (`src/...`) com caminhos absolutos do Windows e acaba checando 0 suítes, ou seja, o ratchet não protege nada nessa plataforma. O commit do merge de `origin/main` (2026-10-04) usou `git commit --no-verify`; antes disso as mesmas etapas rodaram à mão: `tsc --noEmit -p tsconfig.build.json` (ok), `jest --findRelatedTests` e ratchet com caminhos normalizados. Única diferença contra o baseline: `cron-jobs-pendentes.spec.ts`, que falha idêntico no `origin/main` (arquivos iguais ao upstream).
+- **Impacto/risco:** quem commita no Windows precisa de `--no-verify` e perde a validação automática; o baseline não é aplicado.
+- **Critério de pagamento:** o hook roda no Windows (`spawnSync` com `shell: true` ou `npx`), `compareSuites` normaliza separadores e raiz dos caminhos, e um commit com `.ts` staged passa pelo hook sem `--no-verify`.

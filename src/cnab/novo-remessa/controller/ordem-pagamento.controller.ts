@@ -1,9 +1,11 @@
 import {
+  Body,
   Controller,
   Get,
   HttpCode,
   HttpStatus,
   Param, ParseArrayPipe,
+  Post,
   Query,
   Request,
   SerializeOptions,
@@ -16,9 +18,16 @@ import { DateApiParams } from 'src/utils/api-param/date-api-param';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { IRequest } from 'src/utils/interfaces/request.interface';
 import { ParseNumberPipe } from 'src/utils/pipes/parse-number.pipe';
+import { ParseDatePipe } from 'src/utils/pipes/parse-date.pipe';
 import { DateQueryParams } from 'src/utils/query-param/date.query-param';
+import { PaginationQueryParams } from 'src/utils/query-param/pagination.query-param';
+import { PaginationApiParams } from 'src/utils/api-param/pagination.api-param';
 import { canProceed, getRequestLog } from 'src/utils/request-utils';
+import { Roles } from 'src/roles/roles.decorator';
+import { RoleEnum } from 'src/roles/roles.enum';
+import { RolesGuard } from 'src/roles/roles.guard';
 import { OrdemPagamentoService } from '../service/ordem-pagamento.service';
+import { SincronizarOrdensPeriodoDto } from '../dto/sincronizar-ordens-periodo.dto';
 import { OrdemPagamentoSemanalDto } from '../dto/ordem-pagamento-semanal.dto';
 import { BigqueryTransacaoService } from '../../../bigquery/services/bigquery-transacao.service';
 import { BigqueryTransacao } from '../../../bigquery/entities/transacao.bigquery-entity';
@@ -39,6 +48,37 @@ export class OrdemPagamentoController {
   constructor(private readonly ordemPagamentoService: OrdemPagamentoService,
               private readonly bigqueryTransacaoService: BigqueryTransacaoService,
               private readonly usersService: UsersService) {}
+
+  @Get()
+  @Roles(RoleEnum.master, RoleEnum.admin)
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @ApiBearerAuth()
+  @ApiQuery(PaginationApiParams.page)
+  @ApiQuery(PaginationApiParams.limit)
+  @ApiQuery({ name: 'dataOrdemInicio', required: false, type: String })
+  @ApiQuery({ name: 'dataOrdemFim', required: false, type: String })
+  @ApiQuery({ name: 'nomeConsorcio', required: false, type: String })
+  @ApiQuery({ name: 'nomeOperadora', required: false, type: String })
+  @HttpCode(HttpStatus.OK)
+  async getPaginado(
+    @Query(...PaginationQueryParams.page) page: number,
+    @Query(...PaginationQueryParams.limit) limit: number,
+    // Tipado como `any` (não `Date`) propositalmente: com o ValidationPipe
+    // global (`transform: true`), o Nest converteria o parâmetro para Date
+    // ANTES do ParseDatePipe rodar, e um valor ausente viraria "Invalid Date"
+    // em vez de undefined, quebrando a checagem `optional`.
+    @Query('dataOrdemInicio', new ParseDatePipe({ dateOnly: true, optional: true, transform: true })) dataOrdemInicio?: any,
+    @Query('dataOrdemFim', new ParseDatePipe({ dateOnly: true, optional: true, transform: true })) dataOrdemFim?: any,
+    @Query('nomeConsorcio') nomeConsorcio?: string,
+    @Query('nomeOperadora') nomeOperadora?: string,
+  ) {
+    return this.ordemPagamentoService.findPermissionarioListPaginated(page, limit, {
+      dataOrdemInicio,
+      dataOrdemFim,
+      nomeConsorcio,
+      nomeOperadora,
+    });
+  }
 
   @Get('mensal')
   @UseGuards(AuthGuard('jwt'))
@@ -92,6 +132,22 @@ export class OrdemPagamentoController {
   }
 
 
+  /**
+   * Sincroniza manualmente as ordens do BigQuery de um intervalo de datas de captura (para recuperar
+   * ordens que o cron não trouxe). Idempotente; só grava, não agrupa. Restrito a master/admin.
+   */
+  @Post('sincronizar')
+  @Roles(RoleEnum.master, RoleEnum.admin)
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  async sincronizarPorPeriodo(@Request() request: IRequest, @Body() body: SincronizarOrdensPeriodoDto) {
+    this.logger.log(getRequestLog(request));
+    const dataInicio = new Date(`${body.dataInicio}T00:00:00.000Z`);
+    const dataFim = new Date(`${body.dataFim}T00:00:00.000Z`);
+    return this.ordemPagamentoService.sincronizarOrdensPorPeriodo(dataInicio, dataFim, body.consorcios);
+  }
+
   @Get('diario/:ordemPagamentoId')
   @UseGuards(AuthGuard('jwt'))
   @SerializeOptions({ groups: ['me'] })
@@ -109,7 +165,7 @@ export class OrdemPagamentoController {
     // const userIdNum = isUserIdNumber ? Number(userId) : request.user.id;
     // const user = await this.usersService.findOne({ id: userIdNum})
     canProceed(request, Number(userId));
-    return this.bigqueryTransacaoService.findTransacoesByOp([ordemPagamentoId]);
+    return this.bigqueryTransacaoService.findTransacoesByOp(await this.ordemPagamentoService.converterParaBqIds([ordemPagamentoId]));
     
   }
 
@@ -127,7 +183,7 @@ export class OrdemPagamentoController {
   ): Promise<BigqueryTransacaoDiario[]> {
     this.logger.log(getRequestLog(request));
     //return this.bigqueryTransacaoService.findManyByOrdemPagamentoIdInGroupedByTipoTransacao(ordemPagamentoIds,undefined,request)
-    return this.bigqueryTransacaoService.findTransacoesByOp(ordemPagamentoIds);
+    return this.bigqueryTransacaoService.findTransacoesByOp(await this.ordemPagamentoService.converterParaBqIds(ordemPagamentoIds));
   }
 
 
@@ -152,7 +208,8 @@ export class OrdemPagamentoController {
     const ordemPagamentoIds = ordensPagamento.map((ordem) => ordem.ordemId);
 
     const user = await this.usersService.findOne({ id: userIdNum})
-    return this.bigqueryTransacaoService.findManyByOrdemPagamentoIdInGroupedByTipoTransacao(ordemPagamentoIds, user?.cpfCnpj, request);
+    const bqIds = await this.ordemPagamentoService.converterParaBqIds(ordemPagamentoIds);
+    return this.bigqueryTransacaoService.findManyByOrdemPagamentoIdInGroupedByTipoTransacao(bqIds, user?.cpfCnpj, request);
   }
 
   @Get('transacoes-dias-anteriores/:ordemPagamentoAgrupadoId')

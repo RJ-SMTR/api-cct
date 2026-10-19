@@ -1,9 +1,11 @@
-import { HttpException, Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { DeepPartial } from 'typeorm';
+import * as xlsx from 'xlsx';
 import { BigqueryOrdemPagamentoDTO } from 'src/bigquery/dtos/bigquery-ordem-pagamento.dto';
 import { BigqueryOrdemPagamentoService } from 'src/bigquery/services/bigquery-ordem-pagamento.service';
 import { UsersService } from 'src/users/users.service';
 import { CustomLogger } from 'src/utils/custom-logger';
-import { OrdemPagamentoRepository } from '../repository/ordem-pagamento.repository';
+import { OrdemPagamentoListFilters, OrdemPagamentoRepository } from '../repository/ordem-pagamento.repository';
 import { BigQueryToOrdemPagamento } from '../convertTo/bigquery-to-ordem-pagamento.convert';
 import { User } from 'src/users/entities/user.entity';
 import { OrdemPagamentoSemanalDto } from '../dto/ordem-pagamento-semanal.dto';
@@ -11,11 +13,28 @@ import { OrdemPagamentoMensalDto } from '../dto/ordem-pagamento-mensal.dto';
 import { OrdemPagamentoPendenteNuncaRemetidasDto } from '../dto/ordem-pagamento-pendente-nunca-remetidas.dto';
 import { OrdemPagamentoAgrupadoMensalDto } from '../dto/ordem-pagamento-agrupado-mensal.dto';
 import { replaceUndefinedWithNull } from '../../../utils/type-utils';
-import { endOfDay, startOfDay } from 'date-fns';
+import { endOfDay, isValid, startOfDay } from 'date-fns';
 import { OrdemPagamento } from '../entity/ordem-pagamento.entity';
 import { BigqueryOrdemPagamentoGuardadorDTO } from 'src/bigquery/dtos/bigquery-ordem-pagamento-guardador.dto';
-import { OrdemPagamentoGuardadorRepository } from '../repository/ordem-pagamento-guardador.repository';
+import { OrdemPagamentoGuardadorListFilters, OrdemPagamentoGuardadorRepository } from '../repository/ordem-pagamento-guardador.repository';
 import { OrdemPagamentoGuardador } from '../entity/ordem-pagamento-guardador.entity';
+
+/** Mesma lista sincronizada pelo cron (CronJobsService.CONSORCIOS + MODAIS). */
+export const CONSORCIOS_E_MODAIS_SINCRONIZADOS = [
+  'VLT', 'Intersul', 'Transcarioca', 'Internorte', 'MobiRio', 'Santa Cruz', 'MOBI-Rio BUM', 'TUSE', 'GTU',
+  'STPC', 'STPL', 'TEC',
+];
+
+/** Limite de dias do sincronismo manual, para uma chamada não varrer o BigQuery inteiro. */
+export const MAX_DIAS_SINCRONISMO_MANUAL = 31;
+
+export interface ResultadoSincronismoOrdens {
+  dataInicio: string;
+  dataFim: string;
+  encontradasNoBigQuery: number;
+  inseridas: number;
+  puladoPorContagemIgual: boolean;
+}
 
 @Injectable()
 export class OrdemPagamentoService {
@@ -23,20 +42,239 @@ export class OrdemPagamentoService {
 
   private logger = new CustomLogger(OrdemPagamentoService.name, { timestamp: true });
 
-  constructor(private ordemPagamentoRepository: OrdemPagamentoRepository, 
+  constructor(private ordemPagamentoRepository: OrdemPagamentoRepository,
     private ordemPagamentoGuardadorRepository: OrdemPagamentoGuardadorRepository,
     private bigqueryOrdemPagamentoService: BigqueryOrdemPagamentoService, private usersService: UsersService) { }
 
-  async sincronizarOrdensPagamento(dataCapturaInicialDate: Date, dataCapturaFinalDate: Date, consorcio: string[]) {
+  async findPermissionarioListPaginated(
+    page: number,
+    limit: number,
+    filters?: OrdemPagamentoListFilters,
+  ): Promise<{ data: any[]; count: number; valorTotal: number }> {
+    const [[data, count], valorTotal] = await Promise.all([
+      this.ordemPagamentoRepository.findAllPaginated(page, limit, filters),
+      this.ordemPagamentoRepository.sumValorFiltered(filters),
+    ]);
+
+    return {
+      data: data.map((ordem) => ({
+        id: ordem.id,
+        dataOrdem: ordem.dataOrdem,
+        nomeConsorcio: ordem.nomeConsorcio,
+        nomeOperadora: ordem.nomeOperadora,
+        valor: Number(ordem.valor),
+      })),
+      count,
+      valorTotal,
+    };
+  }
+
+  async findGuardadorListPaginated(
+    page: number,
+    limit: number,
+    filters?: OrdemPagamentoGuardadorListFilters,
+  ): Promise<{ data: any[]; count: number; valorTotal: number }> {
+    const [[data, count], valorTotal] = await Promise.all([
+      this.ordemPagamentoGuardadorRepository.findAllPaginated(page, limit, filters),
+      this.ordemPagamentoGuardadorRepository.sumValorFiltered(filters),
+    ]);
+
+    return {
+      data: data.map((ordem) => ({
+        id: ordem.id,
+        dataOrdem: ordem.dataOrdem,
+        cpfCnpj: ordem.user?.cpfCnpj ?? null,
+        fullName: ordem.user?.fullName ?? null,
+        valor: Number(ordem.valorRepasseGuardador),
+      })),
+      count,
+      valorTotal,
+    };
+  }
+
+  /**
+   * Extrai a coluna de documento (CPF/CNPJ) e a coluna de valor de uma linha
+   * de planilha lida em modo objeto (chaves = cabeçalhos). As planilhas de
+   * guardadores usadas no CCT não têm nomes de coluna padronizados entre
+   * abas, então a busca é por nome aproximado, com fallback posicional
+   * (primeira coluna = documento, última coluna = valor).
+   */
+  private extractDocumentoAndValorFromRow(row: Record<string, any>): { documentoRaw: any; valorRaw: any } {
+    const keys = Object.keys(row);
+    const documentoKey = keys.find((key) => /cpf|cnpj/i.test(key));
+    const valorKey = keys.find((key) => /valor/i.test(key));
+
+    return {
+      documentoRaw: documentoKey !== undefined ? row[documentoKey] : row[keys[0]],
+      valorRaw: valorKey !== undefined ? row[valorKey] : row[keys[keys.length - 1]],
+    };
+  }
+
+  /** Remove tudo que não é dígito e completa com zeros à esquerda até 11 dígitos (CPF). */
+  private normalizeDocumento(raw: any): string {
+    const digits = String(raw ?? '').replace(/\D/g, '');
+    if (!digits) return '';
+    return digits.length < 11 ? digits.padStart(11, '0') : digits;
+  }
+
+  /** Converte "R$ 57.40" (decimal com ponto) ou "R$ 4.169,22" (BR, decimal com vírgula) em número. */
+  private parseCurrencyValue(raw: any): number {
+    let normalized = String(raw ?? '').replace(/[^0-9.,-]/g, '').trim();
+    if (!normalized) return NaN;
+
+    const lastComma = normalized.lastIndexOf(',');
+    const lastDot = normalized.lastIndexOf('.');
+
+    if (lastComma > lastDot) {
+      normalized = normalized.replace(/\./g, '').replace(',', '.');
+    } else if (lastDot > lastComma) {
+      normalized = normalized.replace(/,/g, '');
+    }
+
+    return parseFloat(normalized);
+  }
+
+  /**
+   * Extrai a data da ordem a partir do nome do arquivo (ex.: "Pagamento 22_09.xlsx"
+   * -> 22/09 do ano corrente; "Pagamento 22_09_2025.xlsx" -> 22/09/2025).
+   * Retorna null se não encontrar um padrão de data reconhecível.
+   */
+  private extractDateFromFilename(filename?: string): Date | null {
+    if (!filename) return null;
+
+    const match = filename.match(/(\d{1,2})[_\-.](\d{1,2})(?:[_\-.](\d{2,4}))?/);
+    if (!match) return null;
+
+    const day = Number(match[1]);
+    const month = Number(match[2]);
+    let year = match[3] ? Number(match[3]) : new Date().getFullYear();
+
+    if (year < 100) {
+      year += 2000;
+    }
+
+    if (day < 1 || day > 31 || month < 1 || month > 12) {
+      return null;
+    }
+
+    const date = startOfDay(new Date(year, month - 1, day));
+    return isValid(date) ? date : null;
+  }
+
+  async importGuardadorSpreadsheet(file: Express.Multer.File): Promise<{
+    totalRows: number;
+    imported: number;
+    skipped: number;
+    dataOrdemUtilizada: Date;
+    errors: { sheet: string; row: number; documento: string; motivo: string }[];
+  }> {
+    if (!file) {
+      throw new HttpException({ error: 'Selecione um arquivo para importar.' }, HttpStatus.UNPROCESSABLE_ENTITY);
+    }
+
+    let workbook: xlsx.WorkBook;
+    try {
+      workbook = xlsx.read(file.buffer, { type: 'buffer', codepage: 65001 });
+    } catch (e) {
+      throw new HttpException({ error: 'Não foi possível ler a planilha enviada.' }, HttpStatus.UNPROCESSABLE_ENTITY);
+    }
+
+    // A data da ordem vem do nome do arquivo (ex.: "Pagamento 22_09.xlsx" = 22/09),
+    // não da data de hoje — cai para hoje só se o nome não tiver um padrão de data.
+    const today = this.extractDateFromFilename(file.originalname) ?? startOfDay(new Date());
+    const errors: { sheet: string; row: number; documento: string; motivo: string }[] = [];
+    const entitiesToInsert: DeepPartial<OrdemPagamentoGuardador>[] = [];
+    let totalRows = 0;
+
+    for (const sheetName of workbook.SheetNames) {
+      const worksheet = workbook.Sheets[sheetName];
+      const rows = xlsx.utils.sheet_to_json<Record<string, any>>(worksheet, { defval: '', raw: false });
+
+      for (let i = 0; i < rows.length; i++) {
+        const { documentoRaw, valorRaw } = this.extractDocumentoAndValorFromRow(rows[i]);
+        const documento = this.normalizeDocumento(documentoRaw);
+        const rowNumber = i + 2; // +1 pelo cabeçalho, +1 para base 1
+
+        if (!documento) {
+          continue;
+        }
+
+        totalRows++;
+
+        const valor = this.parseCurrencyValue(valorRaw);
+        if (!Number.isFinite(valor)) {
+          errors.push({ sheet: sheetName, row: rowNumber, documento, motivo: 'Valor inválido' });
+          continue;
+        }
+
+        const user = await this.usersService.findOne({ cpfCnpj: documento });
+        if (!user) {
+          errors.push({ sheet: sheetName, row: rowNumber, documento, motivo: 'Usuário não encontrado para este CPF/CNPJ' });
+          continue;
+        }
+
+        entitiesToInsert.push({
+          dataOrdem: today,
+          qtdVerificacaoTotal: 1,
+          qtdVerificacaoValida: 1,
+          qtdVerificacaoInvalida: 1,
+          valorRepasseGuardador: valor,
+          dataInclusao: today,
+          user: { id: user.id } as User,
+          tipoOrdemPagamento: 'Manual',
+          idOrdemPagamento: documento,
+        });
+      }
+    }
+
+    if (entitiesToInsert.length > 0) {
+      await this.ordemPagamentoGuardadorRepository.saveMany(entitiesToInsert);
+    }
+
+    return {
+      totalRows,
+      imported: entitiesToInsert.length,
+      skipped: errors.length,
+      dataOrdemUtilizada: today,
+      errors: errors.slice(0, 100),
+    };
+  }
+
+  /** Ids locais de ordem_pagamento -> ids do BigQuery, para consultar transações. */
+  async converterParaBqIds(ids: (number | undefined)[]): Promise<number[]> {
+    return this.ordemPagamentoRepository.findBqIdsByIds(ids.filter((id): id is number => id != null).map(Number));
+  }
+
+  /**
+   * Busca no BigQuery as ordens capturadas entre as datas (pela data de captura) e grava as que
+   * ainda não existem localmente (identificadas por bqId). É idempotente: reexecutar não duplica.
+   *
+   * @param forcar ignora o atalho "número de ordens local == BigQuery", que deixa passar uma ordem
+   *               faltante quando a contagem local por acaso bate com a do BigQuery.
+   */
+  async sincronizarOrdensPagamento(
+    dataCapturaInicialDate: Date,
+    dataCapturaFinalDate: Date,
+    consorcio: string[],
+    forcar = false,
+  ): Promise<ResultadoSincronismoOrdens> {
     const METHOD = 'sincronizarOrdensPagamento';
     const ordens = await this.bigqueryOrdemPagamentoService.getFromWeek(dataCapturaInicialDate, dataCapturaFinalDate, 0, { consorcioName: consorcio });
 
     const numOrdensSemana = await this.findNumeroDeOrdensPorIntervalo(startOfDay(dataCapturaInicialDate), endOfDay(dataCapturaFinalDate));
     // Verifica se a ultima data de captura é igual a data atual
     // E se o número de ordens é diferente.
-    if (numOrdensSemana === ordens.length) {
+    const resultado: ResultadoSincronismoOrdens = {
+      dataInicio: dataCapturaInicialDate.toISOString().slice(0, 10),
+      dataFim: dataCapturaFinalDate.toISOString().slice(0, 10),
+      encontradasNoBigQuery: ordens.length,
+      inseridas: 0,
+      puladoPorContagemIgual: false,
+    };
+    if (!forcar && numOrdensSemana === ordens.length) {
       this.logger.log(`Já foi feita a captura de ordens de pagamento para o dia de hoje.`, METHOD);
-      return;
+      resultado.puladoPorContagemIgual = true;
+      return resultado;
     }
 
     this.logger.debug(`Iniciando sincronismo de ${ordens.length} ordens`, METHOD);
@@ -71,6 +309,28 @@ export class OrdemPagamentoService {
       }
     }
     this.logger.debug(`Sincronizado ${ordens.length} ordens`, METHOD);
+    const depois = await this.findNumeroDeOrdensPorIntervalo(startOfDay(dataCapturaInicialDate), endOfDay(dataCapturaFinalDate));
+    resultado.inseridas = Math.max(0, (depois ?? numOrdensSemana ?? 0) - (numOrdensSemana ?? 0));
+    return resultado;
+  }
+
+  /**
+   * Sincronismo manual de um intervalo de datas de captura, para recuperar ordens que o cron não
+   * trouxe (janela errada, ordem gerada depois). Sempre força a busca e aceita no máximo
+   * MAX_DIAS_SINCRONISMO_MANUAL dias. Não agrupa nada: o agrupamento continua sendo o fluxo normal.
+   */
+  async sincronizarOrdensPorPeriodo(dataInicio: Date, dataFim: Date, consorcio?: string[]): Promise<ResultadoSincronismoOrdens> {
+    if (!isValid(dataInicio) || !isValid(dataFim)) {
+      throw new HttpException({ error: 'Datas inválidas.' }, HttpStatus.BAD_REQUEST);
+    }
+    if (dataInicio > dataFim) {
+      throw new HttpException({ error: 'dataInicio deve ser menor ou igual a dataFim.' }, HttpStatus.BAD_REQUEST);
+    }
+    const dias = Math.round((dataFim.getTime() - dataInicio.getTime()) / 86_400_000) + 1;
+    if (dias > MAX_DIAS_SINCRONISMO_MANUAL) {
+      throw new HttpException({ error: `O período máximo é de ${MAX_DIAS_SINCRONISMO_MANUAL} dias (pedido: ${dias}).` }, HttpStatus.BAD_REQUEST);
+    }
+    return this.sincronizarOrdensPagamento(dataInicio, dataFim, consorcio?.length ? consorcio : CONSORCIOS_E_MODAIS_SINCRONIZADOS, true);
   }
 
   async sincronizarOrdensPagamentoGuardador(dataCapturaInicialDate: Date, dataCapturaFinalDate: Date) {
@@ -139,6 +399,11 @@ export class OrdemPagamentoService {
       o.descricaoStatusRemessa = ordem.descricaoStatusRemessa;
       o.data = ordem.data;
       o.dataPagamento = ordem.dataPagamento;
+      o.valorGratuidade = ordem.valorGratuidade;
+      o.statusRemessaGratuidade = ordem.statusRemessaGratuidade;
+      o.motivoStatusRemessaGratuidade = ordem.motivoStatusRemessaGratuidade;
+      o.descricaoStatusRemessaGratuidade = ordem.descricaoStatusRemessaGratuidade;
+      o.descricaoMotivoStatusRemessaGratuidade = ordem.descricaoMotivoStatusRemessaGratuidade;
       replaceUndefinedWithNull(o);
       return o;
     });

@@ -91,6 +91,8 @@ export type SftpConfig = {
   username: string;
   password: string;
   rootFolder: string;
+  /** Quando `true`, "Enviar para o Banco" grava em `/backup/remessa-teste` em vez de `/remessa` (pasta real lida pelo banco). Uso: testes. */
+  remessaModoTeste: boolean;
 };
 
 export type GcsConfig = {

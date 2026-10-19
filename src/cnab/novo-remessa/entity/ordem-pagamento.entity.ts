@@ -11,9 +11,16 @@ export class OrdemPagamento extends EntityHelper {
     }
   }
 
-  /** id_ordem_pagamento_consorcio_operador_dia */
-  @PrimaryColumn({ primaryKeyConstraintName: 'PK_OrdemPagamentoId' })
+  @PrimaryGeneratedColumn({ primaryKeyConstraintName: 'PK_OrdemPagamentoId' })
   id: number;
+
+  /**
+   * id_ordem_pagamento_consorcio_operador_dia (BigQuery). Era a PK; separado porque o id
+   * do BigQuery colidiu com ids locais e as ordens novas eram descartadas em silêncio.
+   * NULL nas ordens reimportadas em 2026-09-04, cujo id nunca foi o do BigQuery.
+   */
+  @Column({ type: 'int', unique: false, nullable: true })
+  bqId: number | null;
 
   @Column({ type: 'date', unique: false, nullable: false })
   dataOrdem: Date;
@@ -67,6 +74,7 @@ export class OrdemPagamento extends EntityHelper {
     foreignKeyConstraintName: 'FK_OrdemPagamentoAgrupadoGratuidade_ManyToOne',
   })
   ordemPagamentoAgrupadoGratuidade: OrdemPagamentoAgrupado | null;
+  ordemPagamentoAgrupadoGratuidadeId: number | null;
 
   @Column({ type: Date, unique: false, nullable: true })
   dataCaptura: Date | undefined;

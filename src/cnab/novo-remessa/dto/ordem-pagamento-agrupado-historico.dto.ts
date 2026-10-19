@@ -24,7 +24,9 @@ export class OrdemPagamentoAgrupadoHistoricoDTO{
 
   userBankAccount: string | undefined;
 
-  userBankAccountDigit: string | undefined;  
+  userBankAccountDigit: string | undefined;
+
+  userBankAccountType: string | undefined;
 
   statusRemessa: StatusRemessaEnum; 
 

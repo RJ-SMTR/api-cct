@@ -56,7 +56,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
                                                       ELSE op."nomeConsorcio"
                                                     END AS "nome" ,  
                                                     pu."fullName" AS "nome2",                 
-                                                    op."valor" AS valor	`;
+                                                    op."valor" AS valor, op."id" AS "idLinha"	`;
 
   private readonly headerQueryConsorcios = ` select distinct CASE
                                                 WHEN pu."permitCode" = '8' OR puu."permitCode" = '8' THEN 'VLT'
@@ -66,11 +66,11 @@ export class RelatorioNovoRemessaConsolidadoRepository {
                                                 ELSE COALESCE(op."nomeConsorcio", opp."nomeConsorcio")
                                               END AS "nome" ,            
                                               coalesce(pu."fullName", puu."fullName") AS "nome2",        
-                                              da."valorLancamento" AS valor	`;
+                                              da."valorLancamento" AS valor, da."id" AS "idLinha"	`;
 
   private readonly headerQueryVanzeirosAPagar = ` select distinct pu."fullName" AS "nome",
                                                   op."nomeConsorcio" AS "nome2",                                                  
-                                                  op."valor" AS valor	`;
+                                                  op."valor" AS valor, op."id" AS "idLinha"	`;
 
   private readonly headerQueryVanzeiros = ` select distinct coalesce(pu."fullName", puu."fullName") AS "nome",
                                             CASE
@@ -80,7 +80,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
                                               WHEN pu."permitCode" LIKE '7%' OR puu."permitCode" LIKE '7%' THEN 'TEC'
                                               ELSE COALESCE(op."nomeConsorcio", opp."nomeConsorcio")
                                             END AS "nome2",                                           
-                                            da."valorLancamento" AS valor	`;
+                                            da."valorLancamento" AS valor, da."id" AS "idLinha"	`;
 
   private readonly headerQueryEleicaoVanzereiroApagar = ` select distinct pu."fullName" AS "nome",
                                             CASE
@@ -90,7 +90,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
                                               WHEN pu."permitCode" LIKE '7%' THEN 'TEC'
                                               ELSE op."consorcio" 
                                             END AS "nome2", 
-                                            op."valorTotalTransacaoLiquido" AS valor`;
+                                            op."valorTotalTransacaoLiquido" AS valor, op."id" AS "idLinha"`;
 
 
   private readonly headerQueryEleicaoConsorcioApagar = ` select distinct 
@@ -101,7 +101,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
                                               WHEN pu."permitCode" LIKE '7%' THEN 'TEC'
                                               ELSE op."consorcio" 
                                             END AS "nome",pu."fullName" AS "nome2",                                             
-                                            op."valorTotalTransacaoLiquido" AS valor`;
+                                            op."valorTotalTransacaoLiquido" AS valor, op."id" AS "idLinha"`;
 
   private readonly headerQueryEleicaoVanzeiro = ` select distinct pu."fullName" AS "nome",
                                             CASE
@@ -111,7 +111,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
                                               WHEN pu."permitCode" LIKE '7%' THEN 'TEC'
                                               ELSE op."consorcio" 
                                             END AS "nome2",                                           
-                                            da."valorLancamento" AS valor	`;
+                                            da."valorLancamento" AS valor, da."id" AS "idLinha"	`;
 
   private readonly headerQueryEleicaoConsorcio = ` select distinct 
                                             CASE
@@ -122,7 +122,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
                                               ELSE op."consorcio" 
                                             END AS "nome",
                                             pu."fullName" AS "nome2",                                                                                       
-                                            da."valorLancamento" AS valor	`;
+                                            da."valorLancamento" AS valor, da."id" AS "idLinha"	`;
 
   private readonly fromQueryApagar = ` from ordem_pagamento op
                                         left join ordem_pagamento_agrupado opa  on op."ordemPagamentoAgrupadoId"=opa.id
@@ -179,9 +179,13 @@ export class RelatorioNovoRemessaConsolidadoRepository {
                and op."dataCaptura" >= '${dataInicio}'::date AND op."dataCaptura" < '${dataFim}'::date + interval '1 day'`;
 
     } else if (pendente) {
-      if (dataMinima && (new Date(dataMinima.getDate() - 2)).getTime() < new Date(dataFim).getTime()) {
-        dataMinima.setDate(dataMinima.getDate() - 2);
-        dataFim = dataMinima.toISOString();
+      // Atrasadas = ordens anteriores ao ciclo atual; a data final nunca passa do corte nem da data pedida.
+      if (dataMinima) {
+        const corte = new Date(dataMinima);
+        corte.setDate(corte.getDate() - 2);
+        if (corte.getTime() < new Date(dataFim).getTime()) {
+          dataFim = corte.toISOString();
+        }
       }
       where += ` where (op."ordemPagamentoAgrupadoId" is null) and (pu."bloqueado" is null OR pu."bloqueado" = false)
                and op."dataCaptura" >= '${dataInicio}'::date AND op."dataCaptura" < '${dataFim}'::date + interval '1 day'`;
@@ -259,56 +263,61 @@ export class RelatorioNovoRemessaConsolidadoRepository {
 
     let queryPendentesVanzeiro = ``;
 
-    //filtro principal 
-    //data: filter.dataInicio,filter.dataFim    
-     if (filter.aPagar === undefined && filter.emProcessamento === undefined && filter.pago === undefined
-      && filter.erro === undefined && filter.eleicao == undefined && filter.pendentes == undefined 
-      && filter.rejeitado === undefined && filter.estorno === undefined) {
-      queryAPagarConsorcios += this.getQueryApagarConsorcios(dataInicio, dataFim, true);
-      queryPendentesConsorcio += this.getQueryApagarConsorcios(dataInicio, dataFim, undefined, true);
-      queryAPagarVanzeiros += this.getQueryApagarVanzeiros(dataInicio, dataFim, true);
-      queryPendentesVanzeiro += this.getQueryApagarVanzeiros(dataInicio, dataFim, undefined, true);
-      queryAPagarEleicaoConsorcio += this.getQueryApagarEleicaoConsorcio(dataInicio, dataFim);
-      queryAPagarEleicaoVanzeiro += this.getQueryApagarEleicaoVanzeiro(dataInicio, dataFim);
-      queryConsorcios += this.getQueryConsorcios(dataInicio, dataFim);
-      queryVanzeiros += this.getQueryVanzeiros(dataInicio, dataFim);
-      queryEleicaoConsorcio += this.getQueryEleicaoConsorcio(dataInicio, dataFim);
-      queryEleicaoVanzeiro += this.getQueryEleicaoVanzeiro(dataInicio, dataFim);
+    // ---- Quais grupos de consulta o filtro de status pede ----
+    // aPagar:    ordens da janela atual ainda sem pagamento.
+    // atrasadas: "OPs atrasadas" (ordens antigas sem agrupamento). Não existem na modalidade Eleição.
+    // historico: pagamentos já remetidos (detalhe_a), filtrados por statusRemessa / motivoStatusRemessa.
+    const semFiltroStatus = !(
+      filter.aPagar || filter.pendentes || filter.erro || filter.pago || filter.emProcessamento
+      || filter.pendenciaPaga || filter.rejeitado || filter.estorno
+    );
+    const temEleicao = !!filter.eleicao;
+    const querAPagar = semFiltroStatus || !!filter.aPagar;
+    const querAtrasadas = !temEleicao && (semFiltroStatus || !!filter.pendentes || !!filter.erro);
+    const querHistorico = semFiltroStatus || !!(
+      filter.pago || filter.emProcessamento || filter.pendenciaPaga || filter.rejeitado || filter.estorno || filter.erro
+    );
+
+    if (querAPagar) {
+      queryAPagarConsorcios = this.getQueryApagarConsorcios(dataInicio, dataFim, true);
+      queryAPagarVanzeiros = this.getQueryApagarVanzeiros(dataInicio, dataFim, true);
+      queryAPagarEleicaoConsorcio = this.getQueryApagarEleicaoConsorcio(dataInicio, dataFim);
+      queryAPagarEleicaoVanzeiro = this.getQueryApagarEleicaoVanzeiro(dataInicio, dataFim);
+    }
+    if (querAtrasadas) {
+      queryPendentesConsorcio = this.getQueryApagarConsorcios(dataInicio, dataFim, undefined, true);
+      queryPendentesVanzeiro = this.getQueryApagarVanzeiros(dataInicio, dataFim, undefined, true);
+    }
+    if (querHistorico) {
+      queryConsorcios = this.getQueryConsorcios(dataInicio, dataFim);
+      queryVanzeiros = this.getQueryVanzeiros(dataInicio, dataFim);
+      queryEleicaoConsorcio = this.getQueryEleicaoConsorcio(dataInicio, dataFim);
+      queryEleicaoVanzeiro = this.getQueryEleicaoVanzeiro(dataInicio, dataFim);
     }
 
-     if (filter.aPagar || filter.pendentes || (filter.erro && !filter.rejeitado && !filter.estorno)) {
-      queryAPagarConsorcios += this.getQueryApagarConsorcios(dataInicio, dataFim, true);
-      queryPendentesConsorcio += this.getQueryApagarConsorcios(dataInicio, dataFim, undefined, true);
-      queryAPagarVanzeiros += this.getQueryApagarVanzeiros(dataInicio, dataFim, true);
-      queryPendentesVanzeiro += this.getQueryApagarVanzeiros(dataInicio, dataFim, undefined, true);
-      queryAPagarEleicaoConsorcio += this.getQueryApagarEleicaoConsorcio(dataInicio, dataFim);
-      queryAPagarEleicaoVanzeiro += this.getQueryApagarEleicaoVanzeiro(dataInicio, dataFim);
-    }
+    // Só acrescenta um trecho a uma consulta que existe (evita sobrar "AND ..." solto no UNION).
+    const anexar = (query: string, trecho: string) => (query === `` ? query : query + trecho);
 
-    if (filter.emProcessamento || filter.pago ||filter.rejeitado || filter.estorno || filter.erro || filter.eleicao) {
-      queryConsorcios += this.getQueryConsorcios(dataInicio, dataFim);
-      queryVanzeiros += this.getQueryVanzeiros(dataInicio, dataFim);
-      queryEleicaoConsorcio += this.getQueryEleicaoConsorcio(dataInicio, dataFim);
-      queryEleicaoVanzeiro += this.getQueryEleicaoVanzeiro(dataInicio, dataFim);
-    }
-
-    //Tipo de pesquisa: filter.todosVanzeiros,filter.todosConsorcios,filter.consorcioNome,filter.userIds    
+    //Tipo de pesquisa: filter.todosVanzeiros,filter.todosConsorcios,filter.consorcioNome,filter.userIds
     if ((filter.userIds && filter.userIds.length > 0) || filter.todosVanzeiros) {
       if (!filter.todosVanzeiros) {
-        const userPlaceholders = filter.userIds?.join(`','`);
-        const usersVanzeiros = ` AND pu."id" IN('${userPlaceholders}') `
-        queryAPagarVanzeiros += usersVanzeiros;
-        queryVanzeiros += usersVanzeiros;
-        queryAPagarEleicaoVanzeiro += usersVanzeiros;
-        queryPendentesVanzeiro += usersVanzeiros;
-        queryEleicaoVanzeiro += usersVanzeiros;
+        const userPlaceholders = (filter.userIds ?? []).map((id) => Number(id)).join(`','`);
+        // No histórico o favorecido pode vir da ordem do próprio agrupado (pu) ou da ordem do agrupado
+        // "pai" (puu, pendência paga); filtrar só por pu escondia esses pagamentos.
+        queryVanzeiros = anexar(queryVanzeiros, ` AND (pu."id" IN('${userPlaceholders}') OR puu."id" IN('${userPlaceholders}')) `);
+        const usersVanzeiros = ` AND pu."id" IN('${userPlaceholders}') `;
+        queryAPagarVanzeiros = anexar(queryAPagarVanzeiros, usersVanzeiros);
+        queryAPagarEleicaoVanzeiro = anexar(queryAPagarEleicaoVanzeiro, usersVanzeiros);
+        queryPendentesVanzeiro = anexar(queryPendentesVanzeiro, usersVanzeiros);
+        queryEleicaoVanzeiro = anexar(queryEleicaoVanzeiro, usersVanzeiros);
       } else {
         const consorcioPlaceholders = this.MODAIS.join(`','`);
-        if (queryPendentesVanzeiro) queryPendentesVanzeiro += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') AND length(op."operadoraCpfCnpj")<=11`;
-        if (queryVanzeiros) queryVanzeiros += ` AND (op."nomeConsorcio" IN('${consorcioPlaceholders}') or opp."nomeConsorcio" IN('${consorcioPlaceholders}'))
-                            AND (length(op."operadoraCpfCnpj")<=11  or length(opp."operadoraCpfCnpj")<=11) `;
-        if (queryAPagarVanzeiros) queryAPagarVanzeiros += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') AND length(op."operadoraCpfCnpj")<=11`;
-        if (queryAPagarEleicaoVanzeiro) queryAPagarEleicaoVanzeiro += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') AND length(op."operadoraCpfCnpj")<=11 `;
+        queryPendentesVanzeiro = anexar(queryPendentesVanzeiro, ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') AND length(op."operadoraCpfCnpj")<=11`);
+        queryVanzeiros = anexar(queryVanzeiros, ` AND (op."nomeConsorcio" IN('${consorcioPlaceholders}') or opp."nomeConsorcio" IN('${consorcioPlaceholders}'))
+                            AND (length(op."operadoraCpfCnpj")<=11  or length(opp."operadoraCpfCnpj")<=11) `);
+        queryAPagarVanzeiros = anexar(queryAPagarVanzeiros, ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') AND length(op."operadoraCpfCnpj")<=11`);
+        // ordem_pagamento_unico (Eleição) não tem "nomeConsorcio": a coluna é "consorcio".
+        queryAPagarEleicaoVanzeiro = anexar(queryAPagarEleicaoVanzeiro, ` AND op."consorcio" IN('${consorcioPlaceholders}') AND length(op."operadoraCpfCnpj")<=11 `);
       }
     }
 
@@ -319,66 +328,53 @@ export class RelatorioNovoRemessaConsolidadoRepository {
       if (!filter.todosConsorcios) {
         // Sem distinção de acento ou maiúsculas (ver @ApiQuery em RelatorioNovoRemessaController).
         const consorcioPlaceholders = filter.consorcioNome?.map((c) => c.trim().toUpperCase()).join(`','`);
-        if (queryAPagarConsorcios) queryAPagarConsorcios += ` AND UPPER(TRIM(${this.consorcioCaseSimples})) IN('${consorcioPlaceholders}') `;
-        if (queryConsorcios) queryConsorcios += ` AND UPPER(TRIM(${this.consorcioCaseDuplo})) IN('${consorcioPlaceholders}') `;
-        if (queryAPagarEleicaoConsorcio) queryAPagarEleicaoConsorcio += ` AND UPPER(TRIM(${this.consorcioCaseEleicao})) IN('${consorcioPlaceholders}') `;
-        if (queryEleicaoConsorcio) queryEleicaoConsorcio += ` AND UPPER(TRIM(${this.consorcioCaseEleicao})) IN('${consorcioPlaceholders}') `;
-        if (queryPendentesConsorcio) queryPendentesConsorcio += ` AND UPPER(TRIM(${this.consorcioCaseSimples})) IN('${consorcioPlaceholders}') `;
+        queryAPagarConsorcios = anexar(queryAPagarConsorcios, ` AND UPPER(TRIM(${this.consorcioCaseSimples})) IN('${consorcioPlaceholders}') `);
+        queryConsorcios = anexar(queryConsorcios, ` AND UPPER(TRIM(${this.consorcioCaseDuplo})) IN('${consorcioPlaceholders}') `);
+        queryAPagarEleicaoConsorcio = anexar(queryAPagarEleicaoConsorcio, ` AND UPPER(TRIM(${this.consorcioCaseEleicao})) IN('${consorcioPlaceholders}') `);
+        queryEleicaoConsorcio = anexar(queryEleicaoConsorcio, ` AND UPPER(TRIM(${this.consorcioCaseEleicao})) IN('${consorcioPlaceholders}') `);
+        queryPendentesConsorcio = anexar(queryPendentesConsorcio, ` AND UPPER(TRIM(${this.consorcioCaseSimples})) IN('${consorcioPlaceholders}') `);
       } else {
         const consorcioPlaceholders = this.CONSORCIOS.join(`','`);
-        if (queryAPagarConsorcios) queryAPagarConsorcios += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') `;
-        if (queryConsorcios) queryConsorcios += ` AND (op."nomeConsorcio" IN('${consorcioPlaceholders}') or opp."nomeConsorcio" IN('${consorcioPlaceholders}')) `;
-        if (queryAPagarEleicaoConsorcio) queryAPagarEleicaoConsorcio += ` AND op."consorcio" IN('${consorcioPlaceholders}') `;
-        if (queryEleicaoConsorcio) queryEleicaoConsorcio += ` AND op."consorcio" IN('${consorcioPlaceholders}') `;
-        if (queryPendentesConsorcio) queryPendentesConsorcio += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') `;
+        queryAPagarConsorcios = anexar(queryAPagarConsorcios, ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') `);
+        queryConsorcios = anexar(queryConsorcios, ` AND (op."nomeConsorcio" IN('${consorcioPlaceholders}') or opp."nomeConsorcio" IN('${consorcioPlaceholders}')) `);
+        queryAPagarEleicaoConsorcio = anexar(queryAPagarEleicaoConsorcio, ` AND op."consorcio" IN('${consorcioPlaceholders}') `);
+        queryEleicaoConsorcio = anexar(queryEleicaoConsorcio, ` AND op."consorcio" IN('${consorcioPlaceholders}') `);
+        queryPendentesConsorcio = anexar(queryPendentesConsorcio, ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') `);
       }
     }
 
-    //status: filter.aPagar, filter.pago, filter.emProcessamento ,filter.erro
-    //sub-fltros 
-    // substatus: filter.error
-    //      filter.estorno,filter.rejeitado
-    // filter.pago: 
-    //    filter.pendenciaPaga
-
+    // Filtro de status do histórico: status (remessa) e motivo (rejeitado/estorno) se somam com OR,
+    // sempre dentro de um único grupo entre parênteses.
+    //   Aguardando = 1,2 | Pago = 3 | Pendência paga = 5 | Pendência de pagamento (Todos) = 4
+    //   Rejeitado = motivo AL/HO/ANHO | Estorno = motivo 02
     const status: number[] = [];
     const subErroStatus: string[] = [];
 
-    if (filter.emProcessamento){ 
+    if (filter.emProcessamento) {
       status.push(1);
       status.push(2);
     }
     if (filter.pago) status.push(3);
-
+    if (filter.erro) status.push(4);
     if (filter.pendenciaPaga) status.push(5);
+    // "Todos" da pendência de pagamento inclui sempre o que Rejeitado e Estorno trazem.
+    if (filter.rejeitado || filter.erro) subErroStatus.push('AL', 'HO', 'ANHO');
+    if (filter.estorno || filter.erro) subErroStatus.push('02');
 
-    if (filter.erro && filter.pendentes && !filter.rejeitado && !filter.estorno) {
-      subErroStatus.push('AL');
-      subErroStatus.push('HO');      
-      subErroStatus.push('ANHO');
-      subErroStatus.push('02');
-    }else if (filter.estorno){
-      subErroStatus.push('02');
-    }else if (filter.rejeitado) {
-      subErroStatus.push('AL');
-      subErroStatus.push('HO');      
-      subErroStatus.push('ANHO');
-    }   
-
+    const condicoesStatus: string[] = [];
+    if (subErroStatus.length > 0) {
+      condicoesStatus.push(`oph."motivoStatusRemessa" IN (${subErroStatus.map((s) => `'${s}'`).join(',')})`);
+    }
     if (status.length > 0) {
-      const statusRemessa = ` AND oph."statusRemessa" IN (${status.join(',')}) `;
-      queryConsorcios += statusRemessa;
-      queryVanzeiros += statusRemessa;
-      queryEleicaoConsorcio += statusRemessa;
-      queryEleicaoVanzeiro += statusRemessa;     
+      condicoesStatus.push(`oph."statusRemessa" IN (${status.join(',')})`);
     }
 
-    if (subErroStatus.length > 0) {
-      const motivoStatus =` AND (oph."motivoStatusRemessa" IN (${subErroStatus.map((s) => `'${s}'`).join(',')}))`;
-      queryConsorcios += motivoStatus;
-      queryVanzeiros += motivoStatus;
-      queryEleicaoConsorcio += motivoStatus;
-      queryEleicaoVanzeiro += motivoStatus;
+    if (condicoesStatus.length > 0) {
+      const filtroStatus = ` AND (${condicoesStatus.join(' OR ')}) `;
+      queryConsorcios = anexar(queryConsorcios, filtroStatus);
+      queryVanzeiros = anexar(queryVanzeiros, filtroStatus);
+      queryEleicaoConsorcio = anexar(queryEleicaoConsorcio, filtroStatus);
+      queryEleicaoVanzeiro = anexar(queryEleicaoVanzeiro, filtroStatus);
     }
 
     // STUC - Gratuidade: fonte de dados separada (valorGratuidade / agrupamento de gratuidade),
@@ -452,66 +448,32 @@ export class RelatorioNovoRemessaConsolidadoRepository {
     const temFiltroConsorcio = (filter.consorcioNome && filter.consorcioNome.length > 0) || filter.todosConsorcios;
     const temFiltroVanzeiros = (filter.userIds && filter.userIds.length > 0) || filter.todosVanzeiros;
 
-    // Se nenhum status foi selecionado, inclui tudo
-    const incluirAPagar = filter.aPagar || filter.pendentes || (filter.erro && !filter.rejeitado && !filter.estorno);
-
-    const todosStatus = (!filter.aPagar && !filter.pago && !filter.emProcessamento && !filter.pendentes && !filter.erro && !filter.rejeitado && !filter.estorno
-      && !filter.pendenciaPaga );
+    // Se não marcou nenhum dos dois, é busca geral = busca os dois
+    const buscarConsorcio = temFiltroConsorcio || !temFiltroVanzeiros;
+    const buscarVanzeiro = temFiltroVanzeiros || !temFiltroConsorcio;
 
     if (filter.stucGratuidade) {
       if (queryStucGratuidadeConsorcio) queries.push(queryStucGratuidadeConsorcio);
       if (queryStucGratuidadeVanzeiro) queries.push(queryStucGratuidadeVanzeiro);
     } else {
-      if (temFiltroConsorcio) {
-        if (incluirAPagar || todosStatus) {
-          if (filter.eleicao) {
-            queries.push(queryAPagarEleicaoConsorcio);
-          } else {
-            if (filter.aPagar || todosStatus) queries.push(queryAPagarConsorcios);
-            if (filter.pendentes || (filter.erro && !filter.rejeitado && !filter.estorno) || todosStatus) queries.push(queryPendentesConsorcio);
-            if (filter.erro || todosStatus) queries.push(queryConsorcios);
-          }
-        }
-
-        if((filter.todosConsorcios && !filter.pendentes && !filter.aPagar && !filter.erro) || filter.pago || filter.pendenciaPaga || filter.emProcessamento ||filter.rejeitado || filter.estorno) {
-          if (filter.eleicao) {
-            queries.push(queryEleicaoConsorcio);
-          } else {
-            queries.push(queryConsorcios);
-          }
-        }
+      if (querAPagar) {
+        if (buscarConsorcio) queries.push(temEleicao ? queryAPagarEleicaoConsorcio : queryAPagarConsorcios);
+        if (buscarVanzeiro) queries.push(temEleicao ? queryAPagarEleicaoVanzeiro : queryAPagarVanzeiros);
       }
 
-      if (temFiltroVanzeiros) {
-        if (incluirAPagar || todosStatus) {
-          if (filter.eleicao) {
-            queries.push(queryAPagarEleicaoVanzeiro);
-          } else {
-            if (filter.aPagar || todosStatus) queries.push(queryAPagarVanzeiros);
-            if (filter.pendentes || (filter.erro && !filter.rejeitado && !filter.estorno) || todosStatus) queries.push(queryPendentesVanzeiro);
-            if (filter.erro  || todosStatus)queries.push(queryVanzeiros);
-          }
-        }
-
-       if((filter.todosVanzeiros && !filter.pendentes) || filter.pago || filter.pendenciaPaga || filter.emProcessamento ||filter.rejeitado || filter.estorno) {
-          if (filter.eleicao) {
-            queries.push(queryEleicaoVanzeiro);
-          } else {
-            queries.push(queryVanzeiros);
-          }
-        }
+      if (querAtrasadas) {
+        if (buscarConsorcio) queries.push(queryPendentesConsorcio);
+        if (buscarVanzeiro) queries.push(queryPendentesVanzeiro);
       }
 
-      if (!temFiltroVanzeiros && !temFiltroConsorcio) {
-        if (filter.eleicao) {
-          queries.push(queryEleicaoVanzeiro);
-        }
+      if (querHistorico) {
+        if (buscarConsorcio) queries.push(temEleicao ? queryEleicaoConsorcio : queryConsorcios);
+        if (buscarVanzeiro) queries.push(temEleicao ? queryEleicaoVanzeiro : queryVanzeiros);
       }
     }
 
-    // Junta só as queries que realmente existem, sem duplicar a mesma subquery
-    // quando mais de uma condição acima a empurra (ex.: cenário "todos" sem filtro de status).
-    const parts = Array.from(new Set(queries.filter(q => q !== ``)));
+    // Junta só as queries que realmente existem
+    const parts = queries.filter(q => q !== ``);
 
     let query = ``;
 
@@ -520,13 +482,14 @@ export class RelatorioNovoRemessaConsolidadoRepository {
       return new RelatorioConsolidadoNovoRemessaDto({
         data: [],
         count: 0,
+        valor: 0,
       });
     }
 
     query = `SELECT "nome", SUM("valor") AS "valor" FROM (${parts.join(' UNION ALL ')}) AS R WHERE  (R."nome" is not null AND R."nome2" is not null)  `;
 
-    query += ` GROUP BY "nome" `;    
-    
+    query += ` GROUP BY "nome" `;
+
     // valor: filter.valorMin, filter.valorMax
     if (filter.valorMin !== undefined && filter.valorMax !== undefined) {
       query += ` HAVING SUM(valor) between $${paramIndex++} AND $${paramIndex++}`;
@@ -541,23 +504,6 @@ export class RelatorioNovoRemessaConsolidadoRepository {
 
     query += ` ORDER BY "nome" ASC `;
 
-    this.logger.debug(`Executing query: ${query} with params: ${params.join(', ')}`, RelatorioNovoRemessaConsolidadoRepository.name);
-
-    const queryRunner = this.dataSource.createQueryRunner();
-
-    await queryRunner.connect();
-
-    const result = await queryRunner.query(query, params);
-
-    await queryRunner.release();
-
-    const mappedResults = result.map((r) => {
-      const elem = new RelatorioConsolidadoNovoRemessaData();
-      elem.nomefavorecido = r.nome;
-      elem.valor = parseFloat(String(r.valor));
-      return elem;
-    });
-
     // Um favorecido individual de STPC/STPL/TEC aparece tanto na linha agregada do consórcio
     // quanto na linha individual de vanzeiro. Quando o filtro de consórcio cobre todo o MODAIS
     // (todosConsorcios, que inclui STPC/STPL/TEC), a linha individual já está contida no total
@@ -567,14 +513,63 @@ export class RelatorioNovoRemessaConsolidadoRepository {
       || !!filter.consorcioNome?.some((nome) => this.MODAIS.includes(nome));
     const vanzeiroJaIncluidoNoConsorcio = !!filter.todosVanzeiros && consorcioCobreModais;
 
-    const valor = mappedResults.reduce((acc: number, curr: { nomefavorecido: string; valor: number }) => {
-      const eDuplicidadeVanzeiroModal = vanzeiroJaIncluidoNoConsorcio && !consorciosLabels.has(curr.nomefavorecido);
-      return eDuplicidadeVanzeiroModal ? acc : acc + curr.valor;
-    }, 0);
+    const somarValorSemDuplicidade = (rows: { nome: string; valor: any }[]) =>
+      rows.reduce((acc: number, curr: { nome: string; valor: any }) => {
+        const eDuplicidadeVanzeiroModal = vanzeiroJaIncluidoNoConsorcio && !consorciosLabels.has(curr.nome);
+        return eDuplicidadeVanzeiroModal ? acc : acc + parseFloat(String(curr.valor));
+      }, 0);
+
+    const hasPagination = filter.page !== undefined && filter.pageSize !== undefined;
+    const baseParams = [...params];
+
+    let paginatedQuery = query;
+
+    if (hasPagination) {
+      const page = filter.page as number;
+      const pageSize = filter.pageSize as number;
+      const offset = (page - 1) * pageSize;
+      paginatedQuery = `SELECT *, COUNT(*) OVER() AS "totalCount" FROM (${query}) AS P LIMIT $${paramIndex++} OFFSET $${paramIndex++}`;
+      params.push(pageSize, offset);
+    }
+
+    this.logger.debug(`Executing query: ${paginatedQuery} with params: ${params.join(', ')}`, RelatorioNovoRemessaConsolidadoRepository.name);
+
+    const queryRunner = this.dataSource.createQueryRunner();
+
+    await queryRunner.connect();
+
+    let result: any[];
+    let valorTotal = 0;
+
+    try {
+      result = await queryRunner.query(paginatedQuery, params);
+
+      if (hasPagination) {
+        const totalRows = await queryRunner.query(query, baseParams);
+        valorTotal = somarValorSemDuplicidade(totalRows);
+      }
+    } finally {
+      await queryRunner.release();
+    }
+
+    const mappedResults = result.map((r) => {
+      const elem = new RelatorioConsolidadoNovoRemessaData();
+      elem.nomefavorecido = r.nome;
+      elem.valor = parseFloat(String(r.valor));
+      return elem;
+    });
+
+    const totalCount = hasPagination
+      ? (result.length > 0 ? parseInt(String(result[0].totalCount), 10) : 0)
+      : mappedResults.length;
+
+    const valor = hasPagination
+      ? valorTotal
+      : somarValorSemDuplicidade(result);
 
     return new RelatorioConsolidadoNovoRemessaDto({
       data: mappedResults,
-      count: mappedResults.length,
+      count: totalCount,
       valor,
     });
   }

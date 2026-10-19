@@ -28,20 +28,28 @@ export class RetornoService {
     public async salvarRetorno(cnab: { name: string, content: string }) {
         this.logger.debug(`Iniciada a leitura do arquivo: ${cnab.name} - ${new Date()}`);
         const retorno104 = parseCnab240Pagamento(cnab.content);
+        let casados = 0;
+        let semCorrespondencia = 0;
         try {
             for (const cnabLote of retorno104.lotes) {
+                // Conta do pagador do lote (CB, CETT/gratuidade ou rotativo): separa pagamentos de contas
+                // diferentes que tenham o mesmo CPF, valor e data.
+                const contaPagador = String(cnabLote.headerLote.numeroConta?.value ?? '').trim();
                 for (const registro of cnabLote.registros) {
                     const detalheA = await this.detalheAService.getDetalheARetorno(
                         registro.detalheB.numeroInscricao.convertedValue,
                         registro.detalheA.valorLancamento.convertedValue,
                         registro.detalheA.dataVencimento.convertedValue,
+                        contaPagador || undefined,
                     )
                     this.logger.debug(`Banco: ${registro.detalheA.codigoBancoDestino.convertedValue}
                          - agencia: ${registro.detalheA.codigoAgenciaDestino.convertedValue}
                          - conta: ${registro.detalheA.contaCorrenteDestino.convertedValue}`);
                     if (detalheA[0]) {
+                        casados++;
                         await this.atualizarStatusRemessaHistorico(cnabLote, registro, detalheA[0]);
                     } else {
+                        semCorrespondencia++;
                         this.logger.warn(
                             `Retorno sem detalheA correspondente - arquivo: ${cnab.name}` +
                             ` - cpfCnpj: ${registro.detalheB.numeroInscricao.convertedValue}` +
@@ -51,6 +59,17 @@ export class RetornoService {
                         );
                     }
                 }
+            }
+            // Um arquivo cujos registros não casaram com nenhum pagamento vai para o backup de sucesso
+            // sem baixar nada; o resumo deixa isso visível no log em vez de passar despercebido.
+            if (semCorrespondencia > 0) {
+                this.logger.error(
+                    `Retorno ${cnab.name}: ${semCorrespondencia} registro(s) sem pagamento correspondente` +
+                    ` e ${casados} atualizado(s).`,
+                    undefined,
+                );
+            } else {
+                this.logger.log(`Retorno ${cnab.name}: ${casados} registro(s) atualizado(s).`);
             }
             await this.sftpService.moveToBackup(cnab.name, SftpBackupFolder.RetornoSuccess, cnab.content);
         } catch (error) {
@@ -79,7 +98,7 @@ export class RetornoService {
                 ` - statusAtual: ${getStatusRemessaEnumByValue(historico.statusRemessa)}`,
             );
             if (detalheA && historico) {
-                if (historico.statusRemessa === StatusRemessaEnum.PreparadoParaEnvio) {
+                if (historico.statusRemessa === StatusRemessaEnum.PreparadoParaEnvio && cnabLote.headerLote.ocorrencias.value.trim() !== historico.motivoStatusRemessa) {
                     //SE O HEADER LOTE ESTIVER COM ERRO TODOS OS DETALHES FICAM COMO NÃO EFETIVADOS
                     if (cnabLote.headerLote.ocorrencias.value.trim() !== 'BD' && cnabLote.headerLote.ocorrencias.value.trim() !== '00') {
                         historico.motivoStatusRemessa = cnabLote.headerLote.ocorrencias.value.trim();

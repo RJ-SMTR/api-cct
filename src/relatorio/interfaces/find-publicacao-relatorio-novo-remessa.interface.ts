@@ -18,5 +18,7 @@ export interface IFindPublicacaoRelatorioNovoRemessa {
   pendenciaPaga?: boolean;
   rejeitado?: boolean;
   estorno?: boolean;
+  page?: number;
+  pageSize?: number;
 }
 
