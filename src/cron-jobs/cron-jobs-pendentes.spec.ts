@@ -76,14 +76,14 @@ describe('Pending payment job lifecycle', () => {
       expect(remittance.gerarCnabText).toHaveBeenCalledWith(HeaderName.GUARDADOR, undefined, true);
       expect(remittance.enviarRemessa).toHaveBeenCalledWith(files, HeaderName.GUARDADOR);
     } else {
-      expect(steps).toEqual(['group', 'prepare', 'generate', 'send']);
+      // geradorRemessaPendenteExec (consórcio) também está com o agrupamento/preparo desativado
+      // (mudança operacional): só gerar e enviar rodam, como no guardador.
+      expect(steps).toEqual(['generate', 'send']);
       expect(remittance.gerarCnabText).toHaveBeenCalledWith(HeaderName.MODAL, undefined, true);
       expect(remittance.enviarRemessa).toHaveBeenCalledWith(files, HeaderName.MODAL);
-      const args = (group.mock.calls as unknown as unknown[][])[0];
-      expect(args.slice(0, 4)).toEqual([
-        new Date('2026-07-01'), new Date('2026-09-07'), new Date('2026-09-11'), 'contaBilhetagem',
-      ]);
     }
+    expect(group).not.toHaveBeenCalled();
+    expect(remittance.prepararRemessa).not.toHaveBeenCalled();
     expect(writeFile).not.toHaveBeenCalled();
   });
 });
