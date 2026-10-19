@@ -74,6 +74,7 @@ export class OrdemPagamento extends EntityHelper {
     foreignKeyConstraintName: 'FK_OrdemPagamentoAgrupadoGratuidade_ManyToOne',
   })
   ordemPagamentoAgrupadoGratuidade: OrdemPagamentoAgrupado | null;
+  ordemPagamentoAgrupadoGratuidadeId: number | null;
 
   @Column({ type: Date, unique: false, nullable: true })
   dataCaptura: Date | undefined;

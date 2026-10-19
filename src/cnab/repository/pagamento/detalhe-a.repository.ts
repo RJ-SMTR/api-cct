@@ -179,12 +179,14 @@ export class DetalheARepository {
   }
 
 
-  async getDetalheARetorno(cpf: string, valorLancamento: number, dataVencimento: Date) {
+  async getDetalheARetorno(cpf: string, valorLancamento: number, dataVencimento: Date, contaPagador?: string) {
     // Casa o registro do retorno (CPF do detalheB + valor do detalheA) com o
     // detalhe_a local. O usuario e resolvido por "userId" (estavel mesmo se o
     // vanzeiro trocar de conta apos a remessa). 4 unioes:
     // {consorcio | guardador} x {ordem "normal" (tem ordem direto) |
-    //  ordem "pai" de pendente (a ordem fica nas OPAs "filhas")}.
+    //  ordem "pai" de pendente (a ordem fica nas OPAs "filhas")}
+    // + a remessa de gratuidade (conta CETT), cujas ordens apontam para a OPA por
+    // "ordemPagamentoAgrupadoGratuidadeId" (e nao por "ordemPagamentoAgrupadoId").
     const casar = (joins: string) => `
       select distinct da.* from detalhe_a da
       inner join ordem_pagamento_agrupado_historico oph on oph.id = da."ordemPagamentoAgrupadoHistoricoId"
@@ -193,7 +195,10 @@ export class DetalheARepository {
       where oph."statusRemessa" in (1, 2)
         and uu."cpfCnpj" ilike '%' || $1
         and da."valorLancamento" = $2
-        and da."dataVencimento"::date = $3::date`;
+        and da."dataVencimento"::date = $3::date
+        and ($4::text is null
+          or not exists (select 1 from pagador pg where ltrim(pg.conta, '0') = $4)
+          or exists (select 1 from pagador pg where pg.id = opa."pagadorId" and ltrim(pg.conta, '0') = $4))`;
 
     const query = [
       casar(`inner join ordem_pagamento op on op."ordemPagamentoAgrupadoId" = opa.id
@@ -206,12 +211,18 @@ export class DetalheARepository {
       casar(`inner join ordem_pagamento_agrupado filha on filha."ordemPagamentoAgrupadoId" = opa.id
              inner join ordem_pagamento_guardador og on og."ordemPagamentoAgrupadoId" = filha.id
              inner join public."user" uu on uu.id = og."userId"`),
+      casar(`inner join ordem_pagamento op on op."ordemPagamentoAgrupadoGratuidadeId" = opa.id
+             inner join public."user" uu on uu.id = op."userId"`),
     ].join('\n      union\n');
+
+    // Conta do pagador do arquivo de retorno (header do lote): evita casar o retorno de uma conta com
+    // pagamento de outra (ex.: CETT x bilhetagem) quando CPF, valor e data coincidem.
+    const contaNormalizada = contaPagador ? contaPagador.trim().replace(/^0+/, '') || null : null;
 
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     try {
-      const result: any[] = await queryRunner.query(query, [cpf, valorLancamento, dataVencimento]);
+      const result: any[] = await queryRunner.query(query, [cpf, valorLancamento, dataVencimento, contaNormalizada]);
       return result.map((i) => new DetalheA(i));
     } finally {
       await queryRunner.release();

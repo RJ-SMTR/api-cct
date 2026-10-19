@@ -84,6 +84,7 @@ import {
 } from './novo-remessa/repository/ordem-pagamento-agrupado-historico.repository';
 import { OrdemPagamentoAgrupadoHistorico } from './novo-remessa/entity/ordem-pagamento-agrupado-historico.entity';
 import { OrdemPagamentoController } from './novo-remessa/controller/ordem-pagamento.controller';
+import { OrdemPagamentoGuardadorController } from './novo-remessa/controller/ordem-pagamento-guardador.controller';
 import { RemessaService } from './novo-remessa/service/remessa.service';
 import { RetornoService } from './novo-remessa/service/retorno.service';
 import { DistributedLockService } from './novo-remessa/service/distributed-lock.service';
@@ -91,6 +92,18 @@ import { DistributedLockRepository } from './novo-remessa/repository/distributed
 import { BigqueryTransacaoService } from 'src/bigquery/services/bigquery-transacao.service';
 import { OrdemPagamentoGuardadorRepository } from './novo-remessa/repository/ordem-pagamento-guardador.repository';
 import { OrdemPagamentoGuardador } from './novo-remessa/entity/ordem-pagamento-guardador.entity';
+import { DetalheAValorLancamentoAuditoria } from './entity/pagamento/detalhe-a-valor-lancamento-auditoria.entity';
+import { PagamentoConsorcioRepository } from './novo-remessa/repository/pagamento-consorcio.repository';
+import { PagamentoConsorcioService } from './novo-remessa/service/pagamento-consorcio.service';
+import { PagamentoConsorcioController } from './novo-remessa/controller/pagamento-consorcio.controller';
+import { PagamentoModalService } from './novo-remessa/service/pagamento-modal.service';
+import { PagamentoModalController } from './novo-remessa/controller/pagamento-modal.controller';
+import { PagamentoGuardadorRepository } from './novo-remessa/repository/pagamento-guardador.repository';
+import { PagamentoGuardadorService } from './novo-remessa/service/pagamento-guardador.service';
+import { PagamentoGuardadorController } from './novo-remessa/controller/pagamento-guardador.controller';
+import { DashboardPagamentosController } from './novo-remessa/controller/dashboard-pagamentos.controller';
+import { DashboardPagamentosService } from './novo-remessa/service/dashboard-pagamentos.service';
+import { DashboardPagamentosRepository } from './novo-remessa/repository/dashboard-pagamentos.repository';
 
 @Module({
   imports: [
@@ -126,10 +139,13 @@ import { OrdemPagamentoGuardador } from './novo-remessa/entity/ordem-pagamento-g
       OrdemPagamento,
       OrdemPagamentoAgrupado,
       OrdemPagamentoGuardador,
-      OrdemPagamentoAgrupadoHistorico
+      OrdemPagamentoAgrupadoHistorico,
+      DetalheAValorLancamentoAuditoria
     ]),
   ],
   providers: [
+    DashboardPagamentosService,
+    DashboardPagamentosRepository,
     ArquivoPublicacaoRepository, //
     ArquivoPublicacaoService,
     BigqueryTransacaoService,
@@ -184,7 +200,12 @@ import { OrdemPagamentoGuardador } from './novo-remessa/entity/ordem-pagamento-g
     RemessaService,
     RetornoService,
     DistributedLockService,
-    DistributedLockRepository
+    DistributedLockRepository,
+    PagamentoConsorcioRepository,
+    PagamentoConsorcioService,
+    PagamentoModalService,
+    PagamentoGuardadorRepository,
+    PagamentoGuardadorService
   ],
   exports: [
     CnabService, //
@@ -238,6 +259,6 @@ import { OrdemPagamentoGuardador } from './novo-remessa/entity/ordem-pagamento-g
     DistributedLockService,
     DistributedLockRepository
   ],
-  controllers: [CnabController, OrdemPagamentoController],
+  controllers: [CnabController, OrdemPagamentoController, OrdemPagamentoGuardadorController, PagamentoConsorcioController, PagamentoModalController, PagamentoGuardadorController, DashboardPagamentosController],
 })
 export class CnabModule {}
