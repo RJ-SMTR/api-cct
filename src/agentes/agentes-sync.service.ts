@@ -16,6 +16,12 @@ import { parseStringUpperUnaccent } from 'src/utils/string-utils';
 import { AgentesBigqueryRepository } from './agentes-bigquery.repository';
 import { AgenteBigqueryUser } from './interfaces/agente-bigquery-user.interface';
 
+export interface SyncWeeklyAgentUsersFailure {
+  documento: string;
+  nome: string;
+  motivo: string;
+}
+
 export interface SyncWeeklyAgentUsersResult {
   processedRows: number;
   createdAgentUsers: number;
@@ -23,7 +29,15 @@ export interface SyncWeeklyAgentUsersResult {
   queuedInvites: number;
   skippedExistingAgents: number;
   skippedExistingAssociations: number;
+  /** E-mail do BigQuery já pertence a outro usuário da base: o guardador novo NÃO é inserido. */
+  skippedEmailConflicts: number;
+  /** Linhas que falharam por erro inesperado; seguram a marca d'água para serem relidas na próxima execução. */
+  failedRows: number;
+  /** Detalhes dos conflitos de e-mail e das falhas (até 100). */
+  failures: SyncWeeklyAgentUsersFailure[];
 }
+
+const MAX_FAILURES_LISTED = 100;
 
 @Injectable()
 export class AgentesSyncService {
@@ -58,8 +72,19 @@ export class AgentesSyncService {
       queuedInvites: 0,
       skippedExistingAgents: 0,
       skippedExistingAssociations: 0,
+      skippedEmailConflicts: 0,
+      failedRows: 0,
+      failures: [],
+    };
+    const registrarFalha = (row: AgenteBigqueryUser, motivo: string) => {
+      if (result.failures.length < MAX_FAILURES_LISTED) {
+        result.failures.push({ documento: row.documento, nome: row.nome, motivo });
+      }
     };
     let lastProcessedTimestamp: string | null = null;
+    // As linhas vêm em ordem crescente de atualização. Depois do primeiro erro inesperado a marca d'água para
+    // de avançar: a consulta usa ">= marca", então a linha com erro (e as seguintes) são relidas na próxima execução.
+    let marcaSegura = true;
 
     for (const row of sourceRows) {
       try {
@@ -71,26 +96,43 @@ export class AgentesSyncService {
         }
 
         const agent = await this.ensureAgentUser(row);
-        this.logger.debug("Atualizando Guardador " + agent?.user?.fullName)
 
-        if (agent.created) {
-          result.createdAgentUsers += 1;
+        if (agent.emailConflict) {
+          // Decisão deliberada, não é erro: o e-mail já existe na base (e é único), então não insere o novo usuário.
+          result.skippedEmailConflicts += 1;
+          const motivo = `E-mail ${agent.emailConflict.email} já pertence ao usuário ${agent.emailConflict.userId}; guardador não inserido.`;
+          registrarFalha(row, motivo);
+          this.logger.warn(`Guardador ${row.nome} (${row.documento}) não inserido: ${motivo}`, METHOD);
         } else {
-          result.skippedExistingAgents += 1;
-        }
-        if (agent.queuedInvite) {
-          result.queuedInvites += 1;
+          this.logger.debug("Atualizando Guardador " + agent?.user?.fullName)
+          if (agent.created) {
+            result.createdAgentUsers += 1;
+          } else {
+            result.skippedExistingAgents += 1;
+          }
+          if (agent.queuedInvite) {
+            result.queuedInvites += 1;
+          }
+          await this.ensureUserRelationship(agent.user, association.user);
         }
 
-        await this.ensureUserRelationship(agent.user, association.user);
-        lastProcessedTimestamp = this.getLatestTimestamp(
-          lastProcessedTimestamp,
-          row.datetime_ultima_atualizacao,
-        );
+        if (marcaSegura) {
+          lastProcessedTimestamp = this.getLatestTimestamp(
+            lastProcessedTimestamp,
+            row.datetime_ultima_atualizacao,
+          );
+        }
       } catch (error) {
-        this.logger.debug('Ocorreu o seguinte erro ao tentar atualizar o Guardador: ' + row.nome, error instanceof Error ? error.stack : String(error))
+        marcaSegura = false;
+        result.failedRows += 1;
+        const motivo = error instanceof Error ? error.message : String(error);
+        registrarFalha(row, motivo);
+        this.logger.error(
+          `Erro ao sincronizar o guardador ${row.nome} (${row.documento}): ${motivo}`,
+          error instanceof Error ? error.stack : undefined,
+          METHOD,
+        );
       }
-
     }
 
     if (lastProcessedTimestamp) {
@@ -100,6 +142,12 @@ export class AgentesSyncService {
       );
     }
 
+    if (result.failedRows > 0 || result.skippedEmailConflicts > 0) {
+      this.logger.warn(
+        `Weekly agent sync com pendências: ${result.failedRows} falha(s) e ${result.skippedEmailConflicts} conflito(s) de e-mail.`,
+        METHOD,
+      );
+    }
     this.logger.log(`Weekly agent sync finished: ${JSON.stringify(result)}`, METHOD);
     return result;
   }
@@ -135,7 +183,12 @@ export class AgentesSyncService {
 
   private async ensureAgentUser(
     row: AgenteBigqueryUser,
-  ): Promise<{ user: User | null; created: boolean; queuedInvite: boolean }> {
+  ): Promise<{
+    user: User | null;
+    created: boolean;
+    queuedInvite: boolean;
+    emailConflict?: { email: string; userId: number };
+  }> {
     const normalizedDocument = this.normalizeDocument(row.documento);
     if (!normalizedDocument) {
       return { user: null, created: false, queuedInvite: false };
@@ -147,6 +200,11 @@ export class AgentesSyncService {
     }
 
     const { email } = this.resolveAgentEmail(row);
+    // O e-mail é único na base. Se já existir (de outro usuário), o guardador novo NÃO é inserido.
+    const donoDoEmail = await this.usersRepository.findOneByEmail(email);
+    if (donoDoEmail) {
+      return { user: null, created: false, queuedInvite: false, emailConflict: { email, userId: donoDoEmail.id } };
+    }
     const hash = email ? await this.mailHistoryService.generateHash() : null;
     const createdUser = await this.usersRepository.create({
       email,

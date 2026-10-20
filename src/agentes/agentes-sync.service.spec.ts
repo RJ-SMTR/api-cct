@@ -34,6 +34,7 @@ describe('AgentesSyncService', () => {
           provide: UsersRepository,
           useValue: {
             findManyByNormalizedCpf: jest.fn(),
+            findOneByEmail: jest.fn(),
             create: jest.fn(),
             findUserRelationship: jest.fn(),
             createUserRelationship: jest.fn(),
@@ -100,6 +101,9 @@ describe('AgentesSyncService', () => {
       queuedInvites: 1,
       skippedExistingAgents: 0,
       skippedExistingAssociations: 0,
+      skippedEmailConflicts: 0,
+      failedRows: 0,
+      failures: [],
     });
     expect(usersRepository.create).toHaveBeenNthCalledWith(
       1,
@@ -172,6 +176,9 @@ describe('AgentesSyncService', () => {
       queuedInvites: 1,
       skippedExistingAgents: 0,
       skippedExistingAssociations: 0,
+      skippedEmailConflicts: 0,
+      failedRows: 0,
+      failures: [],
     });
     expect(usersRepository.create).toHaveBeenNthCalledWith(
       2,
@@ -271,6 +278,9 @@ describe('AgentesSyncService', () => {
       queuedInvites: 0,
       skippedExistingAgents: 1,
       skippedExistingAssociations: 1,
+      skippedEmailConflicts: 0,
+      failedRows: 0,
+      failures: [],
     });
     expect(usersRepository.create).not.toHaveBeenCalled();
     expect(usersRepository.createUserRelationship).not.toHaveBeenCalled();
@@ -372,5 +382,98 @@ describe('AgentesSyncService', () => {
 
     expect(result.processedRows).toBe(0);
     expect(settingsService.upsertBySettingData).not.toHaveBeenCalled();
+  });
+  describe('e-mail já existente e falhas', () => {
+    const linha = (overrides: Partial<AgenteBigqueryUser> = {}): AgenteBigqueryUser => ({
+      numero_identificacao: '0561',
+      nome: 'Severino Gomes da Silva',
+      email: 'Patriciasimone70@Gmail.com',
+      telefone: '21968844988',
+      documento: '00018579400',
+      tipo_documento: 'CPF',
+      cnpj: null,
+      razao_social: null,
+      nome_fantasia: null,
+      datetime_ultima_atualizacao: '2026-10-20 17:16:10.598374',
+      ...overrides,
+    });
+    const configurar = () => {
+      jest.spyOn(settingsService, 'getOneBySettingData').mockResolvedValue({ getValueAsString: () => '2026-10-20 03:15:21.628146' } as any);
+      jest.spyOn(usersRepository, 'findManyByNormalizedCpf').mockResolvedValue([]);
+      jest.spyOn(usersRepository, 'findUserRelationship').mockResolvedValue(null);
+      jest.spyOn(mailHistoryService, 'generateHash').mockResolvedValue('hash');
+    };
+
+    it('e-mail do BigQuery já pertence a outro usuário: NÃO insere o guardador, registra o motivo e segue em frente', async () => {
+      configurar();
+      jest.spyOn(usersRepository, 'findOneByEmail').mockResolvedValue({ id: 3064 } as User);
+
+      const result = await service.syncWeeklyAgentUsers([linha()]);
+
+      expect(usersRepository.create).not.toHaveBeenCalled();
+      expect(usersRepository.createUserRelationship).not.toHaveBeenCalled();
+      expect(mailHistoryService.create).not.toHaveBeenCalled();
+      expect(usersRepository.findOneByEmail).toHaveBeenCalledWith('patriciasimone70@gmail.com');
+      expect(result).toMatchObject({ createdAgentUsers: 0, skippedEmailConflicts: 1, failedRows: 0 });
+      expect(result.failures).toEqual([
+        { documento: '00018579400', nome: 'Severino Gomes da Silva', motivo: expect.stringContaining('usuário 3064') },
+      ]);
+      // conflito de e-mail é decisão deliberada: a marca d'água avança
+      expect(settingsService.upsertBySettingData).toHaveBeenCalledWith(appSettings.any__agentes_sync_last_execution, '2026-10-20 17:16:10.598374');
+    });
+
+    it('sem conflito de e-mail: cria normalmente', async () => {
+      configurar();
+      jest.spyOn(usersRepository, 'findOneByEmail').mockResolvedValue(null);
+      jest.spyOn(usersRepository, 'create').mockResolvedValue({ id: 99 } as User);
+
+      const result = await service.syncWeeklyAgentUsers([linha({ email: 'novo@example.org' })]);
+
+      expect(usersRepository.create).toHaveBeenCalledTimes(1);
+      expect(result).toMatchObject({ createdAgentUsers: 1, skippedEmailConflicts: 0, failedRows: 0, failures: [] });
+    });
+
+    it('guardador sem e-mail no BigQuery: o e-mail sintético também é conferido antes de criar', async () => {
+      configurar();
+      jest.spyOn(usersRepository, 'findOneByEmail').mockResolvedValue(null);
+      jest.spyOn(usersRepository, 'create').mockResolvedValue({ id: 100 } as User);
+
+      await service.syncWeeklyAgentUsers([linha({ email: null, nome: 'Cosme Fernando Ramos dos Santos', documento: '49494694791' })]);
+
+      expect(usersRepository.findOneByEmail).toHaveBeenCalledWith('cosme.49494694791@example.com');
+      expect(usersRepository.create).toHaveBeenCalledWith(expect.objectContaining({ cpfCnpj: '49494694791', permitCode: '0561' }));
+    });
+
+    it('erro inesperado: conta a falha, registra o motivo e NÃO deixa a marca d\'água passar da linha com erro', async () => {
+      configurar();
+      jest.spyOn(usersRepository, 'findOneByEmail').mockResolvedValue(null);
+      jest
+        .spyOn(usersRepository, 'create')
+        .mockResolvedValueOnce({ id: 1 } as User) // 1ª linha ok
+        .mockRejectedValueOnce(new Error('connection reset')) // 2ª linha falha
+        .mockResolvedValueOnce({ id: 3 } as User); // 3ª linha ok, mas depois da falha
+
+      const result = await service.syncWeeklyAgentUsers([
+        linha({ documento: '11111111111', nome: 'A', email: 'a@x.org', datetime_ultima_atualizacao: '2026-10-20 10:00:00' }),
+        linha({ documento: '22222222222', nome: 'B', email: 'b@x.org', datetime_ultima_atualizacao: '2026-10-20 11:00:00' }),
+        linha({ documento: '33333333333', nome: 'C', email: 'c@x.org', datetime_ultima_atualizacao: '2026-10-20 12:00:00' }),
+      ]);
+
+      expect(result).toMatchObject({ createdAgentUsers: 2, failedRows: 1 });
+      expect(result.failures).toEqual([{ documento: '22222222222', nome: 'B', motivo: 'connection reset' }]);
+      // só a linha anterior ao erro conta; a consulta ">= marca" relê B e C na próxima execução
+      expect(settingsService.upsertBySettingData).toHaveBeenCalledWith(appSettings.any__agentes_sync_last_execution, '2026-10-20 10:00:00');
+    });
+
+    it('erro na primeira linha: a marca d\'água não muda', async () => {
+      configurar();
+      jest.spyOn(usersRepository, 'findOneByEmail').mockResolvedValue(null);
+      jest.spyOn(usersRepository, 'create').mockRejectedValue(new Error('boom'));
+
+      const result = await service.syncWeeklyAgentUsers([linha({ email: 'a@x.org' })]);
+
+      expect(result.failedRows).toBe(1);
+      expect(settingsService.upsertBySettingData).not.toHaveBeenCalled();
+    });
   });
 });
