@@ -128,6 +128,19 @@ describe('RelatorioNovoRemessaConsolidadoRepository', () => {
       expect(sql).toContain(`IN('VLT')`);
     });
 
+    it('combines status/motivo with OR for "Pendência de Pagamento" (Todos), same as the normal flow - AND wrongly excluded rows with statusRemessa=4 and a motivo outside the Rejeitado/Estorno list (e.g. "AR"), while Movimentação Financeira (STATUS_CASE ELSE) would still classify them as Rejeitado', async () => {
+      await repository.findConsolidado({
+        dataInicio: new Date('2026-01-01'),
+        dataFim: new Date('2026-01-05'),
+        userIds: [10],
+        stucGratuidade: true,
+        erro: true,
+      } as any);
+
+      const sql = (mockQueryRunner.query as jest.Mock).mock.calls[0][0];
+      expect(sql).toContain(`AND (oph."motivoStatusRemessa" IN ('AL','HO','ANHO','02') OR oph."statusRemessa" IN (4))`);
+    });
+
     it('does not include any Eleicao/Pendentes marker', async () => {
       await repository.findConsolidado({
         dataInicio: new Date('2026-01-01'),
