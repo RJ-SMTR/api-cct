@@ -141,6 +141,29 @@ describe('RelatorioNovoRemessaConsolidadoRepository', () => {
       expect(sql).not.toContain('"ordemPagamentoAgrupadoId" is null');
     });
 
+    it('excludes the MODAIS/CPF slice from the consorcio branch when no favorecido/consorcio is selected (both branches default to true and MODAIS ⊆ CONSORCIOS, which double-counted every STUC vanzeiro row)', async () => {
+      await repository.findConsolidado({
+        dataInicio: new Date('2026-01-01'),
+        dataFim: new Date('2026-01-05'),
+        stucGratuidade: true,
+      } as any);
+
+      const sql = (mockQueryRunner.query as jest.Mock).mock.calls[0][0];
+      expect(sql).toContain(`AND NOT (op."nomeConsorcio" IN('STPC','STPL','TEC') AND length(op."operadoraCpfCnpj")<=11)`);
+    });
+
+    it('does not exclude the MODAIS/CPF slice when a specific favorecido is selected (only the vanzeiro branch runs, nothing to dedup)', async () => {
+      await repository.findConsolidado({
+        dataInicio: new Date('2026-01-01'),
+        dataFim: new Date('2026-01-05'),
+        userIds: [10],
+        stucGratuidade: true,
+      } as any);
+
+      const sql = (mockQueryRunner.query as jest.Mock).mock.calls[0][0];
+      expect(sql).not.toContain('AND NOT (op."nomeConsorcio"');
+    });
+
     it('sums every vanzeiro row instead of zeroing the total (STUC has no consorcio-level aggregate row to dedup against)', async () => {
       (mockQueryRunner.query as jest.Mock).mockResolvedValue([
         { nome: 'João Vanzeiro', valor: '160.00' },
