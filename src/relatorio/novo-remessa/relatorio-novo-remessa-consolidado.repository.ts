@@ -481,6 +481,16 @@ export class RelatorioNovoRemessaConsolidadoRepository {
         } else {
           const consorcioPlaceholders = this.CONSORCIOS.join(`','`);
           literal += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') `;
+          // MODAIS (STPC/STPL/TEC) é subconjunto de CONSORCIOS. Quando a busca "todos" roda os
+          // dois ramos (nenhum favorecido/consórcio específico selecionado), a fatia CPF de
+          // MODAIS já vem pelo ramo de vanzeiro (abaixo) - sem excluí-la aqui ela soma em
+          // dobro (ver PR de correção do valor total zerado, mesma raiz: os dois ramos do STUC
+          // retornam linha por vanzeiro, não há linha agregada por consórcio que justifique a
+          // dedup aplicada no fluxo normal).
+          if (filter.todosVanzeiros) {
+            const modaisPlaceholders = this.MODAIS.join(`','`);
+            literal += ` AND NOT (op."nomeConsorcio" IN('${modaisPlaceholders}') AND length(op."operadoraCpfCnpj")<=11) `;
+          }
         }
         queryStucGratuidadeConsorcio = `SELECT nomes AS "nome", "nomeConsorcio" AS "nome2", valor AS valor FROM (${literal}) q`;
       }
@@ -578,7 +588,10 @@ export class RelatorioNovoRemessaConsolidadoRepository {
     const consorciosLabels = new Set<string>(this.CONSORCIOS);
     const consorcioCobreModais = !!filter.todosConsorcios
       || !!filter.consorcioNome?.some((nome) => this.MODAIS.includes(nome));
-    const vanzeiroJaIncluidoNoConsorcio = !!filter.todosVanzeiros && consorcioCobreModais;
+    // STUC - Gratuidade não tem uma linha agregada por consórcio (queryStucGratuidadeConsorcio
+    // também rotula "nome" com o nome do vanzeiro, não do consórcio - ver buildStucGratuidadeLiteral
+    // acima), então a dedup abaixo não se aplica: sem ela, todo valor é descartado como duplicado.
+    const vanzeiroJaIncluidoNoConsorcio = !!filter.todosVanzeiros && consorcioCobreModais && !filter.stucGratuidade;
 
     const somarValorSemDuplicidade = (rows: { nome: string; valor: any }[]) =>
       rows.reduce((acc: number, curr: { nome: string; valor: any }) => {
