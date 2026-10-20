@@ -578,7 +578,10 @@ export class RelatorioNovoRemessaConsolidadoRepository {
     const consorciosLabels = new Set<string>(this.CONSORCIOS);
     const consorcioCobreModais = !!filter.todosConsorcios
       || !!filter.consorcioNome?.some((nome) => this.MODAIS.includes(nome));
-    const vanzeiroJaIncluidoNoConsorcio = !!filter.todosVanzeiros && consorcioCobreModais;
+    // STUC - Gratuidade não tem uma linha agregada por consórcio (queryStucGratuidadeConsorcio
+    // também rotula "nome" com o nome do vanzeiro, não do consórcio - ver buildStucGratuidadeLiteral
+    // acima), então a dedup abaixo não se aplica: sem ela, todo valor é descartado como duplicado.
+    const vanzeiroJaIncluidoNoConsorcio = !!filter.todosVanzeiros && consorcioCobreModais && !filter.stucGratuidade;
 
     const somarValorSemDuplicidade = (rows: { nome: string; valor: any }[]) =>
       rows.reduce((acc: number, curr: { nome: string; valor: any }) => {

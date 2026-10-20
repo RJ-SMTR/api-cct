@@ -141,6 +141,22 @@ describe('RelatorioNovoRemessaConsolidadoRepository', () => {
       expect(sql).not.toContain('"ordemPagamentoAgrupadoId" is null');
     });
 
+    it('sums every vanzeiro row instead of zeroing the total (STUC has no consorcio-level aggregate row to dedup against)', async () => {
+      (mockQueryRunner.query as jest.Mock).mockResolvedValue([
+        { nome: 'João Vanzeiro', valor: '160.00' },
+        { nome: 'Maria Vanzeira', valor: '170.00' },
+      ]);
+
+      const result = await repository.findConsolidado({
+        dataInicio: new Date('2026-01-01'),
+        dataFim: new Date('2026-01-05'),
+        stucGratuidade: true,
+      } as any);
+
+      expect(result.data).toHaveLength(2);
+      expect(result.valor).toBe(330);
+    });
+
     it('escapes a single quote in consorcioNome instead of breaking out of the SQL string literal', async () => {
       await repository.findConsolidado({
         dataInicio: new Date('2026-01-01'),
