@@ -110,6 +110,41 @@ export class OrdemPagamentoService {
     };
   }
 
+  /** A linha já é um dado (CPF/CNPJ + valor), e não um cabeçalho com nomes de coluna. */
+  private looksLikeDataRow(row: any[] | undefined): boolean {
+    if (!row || row.length < 2) return false;
+    const documentoDigits = String(row[0] ?? '').replace(/\D/g, '');
+    const valorCell = String(row[row.length - 1] ?? '');
+    return (
+      (documentoDigits.length === 11 || documentoDigits.length === 14) &&
+      /\d/.test(valorCell) &&
+      Number.isFinite(this.parseCurrencyValue(valorCell))
+    );
+  }
+
+  /**
+   * Lê as linhas de uma aba. Com cabeçalho (ex.: "CPF", "Valor"), a primeira linha dá os nomes das colunas.
+   * Sem cabeçalho (a primeira linha já é um CPF/CNPJ com valor), nenhuma linha pode ser descartada:
+   * o modo objeto do xlsx usa a primeira linha como nomes de coluna e perderia o primeiro pagamento.
+   * `firstDataRowNumber` é o número da linha da planilha (base 1) da primeira linha de dados.
+   */
+  private readSheetRows(worksheet: xlsx.WorkSheet): { rows: Record<string, any>[]; firstDataRowNumber: number } {
+    const matrix = xlsx.utils.sheet_to_json<any[]>(worksheet, { header: 1, defval: '', raw: false });
+    const firstRowIndex = matrix.findIndex((row) => row.some((cell) => String(cell ?? '').trim() !== ''));
+
+    if (firstRowIndex >= 0 && this.looksLikeDataRow(matrix[firstRowIndex])) {
+      return {
+        rows: matrix.slice(firstRowIndex).map((row) => Object.fromEntries(row.map((cell, index) => [`col_${index}`, cell]))),
+        firstDataRowNumber: firstRowIndex + 1,
+      };
+    }
+
+    return {
+      rows: xlsx.utils.sheet_to_json<Record<string, any>>(worksheet, { defval: '', raw: false }),
+      firstDataRowNumber: 2, // +1 pelo cabeçalho, +1 para base 1
+    };
+  }
+
   /** Remove tudo que não é dígito e completa com zeros à esquerda até 11 dígitos (CPF). */
   private normalizeDocumento(raw: any): string {
     const digits = String(raw ?? '').replace(/\D/g, '');
@@ -188,12 +223,12 @@ export class OrdemPagamentoService {
 
     for (const sheetName of workbook.SheetNames) {
       const worksheet = workbook.Sheets[sheetName];
-      const rows = xlsx.utils.sheet_to_json<Record<string, any>>(worksheet, { defval: '', raw: false });
+      const { rows, firstDataRowNumber } = this.readSheetRows(worksheet);
 
       for (let i = 0; i < rows.length; i++) {
         const { documentoRaw, valorRaw } = this.extractDocumentoAndValorFromRow(rows[i]);
         const documento = this.normalizeDocumento(documentoRaw);
-        const rowNumber = i + 2; // +1 pelo cabeçalho, +1 para base 1
+        const rowNumber = firstDataRowNumber + i;
 
         if (!documento) {
           continue;

@@ -20,6 +20,7 @@ import { BigqueryOrdemPagamentoGuardadorRepository } from 'src/bigquery/reposito
 import { BigqueryTransacaoService } from 'src/bigquery/services/bigquery-transacao.service';
 import { BigqueryTransacaoRepository } from 'src/bigquery/repositories/bigquery-transacao.repository';
 import { HeaderName } from 'src/cnab/enums/pagamento/header-arquivo-status.enum';
+import { parseCnab240Pagamento } from 'src/cnab/utils/cnab/cnab-104-utils';
 import { CustomLogger } from 'src/utils/custom-logger';
 import databaseConfig from 'src/config/database.config';
 import authConfig from 'src/config/auth.config';
@@ -141,11 +142,11 @@ suite('Remessa Guardador sem desconto de pagamento indevido (integração, SFTP/
     await ds.query(`DELETE FROM public."user" WHERE id = $1`, [USER_ID]);
   }
 
-  async function seed() {
+  async function seed(bankAccountType = 'corrente') {
     await limpar();
     await ds.query(
-      `INSERT INTO public."user"(id, provider, "fullName", "cpfCnpj", "bankCode", "bankAccount", "bankAgency", "bankAccountDigit", "bloqueado", "createdAt", "updatedAt")
-       VALUES ($1,'email',$2,$3,104,'99990002','0001','1',false,now(),now())`, [USER_ID, NOME, CPF]);
+      `INSERT INTO public."user"(id, provider, "fullName", "cpfCnpj", "bankCode", "bankAccount", "bankAgency", "bankAccountDigit", "bankAccountType", "bloqueado", "createdAt", "updatedAt")
+       VALUES ($1,'email',$2,$3,104,'99990002','0001','1',$4,false,now(),now())`, [USER_ID, NOME, CPF, bankAccountType]);
     await ds.query(
       `INSERT INTO ordem_pagamento_guardador(id, "userId", "ordemPagamentoAgrupadoId", "dataOrdem", "dataInclusao", "tipoOrdemPagamento",
          "qtdVerificacaoTotal", "qtdVerificacaoValida", "qtdVerificacaoInvalida", "valorRepasseGuardador", "createdAt", "updatedAt")
@@ -185,5 +186,35 @@ suite('Remessa Guardador sem desconto de pagamento indevido (integração, SFTP/
     const linhaA = conteudo.split(/\r?\n/).find((l: string) => l.charAt(13) === 'A' && l.includes(NOME.slice(0, 20)));
     expect(linhaA).toBeDefined();
     expect(linhaA).toContain('000000000020000'); // R$ 200,00 no CNAB (15 posições, 2 casas)
+  }, 120000);
+
+  /** Lote do CNAB (forma de lançamento) em que o favorecido de teste foi remetido. */
+  async function gerarEFormaLancamento(bankAccountType: string) {
+    await seed(bankAccountType);
+    await opaService.prepararPagamentoAgrupados(new Date(DI), new Date(DF), new Date(DP), 'contaRotativo', []);
+    await remessa.prepararRemessa(new Date(DI), new Date(DF), new Date(DP), [], undefined);
+    const txt = await remessa.gerarCnabText(HeaderName.GUARDADOR, undefined, false, []);
+    const [oph] = await ds.query(
+      `SELECT oph."userBankAccountType" AS tipo FROM ordem_pagamento_agrupado_historico oph
+       JOIN ordem_pagamento_guardador og ON og."ordemPagamentoAgrupadoId" = oph."ordemPagamentoAgrupadoId" WHERE og.id = $1`, [OPG_ID]);
+    let forma: string | undefined;
+    for (const arq of txt) {
+      for (const lote of parseCnab240Pagamento(arq.content).lotes) {
+        if (lote.registros.some((r: any) => String(r.detalheB?.numeroInscricao?.convertedValue).endsWith(CPF.replace(/^0+/, '')))) {
+          forma = lote.headerLote.formaLancamento.value.trim();
+        }
+      }
+    }
+    return { forma, tipoHistorico: oph?.tipo };
+  }
+
+  it('conta corrente da Caixa: lote com forma de lançamento 01 (crédito em conta corrente)', async () => {
+    const r = await gerarEFormaLancamento('corrente');
+    expect(r.forma).toBe('01');
+  }, 120000);
+
+  it('conta poupança da Caixa: o lote sai com forma de lançamento 05 (crédito em conta poupança)', async () => {
+    const r = await gerarEFormaLancamento('poupanca');
+    expect(r.forma).toBe('05');
   }, 120000);
 });
