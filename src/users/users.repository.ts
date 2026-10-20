@@ -190,6 +190,14 @@ export class UsersRepository {
     return users;
   }
 
+  /** Usuário dono do e-mail (sem diferenciar maiúsculas de minúsculas), ou nulo. */
+  async findOneByEmail(email: string): Promise<Nullable<User>> {
+    return this.usersRepository
+      .createQueryBuilder('user')
+      .where('lower("user"."email") = :email', { email: String(email).trim().toLowerCase() })
+      .getOne();
+  }
+
   async findUserRelationship(userId: number, relatedUserId: number): Promise<Nullable<UserRelationship>> {
     return this.entityManager.getRepository(UserRelationship).findOne({
       where: {
