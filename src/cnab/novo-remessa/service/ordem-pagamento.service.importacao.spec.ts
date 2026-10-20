@@ -18,7 +18,7 @@ describe('OrdemPagamentoService - importação da planilha de guardadores', () =
   const build = (cpfsCadastrados: string[]) => {
     const saveMany = jest.fn().mockResolvedValue(undefined);
     const usersService = {
-      findOne: jest.fn(async ({ cpfCnpj }: { cpfCnpj: string }) =>
+      findOne: jest.fn(({ cpfCnpj }: { cpfCnpj: string }) =>
         cpfsCadastrados.includes(cpfCnpj) ? { id: Number(cpfCnpj.slice(-4)) || 1, cpfCnpj } : null),
     };
     const service = new OrdemPagamentoService({} as any, { saveMany } as any, {} as any, usersService as any);
