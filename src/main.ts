@@ -38,7 +38,10 @@ async function bootstrap() {
     new Date().getTime(),
   );
 
-  const app = await NestFactory.create(AppModule, { cors: true });
+  // exposedHeaders: sem isso o navegador recebe o Content-Disposition (nome do arquivo de
+  // export) na resposta, mas o JS do front não consegue lê-lo via CORS - cai sempre no nome
+  // de fallback.
+  const app = await NestFactory.create(AppModule, { cors: { exposedHeaders: ['Content-Disposition'] } });
   useContainer(app.select(AppModule), { fallbackOnErrors: true });
   const configService = app.get(ConfigService<AllConfigType>);
 
