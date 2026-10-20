@@ -20,12 +20,36 @@ export class RetornoService {
         private sftpService: SftpService,
     ) { }
 
-    //LER ARQUIVO TXT CNAB DO SFTP 
+    /**
+     * Um arquivo de retorno grande leva muitos minutos para ser processado e só sai de /retorno ao final.
+     * Sem esta trava, a próxima execução do cron (a cada 30 min) lê o MESMO arquivo e o processa de novo
+     * em paralelo, aplicando o segundo retorno em cima do primeiro.
+     */
+    private emProcessamento = false;
+
+    //LER ARQUIVO TXT CNAB DO SFTP
     public async lerRetornoSftp(folder?: string) {
+        if (this.emProcessamento) {
+            this.logger.warn('Retorno anterior ainda em processamento; nenhum arquivo será lido agora.');
+            return null;
+        }
         return await this.sftpService.getFirstRetornoPagamento(folder);
     }
 
     public async salvarRetorno(cnab: { name: string, content: string }) {
+        if (this.emProcessamento) {
+            this.logger.warn(`Retorno ${cnab.name} ignorado: outro arquivo está em processamento.`);
+            return;
+        }
+        this.emProcessamento = true;
+        try {
+            await this.processarRetorno(cnab);
+        } finally {
+            this.emProcessamento = false;
+        }
+    }
+
+    private async processarRetorno(cnab: { name: string, content: string }) {
         this.logger.debug(`Iniciada a leitura do arquivo: ${cnab.name} - ${new Date()}`);
         const retorno104 = parseCnab240Pagamento(cnab.content);
         let casados = 0;
@@ -135,7 +159,12 @@ export class RetornoService {
                             historico,
                             StatusRemessaEnum.NaoEfetivado
                         )
-                    } else if (registro.detalheA.ocorrencias.value.trim() === 'BD' || registro.detalheA.ocorrencias.value.trim() === '00') {
+                    } else if (registro.detalheA.ocorrencias.value.trim() === 'BD') {
+                        // "BD" = inclusão efetuada (confirmação do 1º retorno), não pagamento. Se o mesmo "BD" chegar de novo
+                        // (arquivo repetido ou processado em duplicidade), o pagamento continua Aguardando Pagamento:
+                        // só a ocorrência "00" (crédito efetivado) do 2º retorno finaliza.
+                        this.logger.debug(`historico ${historico.id}: "BD" repetido, segue Aguardando Pagamento`);
+                    } else if (registro.detalheA.ocorrencias.value.trim() === '00') {
 
                         // historicos = a linha desta OPA + qualquer filha dela
                         // ainda em aberto (ver getHistorico). Se existe filha,

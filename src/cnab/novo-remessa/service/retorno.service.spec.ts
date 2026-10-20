@@ -190,4 +190,69 @@ describe('RetornoService', () => {
       expect(sftpService.moveToBackup).toHaveBeenCalledWith('retorno.ret', SftpBackupFolder.RetornoFailure, 'RAW');
     });
   });
+  describe('1º retorno (BD) nunca paga e retorno duplicado não finaliza', () => {
+    const cnab = { name: 'retorno.ret', content: 'RAW' };
+
+    it('AguardandoPagamento + "BD" repetido => continua AguardandoPagamento (não vira Efetivado)', async () => {
+      const historico = makeHistorico(10, StatusRemessaEnum.AguardandoPagamento);
+      opaService.getHistorico.mockResolvedValue([historico]);
+
+      await atualizar(makeLote('00'), makeRegistro('BD'), { id: 1 });
+
+      expect(opaService.saveStatusHistorico).not.toHaveBeenCalled();
+      expect(historico.statusRemessa).toBe(StatusRemessaEnum.AguardandoPagamento);
+    });
+
+    it('o mesmo arquivo "BD" processado duas vezes: 1ª => Aguardando, 2ª não muda; só o "00" do 2º retorno paga', async () => {
+      const historico = makeHistorico(10, StatusRemessaEnum.PreparadoParaEnvio);
+      opaService.getHistorico.mockResolvedValue([historico]);
+      detalheAService.getDetalheARetorno.mockResolvedValue([{ id: 1 } as any]);
+
+      parseMock.mockReturnValue({ lotes: [makeLote('00', [makeRegistro('BD')])] });
+      await service.salvarRetorno(cnab);
+      expect(historico.statusRemessa).toBe(StatusRemessaEnum.AguardandoPagamento);
+
+      await service.salvarRetorno(cnab); // mesmo arquivo de novo
+      expect(historico.statusRemessa).toBe(StatusRemessaEnum.AguardandoPagamento);
+
+      parseMock.mockReturnValue({ lotes: [makeLote('00', [makeRegistro('00')])] });
+      await service.salvarRetorno({ name: 'retorno2.ret', content: 'RAW2' });
+      expect(historico.statusRemessa).toBe(StatusRemessaEnum.Efetivado);
+    });
+  });
+
+  describe('trava contra processamento simultâneo do retorno', () => {
+    it('enquanto um arquivo é processado, não lê outro e ignora um segundo salvarRetorno', async () => {
+      let liberar: () => void = () => undefined;
+      detalheAService.getDetalheARetorno.mockImplementation(() => new Promise((resolve) => { liberar = () => resolve([]); }));
+      parseMock.mockReturnValue({ lotes: [makeLote('00', [makeRegistro('BD')])] });
+
+      const primeiro = service.salvarRetorno({ name: 'grande.ret', content: 'RAW' });
+      await Promise.resolve();
+
+      expect(await service.lerRetornoSftp()).toBeNull();
+      expect(sftpService.getFirstRetornoPagamento).not.toHaveBeenCalled();
+
+      await service.salvarRetorno({ name: 'grande.ret', content: 'RAW' }); // mesmo arquivo, em paralelo
+      expect(detalheAService.getDetalheARetorno).toHaveBeenCalledTimes(1);
+
+      liberar();
+      await primeiro;
+      expect(sftpService.moveToBackup).toHaveBeenCalledTimes(1);
+
+      sftpService.getFirstRetornoPagamento.mockResolvedValue(null);
+      await service.lerRetornoSftp(); // trava liberada
+      expect(sftpService.getFirstRetornoPagamento).toHaveBeenCalledTimes(1);
+    });
+
+    it('a trava é liberada mesmo quando o processamento falha', async () => {
+      parseMock.mockReturnValue({ lotes: [makeLote('00', [makeRegistro('BD')])] });
+      detalheAService.getDetalheARetorno.mockRejectedValue(new Error('boom'));
+      await service.salvarRetorno({ name: 'a.ret', content: 'RAW' });
+
+      sftpService.getFirstRetornoPagamento.mockResolvedValue(null);
+      await service.lerRetornoSftp();
+      expect(sftpService.getFirstRetornoPagamento).toHaveBeenCalled();
+    });
+  });
 });
