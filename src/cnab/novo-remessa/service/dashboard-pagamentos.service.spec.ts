@@ -1,5 +1,5 @@
 import { HttpException } from '@nestjs/common';
-import { DashboardPagamentosService, MAX_DIAS_DASHBOARD, validarPeriodo } from './dashboard-pagamentos.service';
+import { DashboardPagamentosService, MAX_DIAS_DASHBOARD, MAX_LINHAS_EXPORTACAO, validarPeriodo } from './dashboard-pagamentos.service';
 
 describe('DashboardPagamentosService', () => {
   const build = () => {
@@ -72,5 +72,36 @@ describe('DashboardPagamentosService', () => {
     repo.detalhe.mockClear();
     await expect(service.detalhe({ dataInicio: '2026-09-01', dataFim: '2026-09-30', conta: 'rotativo', busca: 'a' })).rejects.toBeInstanceOf(HttpException);
     expect(repo.detalhe).not.toHaveBeenCalled();
+  });
+  describe('exportar', () => {
+    const periodo = { dataInicio: '2026-10-20', dataFim: '2026-10-20', conta: 'cett' as const };
+    const linhaBanco = { detalheAId: 1, nome: 'ABDON ALVIM DE QUEIROZ', cpf: '38624400791', dataOrdem: '2026-10-16', valorOrdem: '80', valorLancamento: '340.00' };
+
+    it('valida o período e a busca antes de consultar', async () => {
+      const { service, repo } = build();
+      (repo as any).exportar = jest.fn();
+      await expect(service.exportar({ ...periodo, dataFim: '2026-10-01' })).rejects.toBeInstanceOf(HttpException);
+      await expect(service.exportar({ ...periodo, busca: 'a' })).rejects.toBeInstanceOf(HttpException);
+      expect((repo as any).exportar).not.toHaveBeenCalled();
+    });
+
+    it('converte os valores para número e repassa o filtro sem a paginação', async () => {
+      const { service, repo } = build();
+      (repo as any).exportar = jest.fn().mockResolvedValue([linhaBanco, { ...linhaBanco, dataOrdem: null, valorOrdem: null }]);
+
+      const r = await service.exportar({ ...periodo, situacao: 'pago', busca: '  abdon ', page: 3, pageSize: 10 } as any);
+
+      expect((repo as any).exportar).toHaveBeenCalledWith(expect.objectContaining({ conta: 'cett', situacao: 'pago', busca: 'abdon' }), MAX_LINHAS_EXPORTACAO);
+      expect((repo as any).exportar.mock.calls[0][0]).not.toHaveProperty('page');
+      expect(r.total).toBe(2);
+      expect(r.linhas[0]).toEqual({ detalheAId: 1, nome: 'ABDON ALVIM DE QUEIROZ', cpf: '38624400791', dataOrdem: '2026-10-16', valorOrdem: 80, valorLancamento: 340 });
+      expect(r.linhas[1]).toMatchObject({ dataOrdem: null, valorOrdem: null });
+    });
+
+    it('recusa exportação acima do limite de linhas', async () => {
+      const { service, repo } = build();
+      (repo as any).exportar = jest.fn().mockResolvedValue(new Array(MAX_LINHAS_EXPORTACAO + 1).fill(linhaBanco));
+      await expect(service.exportar(periodo)).rejects.toBeInstanceOf(HttpException);
+    });
   });
 });
