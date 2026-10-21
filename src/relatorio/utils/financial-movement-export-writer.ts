@@ -18,19 +18,27 @@ export type FinancialMovementExportResult = {
 type StreamRows = (onRow: (row: RelatorioFinancialMovementNovoRemessaData) => Promise<void> | void) => Promise<void>;
 
 // Mesmas colunas usadas pelo CSV original (Permissionário e Guardador). Compartilhada entre
-// os três formatos para os três não divergirem silenciosamente entre si.
-const COLUMNS: Array<{ key: keyof RelatorioFinancialMovementNovoRemessaData; label: string; pdfWidth: number }> = [
-  { key: 'dataReferencia', label: 'Data Referência', pdfWidth: 10 },
-  { key: 'dataPagamento', label: 'Data Pagamento', pdfWidth: 10 },
-  { key: 'nomes', label: 'Nome', pdfWidth: 24 },
-  { key: 'email', label: 'Email', pdfWidth: 26 },
+// os três formatos para os três não divergirem silenciosamente entre si. pdfWidth é em
+// caracteres (a fonte do PDF é monoespaçada - ver simple-pdf.ts) e soma, com os espaços de
+// respiro entre colunas (PDF_COLUMN_GAP), até a largura útil da página em PDF_FONT_SIZE.
+const COLUMNS: Array<{
+  key: keyof RelatorioFinancialMovementNovoRemessaData;
+  label: string;
+  pdfWidth: number;
+  pdfAlign?: 'left' | 'right';
+  pdfLabel?: string;
+}> = [
+  { key: 'dataReferencia', label: 'Data Referência', pdfWidth: 10, pdfLabel: 'Dt Refer.' },
+  { key: 'dataPagamento', label: 'Data Pagamento', pdfWidth: 10, pdfLabel: 'Dt Pagto.' },
+  { key: 'nomes', label: 'Nome', pdfWidth: 18 },
+  { key: 'email', label: 'Email', pdfWidth: 20 },
   { key: 'codBanco', label: 'Banco', pdfWidth: 5 },
-  { key: 'nomeBanco', label: 'Nome Banco', pdfWidth: 16 },
-  { key: 'cpfCnpj', label: 'CPF/CNPJ', pdfWidth: 18 },
-  { key: 'consorcio', label: 'Consórcio', pdfWidth: 14 },
-  { key: 'valor', label: 'Valor', pdfWidth: 12 },
-  { key: 'status', label: 'Status', pdfWidth: 16 },
-  { key: 'descricaoErro', label: 'Erro', pdfWidth: 20 },
+  { key: 'nomeBanco', label: 'Nome Banco', pdfWidth: 12 },
+  { key: 'cpfCnpj', label: 'CPF/CNPJ', pdfWidth: 14 },
+  { key: 'consorcio', label: 'Consórcio', pdfWidth: 9 },
+  { key: 'valor', label: 'Valor', pdfWidth: 11, pdfAlign: 'right' },
+  { key: 'status', label: 'Status', pdfWidth: 20 },
+  { key: 'descricaoErro', label: 'Erro', pdfWidth: 16 },
 ];
 
 const csvEscape = (value: unknown): string => `"${String(value ?? '').replace(/"/g, '""')}"`;
@@ -73,27 +81,35 @@ async function writeXlsx(prefix: string, streamRows: StreamRows): Promise<Financ
   };
 }
 
-// buildSimplePdf escreve com uma fonte Helvetica base14 (WinAnsi) e não dá para medir texto
-// nem quebrar página sozinho - por isso cada linha é truncada e acentuada com toPdfSafeText
-// antes de virar uma única linha de texto, igual ao formato de export por e-mail que existia
-// antes desse fluxo ser movido para download direto (ver histórico de simple-pdf.ts).
+// Espaços de respiro entre colunas e separador do cabeçalho - dá a aparência de tabela sem
+// precisar desenhar grade (buildSimplePdf só sabe escrever linhas de texto simples).
+const PDF_COLUMN_GAP = '   ';
+
+const padColumn = (value: string, width: number, align: 'left' | 'right'): string => {
+  const truncated = truncateText(value, width);
+  return align === 'right' ? truncated.padStart(width, ' ') : truncated.padEnd(width, ' ');
+};
+
+const formatPdfRow = (values: unknown[]): string =>
+  COLUMNS.map((column, i) => padColumn(toPdfSafeText(String(values[i] ?? '')), column.pdfWidth, column.pdfAlign ?? 'left')).join(
+    PDF_COLUMN_GAP,
+  );
+
+// buildSimplePdf escreve com uma fonte Courier monoespaçada (ver simple-pdf.ts) e não dá para
+// quebrar página sozinho - por isso cada linha vira um array de texto já paginado, com as
+// colunas alinhadas por espaço (padColumn) para parecer uma tabela de verdade.
 async function writePdf(prefix: string, streamRows: StreamRows): Promise<FinancialMovementExportResult> {
   const fileName = `${prefix}-${Date.now()}.pdf`;
   const filePath = path.join(os.tmpdir(), fileName);
 
-  const formatRow = (values: unknown[]) =>
-    values.map((value, i) => truncateText(toPdfSafeText(String(value ?? '')), COLUMNS[i].pdfWidth)).join(' | ');
-
-  const lines: string[] = [
-    'Relatorio de Movimentacao Financeira',
-    '',
-    COLUMNS.map((c) => toPdfSafeText(c.label)).join(' | '),
-  ];
+  const header = formatPdfRow(COLUMNS.map((c) => c.pdfLabel ?? c.label));
+  const separator = '-'.repeat(header.length);
+  const lines: string[] = ['Relatorio de Movimentacao Financeira', '', header, separator];
   await streamRows((row) => {
-    lines.push(formatRow(COLUMNS.map((c) => row[c.key])));
+    lines.push(formatPdfRow(COLUMNS.map((c) => row[c.key])));
   });
 
-  const linesPerPage = 40;
+  const linesPerPage = 38;
   const pages: string[][] = [];
   for (let index = 0; index < lines.length; index += linesPerPage) {
     pages.push(lines.slice(index, index + linesPerPage));
