@@ -90,6 +90,22 @@ describe('novo-remessa-query-builder codigoErro', () => {
     expect(sql).toContain("IN ('Rejeitado')");
     expect(sql).toContain('da."valorLancamento" AS valor');
   });
+
+  // Estorno/Rejeitado without a parent (never had a retry/correction attempt) were silently
+  // dropped from the single-day filter: the family branch above requires opa."ordemPagamentoAgrupadoId"
+  // via INNER JOIN, so a first-level order with no family history never matched it. Confirmed in
+  // production for 2026-10-20: 3 "Estorno" rows (R$ 4.560,00) invisible to the single-day filter,
+  // yet present in the multi-day view (buildBaseQuery, which has no such requirement).
+  it('also selects a single-day rejected/estornado order that has no parent (no retry history)', () => {
+    const sql = buildPendenciaPagamentoSingleDateQuery({
+      ...params,
+      parentErrorStatuses: ['Estorno'],
+    });
+
+    expect(sql).toMatch(/UNION ALL/);
+    expect(sql).toContain('opa."ordemPagamentoAgrupadoId" IS NULL');
+    expect(sql).toContain('opa."dataPagamento"::date BETWEEN $1::date AND $2::date');
+  });
 });
 
 describe('novo-remessa-query-builder período (dataVencimento)', () => {

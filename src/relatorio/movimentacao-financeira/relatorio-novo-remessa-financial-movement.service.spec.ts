@@ -2,7 +2,6 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getDataSourceToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import * as fs from 'fs';
-import { RelatorioNovoRemessaFinancialMovementRepository } from './relatorio-novo-remessa-financial-movement.repository';
 import { RelatorioNovoRemessaFinancialMovementService } from './relatorio-novo-remessa-financial-movement.service';
 import { RelatorioGuardadorFinancialMovementRepository } from './relatorio-guardador-financial-movement.repository';
 
@@ -39,14 +38,6 @@ describe('RelatorioNovoRemessaFinancialMovementService', () => {
         },
         {
           provide: RelatorioGuardadorFinancialMovementRepository,
-          useValue: {
-            findFinancialMovementSummary: jest.fn(),
-            findFinancialMovementPage: jest.fn(),
-            streamFinancialMovementRows: jest.fn(),
-          },
-        },
-        {
-          provide: RelatorioNovoRemessaFinancialMovementRepository,
           useValue: {
             findFinancialMovementSummary: jest.fn(),
             findFinancialMovementPage: jest.fn(),
