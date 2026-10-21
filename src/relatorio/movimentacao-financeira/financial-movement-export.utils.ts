@@ -118,17 +118,3 @@ export const EXPORT_COLUMNS_PT_BR = [
   'Status',
   'Descrição do Erro',
 ] as const;
-
-export function truncateText(value: string, maxLength: number): string {
-  if (value.length <= maxLength) {
-    return value;
-  }
-
-  return `${value.slice(0, Math.max(0, maxLength - 3))}...`;
-}
-
-export function toPdfSafeText(value: string): string {
-  return value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '');
-}

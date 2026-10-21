@@ -23,6 +23,7 @@ import {
 
 import { RelatorioGuardadorFinancialMovementRepository } from './relatorio-guardador-financial-movement.repository';
 import { writeFinancialMovementExport, FinancialMovementExportFormatValue } from '../utils/financial-movement-export-writer';
+import { buildSelectedStatusLabels } from './financial-movement-export.utils';
 
 type NormalizedFilter = IFindPublicacaoRelatorioNovoFinancialMovement & {
   dataInicio: Date;
@@ -88,8 +89,11 @@ export class RelatorioNovoRemessaFinancialMovementService {
   public async downloadGuardadorFinancialMovementExport(
     filter: IFindPublicacaoRelatorioNovoFinancialMovement & { format?: FinancialMovementExportFormatValue },
   ) {
-    return writeFinancialMovementExport(filter.format ?? 'csv', 'financial-movement-guardadores', (onRow) =>
-      this.relatorioGuardadorFinancialMovementRepository.streamFinancialMovementRows(filter, onRow),
+    return writeFinancialMovementExport(
+      filter.format ?? 'csv',
+      'financial-movement-guardadores',
+      (onRow) => this.relatorioGuardadorFinancialMovementRepository.streamFinancialMovementRows(filter, onRow),
+      { dataInicio: new Date(filter.dataInicio), dataFim: new Date(filter.dataFim), statusLabels: buildSelectedStatusLabels(filter) },
     );
   }
 
@@ -213,8 +217,11 @@ export class RelatorioNovoRemessaFinancialMovementService {
   ) {
     // O DTO do controller aceita csv/xlsx/pdf (FinancialMovementExportFormat), mas até aqui só
     // csv era gerado de fato - os outros dois formatos vinham com conteúdo CSV e extensão errada.
-    return writeFinancialMovementExport(filter.format ?? 'csv', 'financial-movement', (onRow) =>
-      this.streamFinancialMovementRows(filter, onRow),
+    return writeFinancialMovementExport(
+      filter.format ?? 'csv',
+      'financial-movement',
+      (onRow) => this.streamFinancialMovementRows(filter, onRow),
+      { dataInicio: new Date(filter.dataInicio), dataFim: new Date(filter.dataFim), statusLabels: buildSelectedStatusLabels(filter) },
     );
   }
 
