@@ -42,9 +42,18 @@ export class AuthService {
   ) { }
 
   private getResetPasswordRedirectTo(user: User): string {
-    return user.role?.id === RoleEnum.agentes
-      ? '/agentes/sign-in'
-      : '/sign-in';
+    switch (user.role?.id) {
+      case RoleEnum.agentes:
+        return '/agentes/sign-in';
+      case RoleEnum.master:
+      case RoleEnum.admin:
+        return '/admin/sign-in';
+      case RoleEnum.lancador_financeiro:
+      case RoleEnum.aprovador_financeiro:
+        return '/financeiro/sign-in';
+      default:
+        return '/sign-in';
+    }
   }
 
   async validateLogin(
