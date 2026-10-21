@@ -8,8 +8,8 @@ function escapePdfText(value: string): string {
 function buildContentStream(lines: string[]): string {
   const contentLines = [
     'BT',
-    '/F1 8 Tf',
-    '12 TL',
+    '/F1 7 Tf',
+    '10 TL',
     '24 560 Td',
   ];
 
@@ -39,7 +39,9 @@ export function buildSimplePdf(pages: string[][]): Buffer {
     kids.push(`${pageObjectNumber} 0 R`);
   }
   objects[2] = `<< /Type /Pages /Kids [${kids.join(' ')}] /Count ${pageCount} >>`;
-  objects[3] = '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>';
+  // Courier é monoespaçada - permite alinhar colunas com espaços, formando uma tabela de
+  // verdade, o que não é possível com Helvetica (largura de caractere variável).
+  objects[3] = '<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>';
 
   for (let pageIndex = 0; pageIndex < pageCount; pageIndex += 1) {
     const pageObjectNumber = 4 + (pageIndex * 2);

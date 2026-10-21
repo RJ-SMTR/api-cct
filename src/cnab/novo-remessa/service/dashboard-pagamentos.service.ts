@@ -62,7 +62,9 @@ export class DashboardPagamentosService {
     if (busca !== undefined && busca.length < 2) {
       throw new HttpException({ error: 'Informe ao menos 2 caracteres para buscar o favorecido.' }, HttpStatus.BAD_REQUEST);
     }
-    const { page: _page, pageSize: _pageSize, ...restante } = filtro;
+    const restante = { ...filtro };
+    delete restante.page;
+    delete restante.pageSize;
     const linhas = await this.dashboardRepository.exportar({ ...restante, busca }, MAX_LINHAS_EXPORTACAO);
     if (linhas.length > MAX_LINHAS_EXPORTACAO) {
       throw new HttpException(
