@@ -213,16 +213,27 @@ export class RelatorioNovoRemessaConsolidadoRepository {
              where op."dataOrdem" BETWEEN '${dataInicio}' AND '${dataFim}' AND op."idOrdemPagamento" is null`;
   }
 
+  // NOT EXISTS/motivoStatusRemessa: mesmos guards de getQueryPendenciaPagaConsorcios/Vanzeiros
+  // (ADR 0011) - sem eles, agrupamentos substituídos/reenviados entravam na consulta; o SELECT
+  // DISTINCT (nome, nome2, valor, idLinha) e o filtro externo "nome IS NOT NULL" descartavam
+  // essas linhas por acidente (o join opafi/opai/opp resulta em nome/nome2 nulos nesses casos),
+  // não por design.
+  private readonly excluiAgrupamentoSubstituido = `
+               and NOT EXISTS (SELECT 1 FROM ordem_pagamento_agrupado filha WHERE filha."ordemPagamentoAgrupadoId" = opafi.id)
+               and (oph."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph."motivoStatusRemessa" IS NULL)`;
+
   private getQueryConsorcios(dataInicio: string, dataFim: string): string {
     return `   ${this.headerQueryConsorcios}
                ${this.fromQueryPrincipal}
-               where da."dataVencimento" >= '${dataInicio}'::date AND da."dataVencimento" < '${dataFim}'::date + interval '1 day' `;
+               where da."dataVencimento" >= '${dataInicio}'::date AND da."dataVencimento" < '${dataFim}'::date + interval '1 day'
+               ${this.excluiAgrupamentoSubstituido} `;
   }
 
   private getQueryVanzeiros(dataInicio: string, dataFim: string): string {
     return `  ${this.headerQueryVanzeiros}
               ${this.fromQueryPrincipal}
-              where da."dataVencimento" >= '${dataInicio}'::date AND da."dataVencimento" < '${dataFim}'::date + interval '1 day' `;
+              where da."dataVencimento" >= '${dataInicio}'::date AND da."dataVencimento" < '${dataFim}'::date + interval '1 day'
+              ${this.excluiAgrupamentoSubstituido} `;
   }
 
   // Pendência Paga é consultada pela data de pagamento (real), não pelo vencimento - mesma regra

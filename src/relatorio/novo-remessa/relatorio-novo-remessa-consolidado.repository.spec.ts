@@ -53,6 +53,44 @@ describe('RelatorioNovoRemessaConsolidadoRepository', () => {
     });
   });
 
+  // ADR 0011: getQueryConsorcios/getQueryVanzeiros (histórico normal) não excluíam agrupamentos
+  // substituídos/reenviados, ao contrário de getQueryPendenciaPagaConsorcios/Vanzeiros no mesmo
+  // arquivo. Hoje isso não quebra o valor total (o SELECT DISTINCT colapsa essas linhas em
+  // "nome"/"nome2" nulos, descartados pelo filtro externo) mas é um acidente, não um design.
+  describe('getQueryConsorcios/getQueryVanzeiros - exclui agrupamentos substituídos/reenviados', () => {
+    it.each([
+      ['getQueryConsorcios', () => (repository as any).getQueryConsorcios('2026-01-01', '2026-01-05')],
+      ['getQueryVanzeiros', () => (repository as any).getQueryVanzeiros('2026-01-01', '2026-01-05')],
+    ])('%s excludes agrupamentos that have a child agrupamento (filha)', (_name, build) => {
+      const sql: string = build();
+
+      expect(sql).toContain('NOT EXISTS');
+      expect(sql).toContain('ordem_pagamento_agrupado filha');
+      expect(sql).toContain('filha."ordemPagamentoAgrupadoId" = opafi.id');
+    });
+
+    it.each([
+      ['getQueryConsorcios', () => (repository as any).getQueryConsorcios('2026-01-01', '2026-01-05')],
+      ['getQueryVanzeiros', () => (repository as any).getQueryVanzeiros('2026-01-01', '2026-01-05')],
+    ])('%s excludes motivoStatusRemessa AM/AE', (_name, build) => {
+      const sql: string = build();
+
+      expect(sql).toContain(`motivoStatusRemessa" NOT IN ('AM', 'AE')`);
+    });
+
+    // Regressão negativa: as queries de Pendência Paga do mesmo arquivo já tinham os dois
+    // guards antes desta mudança e não devem ser afetadas.
+    it.each([
+      ['getQueryPendenciaPagaConsorcios', () => (repository as any).getQueryPendenciaPagaConsorcios('2026-01-01', '2026-01-05')],
+      ['getQueryPendenciaPagaVanzeiros', () => (repository as any).getQueryPendenciaPagaVanzeiros('2026-01-01', '2026-01-05')],
+    ])('%s keeps its existing guards unchanged', (_name, build) => {
+      const sql: string = build();
+
+      expect(sql).toContain('NOT EXISTS');
+      expect(sql).toContain(`motivoStatusRemessa" NOT IN ('AM', 'AE')`);
+    });
+  });
+
   describe('findConsolidado - valor total não duplica favorecido individual de STPC/STPL/TEC', () => {
     it('keeps both the consorcio and the vanzeiro rows, but sums the vanzeiro amount only once', async () => {
       (mockQueryRunner.query as jest.Mock).mockResolvedValue([

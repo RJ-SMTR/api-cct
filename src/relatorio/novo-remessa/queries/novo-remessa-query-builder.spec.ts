@@ -139,21 +139,57 @@ describe('novo-remessa-query-builder período (dataVencimento)', () => {
 describe('novo-remessa-query-builder sem DISTINCT (ADR 0007 / TD-14)', () => {
   const params = { consorcioFilterParamIndex: 5 };
 
-  // The select list has no op.id, only opa.id (the grouping). SELECT DISTINCT silently
-  // collapsed two distinct ordens de pagamento of the same agrupamento whenever they
-  // coincided in value, undercounting Consolidado and Movimentação Financeira totals.
-  //
-  // pendenciaPagaSingleDate/pendenciaPagamentoSingleDate had the same pattern (TD-14),
-  // confirmed with real data on 2026-04-02: opa.id=253902 (CPF 29709920782) has 3 distinct
-  // ordens de pagamento of R$12,38 each, identical in every other displayed column - DISTINCT
-  // collapsed them into 1 row, undercounting R$24,76 in that group alone (R$313,72 total
-  // across the day for that favorecido).
+  // The select list has no op.id, only opa.id (the grouping), so a plain SELECT DISTINCT
+  // is the wrong tool either way: for AGRUPAMENTO_GRATUIDADE (op.valorGratuidade, genuinely
+  // per order) it wrongly collapsed two distinct orders that coincided in value (ADR 0007).
+  // For AGRUPAMENTO_NORMAL it is replaced below by an explicit "one order per agrupamento"
+  // restriction (ADR 0011) instead of DISTINCT, since da.valorLancamento is the batch's total,
+  // not a per-order value - DISTINCT alone can't tell "two real distinct lançamentos that
+  // coincide in value" apart from "N child orders of the very same lançamento".
   it.each([
     ['base', buildBaseQuery(params)],
     ['stucGratuidade', buildStucGratuidadeQuery(params)],
     ['pendenciaPagaSingleDate', buildPendenciaPagaSingleDateQuery(params)],
     ['pendenciaPagamentoSingleDate', buildPendenciaPagamentoSingleDateQuery(params)],
-  ])('%s query does not deduplicate rows', (_name, sql) => {
+  ])('%s query does not deduplicate rows via SELECT DISTINCT', (_name, sql) => {
     expect(sql).not.toMatch(/SELECT\s+DISTINCT/i);
+  });
+});
+
+describe('novo-remessa-query-builder uma ordem por agrupamento (ADR 0011, corrige o ADR 0010)', () => {
+  const params = { consorcioFilterParamIndex: 5 };
+
+  // AGRUPAMENTO_NORMAL: da."valorLancamento" is the whole batch's (OrdemPagamentoAgrupado)
+  // total, repeated on every child ordem_pagamento row (fan-out by design, see CONTEXT.md).
+  // Without restricting to one representative child order per agrupamento, the service's
+  // SUM(valor) counts the same lançamento once per child order. Confirmed with real data
+  // (2026-09-10, Permissionário, Pago): an agrupamento with 8 child orders had its R$5.548,80
+  // lançamento summed 8x (ADR 0011). The ADR 0010 example (opa.id=253902) is the same bug,
+  // misdiagnosed as "3 distinct ordens of R$12,38" - it is 1 lançamento (da.id=21536) fanned
+  // out across 3 child orders; the real total for that agrupamento is R$12,38, not R$37,14.
+  it.each([
+    ['base', buildBaseQuery(params)],
+    ['pendenciaPagaSingleDate', buildPendenciaPagaSingleDateQuery(params)],
+  ])('%s query (AGRUPAMENTO_NORMAL) restricts to one ordem_pagamento per agrupamento', (_name, sql) => {
+    expect(sql).toContain('op.id = (');
+    expect(sql).toContain('SELECT MIN(o.id)');
+    expect(sql).toContain('o."ordemPagamentoAgrupadoId" = opa.id');
+  });
+
+  it('pendenciaPagamentoSingleDate query (AGRUPAMENTO_NORMAL) restricts to one ordem_pagamento per agrupamento in both UNION ALL branches', () => {
+    const sql = buildPendenciaPagamentoSingleDateQuery(params);
+
+    const matches = sql.match(/SELECT MIN\(o\.id\) FROM ordem_pagamento o WHERE o\."ordemPagamentoAgrupadoId" = opa\.id/g) ?? [];
+    expect(matches).toHaveLength(2);
+  });
+
+  // AGRUPAMENTO_GRATUIDADE: op."valorGratuidade" is genuinely per order (ADR 0007) - no
+  // restriction should be added here, or STUC - Gratuidade would start dropping real money.
+  it.each([
+    ['stucGratuidade', buildStucGratuidadeQuery(params)],
+    ['stucGratuidadePendenciaPagaSingleDate', buildStucGratuidadePendenciaPagaSingleDateQuery(params)],
+    ['stucGratuidadePendenciaPagamentoSingleDate', buildStucGratuidadePendenciaPagamentoSingleDateQuery(params)],
+  ])('%s query (AGRUPAMENTO_GRATUIDADE) is not restricted to one ordem_pagamento per agrupamento', (_name, sql) => {
+    expect(sql).not.toContain('SELECT MIN(o.id)');
   });
 });
