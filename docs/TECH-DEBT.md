@@ -28,6 +28,7 @@ Registro único do que foi adiado de propósito, por quê e por quem. Serve para
 | [TD-11](#td-11) | Vulnerabilidades de dependências não tratadas (npm audit / Dependabot) | aberto | Rayanne | 2026-10-08 |
 | [TD-12](#td-12) | `cron-jobs-pendentes.spec` quebrado na `main` bloqueia o pre-commit | aberto | Matthew | 2026-10-09 |
 | [TD-13](#td-13) | Hook de pre-commit não funciona no Windows (`spawnSync` do `.bin/tsc`) e o ratchet fica vazio | aberto | William | 2026-10-04 |
+| [TD-14](#td-14) | `SELECT DISTINCT` sem `op.id` em `buildPendenciaPagaTemplate`/`buildPendenciaPagamentoTemplate` pode subcontar como no ADR 0007 | aberto | Rayanne | 2026-10-20 |
 
 ## Entradas
 
@@ -157,3 +158,12 @@ Registro único do que foi adiado de propósito, por quê e por quem. Serve para
 - **Contexto:** `scripts/validate/pre-commit.ts` chama `spawnSync(bin('tsc'), ...)` sem `shell`. No Windows `node_modules/.bin/tsc` não é executável direto, então o hook sai com erro sem stdout/stderr ("undefinedundefined") e bloqueia todo commit com `.ts` staged, mesmo com o build verde. Além disso, `compareSuites` compara os caminhos de suíte do baseline (`src/...`) com caminhos absolutos do Windows e acaba checando 0 suítes, ou seja, o ratchet não protege nada nessa plataforma. O commit do merge de `origin/main` (2026-10-04) usou `git commit --no-verify`; antes disso as mesmas etapas rodaram à mão: `tsc --noEmit -p tsconfig.build.json` (ok), `jest --findRelatedTests` e ratchet com caminhos normalizados. Única diferença contra o baseline: `cron-jobs-pendentes.spec.ts`, que falha idêntico no `origin/main` (arquivos iguais ao upstream).
 - **Impacto/risco:** quem commita no Windows precisa de `--no-verify` e perde a validação automática; o baseline não é aplicado.
 - **Critério de pagamento:** o hook roda no Windows (`spawnSync` com `shell: true` ou `npx`), `compareSuites` normaliza separadores e raiz dos caminhos, e um commit com `.ts` staged passa pelo hook sem `--no-verify`.
+
+## TD-14
+**`SELECT DISTINCT` sem `op.id` em `buildPendenciaPagaTemplate`/`buildPendenciaPagamentoTemplate` pode subcontar como no ADR 0007**
+
+- **Status:** aberto
+- **Registrado por:** Rayanne · **Detectado por:** agente · **Data:** 2026-10-20
+- **Contexto:** o ADR 0007 corrigiu `buildGroupedQuery` (usada por `buildBaseQuery`/`buildStucGratuidadeQuery`), removendo um `SELECT DISTINCT` que colapsava ordens de pagamento distintas do mesmo agrupamento quando coincidiam em valor — confirmado em produção, subcontando R$ 22.385,00 no Consolidado com STUC de 2026-10-20. `buildPendenciaPagaTemplate` e `buildPendenciaPagamentoTemplate` (mesmo arquivo, `novo-remessa-query-builder.ts`) têm o mesmo padrão: `SELECT DISTINCT` sem `op.id` na lista de colunas. Não foram corrigidas porque a comparação que encontrou o bug usou só o filtro STUC do Consolidado (que passa por `buildGroupedQuery`), não os fluxos de Pendência Paga/Pendência de Pagamento.
+- **Impacto/risco:** se o mesmo padrão de coincidência de valor ocorrer nesses fluxos (Pendência Paga por data de pagamento, Pendência de Pagamento via agrupamento pai), os totais de Consolidado/Movimentação Financeira para esses status também subcontariam, do mesmo jeito que o STUC subcontava antes do ADR 0007.
+- **Critério de pagamento:** confirmado (ou descartado) com dados reais se há coincidência de valor dentro do mesmo agrupamento nesses dois fluxos; se houver, `DISTINCT` removido (ou substituído por `DISTINCT ON`/agregação com `op.id`) do mesmo jeito que o ADR 0007, com o teste de regressão correspondente em `novo-remessa-query-builder.spec.ts`.

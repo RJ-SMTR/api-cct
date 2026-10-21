@@ -119,3 +119,17 @@ describe('novo-remessa-query-builder período (dataVencimento)', () => {
     expect(sql).toContain('op."dataOrdem" BETWEEN $1 AND $2');
   });
 });
+
+describe('novo-remessa-query-builder sem DISTINCT (ADR 0007)', () => {
+  const params = { consorcioFilterParamIndex: 5 };
+
+  // The select list has no op.id, only opa.id (the grouping). SELECT DISTINCT silently
+  // collapsed two distinct ordens de pagamento of the same agrupamento whenever they
+  // coincided in value, undercounting Consolidado and Movimentação Financeira totals.
+  it.each([
+    ['base', buildBaseQuery(params)],
+    ['stucGratuidade', buildStucGratuidadeQuery(params)],
+  ])('%s query does not deduplicate rows', (_name, sql) => {
+    expect(sql).not.toMatch(/SELECT\s+DISTINCT/i);
+  });
+});
