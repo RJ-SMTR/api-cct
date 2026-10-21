@@ -15,7 +15,7 @@ const DESCRICOES_CUSTOMIZADAS: Record<string, string> = {
 // It is turned into a description by getDescricaoErro, so the SQL does not need a lookup table.
 export const buildCodigoErroSql = (statusCase: string, historyAlias = 'oph') => `CASE
         WHEN ${statusCase} IN ('Estorno', 'Rejeitado')
-          THEN NULLIF(TRIM(${historyAlias}."motivoStatusRemessa"), ''
+          THEN NULLIF(TRIM(${historyAlias}."motivoStatusRemessa"), '')
       END`;
 
 // "codigos" may be an aggregated, comma separated list (rows grouped by date/consorcio/status).

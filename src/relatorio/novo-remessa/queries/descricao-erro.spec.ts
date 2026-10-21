@@ -50,6 +50,16 @@ describe('descricao-erro', () => {
       expect(sql).toContain("IN ('Estorno', 'Rejeitado')");
       expect(sql).toContain('TRIM(oph."motivoStatusRemessa")');
     });
+
+    // Regression: a missing ")" here produced a "syntax error at or near END" at runtime
+    // on every query path that embeds this snippet (e.g. report/page?pago=true).
+    it('produces balanced parentheses', () => {
+      const sql = buildCodigoErroSql('CASE WHEN x THEN 1 END');
+
+      const opens = (sql.match(/\(/g) ?? []).length;
+      const closes = (sql.match(/\)/g) ?? []).length;
+      expect(closes).toBe(opens);
+    });
   });
 
   describe('RelatorioFinancialMovementNovoRemessaData', () => {
