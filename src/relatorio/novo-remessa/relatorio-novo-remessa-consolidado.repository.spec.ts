@@ -205,6 +205,52 @@ describe('RelatorioNovoRemessaConsolidadoRepository', () => {
       expect(sql).toContain(`IN('VLT''); DROP TABLE ORDEM_PAGAMENTO; --')`);
       expect(sql).not.toContain(`IN('VLT'); DROP TABLE`);
     });
+
+    // Bug (ver ADR 0008): "A pagar" e "Pendência Paga" eram aceitos na tela junto com STUC -
+    // Gratuidade, mas o backend os ignorava silenciosamente, devolvendo o mesmo total de "Todos".
+    it('"A pagar" filtra pelo bucket cru statusRemessa 0/1 (STATUS_CASE "A Pagar"), em vez de ser ignorado', async () => {
+      await repository.findConsolidado({
+        dataInicio: new Date('2026-01-01'),
+        dataFim: new Date('2026-01-05'),
+        userIds: [10],
+        stucGratuidade: true,
+        aPagar: true,
+      } as any);
+
+      const sql = (mockQueryRunner.query as jest.Mock).mock.calls[0][0];
+      expect(sql).toContain(`AND (oph."statusRemessa" IN (0,1)) `);
+    });
+
+    it('"Pendência Paga" usa a consulta por data de pagamento (gratuidade), não fica sem efeito', async () => {
+      await repository.findConsolidado({
+        dataInicio: new Date('2026-01-01'),
+        dataFim: new Date('2026-01-05'),
+        userIds: [10],
+        stucGratuidade: true,
+        pendenciaPaga: true,
+      } as any);
+
+      const sql = (mockQueryRunner.query as jest.Mock).mock.calls[0][0];
+      expect(sql).toContain('op."ordemPagamentoAgrupadoGratuidadeId" = opa.id');
+      expect(sql).toContain('op."valorGratuidade" AS valor');
+      expect(sql).toContain(`op_pai."dataPagamento"::date BETWEEN '2026-01-01'::date AND '2026-01-05'::date`);
+      expect(sql).toContain(`pu."id" IN('10')`);
+      expect(sql).not.toMatch(/\$[1-5]\b/);
+    });
+
+    it('"Pendência Paga" + "Todos vanzeiros": filtra por MODAIS/CPF igual ao ramo normal do STUC', async () => {
+      await repository.findConsolidado({
+        dataInicio: new Date('2026-01-01'),
+        dataFim: new Date('2026-01-05'),
+        todosVanzeiros: true,
+        stucGratuidade: true,
+        pendenciaPaga: true,
+      } as any);
+
+      const sql = (mockQueryRunner.query as jest.Mock).mock.calls[0][0];
+      expect(sql).toContain(`op."nomeConsorcio" IN('STPC','STPL','TEC')`);
+      expect(sql).toContain(`length(op."operadoraCpfCnpj")<=11`);
+    });
   });
 });
 
