@@ -33,7 +33,20 @@ export interface ResultadoSincronismoOrdens {
   dataFim: string;
   encontradasNoBigQuery: number;
   inseridas: number;
+  /** A contagem local era igual à do BigQuery (a comparação por hash roda mesmo assim). */
   puladoPorContagemIgual: boolean;
+  /** Execução registrada em sync_execucao (auditoria). */
+  execucaoId?: number;
+  identicas?: number;
+  alteradas?: number;
+  contidas?: number;
+  ignoradas?: number;
+  erros?: number;
+}
+
+export interface ContextoSincronismoOrdens {
+  origem?: 'cron' | 'manual';
+  usuarioId?: number | null;
 }
 
 @Injectable()
@@ -293,72 +306,142 @@ export class OrdemPagamentoService {
   }
 
   /**
-   * Busca no BigQuery as ordens capturadas entre as datas (pela data de captura) e grava as que
-   * ainda não existem localmente (identificadas por bqId). É idempotente: reexecutar não duplica.
+   * Busca no BigQuery as ordens capturadas entre as datas (pela data de captura) e compara cada uma com o
+   * banco pela chave `bqId` + hash dos campos (ver auditoria/ordem-sync-auditoria.ts):
+   *  nova -> insere | idêntica -> descarta | mudou e ainda livre -> atualiza | mudou e contida -> quarentena.
+   * Toda execução é registrada (janela e contagens), cada gravação gera auditoria append-only e, no fim, a
+   * contagem/soma por dia é reconciliada com o BigQuery. É idempotente: reexecutar não duplica.
    *
-   * @param forcar ignora o atalho "número de ordens local == BigQuery", que deixa passar uma ordem
-   *               faltante quando a contagem local por acaso bate com a do BigQuery.
+   * @param forcar mantido por compatibilidade: a comparação por hash roda sempre, mesmo quando a contagem
+   *               local bate com a do BigQuery (antes, a contagem igual pulava e escondia ordens alteradas).
    */
   async sincronizarOrdensPagamento(
     dataCapturaInicialDate: Date,
     dataCapturaFinalDate: Date,
     consorcio: string[],
     forcar = false,
+    contexto: ContextoSincronismoOrdens = {},
   ): Promise<ResultadoSincronismoOrdens> {
     const METHOD = 'sincronizarOrdensPagamento';
     const ordens = await this.bigqueryOrdemPagamentoService.getFromWeek(dataCapturaInicialDate, dataCapturaFinalDate, 0, { consorcioName: consorcio });
-
     const numOrdensSemana = await this.findNumeroDeOrdensPorIntervalo(startOfDay(dataCapturaInicialDate), endOfDay(dataCapturaFinalDate));
-    // Verifica se a ultima data de captura é igual a data atual
-    // E se o número de ordens é diferente.
-    const resultado: ResultadoSincronismoOrdens = {
-      dataInicio: dataCapturaInicialDate.toISOString().slice(0, 10),
-      dataFim: dataCapturaFinalDate.toISOString().slice(0, 10),
-      encontradasNoBigQuery: ordens.length,
-      inseridas: 0,
-      puladoPorContagemIgual: false,
-    };
-    if (!forcar && numOrdensSemana === ordens.length) {
-      this.logger.log(`Já foi feita a captura de ordens de pagamento para o dia de hoje.`, METHOD);
-      resultado.puladoPorContagemIgual = true;
-      return resultado;
-    }
 
-    this.logger.debug(`Iniciando sincronismo de ${ordens.length} ordens`, METHOD);
+    const dataInicio = dataCapturaInicialDate.toISOString().slice(0, 10);
+    const dataFim = dataCapturaFinalDate.toISOString().slice(0, 10);
+    const sync = this.ordemPagamentoRepository.sync;
+    const execucaoId = await sync.iniciarExecucao({
+      origem: contexto.origem ?? 'cron',
+      usuarioId: contexto.usuarioId,
+      forcar,
+      janelaInicio: dataInicio,
+      janelaFim: dataFim,
+      consorcios: consorcio,
+    });
+    const contagens = { encontradas: ordens.length, novas: 0, identicas: 0, alteradas: 0, contidas: 0, ignoradas: 0, erros: 0 };
 
-    for (const ordem of ordens) {
-      let user: User | undefined;
-      if (ordem.operadoraCpfCnpj) {
+    try {
+      this.logger.debug(`Iniciando sincronismo de ${ordens.length} ordens (execução ${execucaoId})`, METHOD);
+      const existentes = await sync.buscarPorBqIds(ordens.map((o) => Number(o.id)));
+
+      for (const ordem of ordens) {
+        if (!ordem.operadoraCpfCnpj) {
+          contagens.ignoradas += 1;
+          continue;
+        }
         try {
-          /*
-              Caso sejam modais, obtemos o usuário pelo CPF/CNPJ.
-              Caso contrário, obtemos pelo idConsorcio === permitCode
-           */
-          if (ordem.consorcio === 'STPC' || ordem.consorcio === 'STPL' || ordem.consorcio === 'TEC') {
-            user = await this.usersService.getOne({ cpfCnpj: ordem.operadoraCpfCnpj });
-          } else {
-            user = await this.usersService.getOne({ permitCode: ordem.idConsorcio });
+          const existente = existentes.get(Number(ordem.id));
+          let userId: number | undefined = existente?.userId ?? undefined;
+          if (!existente) {
+            const dono = await this.resolverUsuarioDaOrdem(ordem);
+            if (dono === null) {
+              // usuário bloqueado: a ordem não é gravada (regra anterior do sincronismo)
+              contagens.ignoradas += 1;
+              continue;
+            }
+            userId = dono;
           }
-          if (user && !user.bloqueado) {
-            this.logger.debug(`Salvando a ordem: ${ordem.idOrdemPagamento} para usuario: ${user.fullName}`, METHOD);
-            await this.save(ordem, user.id);
+          const resultado = await sync.aplicar(BigQueryToOrdemPagamento.convert(ordem, userId), existente, execucaoId);
+          if (resultado === 'nova') contagens.novas += 1;
+          else if (resultado === 'identica') contagens.identicas += 1;
+          else if (resultado === 'alterada') contagens.alteradas += 1;
+          else if (resultado === 'contida') contagens.contidas += 1;
+          else {
+            contagens.alteradas += 1;
+            contagens.contidas += 1;
           }
         } catch (error) {
-          /***  TODO: Caso o erro lançado seja relacionado ao fato do usuário não ter sido encontrado,
-           ajustar o código para inserir a ordem de pagamento com o usuário nulo
-           ***/
-          if (error instanceof HttpException && !user) {
-            await this.save(ordem, undefined);
-          } else {
-            this.logger.error(`Erro ao sincronizar ordem de pagamento ${ordem.id}: ${error.message}`, METHOD);
-          }
+          contagens.erros += 1;
+          this.logger.error(`Erro ao sincronizar ordem de pagamento ${ordem.id}: ${error.message}`, METHOD);
         }
       }
+
+      await this.reconciliarPorDia(ordens, dataInicio, dataFim, consorcio, execucaoId);
+      await sync.finalizarExecucao(execucaoId, 'concluida', contagens);
+    } catch (error) {
+      await sync.finalizarExecucao(execucaoId, 'erro', contagens, error?.message);
+      throw error;
     }
+
     this.logger.debug(`Sincronizado ${ordens.length} ordens`, METHOD);
-    const depois = await this.findNumeroDeOrdensPorIntervalo(startOfDay(dataCapturaInicialDate), endOfDay(dataCapturaFinalDate));
-    resultado.inseridas = Math.max(0, (depois ?? numOrdensSemana ?? 0) - (numOrdensSemana ?? 0));
-    return resultado;
+    return {
+      dataInicio,
+      dataFim,
+      encontradasNoBigQuery: ordens.length,
+      inseridas: contagens.novas,
+      puladoPorContagemIgual: !forcar && numOrdensSemana === ordens.length,
+      execucaoId,
+      identicas: contagens.identicas,
+      alteradas: contagens.alteradas,
+      contidas: contagens.contidas,
+      ignoradas: contagens.ignoradas,
+      erros: contagens.erros,
+    };
+  }
+
+  /**
+   * Usuário dono da ordem nova. Modais: pelo CPF/CNPJ; demais: pelo idConsorcio === permitCode.
+   * Devolve `undefined` quando o usuário não existe (a ordem entra sem usuário) e `null` quando está bloqueado.
+   */
+  private async resolverUsuarioDaOrdem(ordem: BigqueryOrdemPagamentoDTO): Promise<number | undefined | null> {
+    let user: User | undefined;
+    try {
+      if (ordem.consorcio === 'STPC' || ordem.consorcio === 'STPL' || ordem.consorcio === 'TEC') {
+        user = await this.usersService.getOne({ cpfCnpj: ordem.operadoraCpfCnpj as string });
+      } else {
+        user = await this.usersService.getOne({ permitCode: ordem.idConsorcio });
+      }
+    } catch (error) {
+      if (error instanceof HttpException) return undefined;
+      throw error;
+    }
+    if (user?.bloqueado) return null;
+    return user?.id;
+  }
+
+  /** Contagem e soma por dia de captura: BigQuery x banco, gravadas para a tela de reconciliação diária. */
+  private async reconciliarPorDia(ordens: BigqueryOrdemPagamentoDTO[], dataInicio: string, dataFim: string, consorcio: string[], execucaoId: number) {
+    const bq = new Map<string, { qtd: number; valor: number }>();
+    ordens
+      .filter((o) => o.operadoraCpfCnpj && o.dataCaptura)
+      .forEach((o) => {
+        const dia = new Date(o.dataCaptura).toISOString().slice(0, 10);
+        const atual = bq.get(dia) ?? { qtd: 0, valor: 0 };
+        atual.qtd += 1;
+        atual.valor += Number(o.valorTotalTransacaoLiquido) || 0;
+        bq.set(dia, atual);
+      });
+    const banco = await this.ordemPagamentoRepository.sync.contagemDiariaBanco(dataInicio, dataFim, consorcio);
+    const dias = [...new Set([...bq.keys(), ...banco.keys()])].sort();
+    await this.ordemPagamentoRepository.sync.salvarReconciliacao(
+      dias.map((data) => ({
+        data,
+        bqQtd: bq.get(data)?.qtd ?? 0,
+        bqValor: Math.round((bq.get(data)?.valor ?? 0) * 100) / 100,
+        bdQtd: banco.get(data)?.qtd ?? 0,
+        bdValor: Math.round((banco.get(data)?.valor ?? 0) * 100) / 100,
+      })),
+      execucaoId,
+    );
   }
 
   /**
@@ -366,7 +449,7 @@ export class OrdemPagamentoService {
    * trouxe (janela errada, ordem gerada depois). Sempre força a busca e aceita no máximo
    * MAX_DIAS_SINCRONISMO_MANUAL dias. Não agrupa nada: o agrupamento continua sendo o fluxo normal.
    */
-  async sincronizarOrdensPorPeriodo(dataInicio: Date, dataFim: Date, consorcio?: string[]): Promise<ResultadoSincronismoOrdens> {
+  async sincronizarOrdensPorPeriodo(dataInicio: Date, dataFim: Date, consorcio?: string[], usuarioId?: number): Promise<ResultadoSincronismoOrdens> {
     if (!isValid(dataInicio) || !isValid(dataFim)) {
       throw new HttpException({ error: 'Datas inválidas.' }, HttpStatus.BAD_REQUEST);
     }
@@ -377,7 +460,7 @@ export class OrdemPagamentoService {
     if (dias > MAX_DIAS_SINCRONISMO_MANUAL) {
       throw new HttpException({ error: `O período máximo é de ${MAX_DIAS_SINCRONISMO_MANUAL} dias (pedido: ${dias}).` }, HttpStatus.BAD_REQUEST);
     }
-    return this.sincronizarOrdensPagamento(dataInicio, dataFim, consorcio?.length ? consorcio : CONSORCIOS_E_MODAIS_SINCRONIZADOS, true);
+    return this.sincronizarOrdensPagamento(dataInicio, dataFim, consorcio?.length ? consorcio : CONSORCIOS_E_MODAIS_SINCRONIZADOS, true, { origem: 'manual', usuarioId });
   }
 
   async sincronizarOrdensPagamentoGuardador(dataCapturaInicialDate: Date, dataCapturaFinalDate: Date) {

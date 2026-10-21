@@ -216,7 +216,12 @@ export class DashboardPagamentosRepository {
     };
     adicionar('situacao', filtro.situacao);
     adicionar('motivo', filtro.motivo);
-    adicionar('COALESCE(grupo, \'Outros\')', filtro.grupo);
+    // `grupo` aceita vários grupos separados por vírgula (seleção múltipla na tela de detalhe).
+    const grupos = (filtro.grupo ?? '').split(',').map((g) => g.trim()).filter(Boolean);
+    if (grupos.length) {
+      params.push(grupos);
+      condicoes.push(`COALESCE(grupo, 'Outros') = ANY($${params.length}::text[])`);
+    }
 
     // Busca por favorecido (nome ou CPF/CNPJ): restringe a origem dos pagamentos, ver cteClassificado.
     const busca = filtro.busca?.trim();
@@ -285,7 +290,12 @@ export class DashboardPagamentosRepository {
     };
     adicionar('situacao', filtro.situacao);
     adicionar('motivo', filtro.motivo);
-    adicionar('COALESCE(grupo, \'Outros\')', filtro.grupo);
+    // `grupo` aceita vários grupos separados por vírgula (seleção múltipla na tela de detalhe).
+    const grupos = (filtro.grupo ?? '').split(',').map((g) => g.trim()).filter(Boolean);
+    if (grupos.length) {
+      params.push(grupos);
+      condicoes.push(`COALESCE(grupo, 'Outros') = ANY($${params.length}::text[])`);
+    }
 
     const busca = filtro.busca?.trim();
     let indiceBusca: number | undefined;
