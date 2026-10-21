@@ -2,8 +2,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import { utils as xlsxUtils, writeFile as xlsxWriteFile } from 'xlsx';
-import { buildSimplePdf } from '../movimentacao-financeira/simple-pdf';
-import { toPdfSafeText, truncateText } from '../movimentacao-financeira/financial-movement-export.utils';
+import { FinancialMovementPdfWriter } from '../movimentacao-financeira/financial-movement-pdf';
+import { formatCurrency } from '../movimentacao-financeira/financial-movement-export.utils';
 import { RelatorioFinancialMovementNovoRemessaData } from '../dtos/relatorio-financial-and-movement.dto';
 
 export type FinancialMovementExportFormatValue = 'csv' | 'xlsx' | 'pdf';
@@ -17,28 +17,36 @@ export type FinancialMovementExportResult = {
 
 type StreamRows = (onRow: (row: RelatorioFinancialMovementNovoRemessaData) => Promise<void> | void) => Promise<void>;
 
+// metadata do cabeçalho do PDF (período/status observado), no mesmo formato do Consolidado
+// (ConsolidatedReportPage.js, exportPDF) - undefined quando chamado de um contexto sem esses
+// dados (ex.: formato csv/xlsx não usa, então nenhum chamador é obrigado a passá-lo).
+export type FinancialMovementExportMeta = {
+  dataInicio?: Date;
+  dataFim?: Date;
+  statusLabels?: string[];
+};
+
 // Mesmas colunas usadas pelo CSV original (Permissionário e Guardador). Compartilhada entre
-// os três formatos para os três não divergirem silenciosamente entre si. pdfWidth é em
-// caracteres (a fonte do PDF é monoespaçada - ver simple-pdf.ts) e soma, com os espaços de
-// respiro entre colunas (PDF_COLUMN_GAP), até a largura útil da página em PDF_FONT_SIZE.
+// os três formatos para os três não divergirem silenciosamente entre si. pdfWeight é o peso
+// relativo da coluna na largura da tabela do PDF (ver financial-movement-pdf.ts).
 const COLUMNS: Array<{
   key: keyof RelatorioFinancialMovementNovoRemessaData;
   label: string;
-  pdfWidth: number;
+  pdfWeight: number;
   pdfAlign?: 'left' | 'right';
   pdfLabel?: string;
 }> = [
-  { key: 'dataReferencia', label: 'Data Referência', pdfWidth: 10, pdfLabel: 'Dt Refer.' },
-  { key: 'dataPagamento', label: 'Data Pagamento', pdfWidth: 10, pdfLabel: 'Dt Pagto.' },
-  { key: 'nomes', label: 'Nome', pdfWidth: 18 },
-  { key: 'email', label: 'Email', pdfWidth: 20 },
-  { key: 'codBanco', label: 'Banco', pdfWidth: 5 },
-  { key: 'nomeBanco', label: 'Nome Banco', pdfWidth: 12 },
-  { key: 'cpfCnpj', label: 'CPF/CNPJ', pdfWidth: 14 },
-  { key: 'consorcio', label: 'Consórcio', pdfWidth: 9 },
-  { key: 'valor', label: 'Valor', pdfWidth: 11, pdfAlign: 'right' },
-  { key: 'status', label: 'Status', pdfWidth: 20 },
-  { key: 'descricaoErro', label: 'Erro', pdfWidth: 16 },
+  { key: 'dataReferencia', label: 'Data Referência', pdfWeight: 10, pdfLabel: 'Dt Refer.' },
+  { key: 'dataPagamento', label: 'Data Pagamento', pdfWeight: 10, pdfLabel: 'Dt Pagto.' },
+  { key: 'nomes', label: 'Nome', pdfWeight: 18 },
+  { key: 'email', label: 'Email', pdfWeight: 20 },
+  { key: 'codBanco', label: 'Banco', pdfWeight: 5 },
+  { key: 'nomeBanco', label: 'Nome Banco', pdfWeight: 12 },
+  { key: 'cpfCnpj', label: 'CPF/CNPJ', pdfWeight: 14 },
+  { key: 'consorcio', label: 'Consórcio', pdfWeight: 9 },
+  { key: 'valor', label: 'Valor', pdfWeight: 11, pdfAlign: 'right' },
+  { key: 'status', label: 'Status', pdfWeight: 20 },
+  { key: 'descricaoErro', label: 'Erro', pdfWeight: 16 },
 ];
 
 const csvEscape = (value: unknown): string => `"${String(value ?? '').replace(/"/g, '""')}"`;
@@ -81,41 +89,31 @@ async function writeXlsx(prefix: string, streamRows: StreamRows): Promise<Financ
   };
 }
 
-// Espaços de respiro entre colunas e separador do cabeçalho - dá a aparência de tabela sem
-// precisar desenhar grade (buildSimplePdf só sabe escrever linhas de texto simples).
-const PDF_COLUMN_GAP = '   ';
-
-const padColumn = (value: string, width: number, align: 'left' | 'right'): string => {
-  const truncated = truncateText(value, width);
-  return align === 'right' ? truncated.padStart(width, ' ') : truncated.padEnd(width, ' ');
-};
-
-const formatPdfRow = (values: unknown[]): string =>
-  COLUMNS.map((column, i) => padColumn(toPdfSafeText(String(values[i] ?? '')), column.pdfWidth, column.pdfAlign ?? 'left')).join(
-    PDF_COLUMN_GAP,
-  );
-
-// buildSimplePdf escreve com uma fonte Courier monoespaçada (ver simple-pdf.ts) e não dá para
-// quebrar página sozinho - por isso cada linha vira um array de texto já paginado, com as
-// colunas alinhadas por espaço (padColumn) para parecer uma tabela de verdade.
-async function writePdf(prefix: string, streamRows: StreamRows): Promise<FinancialMovementExportResult> {
+// Mesmo layout do PDF do Consolidado (app-cct, ConsolidatedReportPage.js/exportPDF): logo,
+// cabeçalho com período/status, grade de tabela de verdade e rodapé com paginação + valor
+// total - ver financial-movement-pdf.ts.
+async function writePdf(prefix: string, streamRows: StreamRows, meta: FinancialMovementExportMeta = {}): Promise<FinancialMovementExportResult> {
   const fileName = `${prefix}-${Date.now()}.pdf`;
   const filePath = path.join(os.tmpdir(), fileName);
 
-  const header = formatPdfRow(COLUMNS.map((c) => c.pdfLabel ?? c.label));
-  const separator = '-'.repeat(header.length);
-  const lines: string[] = ['Relatorio de Movimentacao Financeira', '', header, separator];
-  await streamRows((row) => {
-    lines.push(formatPdfRow(COLUMNS.map((c) => row[c.key])));
+  const writer = new FinancialMovementPdfWriter({
+    filePath,
+    title: 'Relatório de Movimentação Financeira',
+    dataInicio: meta.dataInicio,
+    dataFim: meta.dataFim,
+    statusLabels: meta.statusLabels ?? [],
+    columns: COLUMNS.map((c) => ({ key: c.key, label: c.pdfLabel ?? c.label, weight: c.pdfWeight, align: c.pdfAlign })),
   });
 
-  const linesPerPage = 38;
-  const pages: string[][] = [];
-  for (let index = 0; index < lines.length; index += linesPerPage) {
-    pages.push(lines.slice(index, index + linesPerPage));
-  }
+  await streamRows((row) => {
+    const values: Record<string, string | number> = {};
+    for (const column of COLUMNS) {
+      values[column.key] = column.key === 'valor' ? formatCurrency(row.valor) : String(row[column.key] ?? '');
+    }
+    writer.addRow(values, Number(row.valor ?? 0));
+  });
 
-  await fs.promises.writeFile(filePath, buildSimplePdf(pages));
+  await writer.finish();
   return { filePath, fileName, filename: fileName, contentType: 'application/pdf' };
 }
 
@@ -123,8 +121,9 @@ export async function writeFinancialMovementExport(
   format: FinancialMovementExportFormatValue,
   fileNamePrefix: string,
   streamRows: StreamRows,
+  meta?: FinancialMovementExportMeta,
 ): Promise<FinancialMovementExportResult> {
   if (format === 'xlsx') return writeXlsx(fileNamePrefix, streamRows);
-  if (format === 'pdf') return writePdf(fileNamePrefix, streamRows);
+  if (format === 'pdf') return writePdf(fileNamePrefix, streamRows, meta);
   return writeCsv(fileNamePrefix, streamRows);
 }
