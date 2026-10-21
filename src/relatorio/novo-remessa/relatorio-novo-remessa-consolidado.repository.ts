@@ -3,7 +3,7 @@ import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 
 import { CustomLogger } from 'src/utils/custom-logger';
-import { buildStucGratuidadeQuery } from './queries/novo-remessa-query-builder';
+import { buildStucGratuidadeQuery, buildStucGratuidadePendenciaPagaSingleDateQuery } from './queries/novo-remessa-query-builder';
 import { IFindPublicacaoRelatorioNovoRemessa } from '../interfaces/find-publicacao-relatorio-novo-remessa.interface';
 import {
   RelatorioConsolidadoNovoRemessaData,
@@ -419,6 +419,14 @@ export class RelatorioNovoRemessaConsolidadoRepository {
     if (filter.rejeitado || filter.erro) subErroStatus.push('AL', 'HO', 'ANHO');
     if (filter.estorno || filter.erro) subErroStatus.push('02');
 
+    // "A pagar" para STUC - Gratuidade: diferente do fluxo normal (que usa uma consulta separada
+    // de ordens ainda sem agrupamento, queryApagarConsorcios/Vanzeiros), a gratuidade já nasce
+    // agrupada (ADR 0004) - não existe um estado "sem agrupamento" equivalente. "A pagar" mapeia
+    // então para o bucket cru "A Pagar" do STATUS_CASE (statusRemessa 0/1), igual à Movimentação
+    // Financeira. Cópia à parte de "status": sem isso, "A pagar" (filter.aPagar) passaria a
+    // filtrar também queryConsorcios/Vanzeiros do fluxo normal, que não usa esse bucket hoje.
+    const statusStuc = filter.aPagar ? [...status, 0, 1] : status;
+
     const condicoesStatus: string[] = [];
     if (subErroStatus.length > 0) {
       condicoesStatus.push(`oph."motivoStatusRemessa" IN (${subErroStatus.map((s) => `'${s}'`).join(',')})`);
@@ -443,6 +451,13 @@ export class RelatorioNovoRemessaConsolidadoRepository {
     let queryStucGratuidadeVanzeiro = ``;
     let queryStucGratuidadeConsorcio = ``;
 
+    // STUC - Gratuidade "Pendência Paga": mesmo motivo do "A pagar" acima - precisa da sua
+    // própria consulta por data de pagamento (buildStucGratuidadePendenciaPagaSingleDateQuery,
+    // espelhando getQueryPendenciaPagaConsorcios/Vanzeiros do fluxo normal), já que dataVencimento
+    // não reflete a data real do pagamento.
+    let queryStucPendenciaPagaVanzeiro = ``;
+    let queryStucPendenciaPagaConsorcio = ``;
+
     if (filter.stucGratuidade) {
       const buildStucGratuidadeLiteral = (): string => {
         // $3/$4/$5 aparecem duas vezes cada em buildStucGratuidadeQuery (uma com o cast
@@ -460,7 +475,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
         // computado via STATUS_CASE, cujo ELSE cobre motivo fora da lista, ex.: 'AR').
         const condicoesStuc: string[] = [];
         if (subErroStatus.length > 0) condicoesStuc.push(`oph."motivoStatusRemessa" IN (${subErroStatus.map((s) => `'${s}'`).join(',')})`);
-        if (status.length > 0) condicoesStuc.push(`oph."statusRemessa" IN (${status.join(',')})`);
+        if (statusStuc.length > 0) condicoesStuc.push(`oph."statusRemessa" IN (${statusStuc.join(',')})`);
         if (condicoesStuc.length > 0) literal += ` AND (${condicoesStuc.join(' OR ')}) `;
         return literal;
       };
@@ -500,13 +515,52 @@ export class RelatorioNovoRemessaConsolidadoRepository {
         }
         queryStucGratuidadeConsorcio = `SELECT nomes AS "nome", "nomeConsorcio" AS "nome2", valor AS valor FROM (${literal}) q`;
       }
+
+      if (filter.pendenciaPaga) {
+        const buildStucPendenciaPagaLiteral = (): string =>
+          buildStucGratuidadePendenciaPagaSingleDateQuery({ consorcioFilterParamIndex: 5 })
+            .replace(/\$1/g, `'${dataInicio}'`)
+            .replace(/\$2/g, `'${dataFim}'`)
+            .replace(/\$3/g, 'NULL::integer[]')
+            .replace(/\$4/g, 'NULL::text[]')
+            .replace(/\$5/g, 'NULL::text[]');
+
+        if ((filter.userIds && filter.userIds.length > 0) || filter.todosVanzeiros) {
+          let literal = buildStucPendenciaPagaLiteral();
+          if (!filter.todosVanzeiros) {
+            const userPlaceholders = filter.userIds?.join(`','`);
+            literal += ` AND pu."id" IN('${userPlaceholders}') `;
+          } else {
+            const consorcioPlaceholders = this.MODAIS.join(`','`);
+            literal += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') AND length(op."operadoraCpfCnpj")<=11 `;
+          }
+          queryStucPendenciaPagaVanzeiro = `SELECT nomes AS "nome", "nomeConsorcio" AS "nome2", valor AS valor FROM (${literal}) q`;
+        }
+
+        if ((filter.consorcioNome && filter.consorcioNome.length > 0) || filter.todosConsorcios) {
+          let literal = buildStucPendenciaPagaLiteral();
+          if (!filter.todosConsorcios) {
+            const consorcioPlaceholders = filter.consorcioNome?.map((c) => c.trim().toUpperCase().replace(/'/g, `''`)).join(`','`);
+            literal += ` AND UPPER(TRIM(${this.consorcioCaseSimples})) IN('${consorcioPlaceholders}') `;
+          } else {
+            const consorcioPlaceholders = this.CONSORCIOS.join(`','`);
+            literal += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') `;
+            if (filter.todosVanzeiros) {
+              const modaisPlaceholders = this.MODAIS.join(`','`);
+              literal += ` AND NOT (op."nomeConsorcio" IN('${modaisPlaceholders}') AND length(op."operadoraCpfCnpj")<=11) `;
+            }
+          }
+          queryStucPendenciaPagaConsorcio = `SELECT nomes AS "nome", "nomeConsorcio" AS "nome2", valor AS valor FROM (${literal}) q`;
+        }
+      }
     }
 
     const hasQuery = queryAPagarConsorcios !== `` || queryAPagarVanzeiros !== `` || queryConsorcios !== `` || queryVanzeiros !== ``
       || queryAPagarEleicaoConsorcio !== `` || queryAPagarConsorcios !== `` || queryEleicaoConsorcio !== `` || queryAPagarEleicaoVanzeiro !== ``
       || queryPendentesConsorcio !== `` || queryPendentesVanzeiro !== ``
       || queryPendenciaPagaConsorcios !== `` || queryPendenciaPagaVanzeiros !== ``
-      || queryStucGratuidadeVanzeiro !== `` || queryStucGratuidadeConsorcio !== ``;
+      || queryStucGratuidadeVanzeiro !== `` || queryStucGratuidadeConsorcio !== ``
+      || queryStucPendenciaPagaVanzeiro !== `` || queryStucPendenciaPagaConsorcio !== ``;
     if (!hasQuery) {
       return new RelatorioConsolidadoNovoRemessaDto({
         data: [],
@@ -530,6 +584,8 @@ export class RelatorioNovoRemessaConsolidadoRepository {
     if (filter.stucGratuidade) {
       if (queryStucGratuidadeConsorcio) queries.push(queryStucGratuidadeConsorcio);
       if (queryStucGratuidadeVanzeiro) queries.push(queryStucGratuidadeVanzeiro);
+      if (queryStucPendenciaPagaConsorcio) queries.push(queryStucPendenciaPagaConsorcio);
+      if (queryStucPendenciaPagaVanzeiro) queries.push(queryStucPendenciaPagaVanzeiro);
     } else {
       if (querAPagar) {
         if (buscarConsorcio) queries.push(temEleicao ? queryAPagarEleicaoConsorcio : queryAPagarConsorcios);
