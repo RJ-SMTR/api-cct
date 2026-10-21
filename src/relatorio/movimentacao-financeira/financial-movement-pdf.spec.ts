@@ -87,6 +87,34 @@ describe('FinancialMovementPdfWriter', () => {
     expect(text).toContain('Status observado: Todos');
   });
 
+  // Regression: lineBreak:false alone did not stop pdfkit from word-wrapping text wider than
+  // the column, so long names/bank names spilled onto the next row's line (confirmed visually).
+  // Columns are now truncated by measured width (fitText) instead of relying on pdfkit's
+  // built-in wrapping/ellipsis handling.
+  it('truncates a cell wider than its column instead of wrapping it onto a second line', async () => {
+    const filePath = newFilePath();
+    const narrowColumns = [
+      { key: 'nome', label: 'Nome', weight: 1 },
+      { key: 'filler1', label: 'A', weight: 5 },
+      { key: 'filler2', label: 'B', weight: 5 },
+      { key: 'valor', label: 'Valor', weight: 1, align: 'right' as const },
+    ];
+    const longName = 'UM NOME DE FAVORECIDO BEM LONGO QUE NAO CABE NA COLUNA ESTREITA';
+    const writer = new FinancialMovementPdfWriter({
+      filePath,
+      title: 'Relatório de Movimentação Financeira',
+      statusLabels: [],
+      columns: narrowColumns,
+    });
+    writer.addRow({ nome: longName, valor: 'R$ 1,00' }, 1);
+    await writer.finish();
+
+    const text = await extractText(filePath);
+    expect(text).not.toContain(longName);
+    expect(text).toContain(longName.slice(0, 12));
+    expect(text).toMatch(/UM NOME DE F(\.{3}|…)/);
+  });
+
   it('breaks into more than one page when rows overflow the first page, and writes the page count/total only once', async () => {
     const filePath = newFilePath();
     const writer = new FinancialMovementPdfWriter({

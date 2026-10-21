@@ -8,7 +8,7 @@ const LOGO_PATH = path.join(__dirname, '..', '..', 'assets', 'logo-prefeitura.pn
 const PAGE_SIZE: [number, number] = [842, 595]; // A4 landscape, pt - same as the Consolidado PDF (app-cct ConsolidatedReportPage.js).
 const MARGIN = 28;
 const CONTENT_WIDTH = PAGE_SIZE[0] - MARGIN * 2;
-const HEADER_HEIGHT = 60; // Logo + separator line + period/status text, mirrors the Consolidado layout.
+const HEADER_HEIGHT = 76; // Logo + separator line + title/period/status, stacked vertically.
 const FOOTER_HEIGHT = 24;
 const ROW_HEIGHT = 16;
 const HEADER_FONT_SIZE = 8;
@@ -78,11 +78,11 @@ export class FinancialMovementPdfWriter {
     this.doc.font('Helvetica').fontSize(ROW_FONT_SIZE);
     for (const column of this.columns) {
       const raw = values[column.key];
-      this.doc.text(raw === undefined || raw === null ? '' : String(raw), column.x + 2, rowY + 3, {
+      const text = raw === undefined || raw === null ? '' : String(raw);
+      this.doc.text(this.fitText(text, column.width - 4), column.x + 2, rowY + 3, {
         width: column.width - 4,
         align: column.align ?? 'left',
         lineBreak: false,
-        ellipsis: true,
       });
     }
     this.doc.moveTo(MARGIN, rowY + ROW_HEIGHT).lineTo(MARGIN + CONTENT_WIDTH, rowY + ROW_HEIGHT).lineWidth(0.3).strokeColor('#cccccc').stroke();
@@ -98,6 +98,22 @@ export class FinancialMovementPdfWriter {
     this.doc.end();
     await this.ready;
     return { filePath: this.options.filePath, rowCount: this.rowCount, total: this.total };
+  }
+
+  // Texto medido de verdade (doc.widthOfString), não contagem de caracteres: "lineBreak:false"
+  // sozinho não impede o pdfkit de quebrar linha quando o texto não cabe na largura da coluna -
+  // sem isso, nomes/bancos longos vazavam para a linha de baixo (confirmado visualmente).
+  private fitText(text: string, maxWidth: number): string {
+    if (this.doc.widthOfString(text) <= maxWidth) return text;
+    const ellipsis = '…';
+    let lo = 0;
+    let hi = text.length;
+    while (lo < hi) {
+      const mid = Math.ceil((lo + hi) / 2);
+      if (this.doc.widthOfString(text.slice(0, mid) + ellipsis) <= maxWidth) lo = mid;
+      else hi = mid - 1;
+    }
+    return lo > 0 ? `${text.slice(0, lo)}${ellipsis}` : ellipsis;
   }
 
   private drawPageHeader(): void {
@@ -117,8 +133,12 @@ export class FinancialMovementPdfWriter {
       ? `Relatório dos dias: ${formatDate(this.options.dataInicio)} a ${formatDate(this.options.dataFim)}`
       : undefined;
     this.doc.font('Helvetica').fontSize(8);
-    if (periodo) this.doc.text(periodo, MARGIN + 150, MARGIN + 29);
-    this.doc.text(`Status observado: ${this.options.statusLabels.length ? this.options.statusLabels.join(', ') : 'Todos'}`, MARGIN + 150, MARGIN + 40);
+    let y = MARGIN + 42;
+    if (periodo) {
+      this.doc.text(periodo, MARGIN, y);
+      y += 11;
+    }
+    this.doc.text(`Status observado: ${this.options.statusLabels.length ? this.options.statusLabels.join(', ') : 'Todos'}`, MARGIN, y);
 
     this.cursorY = MARGIN + HEADER_HEIGHT;
   }
@@ -128,7 +148,7 @@ export class FinancialMovementPdfWriter {
     this.doc.rect(MARGIN, y, CONTENT_WIDTH, ROW_HEIGHT).fillColor('#e0e0e0').fill();
     this.doc.font('Helvetica-Bold').fontSize(HEADER_FONT_SIZE).fillColor('#000000');
     for (const column of this.columns) {
-      this.doc.text(column.label, column.x + 2, y + 4, { width: column.width - 4, align: column.align ?? 'left', lineBreak: false });
+      this.doc.text(this.fitText(column.label, column.width - 4), column.x + 2, y + 4, { width: column.width - 4, align: column.align ?? 'left', lineBreak: false });
     }
     this.doc.moveTo(MARGIN, y + ROW_HEIGHT).lineTo(MARGIN + CONTENT_WIDTH, y + ROW_HEIGHT).lineWidth(0.8).strokeColor('#000000').stroke();
     this.cursorY = y + ROW_HEIGHT;
