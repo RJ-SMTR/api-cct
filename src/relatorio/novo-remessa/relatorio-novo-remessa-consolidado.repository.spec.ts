@@ -128,7 +128,7 @@ describe('RelatorioNovoRemessaConsolidadoRepository', () => {
       expect(sql).toContain(`IN('VLT')`);
     });
 
-    it('combines status/motivo with OR for "Pendência de Pagamento" (Todos), same as the normal flow - AND wrongly excluded rows with statusRemessa=4 and a motivo outside the Rejeitado/Estorno list (e.g. "AR"), while Movimentação Financeira (STATUS_CASE ELSE) would still classify them as Rejeitado', async () => {
+    it('combines status/motivo with OR for "Pendência de Pagamento" (Todos), same as the normal flow, including the statusRemessa=4-with-motivo!=02 Rejeitado bucket (not a fixed motivo list, so rows like "AR" are classified as Rejeitado same as Movimentação Financeira/STATUS_CASE ELSE)', async () => {
       await repository.findConsolidado({
         dataInicio: new Date('2026-01-01'),
         dataFim: new Date('2026-01-05'),
@@ -138,7 +138,7 @@ describe('RelatorioNovoRemessaConsolidadoRepository', () => {
       } as any);
 
       const sql = (mockQueryRunner.query as jest.Mock).mock.calls[0][0];
-      expect(sql).toContain(`AND (oph."motivoStatusRemessa" IN ('AL','HO','ANHO','02') OR oph."statusRemessa" IN (4))`);
+      expect(sql).toContain(`AND (oph."motivoStatusRemessa" IN ('02') OR oph."statusRemessa" IN (4) OR (oph."statusRemessa" = 4 AND (oph."motivoStatusRemessa" IS NULL OR oph."motivoStatusRemessa" <> '02')))`);
     });
 
     it('does not include any Eleicao/Pendentes marker', async () => {
@@ -240,9 +240,9 @@ describe('RelatorioNovoRemessaConsolidadoRepository.findConsolidado — filtros'
     expect(parentesesBalanceados(sql)).toBe(true);
   });
 
-  it('só Rejeitado: filtra pelos motivos AL/HO/ANHO e gera SQL com parênteses balanceados', async () => {
+  it('só Rejeitado: filtra por statusRemessa=4 com motivo != 02 (não uma lista fixa de motivos) e gera SQL com parênteses balanceados', async () => {
     const sql = await executar({ rejeitado: true });
-    expect(sql).toContain(`'AL','HO','ANHO'`);
+    expect(sql).toContain(`(oph."statusRemessa" = 4 AND (oph."motivoStatusRemessa" IS NULL OR oph."motivoStatusRemessa" <> '02'))`);
     expect(parentesesBalanceados(sql)).toBe(true);
   });
 
@@ -252,9 +252,9 @@ describe('RelatorioNovoRemessaConsolidadoRepository.findConsolidado — filtros'
     expect(parentesesBalanceados(sql)).toBe(true);
   });
 
-  it('só Aguardando pagamento: consulta apenas o histórico, sem pedaços soltos no UNION', async () => {
+  it('só Aguardando pagamento: filtra só statusRemessa=2 (1 é "A Pagar", outro bucket), sem pedaços soltos no UNION', async () => {
     const sql = await executar({ emProcessamento: true });
-    expect(sql).toContain(`oph."statusRemessa" IN (1,2)`);
+    expect(sql).toContain(`oph."statusRemessa" IN (2)`);
     expect(semTrechoSolto(sql)).toBe(true);
     expect(sql).not.toContain('is null');
   });
@@ -267,10 +267,11 @@ describe('RelatorioNovoRemessaConsolidadoRepository.findConsolidado — filtros'
     expect(parentesesBalanceados(sql)).toBe(true);
   });
 
-  it('Pendência de pagamento (Todos): inclui status 4, os motivos de Rejeitado/Estorno e as atrasadas', async () => {
+  it('Pendência de pagamento (Todos): inclui status 4, o motivo de Estorno, o Rejeitado (status 4 != 02) e as atrasadas', async () => {
     const sql = await executar({ erro: true, pendentes: true });
     expect(sql).toContain(`oph."statusRemessa" IN (4)`);
-    expect(sql).toContain(`'AL','HO','ANHO','02'`);
+    expect(sql).toContain(`oph."motivoStatusRemessa" IN ('02')`);
+    expect(sql).toContain(`(oph."statusRemessa" = 4 AND (oph."motivoStatusRemessa" IS NULL OR oph."motivoStatusRemessa" <> '02'))`);
     expect(parentesesBalanceados(sql)).toBe(true);
   });
 
