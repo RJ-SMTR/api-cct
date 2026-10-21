@@ -44,6 +44,7 @@ import { SftpModule } from './sftp/sftp.module';
 import { TestModule } from './test/test.module';
 import { TicketRevenuesModule } from './ticket-revenues/ticket-revenues.module';
 import { UsersModule } from './users/users.module';
+import { AuditoriaModule } from './auditoria/auditoria.module';
 import { TransacaoViewService } from './transacao-view/transacao-view.service';
 import { TransacaoViewModule } from './transacao-view/transacao-view.module';
 import { AppLoggerMiddleware } from './utils/logger-middleware';
@@ -102,6 +103,7 @@ import { AgentesModule } from './agentes/agentes.module';
       inject: [ConfigService],
     }),
     UsersModule,
+    AuditoriaModule,
     FilesModule,
     AuthModule,
     AuthFacebookModule,

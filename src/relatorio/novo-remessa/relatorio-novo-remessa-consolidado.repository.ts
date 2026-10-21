@@ -402,22 +402,34 @@ export class RelatorioNovoRemessaConsolidadoRepository {
 
     // Filtro de status do histórico: status (remessa) e motivo (rejeitado/estorno) se somam com OR,
     // sempre dentro de um único grupo entre parênteses.
-    //   Aguardando = 1,2 | Pago = 3 | Pendência paga = 5 | Pendência de pagamento (Todos) = 4
-    //   Rejeitado = motivo AL/HO/ANHO | Estorno = motivo 02
+    //   Aguardando = 2 | Pago = 3 | Pendência paga = 5 | Pendência de pagamento (Todos) = 4
+    //   Rejeitado = statusRemessa 4 com motivo != 02 | Estorno = motivo 02
     const status: number[] = [];
     const subErroStatus: string[] = [];
 
-    if (filter.emProcessamento) {
-      status.push(1);
-      status.push(2);
-    }
+    // "Aguardando Pagamento" é só statusRemessa=2: statusRemessa IN (0,1) é "A Pagar" no
+    // STATUS_CASE (query-builder compartilhado) - um estado diferente do "A pagar" desta tela
+    // (consulta própria, ordens ainda sem agrupamento). Incluir 1 aqui fazia "Aguardando
+    // Pagamento" devolver linhas que o próprio sistema rotula como "A Pagar" (confirmado em
+    // produção: 1.326 linhas com statusRemessa=1 em 15-23/10/2026).
+    if (filter.emProcessamento) status.push(2);
     if (filter.pago) status.push(3);
     if (filter.erro) status.push(4);
     // Pendência Paga (status 5) NÃO entra aqui: tem sua própria consulta por data de pagamento
     // (queryPendenciaPagaConsorcios/Vanzeiros) em vez do filtro de dataVencimento usado abaixo.
     // "Todos" da pendência de pagamento inclui sempre o que Rejeitado e Estorno trazem.
-    if (filter.rejeitado || filter.erro) subErroStatus.push('AL', 'HO', 'ANHO');
     if (filter.estorno || filter.erro) subErroStatus.push('02');
+
+    // Rejeitado: no mundo real o motivo não é uma lista fixa (AL/HO/ANHO/AM/AJ/AR/... -
+    // confirmado em produção), e o STATUS_CASE classifica como Rejeitado qualquer motivo != '02'
+    // quando statusRemessa=4 (seu ELSE). Um filtro baseado só em "motivo IN (lista fixa)", sem
+    // exigir statusRemessa=4, tinha dois problemas ao mesmo tempo: perdia motivos fora da lista
+    // (ex.: 113 linhas com motivo='AM' em statusRemessa=4) e incluía por engano linhas Pago/
+    // Pendência Paga que coincidem em motivo (ex.: 1.278 linhas com statusRemessa=3 e
+    // motivo='AL', rotuladas "Pago" pelo STATUS_CASE).
+    const condicaoRejeitado = (filter.rejeitado || filter.erro)
+      ? `(oph."statusRemessa" = 4 AND (oph."motivoStatusRemessa" IS NULL OR oph."motivoStatusRemessa" <> '02'))`
+      : null;
 
     const condicoesStatus: string[] = [];
     if (subErroStatus.length > 0) {
@@ -426,6 +438,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
     if (status.length > 0) {
       condicoesStatus.push(`oph."statusRemessa" IN (${status.join(',')})`);
     }
+    if (condicaoRejeitado) condicoesStatus.push(condicaoRejeitado);
 
     if (condicoesStatus.length > 0) {
       const filtroStatus = ` AND (${condicoesStatus.join(' OR ')}) `;
@@ -461,6 +474,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
         const condicoesStuc: string[] = [];
         if (subErroStatus.length > 0) condicoesStuc.push(`oph."motivoStatusRemessa" IN (${subErroStatus.map((s) => `'${s}'`).join(',')})`);
         if (status.length > 0) condicoesStuc.push(`oph."statusRemessa" IN (${status.join(',')})`);
+        if (condicaoRejeitado) condicoesStuc.push(condicaoRejeitado);
         if (condicoesStuc.length > 0) literal += ` AND (${condicoesStuc.join(' OR ')}) `;
         return literal;
       };
