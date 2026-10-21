@@ -104,9 +104,11 @@ export class OrdemPagamentoService {
     const documentoKey = keys.find((key) => /cpf|cnpj/i.test(key));
     const valorKey = keys.find((key) => /valor/i.test(key));
 
+    // Sem coluna "Valor" no cabeçalho: usa a última coluna PREENCHIDA da linha (colunas em branco à direita são ignoradas).
+    const ultimaPreenchida = [...keys].reverse().find((key) => key !== keys[0] && String(row[key] ?? '').trim() !== '');
     return {
       documentoRaw: documentoKey !== undefined ? row[documentoKey] : row[keys[0]],
-      valorRaw: valorKey !== undefined ? row[valorKey] : row[keys[keys.length - 1]],
+      valorRaw: valorKey !== undefined ? row[valorKey] : row[ultimaPreenchida ?? keys[keys.length - 1]],
     };
   }
 
@@ -129,7 +131,11 @@ export class OrdemPagamentoService {
    * `firstDataRowNumber` é o número da linha da planilha (base 1) da primeira linha de dados.
    */
   private readSheetRows(worksheet: xlsx.WorkSheet): { rows: Record<string, any>[]; firstDataRowNumber: number } {
-    const matrix = xlsx.utils.sheet_to_json<any[]>(worksheet, { header: 1, defval: '', raw: false });
+    // Colunas vazias à direita (formatação/células em branco que estendem o intervalo da aba) não contam: sem isso a
+    // "última coluna" seria vazia e o valor de todas as linhas viraria inválido.
+    const matrix = xlsx.utils
+      .sheet_to_json<any[]>(worksheet, { header: 1, defval: '', raw: false })
+      .map((row) => this.trimTrailingEmptyCells(row));
     const firstRowIndex = matrix.findIndex((row) => row.some((cell) => String(cell ?? '').trim() !== ''));
 
     if (firstRowIndex >= 0 && this.looksLikeDataRow(matrix[firstRowIndex])) {
@@ -143,6 +149,12 @@ export class OrdemPagamentoService {
       rows: xlsx.utils.sheet_to_json<Record<string, any>>(worksheet, { defval: '', raw: false }),
       firstDataRowNumber: 2, // +1 pelo cabeçalho, +1 para base 1
     };
+  }
+
+  private trimTrailingEmptyCells(row: any[]): any[] {
+    let end = row.length;
+    while (end > 0 && String(row[end - 1] ?? '').trim() === '') end--;
+    return row.slice(0, end);
   }
 
   /** Remove tudo que não é dígito e completa com zeros à esquerda até 11 dígitos (CPF). */
