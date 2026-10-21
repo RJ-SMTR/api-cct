@@ -12,6 +12,8 @@ import { OrdemPagamentoAgrupadoService } from './ordem-pagamento-agrupado.servic
 import { IDetalhamentoPorDia, ILimparPreparoResult, PagamentoConsorcioRepository } from '../repository/pagamento-consorcio.repository';
 import { IPagamentoPendentePreparado, MODAIS_PENDENTES, PagamentoPendenteRepository, TipoPendente } from '../repository/pagamento-pendente.repository';
 
+export type { TipoPendente };
+
 export const TIPOS_PENDENTE: TipoPendente[] = ['permissionarios', 'guardadores'];
 
 /**
