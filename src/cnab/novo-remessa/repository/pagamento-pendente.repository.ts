@@ -160,22 +160,32 @@ export class PagamentoPendenteRepository {
         await qr.query(`DELETE FROM detalhe_a WHERE id = ANY($1)`, [detalheIds]);
       }
 
-      // Históricos "Criado" que a procedure abriu para as filhas neste preparo.
+      // Filhas criadas SÓ por este preparo (ordens que nunca tinham sido agrupadas) são desfeitas por completo e as
+      // ordens voltam a ficar soltas. Só vale para agrupamento sem nenhum pagamento (detalhe A) e só com histórico
+      // "Criado": o pagamento normal do dia (dataPagamento = hoje, já enviado) também pode ter sido "adotado" como filha
+      // por uma pendência antiga e NUNCA pode ser apagado — ele só deixa de ter pai. Decidido ANTES de mexer nos históricos.
+      const novas: { id: number }[] = filhaIds.length
+        ? await qr.query(
+            `SELECT a.id FROM ordem_pagamento_agrupado a
+              WHERE a.id = ANY($1) AND a."dataPagamento"::date = $2::date
+                AND NOT EXISTS (SELECT 1 FROM ordem_pagamento_agrupado_historico h JOIN detalhe_a da ON da."ordemPagamentoAgrupadoHistoricoId" = h.id
+                                 WHERE h."ordemPagamentoAgrupadoId" = a.id)
+                AND NOT EXISTS (SELECT 1 FROM ordem_pagamento_agrupado_historico h WHERE h."ordemPagamentoAgrupadoId" = a.id AND h."statusRemessa" <> $3)`,
+            [filhaIds, dtPagamento, StatusRemessaEnum.Criado],
+          )
+        : [];
+      const novaIds = novas.map((n) => n.id);
+
+      // Históricos "Criado" (sem pagamento) que a procedure abriu para as filhas que já existiam neste preparo.
       if (filhaIds.length) {
         await qr.query(
-          `DELETE FROM ordem_pagamento_agrupado_historico
-            WHERE "ordemPagamentoAgrupadoId" = ANY($1) AND "statusRemessa" = $2 AND "dataReferencia"::date = $3::date`,
+          `DELETE FROM ordem_pagamento_agrupado_historico h
+            WHERE h."ordemPagamentoAgrupadoId" = ANY($1) AND h."statusRemessa" = $2 AND h."dataReferencia"::date = $3::date
+              AND NOT EXISTS (SELECT 1 FROM detalhe_a da WHERE da."ordemPagamentoAgrupadoHistoricoId" = h.id)`,
           [filhaIds, StatusRemessaEnum.Criado, dtPagamento],
         );
         await qr.query(`UPDATE ordem_pagamento_agrupado SET "ordemPagamentoAgrupadoId" = NULL WHERE id = ANY($1)`, [filhaIds]);
       }
-
-      // Filhas criadas neste mesmo preparo (ordens que nunca tinham sido agrupadas: dataPagamento = hoje) são
-      // desfeitas por completo e as ordens voltam a ficar soltas. As demais (falhas antigas) só deixam de ter pai.
-      const novas: { id: number }[] = filhaIds.length
-        ? await qr.query(`SELECT id FROM ordem_pagamento_agrupado WHERE id = ANY($1) AND "dataPagamento"::date = $2::date`, [filhaIds, dtPagamento])
-        : [];
-      const novaIds = novas.map((n) => n.id);
       let desvinculadas: { id: number }[] = [];
       if (novaIds.length) {
         desvinculadas = await qr.query(`UPDATE ${t.nome} SET "ordemPagamentoAgrupadoId" = NULL WHERE "ordemPagamentoAgrupadoId" = ANY($1) RETURNING id`, [novaIds]);
