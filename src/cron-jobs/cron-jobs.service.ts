@@ -105,7 +105,7 @@ export class CronJobsService {
     private agentesSyncService: AgentesSyncService,
   ) { }
 
-  async onModuleInit() {
+  onModuleInit() {
     //await this.sincronizarEAgruparOrdensPagamento();
     this.onModuleLoad().catch((error: Error) => {
       throw error;
@@ -779,7 +779,9 @@ export class CronJobsService {
     await this.remessaService.enviarRemessa(txt, HeaderName.GUARDADOR);
   }
 
+  // idsFavorecidos is kept for the public API while the filtering logic below stays disabled.
   private async geradorRemessaPendenteExec(dataInicio: Date, dataFimSolicitada: Date, dataPagamento: Date,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     headerName: HeaderName, idsFavorecidos?: string[]) {
     this.logger.debug('iniciando o agrupamento pendente')
 

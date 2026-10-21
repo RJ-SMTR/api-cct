@@ -12,7 +12,7 @@ describe('PagamentoPendenteRepository.limparPreparo - proteção do pagamento no
       commitTransaction: jest.fn(),
       rollbackTransaction: jest.fn(),
       release: jest.fn(),
-      query: jest.fn(async (sql: string, params?: any[]) => {
+      query: jest.fn((sql: string, params?: any[]) => {
         executadas.push({ sql, params });
         if (/FROM pais p/.test(sql)) return respostas.pais;
         if (/SELECT DISTINCT da\.id, da\."headerLoteId"/.test(sql)) return respostas.detalhes ?? [];
