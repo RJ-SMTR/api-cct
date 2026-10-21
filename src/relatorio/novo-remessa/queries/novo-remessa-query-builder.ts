@@ -102,10 +102,13 @@ const AGRUPAMENTO_GRATUIDADE: AgrupamentoSource = {
   extraWhere: 'op."valorGratuidade" IS NOT NULL AND op."valorGratuidade" <> 0',
 };
 
+// Sem DISTINCT (ver ADR 0007): a lista de colunas não inclui op.id, só opa.id (o agrupamento).
+// Quando duas ordens de pagamento distintas do mesmo agrupamento coincidem em valor, DISTINCT
+// as colapsava em uma só, subcontando o total de Consolidado e Movimentação Financeira.
 const buildGroupedQuery = (params: NovoRemessaBaseParams, source: AgrupamentoSource) => {
   const consorcioParam = `$${params.consorcioFilterParamIndex}`;
   return `
-    SELECT DISTINCT
+    SELECT
       da."dataVencimento" AS "dataReferencia",
       opa.id,
       pu."fullName" AS nomes,
