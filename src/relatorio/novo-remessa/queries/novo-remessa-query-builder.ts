@@ -154,10 +154,13 @@ const buildGroupedQuery = (params: NovoRemessaBaseParams, source: AgrupamentoSou
   `;
 };
 
+// Sem DISTINCT (ver ADR 0007/TD-14): a lista de colunas não inclui op.id, só opa.id.
+// Duas ordens de pagamento distintas do mesmo agrupamento que coincidem em valor eram
+// colapsadas em uma só, subcontando o total de Pendência Paga.
 const buildPendenciaPagaTemplate = (params: NovoRemessaBaseParams, source: AgrupamentoSource) => {
   const consorcioParam = `$${params.consorcioFilterParamIndex}`;
   return `
-    SELECT DISTINCT
+    SELECT
       da."dataVencimento" AS "dataReferencia",
       opa.id,
       pu."fullName" AS nomes,
@@ -213,6 +216,10 @@ const buildPendenciaPagaTemplate = (params: NovoRemessaBaseParams, source: Agrup
   `;
 };
 
+// Sem DISTINCT (ver ADR 0007/TD-14): a lista de colunas não inclui op.id, só opa.id.
+// Confirmado com dado real (2026-04-02, CPF 29709920782, opa.id=253902): 3 ordens de
+// pagamento distintas de R$12,38 cada, idênticas em todas as outras colunas exibidas,
+// eram colapsadas em 1 linha pelo DISTINCT - subcontando R$24,76 só nesse grupo.
 const buildPendenciaPagamentoTemplate = (
   params: NovoRemessaBaseParams,
   source: AgrupamentoSource,
@@ -225,7 +232,7 @@ const buildPendenciaPagamentoTemplate = (
   const requestedStatusSql = requestedStatuses.map((status) => `'${status}'`).join(', ');
 
   return `
-    SELECT DISTINCT
+    SELECT
       op_pai."dataPagamento" AS "dataReferencia",
       opa.id,
       pu."fullName" AS nomes,

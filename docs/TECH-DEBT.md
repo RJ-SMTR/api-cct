@@ -28,7 +28,7 @@ Registro único do que foi adiado de propósito, por quê e por quem. Serve para
 | [TD-11](#td-11) | Vulnerabilidades de dependências não tratadas (npm audit / Dependabot) | aberto | Rayanne | 2026-10-08 |
 | [TD-12](#td-12) | `cron-jobs-pendentes.spec` quebrado na `main` bloqueia o pre-commit | aberto | Matthew | 2026-10-09 |
 | [TD-13](#td-13) | Hook de pre-commit não funciona no Windows (`spawnSync` do `.bin/tsc`) e o ratchet fica vazio | aberto | William | 2026-10-04 |
-| [TD-14](#td-14) | `SELECT DISTINCT` sem `op.id` em `buildPendenciaPagaTemplate`/`buildPendenciaPagamentoTemplate` pode subcontar como no ADR 0007 | aberto | Rayanne | 2026-10-20 |
+| [TD-14](#td-14) | `SELECT DISTINCT` sem `op.id` em `buildPendenciaPagaTemplate`/`buildPendenciaPagamentoTemplate` pode subcontar como no ADR 0007 | pago | Rayanne | 2026-10-20 |
 
 ## Entradas
 
@@ -162,8 +162,9 @@ Registro único do que foi adiado de propósito, por quê e por quem. Serve para
 ## TD-14
 **`SELECT DISTINCT` sem `op.id` em `buildPendenciaPagaTemplate`/`buildPendenciaPagamentoTemplate` pode subcontar como no ADR 0007**
 
-- **Status:** aberto
+- **Status:** pago
 - **Registrado por:** Rayanne · **Detectado por:** agente · **Data:** 2026-10-20
-- **Contexto:** o ADR 0007 corrigiu `buildGroupedQuery` (usada por `buildBaseQuery`/`buildStucGratuidadeQuery`), removendo um `SELECT DISTINCT` que colapsava ordens de pagamento distintas do mesmo agrupamento quando coincidiam em valor — confirmado em produção, subcontando R$ 22.385,00 no Consolidado com STUC de 2026-10-20. `buildPendenciaPagaTemplate` e `buildPendenciaPagamentoTemplate` (mesmo arquivo, `novo-remessa-query-builder.ts`) têm o mesmo padrão: `SELECT DISTINCT` sem `op.id` na lista de colunas. Não foram corrigidas porque a comparação que encontrou o bug usou só o filtro STUC do Consolidado (que passa por `buildGroupedQuery`), não os fluxos de Pendência Paga/Pendência de Pagamento.
-- **Impacto/risco:** se o mesmo padrão de coincidência de valor ocorrer nesses fluxos (Pendência Paga por data de pagamento, Pendência de Pagamento via agrupamento pai), os totais de Consolidado/Movimentação Financeira para esses status também subcontariam, do mesmo jeito que o STUC subcontava antes do ADR 0007.
-- **Critério de pagamento:** confirmado (ou descartado) com dados reais se há coincidência de valor dentro do mesmo agrupamento nesses dois fluxos; se houver, `DISTINCT` removido (ou substituído por `DISTINCT ON`/agregação com `op.id`) do mesmo jeito que o ADR 0007, com o teste de regressão correspondente em `novo-remessa-query-builder.spec.ts`.
+- **Pago por:** agente · **Data do pagamento:** 2026-10-21 · **Referência:** ADR 0010, branch `fix/pendencia-pagamento-distinct-subcontagem`
+- **Contexto:** o ADR 0007 corrigiu `buildGroupedQuery` (usada por `buildBaseQuery`/`buildStucGratuidadeQuery`), removendo um `SELECT DISTINCT` que colapsava ordens de pagamento distintas do mesmo agrupamento quando coincidiam em valor — confirmado em produção, subcontando R$ 22.385,00 no Consolidado com STUC de 2026-10-20. `buildPendenciaPagaTemplate` e `buildPendenciaPagamentoTemplate` (mesmo arquivo, `novo-remessa-query-builder.ts`) tinham o mesmo padrão: `SELECT DISTINCT` sem `op.id` na lista de colunas.
+- **Impacto/risco:** confirmado com dado real (banco local, não produção): 2026-04-02, filtro Pendência de Pagamento → Estorno, CPF 29709920782, `opa.id=253902` tem 3 ordens de pagamento distintas de R$12,38 cada, idênticas nas demais colunas exibidas — o `DISTINCT` colapsava as 3 em 1 linha. No relatório completo desse filtro/data, a tela mostrava R$ 2.637,43 contra R$ 2.951,15 reais (soma direta no banco), uma subcontagem de R$ 313,72.
+- **Critério de pagamento:** `DISTINCT` removido de `buildPendenciaPagaTemplate` e `buildPendenciaPagamentoTemplate`, com teste de regressão em `novo-remessa-query-builder.spec.ts` (`describe('... sem DISTINCT (ADR 0007 / TD-14)')`) cobrindo as duas funções. Validado após o fix: tela e banco batem exatamente (R$ 2.951,15) para o caso real acima.
