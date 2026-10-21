@@ -1,0 +1,140 @@
+import { Injectable } from '@nestjs/common';
+import { DataSource } from 'typeorm';
+
+export type SituacaoIndevido = 'devendo' | 'quitado';
+
+export interface FiltroPagamentosIndevidos {
+  /** Parte do nome ou do CPF/CNPJ (só dígitos) do guardador. */
+  busca?: string;
+  situacao?: SituacaoIndevido;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface LinhaPagamentoIndevido {
+  id: number;
+  userId: number | null;
+  guardador: string;
+  cpfCnpj: string | null;
+  /** Data da última movimentação do débito (último desconto ou lançamento do indevido). */
+  dataReferencia: string | null;
+  valorPago: string;
+  valorPagar: string;
+  /** O que foi pago a mais: valorPago - valorPagar. */
+  valorIndevido: string;
+  /** Quanto do indevido já foi descontado: valorIndevido - saldoDevedor. */
+  valorDebitado: string;
+  /** O que o guardador ainda deve. */
+  saldoDevedor: string;
+  situacao: SituacaoIndevido;
+}
+
+export interface TotaisPagamentosIndevidos {
+  quantidade: number;
+  devendo: number;
+  valorIndevido: string;
+  valorDebitado: string;
+  saldoDevedor: string;
+}
+
+const LIMITE_EXPORTACAO = 5000;
+/** Guardadores são os usuários cujo permitCode tem no máximo este tamanho. */
+export const PERMIT_CODE_MAX_GUARDADOR = 4;
+
+/**
+ * Pagamentos indevidos dos guardadores (tabela `pagamento_indevido`): o que foi pago a mais, quanto já foi
+ * debitado e quanto o guardador ainda deve. Só entram guardadores (permitCode com até 4 caracteres). O guardador é identificado pelo nome (a tabela não guarda o usuário).
+ */
+@Injectable()
+export class PagamentosIndevidosGuardadoresService {
+  constructor(private readonly dataSource: DataSource) {}
+
+  private cte() {
+    return `
+      base AS (
+        SELECT pi.id, u.id AS user_id, pi."nomeFavorecido" AS guardador, u."cpfCnpj" AS cpf_cnpj,
+               pi."dataReferencia", pi."valorPago", COALESCE(pi."valorPagar", 0) AS valor_pagar,
+               GREATEST(COALESCE(pi."valorPago", 0) - COALESCE(pi."valorPagar", 0), 0) AS indevido,
+               COALESCE(pi."saldoDevedor", 0) AS saldo
+          FROM pagamento_indevido pi
+          LEFT JOIN LATERAL (
+            SELECT id, "cpfCnpj", "permitCode" FROM "user"
+             WHERE upper(trim("fullName")) = upper(trim(pi."nomeFavorecido"))
+             ORDER BY id LIMIT 1
+          ) u ON true
+         -- guardador = usuário com permitCode de até 4 caracteres (os demais permissionários têm código maior)
+         WHERE length(u."permitCode") <= ${PERMIT_CODE_MAX_GUARDADOR}
+      ),
+      calculado AS (
+        SELECT *, GREATEST(indevido - saldo, 0) AS debitado,
+               CASE WHEN saldo > 0 THEN 'devendo' ELSE 'quitado' END AS situacao
+          FROM base
+      )`;
+  }
+
+  private where(filtro: FiltroPagamentosIndevidos, params: unknown[]) {
+    const condicoes: string[] = [];
+    const busca = filtro.busca?.trim();
+    if (busca) {
+      params.push(`%${busca}%`);
+      const nome = `$${params.length}`;
+      const digitos = busca.replace(/\D/g, '');
+      if (digitos.length >= 3) {
+        params.push(`%${digitos}%`);
+        condicoes.push(`(guardador ILIKE ${nome} OR regexp_replace(COALESCE(cpf_cnpj, ''), '\\D', '', 'g') LIKE $${params.length})`);
+      } else {
+        condicoes.push(`guardador ILIKE ${nome}`);
+      }
+    }
+    if (filtro.situacao === 'devendo' || filtro.situacao === 'quitado') {
+      params.push(filtro.situacao);
+      condicoes.push(`situacao = $${params.length}`);
+    }
+    return condicoes.length ? `WHERE ${condicoes.join(' AND ')}` : '';
+  }
+
+  private colunas() {
+    return `id, user_id AS "userId", guardador, cpf_cnpj AS "cpfCnpj", to_char("dataReferencia", 'YYYY-MM-DD') AS "dataReferencia",
+            "valorPago"::numeric(18,2)::text AS "valorPago", valor_pagar::numeric(18,2)::text AS "valorPagar",
+            indevido::numeric(18,2)::text AS "valorIndevido", debitado::numeric(18,2)::text AS "valorDebitado",
+            saldo::numeric(18,2)::text AS "saldoDevedor", situacao`;
+  }
+
+  async listar(filtro: FiltroPagamentosIndevidos): Promise<{ total: number; page: number; pageSize: number; totais: TotaisPagamentosIndevidos; itens: LinhaPagamentoIndevido[] }> {
+    const page = Math.max(1, Math.floor(Number(filtro.page)) || 1);
+    const pageSize = Math.min(200, Math.max(1, Math.floor(Number(filtro.pageSize)) || 50));
+    const params: unknown[] = [];
+    const where = this.where(filtro, params);
+
+    const [totais] = await this.dataSource.query(
+      `WITH ${this.cte()}
+       SELECT count(*)::int AS quantidade, count(*) FILTER (WHERE situacao = 'devendo')::int AS devendo,
+              COALESCE(sum(indevido), 0)::numeric(18,2)::text AS "valorIndevido",
+              COALESCE(sum(debitado), 0)::numeric(18,2)::text AS "valorDebitado",
+              COALESCE(sum(saldo), 0)::numeric(18,2)::text AS "saldoDevedor"
+         FROM calculado ${where}`,
+      params,
+    );
+    const itens = await this.dataSource.query(
+      `WITH ${this.cte()}
+       SELECT ${this.colunas()} FROM calculado ${where}
+       ORDER BY saldo DESC, "dataReferencia" DESC NULLS LAST, id DESC
+       LIMIT ${pageSize} OFFSET ${(page - 1) * pageSize}`,
+      params,
+    );
+    return { total: totais.quantidade, page, pageSize, totais, itens };
+  }
+
+  /** Todas as linhas do filtro (até o limite), para a exportação em Excel. */
+  async exportar(filtro: FiltroPagamentosIndevidos): Promise<{ limite: number; itens: LinhaPagamentoIndevido[] }> {
+    const params: unknown[] = [];
+    const where = this.where(filtro, params);
+    const itens = await this.dataSource.query(
+      `WITH ${this.cte()}
+       SELECT ${this.colunas()} FROM calculado ${where}
+       ORDER BY saldo DESC, guardador, id LIMIT ${LIMITE_EXPORTACAO + 1}`,
+      params,
+    );
+    return { limite: LIMITE_EXPORTACAO, itens };
+  }
+}
