@@ -145,7 +145,7 @@ export class OrdemPagamentoController {
     this.logger.log(getRequestLog(request));
     const dataInicio = new Date(`${body.dataInicio}T00:00:00.000Z`);
     const dataFim = new Date(`${body.dataFim}T00:00:00.000Z`);
-    return this.ordemPagamentoService.sincronizarOrdensPorPeriodo(dataInicio, dataFim, body.consorcios);
+    return this.ordemPagamentoService.sincronizarOrdensPorPeriodo(dataInicio, dataFim, body.consorcios, (request as any).user?.id);
   }
 
   @Get('diario/:ordemPagamentoId')

@@ -98,9 +98,16 @@ import { PagamentoConsorcioService } from './novo-remessa/service/pagamento-cons
 import { PagamentoConsorcioController } from './novo-remessa/controller/pagamento-consorcio.controller';
 import { PagamentoModalService } from './novo-remessa/service/pagamento-modal.service';
 import { PagamentoModalController } from './novo-remessa/controller/pagamento-modal.controller';
+import { PagamentoPendenteController } from './novo-remessa/controller/pagamento-pendente.controller';
+import { PagamentoPendenteRepository } from './novo-remessa/repository/pagamento-pendente.repository';
+import { PagamentoPendenteService } from './novo-remessa/service/pagamento-pendente.service';
 import { PagamentoGuardadorRepository } from './novo-remessa/repository/pagamento-guardador.repository';
 import { PagamentoGuardadorService } from './novo-remessa/service/pagamento-guardador.service';
 import { PagamentoGuardadorController } from './novo-remessa/controller/pagamento-guardador.controller';
+import { PagamentosIndevidosGuardadoresController } from 'src/pagamento_indevido/controller/pagamentos-indevidos-guardadores.controller';
+import { PagamentosIndevidosGuardadoresService } from 'src/pagamento_indevido/service/pagamentos-indevidos-guardadores.service';
+import { ExtratoDashboardController } from './controller/extrato-dashboard.controller';
+import { ExtratoDashboardService } from './service/extrato/extrato-dashboard.service';
 import { DashboardPagamentosController } from './novo-remessa/controller/dashboard-pagamentos.controller';
 import { DashboardPagamentosService } from './novo-remessa/service/dashboard-pagamentos.service';
 import { DashboardPagamentosRepository } from './novo-remessa/repository/dashboard-pagamentos.repository';
@@ -144,6 +151,8 @@ import { DashboardPagamentosRepository } from './novo-remessa/repository/dashboa
     ]),
   ],
   providers: [
+    ExtratoDashboardService,
+    PagamentosIndevidosGuardadoresService,
     DashboardPagamentosService,
     DashboardPagamentosRepository,
     ArquivoPublicacaoRepository, //
@@ -205,7 +214,9 @@ import { DashboardPagamentosRepository } from './novo-remessa/repository/dashboa
     PagamentoConsorcioService,
     PagamentoModalService,
     PagamentoGuardadorRepository,
-    PagamentoGuardadorService
+    PagamentoGuardadorService,
+    PagamentoPendenteRepository,
+    PagamentoPendenteService
   ],
   exports: [
     CnabService, //
@@ -259,6 +270,6 @@ import { DashboardPagamentosRepository } from './novo-remessa/repository/dashboa
     DistributedLockService,
     DistributedLockRepository
   ],
-  controllers: [CnabController, OrdemPagamentoController, OrdemPagamentoGuardadorController, PagamentoConsorcioController, PagamentoModalController, PagamentoGuardadorController, DashboardPagamentosController],
+  controllers: [CnabController, OrdemPagamentoController, OrdemPagamentoGuardadorController, PagamentoConsorcioController, PagamentoModalController, PagamentoGuardadorController, DashboardPagamentosController, PagamentosIndevidosGuardadoresController, ExtratoDashboardController, PagamentoPendenteController],
 })
 export class CnabModule {}

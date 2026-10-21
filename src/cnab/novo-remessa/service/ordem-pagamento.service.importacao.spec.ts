@@ -94,4 +94,37 @@ describe('OrdemPagamentoService - importação da planilha de guardadores', () =
     expect(r).toMatchObject({ totalRows: 1, imported: 1 });
     expect(inseridos(saveMany)).toHaveLength(1);
   });
+
+  it('colunas vazias à direita (sem cabeçalho) não derrubam a importação: o valor é o da última coluna preenchida', async () => {
+    const { service, saveMany } = build(['70883238772', '71951350715']);
+    // A planilha real ("Pagamento retroativo 13_10.xlsx") tem 5 colunas no intervalo, só A e B preenchidas.
+    const ws = xlsx.utils.aoa_to_sheet([['70883238772', 'R$ 169.40'], ['71951350715', 'R$ 303.80']]);
+    ws['!ref'] = 'A1:E2';
+    const wb = xlsx.utils.book_new();
+    xlsx.utils.book_append_sheet(wb, ws, 'Página1');
+
+    const r = await service.importGuardadorSpreadsheet({
+      buffer: xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' }),
+      originalname: 'Pagamento retroativo 13_10.xlsx',
+    } as any);
+
+    expect(r).toMatchObject({ totalRows: 2, imported: 2, skipped: 0 });
+    expect(inseridos(saveMany).map((o) => [o.idOrdemPagamento, o.valorRepasseGuardador])).toEqual([
+      ['70883238772', 169.4],
+      ['71951350715', 303.8],
+    ]);
+  });
+
+  it('colunas vazias à direita (com cabeçalho sem "Valor"): usa a última coluna preenchida', async () => {
+    const { service, saveMany } = build(['00153188774']);
+    const ws = xlsx.utils.aoa_to_sheet([['Documento', 'Pagamento'], ['00153188774', 'R$ 175,00']]);
+    ws['!ref'] = 'A1:D2';
+    const wb = xlsx.utils.book_new();
+    xlsx.utils.book_append_sheet(wb, ws, 'A');
+
+    const r = await service.importGuardadorSpreadsheet({ buffer: xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' }), originalname: 'x.xlsx' } as any);
+
+    expect(r).toMatchObject({ totalRows: 1, imported: 1 });
+    expect(inseridos(saveMany)[0].valorRepasseGuardador).toBe(175);
+  });
 });
