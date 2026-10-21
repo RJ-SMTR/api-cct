@@ -136,15 +136,23 @@ describe('novo-remessa-query-builder período (dataVencimento)', () => {
   });
 });
 
-describe('novo-remessa-query-builder sem DISTINCT (ADR 0007)', () => {
+describe('novo-remessa-query-builder sem DISTINCT (ADR 0007 / TD-14)', () => {
   const params = { consorcioFilterParamIndex: 5 };
 
   // The select list has no op.id, only opa.id (the grouping). SELECT DISTINCT silently
   // collapsed two distinct ordens de pagamento of the same agrupamento whenever they
   // coincided in value, undercounting Consolidado and Movimentação Financeira totals.
+  //
+  // pendenciaPagaSingleDate/pendenciaPagamentoSingleDate had the same pattern (TD-14),
+  // confirmed with real data on 2026-04-02: opa.id=253902 (CPF 29709920782) has 3 distinct
+  // ordens de pagamento of R$12,38 each, identical in every other displayed column - DISTINCT
+  // collapsed them into 1 row, undercounting R$24,76 in that group alone (R$313,72 total
+  // across the day for that favorecido).
   it.each([
     ['base', buildBaseQuery(params)],
     ['stucGratuidade', buildStucGratuidadeQuery(params)],
+    ['pendenciaPagaSingleDate', buildPendenciaPagaSingleDateQuery(params)],
+    ['pendenciaPagamentoSingleDate', buildPendenciaPagamentoSingleDateQuery(params)],
   ])('%s query does not deduplicate rows', (_name, sql) => {
     expect(sql).not.toMatch(/SELECT\s+DISTINCT/i);
   });
