@@ -454,8 +454,14 @@ export class RelatorioNovoRemessaConsolidadoRepository {
           .replace(/\$3/g, 'NULL::integer[]')
           .replace(/\$4/g, 'NULL::text[]')
           .replace(/\$5/g, 'NULL::text[]');
-        if (status.length > 0) literal += ` AND oph."statusRemessa" IN (${status.join(',')}) `;
-        if (subErroStatus.length > 0) literal += ` AND (oph."motivoStatusRemessa" IN (${subErroStatus.map((s) => `'${s}'`).join(',')})) `;
+        // Mesma combinação OR do fluxo normal (condicoesStatus/filtroStatus acima) - usar AND aqui
+        // tornava "Pendência de Pagamento" (Todos) bem mais restritivo para STUC do que para o
+        // fluxo normal, e divergia da Movimentação Financeira (que classifica pelo status
+        // computado via STATUS_CASE, cujo ELSE cobre motivo fora da lista, ex.: 'AR').
+        const condicoesStuc: string[] = [];
+        if (subErroStatus.length > 0) condicoesStuc.push(`oph."motivoStatusRemessa" IN (${subErroStatus.map((s) => `'${s}'`).join(',')})`);
+        if (status.length > 0) condicoesStuc.push(`oph."statusRemessa" IN (${status.join(',')})`);
+        if (condicoesStuc.length > 0) literal += ` AND (${condicoesStuc.join(' OR ')}) `;
         return literal;
       };
 

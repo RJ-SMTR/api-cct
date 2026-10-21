@@ -6,6 +6,20 @@ import { RelatorioNovoRemessaFinancialMovementRepository } from './relatorio-nov
 import { RelatorioNovoRemessaFinancialMovementService } from './relatorio-novo-remessa-financial-movement.service';
 import { RelatorioGuardadorFinancialMovementRepository } from './relatorio-guardador-financial-movement.repository';
 
+const BASE_EXPORT_ROW = {
+  dataReferencia: '01/01/2026',
+  dataPagamento: '05/01/2026',
+  nomes: 'TESTE',
+  email: 'teste@email.com',
+  codBanco: '001',
+  nomeBanco: 'BB',
+  cpfCnpj: '123',
+  consorcio: 'STPC',
+  valor: 100,
+  status: 'Pago',
+  descricaoErro: '',
+};
+
 describe('RelatorioNovoRemessaFinancialMovementService', () => {
   let service: RelatorioNovoRemessaFinancialMovementService;
   let guardadorRepo: RelatorioGuardadorFinancialMovementRepository;
@@ -119,6 +133,40 @@ describe('RelatorioNovoRemessaFinancialMovementService', () => {
     const [header, line] = fs.readFileSync(response.filePath, 'utf8').trim().split('\n');
     expect(header.endsWith(';status;descricaoErro')).toBe(true);
     expect(line.endsWith(';Pago;""')).toBe(true);
+
+    await service.removeGeneratedExportFile(response.filePath);
+  });
+
+  it('formats the valor column with a comma decimal separator in the CSV export', async () => {
+    jest.spyOn(service, 'streamFinancialMovementRows').mockImplementation(async (filter, onRow) => {
+      await onRow({ ...BASE_EXPORT_ROW, valor: 150.5 } as any);
+    });
+
+    const response = await service.downloadFinancialMovementExport({
+      dataInicio: new Date('2026-04-01'),
+      dataFim: new Date('2026-04-22'),
+    } as any);
+
+    const [, line] = fs.readFileSync(response.filePath, 'utf8').trim().split('\n');
+    expect(line).toContain(';150,5;');
+
+    await service.removeGeneratedExportFile(response.filePath);
+  });
+
+  it.each(['xlsx', 'pdf'] as const)('generates a %s export file when requested', async (format) => {
+    jest.spyOn(service, 'streamFinancialMovementRows').mockImplementation(async (filter, onRow) => {
+      await onRow({ ...BASE_EXPORT_ROW } as any);
+    });
+
+    const response = await service.downloadFinancialMovementExport({
+      dataInicio: new Date('2026-04-01'),
+      dataFim: new Date('2026-04-22'),
+      format,
+    } as any);
+
+    expect(response.filename.endsWith(`.${format}`)).toBe(true);
+    expect(fs.existsSync(response.filePath)).toBe(true);
+    expect(fs.statSync(response.filePath).size).toBeGreaterThan(0);
 
     await service.removeGeneratedExportFile(response.filePath);
   });
