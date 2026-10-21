@@ -26,7 +26,7 @@ describe('OrdemPagamentoService - sincronismo por período', () => {
       iniciarExecucao: jest.fn().mockResolvedValue(77),
       finalizarExecucao: jest.fn().mockResolvedValue(undefined),
       buscarPorBqIds: jest.fn().mockResolvedValue(opcoes.existentes ?? new Map()),
-      aplicar: jest.fn().mockImplementation(async () => resultados.shift() ?? 'nova'),
+      aplicar: jest.fn().mockImplementation(() => resultados.shift() ?? 'nova'),
       contagemDiariaBanco: jest.fn().mockResolvedValue(new Map()),
       salvarReconciliacao: jest.fn().mockResolvedValue(undefined),
     };
