@@ -187,13 +187,16 @@ export class DetalheARepository {
     //  ordem "pai" de pendente (a ordem fica nas OPAs "filhas")}
     // + a remessa de gratuidade (conta CETT), cujas ordens apontam para a OPA por
     // "ordemPagamentoAgrupadoGratuidadeId" (e nao por "ordemPagamentoAgrupadoId").
-    const casar = (joins: string) => `
+    // + o PAGAMENTO UNICO (conta CETT): as ordens ficam em ordem_pagamento_unico, ligadas a OPA por "idOrdemPagamento" (texto)
+    // e o operador nem sempre e usuario, entao o CPF/CNPJ vem da propria ordem unica. Sem este ramo o retorno do banco era
+    // lido, nao casava com nenhum pagamento e o arquivo ia para o backup de sucesso sem baixar nada (remessa 1108, 05/10/2026).
+    const casar = (joins: string, cpfCnpj = 'uu."cpfCnpj"') => `
       select distinct da.* from detalhe_a da
       inner join ordem_pagamento_agrupado_historico oph on oph.id = da."ordemPagamentoAgrupadoHistoricoId"
       inner join ordem_pagamento_agrupado opa on opa.id = oph."ordemPagamentoAgrupadoId"
       ${joins}
       where oph."statusRemessa" in (1, 2)
-        and uu."cpfCnpj" ilike '%' || $1
+        and ${cpfCnpj} ilike '%' || $1
         and da."valorLancamento" = $2
         and da."dataVencimento"::date = $3::date
         and ($4::text is null
@@ -213,6 +216,7 @@ export class DetalheARepository {
              inner join public."user" uu on uu.id = og."userId"`),
       casar(`inner join ordem_pagamento op on op."ordemPagamentoAgrupadoGratuidadeId" = opa.id
              inner join public."user" uu on uu.id = op."userId"`),
+      casar(`inner join ordem_pagamento_unico opu on opu."idOrdemPagamento" = opa.id::text`, 'opu."operadoraCpfCnpj"'),
     ].join('\n      union\n');
 
     // Conta do pagador do arquivo de retorno (header do lote): evita casar o retorno de uma conta com
