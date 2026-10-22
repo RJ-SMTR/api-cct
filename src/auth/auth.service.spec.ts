@@ -578,6 +578,42 @@ describe('AuthService', () => {
       expect(user.save).toHaveBeenCalled();
       expect(forgotService.softDelete).toHaveBeenCalledWith(forgot.id);
     });
+
+    it.each([
+      [RoleEnum.master, '/admin/sign-in'],
+      [RoleEnum.admin, '/admin/sign-in'],
+      [RoleEnum.lancador_financeiro, '/financeiro/sign-in'],
+      [RoleEnum.aprovador_financeiro, '/financeiro/sign-in'],
+    ])(
+      'redirects role %i to %s after a successful password reset',
+      async (roleId, expectedRedirectTo) => {
+        const user = new User({
+          id: 3,
+          password: 'old-password',
+        });
+        user.role = new Role(roleId);
+        const forgot = {
+          id: 30,
+          hash: `hash_${roleId}`,
+          user,
+        };
+
+        jest.spyOn(forgotService, 'findOne').mockResolvedValue(forgot as any);
+        jest.spyOn(user, 'save').mockResolvedValue(user);
+
+        const response = await authService.resetPassword(
+          `hash_${roleId}`,
+          'new-password',
+        );
+
+        expect(response).toEqual({
+          redirectTo: expectedRedirectTo,
+        });
+        expect(user.password).toBe('new-password');
+        expect(user.save).toHaveBeenCalled();
+        expect(forgotService.softDelete).toHaveBeenCalledWith(forgot.id);
+      },
+    );
   });
 
   describe('getResetPasswordRole', () => {
