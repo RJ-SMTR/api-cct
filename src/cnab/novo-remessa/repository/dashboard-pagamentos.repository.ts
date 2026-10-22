@@ -41,6 +41,20 @@ export interface LinhaDetalhe {
   conta: string | null;
 }
 
+/** Filtros da exportação: os mesmos do detalhe, sem paginação. */
+export type FiltroExportacao = Omit<FiltroDetalhe, 'page' | 'pageSize'>;
+
+/** Uma linha da exportação: uma ordem de pagamento que compõe um pagamento (detalhe_a). */
+export interface LinhaExportacao {
+  detalheAId: number;
+  nome: string | null;
+  cpf: string | null;
+  /** YYYY-MM-DD; nulo quando o pagamento não tem ordens ligadas. */
+  dataOrdem: string | null;
+  valorOrdem: string | null;
+  valorLancamento: string;
+}
+
 /**
  * Consultas do dashboard de pagamentos. Um "pagamento" é uma linha de `detalhe_a` (uma instrução
  * enviada ao banco) com vencimento no período. A situação vem do histórico do agrupado:
@@ -202,7 +216,12 @@ export class DashboardPagamentosRepository {
     };
     adicionar('situacao', filtro.situacao);
     adicionar('motivo', filtro.motivo);
-    adicionar('COALESCE(grupo, \'Outros\')', filtro.grupo);
+    // `grupo` aceita vários grupos separados por vírgula (seleção múltipla na tela de detalhe).
+    const grupos = (filtro.grupo ?? '').split(',').map((g) => g.trim()).filter(Boolean);
+    if (grupos.length) {
+      params.push(grupos);
+      condicoes.push(`COALESCE(grupo, 'Outros') = ANY($${params.length}::text[])`);
+    }
 
     // Busca por favorecido (nome ou CPF/CNPJ): restringe a origem dos pagamentos, ver cteClassificado.
     const busca = filtro.busca?.trim();
@@ -233,7 +252,17 @@ export class DashboardPagamentosRepository {
               u.id AS "favorecidoId", u."fullName" AS favorecido, u."cpfCnpj" AS "cpfCnpj",
               p.banco, p.agencia, p.conta_bancaria AS conta
        FROM pagina p
-       LEFT JOIN "user" u ON u.id = (
+       ${this.joinFavorecido()}
+       ORDER BY p.data DESC, p.detalhe_a_id DESC`,
+      params,
+    );
+
+    return { total: totais[0]?.total ?? 0, valorTotal: Number(totais[0]?.valor_total ?? 0), itens };
+  }
+
+  /** `LEFT JOIN "user" u` do favorecido de um pagamento `p` (resolvido pelas ordens ligadas ao agrupado). */
+  private joinFavorecido(): string {
+    return `LEFT JOIN "user" u ON u.id = (
          CASE p.pagador_id
            WHEN ${PAGADOR_ID_POR_CONTA.bilhetagem} THEN (
              SELECT op."userId" FROM ordem_pagamento op WHERE op."ordemPagamentoAgrupadoId" = p.agrupado_id AND op."userId" IS NOT NULL LIMIT 1)
@@ -242,11 +271,72 @@ export class DashboardPagamentosRepository {
            WHEN ${PAGADOR_ID_POR_CONTA.cett} THEN COALESCE(
              (SELECT op."userId" FROM ordem_pagamento op WHERE op."ordemPagamentoAgrupadoGratuidadeId" = p.agrupado_id AND op."userId" IS NOT NULL LIMIT 1),
              (SELECT u2.id FROM "user" u2 WHERE u2."cpfCnpj" = (SELECT x."operadoraCpfCnpj" FROM ordem_pagamento_unico x WHERE x."idOrdemPagamento" = p.agrupado_id::text LIMIT 1) LIMIT 1))
-         END)
-       ORDER BY p.data DESC, p.detalhe_a_id DESC`,
+         END)`;
+  }
+
+  /**
+   * Todas as ordens que compõem os pagamentos do filtro (sem paginação), uma linha por ordem, ordenadas por
+   * nome e data da ordem. Gratuidade (CETT): `valorGratuidade` por dia; bilhetagem: valor da ordem; rotativo:
+   * repasse do guardador. Pagamento sem ordens ligadas gera uma linha com a ordem vazia.
+   * Devolve até `limite + 1` linhas, para quem chama saber que passou do limite.
+   */
+  async exportar(filtro: FiltroExportacao, limite: number): Promise<LinhaExportacao[]> {
+    const params: unknown[] = [...this.params(filtro, [filtro.conta])];
+    const condicoes: string[] = [];
+    const adicionar = (coluna: string, valor: string | undefined) => {
+      if (valor === undefined || valor === '') return;
+      params.push(valor);
+      condicoes.push(`${coluna} = $${params.length}`);
+    };
+    adicionar('situacao', filtro.situacao);
+    adicionar('motivo', filtro.motivo);
+    // `grupo` aceita vários grupos separados por vírgula (seleção múltipla na tela de detalhe).
+    const grupos = (filtro.grupo ?? '').split(',').map((g) => g.trim()).filter(Boolean);
+    if (grupos.length) {
+      params.push(grupos);
+      condicoes.push(`COALESCE(grupo, 'Outros') = ANY($${params.length}::text[])`);
+    }
+
+    const busca = filtro.busca?.trim();
+    let indiceBusca: number | undefined;
+    if (busca) {
+      params.push(busca);
+      indiceBusca = params.length;
+    }
+    const where = condicoes.length ? `WHERE ${condicoes.join(' AND ')}` : '';
+    const { bilhetagem, rotativo, cett } = PAGADOR_ID_POR_CONTA;
+
+    return this.dataSource.query(
+      `WITH ${this.cteClassificado(indiceBusca)},
+       alvo AS (SELECT * FROM classificado ${where})
+       SELECT p.detalhe_a_id AS "detalheAId", u."fullName" AS nome, u."cpfCnpj" AS cpf,
+              to_char(o.data_ordem, 'YYYY-MM-DD') AS "dataOrdem", o.valor_ordem::text AS "valorOrdem",
+              p.valor::text AS "valorLancamento"
+       FROM alvo p
+       ${this.joinFavorecido()}
+       LEFT JOIN LATERAL (
+         SELECT op."dataOrdem"::date AS data_ordem, op."valor" AS valor_ordem
+           FROM ordem_pagamento op
+          WHERE p.pagador_id = ${bilhetagem}
+            AND (op."ordemPagamentoAgrupadoId" = p.agrupado_id
+                 OR op."ordemPagamentoAgrupadoId" IN (
+                      SELECT f.id FROM ordem_pagamento_agrupado f WHERE f."ordemPagamentoAgrupadoId" = p.agrupado_id))
+         UNION ALL
+         SELECT g."dataOrdem"::date, g."valorRepasseGuardador"
+           FROM ordem_pagamento_guardador g
+          WHERE p.pagador_id = ${rotativo} AND g."ordemPagamentoAgrupadoId" = p.agrupado_id
+         UNION ALL
+         SELECT op."dataOrdem"::date, op."valorGratuidade"
+           FROM ordem_pagamento op
+          WHERE p.pagador_id = ${cett} AND op."ordemPagamentoAgrupadoGratuidadeId" = p.agrupado_id
+         UNION ALL
+         SELECT NULLIF(x."dataOrdem", '')::date, x."valorTotalTransacaoLiquido"
+           FROM ordem_pagamento_unico x
+          WHERE p.pagador_id = ${cett} AND x."idOrdemPagamento" = p.agrupado_id::text
+       ) o ON true
+       ORDER BY u."fullName" NULLS LAST, u."cpfCnpj", p.detalhe_a_id, o.data_ordem
+       LIMIT ${limite + 1}`,
       params,
     );
-
-    return { total: totais[0]?.total ?? 0, valorTotal: Number(totais[0]?.valor_total ?? 0), itens };
   }
 }

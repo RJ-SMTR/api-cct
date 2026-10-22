@@ -34,4 +34,14 @@ export class DashboardPagamentosController {
   async detalhe(@Query() query: DashboardPagamentosDetalheQueryDto) {
     return this.dashboardPagamentosService.detalhe(query);
   }
+
+  /** Ordens que compõem os pagamentos do filtro, sem paginação, para a exportação em Excel. */
+  @Get('exportar')
+  @Roles(RoleEnum.master, RoleEnum.admin)
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  async exportar(@Query() query: DashboardPagamentosDetalheQueryDto) {
+    return this.dashboardPagamentosService.exportar(query);
+  }
 }

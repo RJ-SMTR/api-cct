@@ -8,7 +8,6 @@ import { RelatorioAnaliticoRepository } from './analitico/relatorio-analitico.re
 import { RelatorioSinteticoRepository } from './sintetico/relatorio-sintetico.repository';
 import { RelatorioExtratoBancarioRepository } from './extrato-bancario/relatorio-extrato-bancario.repository';
 import { RelatorioNovoRemessaFinancialMovementService } from './movimentacao-financeira/relatorio-novo-remessa-financial-movement.service';
-import { RelatorioNovoRemessaFinancialMovementRepository } from './movimentacao-financeira/relatorio-novo-remessa-financial-movement.repository';
 import { RelatorioNovoRemessaMovimentacaoRepository } from './novo-remessa/relatorio-novo-remessa-movimentacao.repository';
 import { RelatorioGuardadorConsolidadoRepository } from './consolidado/relatorio-guardador-consolidado.repository';
 import { RelatorioGuardadorFinancialMovementRepository } from './movimentacao-financeira/relatorio-guardador-financial-movement.repository';
@@ -24,14 +23,12 @@ import { RelatorioController } from './relatorio.controller';
     RelatorioNovoRemessaConsolidadoRepository,
     RelatorioNovoRemessaMovimentacaoRepository,
     RelatorioExtratoBancarioRepository,
-    RelatorioNovoRemessaFinancialMovementRepository,
     RelatorioNovoRemessaFinancialMovementService,
     RelatorioGuardadorConsolidadoRepository,
     RelatorioGuardadorFinancialMovementRepository,
   ],
   exports: [
     RelatorioNovoRemessaFinancialMovementService,
-    RelatorioNovoRemessaFinancialMovementRepository,
     RelatorioGuardadorConsolidadoRepository,
     RelatorioGuardadorFinancialMovementRepository,
   ],

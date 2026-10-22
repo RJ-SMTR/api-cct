@@ -22,6 +22,10 @@ export class OrdemPagamento extends EntityHelper {
   @Column({ type: 'int', unique: false, nullable: true })
   bqId: number | null;
 
+  /** Hash (sha256) dos campos comparados com o BigQuery no último sincronismo; ver auditoria/ordem-sync.utils.ts. */
+  @Column({ type: 'varchar', length: 64, nullable: true })
+  bqHash?: string | null;
+
   @Column({ type: 'date', unique: false, nullable: false })
   dataOrdem: Date;
 

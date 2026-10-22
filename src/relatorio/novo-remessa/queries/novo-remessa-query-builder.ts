@@ -89,11 +89,21 @@ type AgrupamentoSource = {
   valorSelect: string;
   /** Filtro extra de WHERE (sem o "AND" final), ou undefined para o fluxo normal. */
   extraWhere?: string;
+  /**
+   * AGRUPAMENTO_NORMAL soma várias OrdemPagamento num único detalhe_a/valorLancamento (o
+   * valor do lote, não de uma ordem - CONTEXT.md, glossário "OrdemPagamentoAgrupado"). Sem
+   * restringir a uma ordem representante por agrupamento, uma linha por ordem filha repete o
+   * mesmo valorLancamento e o SUM() do service soma o mesmo lançamento uma vez por ordem
+   * agrupada (ADR 0011, corrige o ADR 0010). AGRUPAMENTO_GRATUIDADE não liga isso: cada ordem
+   * tem seu próprio valorGratuidade, genuinamente por ordem (ADR 0007).
+   */
+  umaOrdemPorAgrupamento?: boolean;
 };
 
 const AGRUPAMENTO_NORMAL: AgrupamentoSource = {
   agrupamentoJoinColumn: 'ordemPagamentoAgrupadoId',
   valorSelect: 'da."valorLancamento" AS valor',
+  umaOrdemPorAgrupamento: true,
 };
 
 const AGRUPAMENTO_GRATUIDADE: AgrupamentoSource = {
@@ -102,10 +112,20 @@ const AGRUPAMENTO_GRATUIDADE: AgrupamentoSource = {
   extraWhere: 'op."valorGratuidade" IS NOT NULL AND op."valorGratuidade" <> 0',
 };
 
+const umaOrdemPorAgrupamentoFilter = (source: AgrupamentoSource) =>
+  source.umaOrdemPorAgrupamento
+    ? `AND op.id = (
+        SELECT MIN(o.id) FROM ordem_pagamento o WHERE o."${source.agrupamentoJoinColumn}" = opa.id
+      )`
+    : '';
+
+// Sem DISTINCT (ver ADR 0007): a lista de colunas não inclui op.id, só opa.id (o agrupamento).
+// Quando duas ordens de pagamento distintas do mesmo agrupamento coincidem em valor, DISTINCT
+// as colapsava em uma só, subcontando o total de Consolidado e Movimentação Financeira.
 const buildGroupedQuery = (params: NovoRemessaBaseParams, source: AgrupamentoSource) => {
   const consorcioParam = `$${params.consorcioFilterParamIndex}`;
   return `
-    SELECT DISTINCT
+    SELECT
       da."dataVencimento" AS "dataReferencia",
       opa.id,
       pu."fullName" AS nomes,
@@ -147,14 +167,18 @@ const buildGroupedQuery = (params: NovoRemessaBaseParams, source: AgrupamentoSou
         WHERE filha."ordemPagamentoAgrupadoId" = opa.id
       )
       AND (oph."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph."motivoStatusRemessa" IS NULL)
+      ${umaOrdemPorAgrupamentoFilter(source)}
       ${params.todosVanzeiros ? NOT_CPF_FILTER : ''}
   `;
 };
 
+// Sem DISTINCT (ver ADR 0007/TD-14): a lista de colunas não inclui op.id, só opa.id.
+// Duas ordens de pagamento distintas do mesmo agrupamento que coincidem em valor eram
+// colapsadas em uma só, subcontando o total de Pendência Paga.
 const buildPendenciaPagaTemplate = (params: NovoRemessaBaseParams, source: AgrupamentoSource) => {
   const consorcioParam = `$${params.consorcioFilterParamIndex}`;
   return `
-    SELECT DISTINCT
+    SELECT
       da."dataVencimento" AS "dataReferencia",
       opa.id,
       pu."fullName" AS nomes,
@@ -206,10 +230,15 @@ const buildPendenciaPagaTemplate = (params: NovoRemessaBaseParams, source: Agrup
         )
       )
       AND (oph."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph."motivoStatusRemessa" IS NULL)
+      ${umaOrdemPorAgrupamentoFilter(source)}
       ${params.todosVanzeiros ? NOT_CPF_FILTER : ''}
   `;
 };
 
+// O caso de exemplo original deste comentário (2026-04-02, CPF 29709920782, opa.id=253902)
+// foi diagnosticado errado: não são 3 lançamentos distintos de R$12,38 que coincidem em
+// valor, é 1 único lançamento (da.id=21536) com 3 ordens de pagamento filhas do mesmo
+// agrupamento - o mesmo mecanismo do ADR 0011 abaixo, não o do ADR 0007. Ver ADR 0011.
 const buildPendenciaPagamentoTemplate = (
   params: NovoRemessaBaseParams,
   source: AgrupamentoSource,
@@ -222,7 +251,7 @@ const buildPendenciaPagamentoTemplate = (
   const requestedStatusSql = requestedStatuses.map((status) => `'${status}'`).join(', ');
 
   return `
-    SELECT DISTINCT
+    SELECT
       op_pai."dataPagamento" AS "dataReferencia",
       opa.id,
       pu."fullName" AS nomes,
@@ -261,6 +290,56 @@ const buildPendenciaPagamentoTemplate = (
       AND ${parentStatusCase} IN (${requestedStatusSql})
       AND (${consorcioParam}::text[] IS NULL OR UPPER(TRIM(${CONSORCIO_CASE})) = ANY(${consorcioParam}))
       AND (oph_pai."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph_pai."motivoStatusRemessa" IS NULL)
+      ${umaOrdemPorAgrupamentoFilter(source)}
+      ${params.todosVanzeiros ? NOT_CPF_FILTER : ''}
+
+    UNION ALL
+
+    -- Estorno/Rejeitado sem pai (nunca tiveram uma tentativa anterior/retentativa): a família
+    -- acima exige opa."ordemPagamentoAgrupadoId" via INNER JOIN, então esses registros de
+    -- primeiro nível ficavam de fora do filtro de dia único (apareciam só em intervalos de
+    -- mais de um dia, via buildBaseQuery). Aqui usamos a própria data/status do registro.
+    -- Sem DISTINCT (mesmo raciocínio do ADR 0007): a lista de colunas não inclui op.id, só
+    -- opa.id, e duas ordens de pagamento distintas do mesmo agrupamento podem coincidir em
+    -- todos os outros campos - DISTINCT as colapsaria em uma só, subcontando o total.
+    SELECT
+      opa."dataPagamento" AS "dataReferencia",
+      opa.id,
+      pu."fullName" AS nomes,
+      pu.email,
+      pu."bankCode" AS "codBanco",
+      bc.name AS "nomeBanco",
+      pu."cpfCnpj" AS "cpfCnpj",
+      ${CONSORCIO_CASE} AS "nomeConsorcio",
+      ${source.valorSelect},
+      opa."dataPagamento" AS "dataPagamento",
+      ${STATUS_CASE} AS status,
+      ${buildCodigoErroSql(STATUS_CASE)} AS "codigoErro"
+    FROM ordem_pagamento op
+    INNER JOIN ordem_pagamento_agrupado opa
+      ON op."${source.agrupamentoJoinColumn}" = opa.id
+    INNER JOIN ordem_pagamento_agrupado_historico oph
+      ON oph."ordemPagamentoAgrupadoId" = opa.id
+    INNER JOIN detalhe_a da
+      ON da."ordemPagamentoAgrupadoHistoricoId" = oph.id
+    INNER JOIN public."user" pu
+      ON pu.id = op."userId"
+    INNER JOIN bank bc
+      ON bc.code = pu."bankCode"
+    WHERE
+      ${source.extraWhere ? `${source.extraWhere}\n      AND ` : ''}opa."ordemPagamentoAgrupadoId" IS NULL
+      AND opa."dataPagamento"::date BETWEEN $1::date AND $2::date
+      AND ($3::integer[] IS NULL OR pu.id = ANY($3))
+      AND ($4::text[] IS NULL OR TRUE)
+      AND ${STATUS_CASE} IN (${requestedStatusSql})
+      AND (${consorcioParam}::text[] IS NULL OR UPPER(TRIM(${CONSORCIO_CASE})) = ANY(${consorcioParam}))
+      AND NOT EXISTS (
+        SELECT 1
+        FROM ordem_pagamento_agrupado filha
+        WHERE filha."ordemPagamentoAgrupadoId" = opa.id
+      )
+      AND (oph."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph."motivoStatusRemessa" IS NULL)
+      ${umaOrdemPorAgrupamentoFilter(source)}
       ${params.todosVanzeiros ? NOT_CPF_FILTER : ''}
   `;
 };

@@ -2,8 +2,6 @@ import { Injectable } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import * as fs from 'fs';
-import * as path from 'path';
-import * as os from 'os';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { StatusPagamento } from '../enum/statusRemessafinancial-movement';
 import {
@@ -24,6 +22,8 @@ import {
 } from '../dtos/relatorio-financial-and-movement.dto';
 
 import { RelatorioGuardadorFinancialMovementRepository } from './relatorio-guardador-financial-movement.repository';
+import { writeFinancialMovementExport, FinancialMovementExportFormatValue } from '../utils/financial-movement-export-writer';
+import { buildSelectedStatusLabels } from './financial-movement-export.utils';
 
 type NormalizedFilter = IFindPublicacaoRelatorioNovoFinancialMovement & {
   dataInicio: Date;
@@ -86,29 +86,15 @@ export class RelatorioNovoRemessaFinancialMovementService {
     return this.relatorioGuardadorFinancialMovementRepository.findFinancialMovementPage(filter);
   }
 
-  public async downloadGuardadorFinancialMovementExport(filter: IFindPublicacaoRelatorioNovoFinancialMovement) {
-    const fileName = `financial-movement-guardadores-${Date.now()}.csv`;
-    const filePath = path.join(os.tmpdir(), fileName);
-    const header = 'dataReferencia;dataPagamento;nomes;email;codBanco;nomeBanco;cpfCnpj;consorcio;valor;status;descricaoErro\n';
-    const ws = fs.createWriteStream(filePath, { encoding: 'utf8' });
-    ws.write(header);
-    await this.relatorioGuardadorFinancialMovementRepository.streamFinancialMovementRows(filter, (row) => {
-      ws.write([
-        row.dataReferencia,
-        row.dataPagamento,
-        `"${(row.nomes ?? '').replace(/"/g, '""')}"`,
-        row.email,
-        row.codBanco,
-        row.nomeBanco,
-        row.cpfCnpj,
-        row.consorcio,
-        String(row.valor).replace('.', ','),
-        row.status,
-        `"${(row.descricaoErro ?? '').replace(/"/g, '""')}"`,
-      ].join(';') + '\n');
-    });
-    await new Promise<void>((res, rej) => ws.end((e) => (e ? rej(e) : res())));
-    return { filePath, fileName, filename: fileName, contentType: 'text/csv; charset=utf-8' };
+  public async downloadGuardadorFinancialMovementExport(
+    filter: IFindPublicacaoRelatorioNovoFinancialMovement & { format?: FinancialMovementExportFormatValue },
+  ) {
+    return writeFinancialMovementExport(
+      filter.format ?? 'csv',
+      'financial-movement-guardadores',
+      (onRow) => this.relatorioGuardadorFinancialMovementRepository.streamFinancialMovementRows(filter, onRow),
+      { dataInicio: new Date(filter.dataInicio), dataFim: new Date(filter.dataFim), statusLabels: buildSelectedStatusLabels(filter) },
+    );
   }
 
   public async findFinancialMovementSummary(filter: IFindPublicacaoRelatorioNovoFinancialMovement) {
@@ -226,17 +212,17 @@ export class RelatorioNovoRemessaFinancialMovementService {
     }
   }
 
-  public async downloadFinancialMovementExport(filter: IFindPublicacaoRelatorioNovoFinancialMovement) {
-    const fileName = `financial-movement-${Date.now()}.csv`;
-    const filePath = path.join(os.tmpdir(), fileName);
-    const header = 'dataReferencia;dataPagamento;nomes;email;codBanco;nomeBanco;cpfCnpj;consorcio;valor;status;descricaoErro\n';
-    const ws = fs.createWriteStream(filePath, { encoding: 'utf8' });
-    ws.write(header);
-    await this.streamFinancialMovementRows(filter, (row) => {
-      ws.write([row.dataReferencia, row.dataPagamento, `"${(row.nomes?? '').replace(/"/g, '""')}"`, row.email, row.codBanco, row.nomeBanco, row.cpfCnpj, row.consorcio, String(row.valor).replace('.', ','), row.status, `"${(row.descricaoErro?? '').replace(/"/g, '""')}"`].join(';') + '\n');
-    });
-    await new Promise<void>((res, rej) => ws.end((e) => (e? rej(e) : res())));
-    return { filePath, fileName, filename: fileName, contentType: 'text/csv; charset=utf-8' };
+  public async downloadFinancialMovementExport(
+    filter: IFindPublicacaoRelatorioNovoFinancialMovement & { format?: FinancialMovementExportFormatValue },
+  ) {
+    // O DTO do controller aceita csv/xlsx/pdf (FinancialMovementExportFormat), mas até aqui só
+    // csv era gerado de fato - os outros dois formatos vinham com conteúdo CSV e extensão errada.
+    return writeFinancialMovementExport(
+      filter.format ?? 'csv',
+      'financial-movement',
+      (onRow) => this.streamFinancialMovementRows(filter, onRow),
+      { dataInicio: new Date(filter.dataInicio), dataFim: new Date(filter.dataFim), statusLabels: buildSelectedStatusLabels(filter) },
+    );
   }
 
   public async removeGeneratedExportFile(filePath: string) {

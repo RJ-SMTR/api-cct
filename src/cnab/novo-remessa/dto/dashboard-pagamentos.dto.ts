@@ -20,10 +20,10 @@ export class DashboardPagamentosDetalheQueryDto extends DashboardPagamentosResum
   @IsIn(CONTAS)
   conta: ContaDashboard;
 
-  @ApiPropertyOptional({ description: 'Consórcio, modal ou grupo (ex.: VLT, STPL, Guardador, Pagamento único)' })
+  @ApiPropertyOptional({ description: 'Consórcio, modal ou grupo (ex.: VLT, STPL, Guardador, Pagamento único); vários separados por vírgula' })
   @IsOptional()
   @IsString()
-  @MaxLength(60)
+  @MaxLength(300)
   grupo?: string;
 
   @ApiPropertyOptional({ enum: SITUACOES })

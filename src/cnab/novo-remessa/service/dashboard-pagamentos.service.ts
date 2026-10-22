@@ -6,6 +6,9 @@ import { ContaResumo, descreverMotivo, montarResumo } from './dashboard-pagament
 /** Período máximo aceito (dias), para uma consulta não varrer o histórico inteiro. */
 export const MAX_DIAS_DASHBOARD = 366;
 
+/** Limite de linhas da exportação para Excel (uma linha por ordem), para não estourar a memória. */
+export const MAX_LINHAS_EXPORTACAO = 150_000;
+
 export function validarPeriodo({ dataInicio, dataFim }: FiltroPeriodo): void {
   const inicio = new Date(`${dataInicio}T00:00:00.000Z`);
   const fim = new Date(`${dataFim}T00:00:00.000Z`);
@@ -46,6 +49,39 @@ export class DashboardPagamentosService {
       page,
       pageSize,
       itens: resultado.itens.map((item) => ({ ...item, valor: Number(item.valor), motivoDescricao: descreverMotivo(item.motivo) })),
+    };
+  }
+
+  /**
+   * Dados da exportação para Excel: uma linha por ordem que compõe cada pagamento do filtro (sem paginação),
+   * já ordenadas por nome e data da ordem.
+   */
+  async exportar(filtro: DashboardPagamentosDetalheQueryDto) {
+    validarPeriodo(filtro);
+    const busca = filtro.busca?.trim() || undefined;
+    if (busca !== undefined && busca.length < 2) {
+      throw new HttpException({ error: 'Informe ao menos 2 caracteres para buscar o favorecido.' }, HttpStatus.BAD_REQUEST);
+    }
+    const restante = { ...filtro };
+    delete restante.page;
+    delete restante.pageSize;
+    const linhas = await this.dashboardRepository.exportar({ ...restante, busca }, MAX_LINHAS_EXPORTACAO);
+    if (linhas.length > MAX_LINHAS_EXPORTACAO) {
+      throw new HttpException(
+        { error: `A exportação passa de ${MAX_LINHAS_EXPORTACAO.toLocaleString('pt-BR')} linhas; reduza o período ou use mais filtros.` },
+        HttpStatus.UNPROCESSABLE_ENTITY,
+      );
+    }
+    return {
+      total: linhas.length,
+      linhas: linhas.map((linha) => ({
+        detalheAId: linha.detalheAId,
+        nome: linha.nome,
+        cpf: linha.cpf,
+        dataOrdem: linha.dataOrdem,
+        valorOrdem: linha.valorOrdem === null ? null : Number(linha.valorOrdem),
+        valorLancamento: Number(linha.valorLancamento),
+      })),
     };
   }
 }

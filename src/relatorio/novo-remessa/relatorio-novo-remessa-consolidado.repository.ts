@@ -3,7 +3,7 @@ import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 
 import { CustomLogger } from 'src/utils/custom-logger';
-import { buildStucGratuidadeQuery } from './queries/novo-remessa-query-builder';
+import { buildStucGratuidadeQuery, buildStucGratuidadePendenciaPagaSingleDateQuery } from './queries/novo-remessa-query-builder';
 import { IFindPublicacaoRelatorioNovoRemessa } from '../interfaces/find-publicacao-relatorio-novo-remessa.interface';
 import {
   RelatorioConsolidadoNovoRemessaData,
@@ -213,16 +213,27 @@ export class RelatorioNovoRemessaConsolidadoRepository {
              where op."dataOrdem" BETWEEN '${dataInicio}' AND '${dataFim}' AND op."idOrdemPagamento" is null`;
   }
 
+  // NOT EXISTS/motivoStatusRemessa: mesmos guards de getQueryPendenciaPagaConsorcios/Vanzeiros
+  // (ADR 0011) - sem eles, agrupamentos substituídos/reenviados entravam na consulta; o SELECT
+  // DISTINCT (nome, nome2, valor, idLinha) e o filtro externo "nome IS NOT NULL" descartavam
+  // essas linhas por acidente (o join opafi/opai/opp resulta em nome/nome2 nulos nesses casos),
+  // não por design.
+  private readonly excluiAgrupamentoSubstituido = `
+               and NOT EXISTS (SELECT 1 FROM ordem_pagamento_agrupado filha WHERE filha."ordemPagamentoAgrupadoId" = opafi.id)
+               and (oph."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph."motivoStatusRemessa" IS NULL)`;
+
   private getQueryConsorcios(dataInicio: string, dataFim: string): string {
     return `   ${this.headerQueryConsorcios}
                ${this.fromQueryPrincipal}
-               where da."dataVencimento" >= '${dataInicio}'::date AND da."dataVencimento" < '${dataFim}'::date + interval '1 day' `;
+               where da."dataVencimento" >= '${dataInicio}'::date AND da."dataVencimento" < '${dataFim}'::date + interval '1 day'
+               ${this.excluiAgrupamentoSubstituido} `;
   }
 
   private getQueryVanzeiros(dataInicio: string, dataFim: string): string {
     return `  ${this.headerQueryVanzeiros}
               ${this.fromQueryPrincipal}
-              where da."dataVencimento" >= '${dataInicio}'::date AND da."dataVencimento" < '${dataFim}'::date + interval '1 day' `;
+              where da."dataVencimento" >= '${dataInicio}'::date AND da."dataVencimento" < '${dataFim}'::date + interval '1 day'
+              ${this.excluiAgrupamentoSubstituido} `;
   }
 
   // Pendência Paga é consultada pela data de pagamento (real), não pelo vencimento - mesma regra
@@ -402,22 +413,42 @@ export class RelatorioNovoRemessaConsolidadoRepository {
 
     // Filtro de status do histórico: status (remessa) e motivo (rejeitado/estorno) se somam com OR,
     // sempre dentro de um único grupo entre parênteses.
-    //   Aguardando = 1,2 | Pago = 3 | Pendência paga = 5 | Pendência de pagamento (Todos) = 4
-    //   Rejeitado = motivo AL/HO/ANHO | Estorno = motivo 02
+    //   Aguardando = 2 | Pago = 3 | Pendência paga = 5 | Pendência de pagamento (Todos) = 4
+    //   Rejeitado = statusRemessa 4 com motivo != 02 | Estorno = motivo 02
     const status: number[] = [];
     const subErroStatus: string[] = [];
 
-    if (filter.emProcessamento) {
-      status.push(1);
-      status.push(2);
-    }
+    // "Aguardando Pagamento" é só statusRemessa=2: statusRemessa IN (0,1) é "A Pagar" no
+    // STATUS_CASE (query-builder compartilhado) - um estado diferente do "A pagar" desta tela
+    // (consulta própria, ordens ainda sem agrupamento). Incluir 1 aqui fazia "Aguardando
+    // Pagamento" devolver linhas que o próprio sistema rotula como "A Pagar" (confirmado em
+    // produção: 1.326 linhas com statusRemessa=1 em 15-23/10/2026).
+    if (filter.emProcessamento) status.push(2);
     if (filter.pago) status.push(3);
     if (filter.erro) status.push(4);
     // Pendência Paga (status 5) NÃO entra aqui: tem sua própria consulta por data de pagamento
     // (queryPendenciaPagaConsorcios/Vanzeiros) em vez do filtro de dataVencimento usado abaixo.
     // "Todos" da pendência de pagamento inclui sempre o que Rejeitado e Estorno trazem.
-    if (filter.rejeitado || filter.erro) subErroStatus.push('AL', 'HO', 'ANHO');
     if (filter.estorno || filter.erro) subErroStatus.push('02');
+
+    // "A pagar" para STUC - Gratuidade: diferente do fluxo normal (que usa uma consulta separada
+    // de ordens ainda sem agrupamento, queryApagarConsorcios/Vanzeiros), a gratuidade já nasce
+    // agrupada (ADR 0004) - não existe um estado "sem agrupamento" equivalente. "A pagar" mapeia
+    // então para o bucket cru "A Pagar" do STATUS_CASE (statusRemessa 0/1), igual à Movimentação
+    // Financeira. Cópia à parte de "status": sem isso, "A pagar" (filter.aPagar) passaria a
+    // filtrar também queryConsorcios/Vanzeiros do fluxo normal, que não usa esse bucket hoje.
+    const statusStuc = filter.aPagar ? [...status, 0, 1] : status;
+
+    // Rejeitado: no mundo real o motivo não é uma lista fixa (AL/HO/ANHO/AM/AJ/AR/... -
+    // confirmado em produção), e o STATUS_CASE classifica como Rejeitado qualquer motivo != '02'
+    // quando statusRemessa=4 (seu ELSE). Um filtro baseado só em "motivo IN (lista fixa)", sem
+    // exigir statusRemessa=4, tinha dois problemas ao mesmo tempo: perdia motivos fora da lista
+    // (ex.: 113 linhas com motivo='AM' em statusRemessa=4) e incluía por engano linhas Pago/
+    // Pendência Paga que coincidem em motivo (ex.: 1.278 linhas com statusRemessa=3 e
+    // motivo='AL', rotuladas "Pago" pelo STATUS_CASE).
+    const condicaoRejeitado = (filter.rejeitado || filter.erro)
+      ? `(oph."statusRemessa" = 4 AND (oph."motivoStatusRemessa" IS NULL OR oph."motivoStatusRemessa" <> '02'))`
+      : null;
 
     const condicoesStatus: string[] = [];
     if (subErroStatus.length > 0) {
@@ -426,6 +457,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
     if (status.length > 0) {
       condicoesStatus.push(`oph."statusRemessa" IN (${status.join(',')})`);
     }
+    if (condicaoRejeitado) condicoesStatus.push(condicaoRejeitado);
 
     if (condicoesStatus.length > 0) {
       const filtroStatus = ` AND (${condicoesStatus.join(' OR ')}) `;
@@ -442,6 +474,13 @@ export class RelatorioNovoRemessaConsolidadoRepository {
     // literais, já que este repository monta toda a SQL por interpolação de string.
     let queryStucGratuidadeVanzeiro = ``;
     let queryStucGratuidadeConsorcio = ``;
+
+    // STUC - Gratuidade "Pendência Paga": mesmo motivo do "A pagar" acima - precisa da sua
+    // própria consulta por data de pagamento (buildStucGratuidadePendenciaPagaSingleDateQuery,
+    // espelhando getQueryPendenciaPagaConsorcios/Vanzeiros do fluxo normal), já que dataVencimento
+    // não reflete a data real do pagamento.
+    let queryStucPendenciaPagaVanzeiro = ``;
+    let queryStucPendenciaPagaConsorcio = ``;
 
     if (filter.stucGratuidade) {
       const buildStucGratuidadeLiteral = (): string => {
@@ -460,7 +499,8 @@ export class RelatorioNovoRemessaConsolidadoRepository {
         // computado via STATUS_CASE, cujo ELSE cobre motivo fora da lista, ex.: 'AR').
         const condicoesStuc: string[] = [];
         if (subErroStatus.length > 0) condicoesStuc.push(`oph."motivoStatusRemessa" IN (${subErroStatus.map((s) => `'${s}'`).join(',')})`);
-        if (status.length > 0) condicoesStuc.push(`oph."statusRemessa" IN (${status.join(',')})`);
+        if (statusStuc.length > 0) condicoesStuc.push(`oph."statusRemessa" IN (${statusStuc.join(',')})`);
+        if (condicaoRejeitado) condicoesStuc.push(condicaoRejeitado);
         if (condicoesStuc.length > 0) literal += ` AND (${condicoesStuc.join(' OR ')}) `;
         return literal;
       };
@@ -500,13 +540,52 @@ export class RelatorioNovoRemessaConsolidadoRepository {
         }
         queryStucGratuidadeConsorcio = `SELECT nomes AS "nome", "nomeConsorcio" AS "nome2", valor AS valor FROM (${literal}) q`;
       }
+
+      if (filter.pendenciaPaga) {
+        const buildStucPendenciaPagaLiteral = (): string =>
+          buildStucGratuidadePendenciaPagaSingleDateQuery({ consorcioFilterParamIndex: 5 })
+            .replace(/\$1/g, `'${dataInicio}'`)
+            .replace(/\$2/g, `'${dataFim}'`)
+            .replace(/\$3/g, 'NULL::integer[]')
+            .replace(/\$4/g, 'NULL::text[]')
+            .replace(/\$5/g, 'NULL::text[]');
+
+        if ((filter.userIds && filter.userIds.length > 0) || filter.todosVanzeiros) {
+          let literal = buildStucPendenciaPagaLiteral();
+          if (!filter.todosVanzeiros) {
+            const userPlaceholders = filter.userIds?.join(`','`);
+            literal += ` AND pu."id" IN('${userPlaceholders}') `;
+          } else {
+            const consorcioPlaceholders = this.MODAIS.join(`','`);
+            literal += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') AND length(op."operadoraCpfCnpj")<=11 `;
+          }
+          queryStucPendenciaPagaVanzeiro = `SELECT nomes AS "nome", "nomeConsorcio" AS "nome2", valor AS valor FROM (${literal}) q`;
+        }
+
+        if ((filter.consorcioNome && filter.consorcioNome.length > 0) || filter.todosConsorcios) {
+          let literal = buildStucPendenciaPagaLiteral();
+          if (!filter.todosConsorcios) {
+            const consorcioPlaceholders = filter.consorcioNome?.map((c) => c.trim().toUpperCase().replace(/'/g, `''`)).join(`','`);
+            literal += ` AND UPPER(TRIM(${this.consorcioCaseSimples})) IN('${consorcioPlaceholders}') `;
+          } else {
+            const consorcioPlaceholders = this.CONSORCIOS.join(`','`);
+            literal += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') `;
+            if (filter.todosVanzeiros) {
+              const modaisPlaceholders = this.MODAIS.join(`','`);
+              literal += ` AND NOT (op."nomeConsorcio" IN('${modaisPlaceholders}') AND length(op."operadoraCpfCnpj")<=11) `;
+            }
+          }
+          queryStucPendenciaPagaConsorcio = `SELECT nomes AS "nome", "nomeConsorcio" AS "nome2", valor AS valor FROM (${literal}) q`;
+        }
+      }
     }
 
     const hasQuery = queryAPagarConsorcios !== `` || queryAPagarVanzeiros !== `` || queryConsorcios !== `` || queryVanzeiros !== ``
       || queryAPagarEleicaoConsorcio !== `` || queryAPagarConsorcios !== `` || queryEleicaoConsorcio !== `` || queryAPagarEleicaoVanzeiro !== ``
       || queryPendentesConsorcio !== `` || queryPendentesVanzeiro !== ``
       || queryPendenciaPagaConsorcios !== `` || queryPendenciaPagaVanzeiros !== ``
-      || queryStucGratuidadeVanzeiro !== `` || queryStucGratuidadeConsorcio !== ``;
+      || queryStucGratuidadeVanzeiro !== `` || queryStucGratuidadeConsorcio !== ``
+      || queryStucPendenciaPagaVanzeiro !== `` || queryStucPendenciaPagaConsorcio !== ``;
     if (!hasQuery) {
       return new RelatorioConsolidadoNovoRemessaDto({
         data: [],
@@ -530,6 +609,8 @@ export class RelatorioNovoRemessaConsolidadoRepository {
     if (filter.stucGratuidade) {
       if (queryStucGratuidadeConsorcio) queries.push(queryStucGratuidadeConsorcio);
       if (queryStucGratuidadeVanzeiro) queries.push(queryStucGratuidadeVanzeiro);
+      if (queryStucPendenciaPagaConsorcio) queries.push(queryStucPendenciaPagaConsorcio);
+      if (queryStucPendenciaPagaVanzeiro) queries.push(queryStucPendenciaPagaVanzeiro);
     } else {
       if (querAPagar) {
         if (buscarConsorcio) queries.push(temEleicao ? queryAPagarEleicaoConsorcio : queryAPagarConsorcios);

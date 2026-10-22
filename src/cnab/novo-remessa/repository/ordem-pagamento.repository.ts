@@ -17,6 +17,7 @@ import { OrdemPagamentoAgrupado } from '../entity/ordem-pagamento-agrupado.entit
 import { formatDateISODate } from 'src/utils/date-utils';
 import { format, getMonth, getYear, isFriday, isTuesday, max, subDays } from 'date-fns';
 import { PagadorDTO } from 'src/cnab/dto/pagamento/pagador.dto';
+import { OrdemSyncAuditoria } from 'src/auditoria/ordem-sync-auditoria';
 
 export interface OrdemPagamentoListFilters {
   dataOrdemInicio?: Date;
@@ -45,7 +46,12 @@ export class OrdemPagamentoRepository {
     @InjectRepository(OrdemPagamento)
     private ordemPagamentoRepository: Repository<OrdemPagamento>,
     private readonly dataSource: DataSource
-  ) { }
+  ) {
+    this.sync = new OrdemSyncAuditoria(this.dataSource, this.ordemPagamentoRepository);
+  }
+
+  /** Sincronismo de ordens do BigQuery com auditoria (execuções, antes/depois, quarentena, reconciliação). */
+  readonly sync: OrdemSyncAuditoria;
 
 
   public async save(dto: DeepPartial<OrdemPagamento>): Promise<OrdemPagamento> {
