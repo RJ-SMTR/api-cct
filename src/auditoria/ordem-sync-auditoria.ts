@@ -225,7 +225,7 @@ export class OrdemSyncAuditoria {
     for (const l of linhas) {
       await this.dataSource.query(
         `INSERT INTO ordem_pagamento_reconciliacao_diaria (data, bq_qtd, bq_valor, bd_qtd, bd_valor, dif_qtd, dif_valor, execucao_id, calculado_em)
-         VALUES ($1::date, $2, $3, $4, $5, $2 - $4, ROUND(($3 - $5)::numeric, 2), $6, now())
+         VALUES ($1::date, $2::int, $3::numeric, $4::int, $5::numeric, $2::int - $4::int, ROUND(($3::numeric - $5::numeric), 2), $6, now())
          ON CONFLICT (data) DO UPDATE SET bq_qtd = EXCLUDED.bq_qtd, bq_valor = EXCLUDED.bq_valor, bd_qtd = EXCLUDED.bd_qtd,
            bd_valor = EXCLUDED.bd_valor, dif_qtd = EXCLUDED.dif_qtd, dif_valor = EXCLUDED.dif_valor,
            execucao_id = EXCLUDED.execucao_id, calculado_em = now()`,

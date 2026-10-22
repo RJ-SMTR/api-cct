@@ -115,6 +115,16 @@ describe('OrdemPagamentoService - sincronismo por período', () => {
     expect(sync.finalizarExecucao).toHaveBeenCalledWith(77, 'erro', expect.anything(), 'banco fora');
   });
 
+  it('falha ao gravar a reconciliação não derruba o sincronismo (o agrupamento do cron continua) e a execução fica concluída', async () => {
+    const { service, sync } = build({ bq: [ordemBq(1)], antes: 0 });
+    sync.salvarReconciliacao.mockRejectedValueOnce(new Error('operator is not unique: unknown - unknown'));
+
+    const r = await service.sincronizarOrdensPagamento(d('2026-10-09'), d('2026-10-09'), ['STPL']);
+
+    expect(r).toMatchObject({ inseridas: 1, erros: 0 });
+    expect(sync.finalizarExecucao).toHaveBeenCalledWith(77, 'concluida', expect.objectContaining({ novas: 1 }));
+  });
+
   it('o cron registra a execução como origem cron e grava a reconciliação diária', async () => {
     const { service, sync } = build({ bq: [ordemBq(1)], antes: 1 });
 
