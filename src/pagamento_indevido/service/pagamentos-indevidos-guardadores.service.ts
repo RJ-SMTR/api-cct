@@ -125,6 +125,30 @@ export class PagamentosIndevidosGuardadoresService {
     return { total: totais.quantidade, page, pageSize, totais, itens };
   }
 
+  /**
+   * Indevido de UM guardador (para o quadro da tela do guardador): as linhas dele e os totais. O quadro só aparece quando
+   * `totais.saldoDevedor` é maior que zero. Guardador desconhecido ou sem linhas devolve totais zerados e lista vazia.
+   */
+  async porUsuario(userId: number): Promise<{ totais: TotaisPagamentosIndevidos; itens: LinhaPagamentoIndevido[] }> {
+    const params = [userId];
+    const [totais] = await this.dataSource.query(
+      `WITH ${this.cte()}
+       SELECT count(*)::int AS quantidade, count(*) FILTER (WHERE situacao = 'devendo')::int AS devendo,
+              COALESCE(sum(indevido), 0)::numeric(18,2)::text AS "valorIndevido",
+              COALESCE(sum(debitado), 0)::numeric(18,2)::text AS "valorDebitado",
+              COALESCE(sum(saldo), 0)::numeric(18,2)::text AS "saldoDevedor"
+         FROM calculado WHERE user_id = $1`,
+      params,
+    );
+    const itens = await this.dataSource.query(
+      `WITH ${this.cte()}
+       SELECT ${this.colunas()} FROM calculado WHERE user_id = $1
+       ORDER BY saldo DESC, "dataReferencia" DESC NULLS LAST, id DESC`,
+      params,
+    );
+    return { totais, itens };
+  }
+
   /** Todas as linhas do filtro (até o limite), para a exportação em Excel. */
   async exportar(filtro: FiltroPagamentosIndevidos): Promise<{ limite: number; itens: LinhaPagamentoIndevido[] }> {
     const params: unknown[] = [];
