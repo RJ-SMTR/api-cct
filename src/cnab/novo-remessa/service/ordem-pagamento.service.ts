@@ -375,7 +375,12 @@ export class OrdemPagamentoService {
         }
       }
 
-      await this.reconciliarPorDia(ordens, dataInicio, dataFim, consorcio, execucaoId);
+      // A reconciliação é só auditoria: se falhar, o sincronismo já gravou as ordens e o agrupamento que vem depois não pode parar.
+      try {
+        await this.reconciliarPorDia(ordens, dataInicio, dataFim, consorcio, execucaoId);
+      } catch (error) {
+        this.logger.error(`Erro ao gravar a reconciliação diária (execução ${execucaoId}): ${error.message}`, METHOD);
+      }
       await sync.finalizarExecucao(execucaoId, 'concluida', contagens);
     } catch (error) {
       await sync.finalizarExecucao(execucaoId, 'erro', contagens, error?.message);
