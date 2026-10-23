@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { HttpException, HttpStatus, Injectable } from "@nestjs/common";
 import { CustomLogger } from "src/utils/custom-logger";
 import { OrdemPagamentoAgrupadoService } from "./ordem-pagamento-agrupado.service";
 import { HeaderArquivoService } from "src/cnab/service/pagamento/header-arquivo.service";
@@ -277,6 +277,10 @@ export class RemessaService {
 
         const detalhes = await DetalhesToCnab.convert(detalhesA[index], detalheB, historico);
 
+        // O banco exige o NSR sequencial dentro do lote (A=1, B=2, A=3...). O NSR gravado no preparo pode ter lacunas ou
+        // repetir quando um detalhe muda de lote (ex.: reprocesso de preparo interrompido), e o banco rejeita o arquivo (AH).
+        detalhes.detalheA.nsr.value = index * 2 + 1;
+        detalhes.detalheB.nsr.value = index * 2 + 2;
         registrosDoLote.push(detalhes);
 
       }
@@ -317,6 +321,39 @@ export class RemessaService {
         this.logger.debug("Arquivo não enviado por problemas de conexão com o SFTP");
       }
     }
+  }
+
+  /**
+   * Reabre uma remessa rejeitada pelo banco para ser gerada de novo com um NSA NOVO. O header do arquivo rejeitado (achado pelo
+   * NSA que consta nele) volta ao status "remessaGerado" e recebe o próximo NSA do contador; "Gerar Remessa"/"Enviar" passam a
+   * montar o arquivo a partir dos mesmos pagamentos já preparados, sem precisar preparar de novo.
+   */
+  async renovarNsaRemessa(nsaRejeitado: number, headerName: HeaderName) {
+    const candidatos = (await this.headerArquivoService.findMany({ nsa: nsaRejeitado }))
+      .filter((h) => h.status === HeaderArquivoStatus._2_remessaGerado || h.status === HeaderArquivoStatus._3_remessaEnviado)
+      .sort((a, b) => b.id - a.id);
+    const header = candidatos[0];
+    if (!header) {
+      throw new HttpException({ error: `Nenhuma remessa gerada/enviada encontrada com o NSA ${nsaRejeitado}.` }, HttpStatus.NOT_FOUND);
+    }
+
+    const emAberto = ((await this.headerArquivoService.getExists(HeaderArquivoStatus._2_remessaGerado, headerName)) as unknown as HeaderArquivo[]).filter((h) => h.id !== header.id);
+    if (emAberto.length > 0) {
+      throw new HttpException(
+        { error: `Já existe outra remessa gerada e não enviada (NSA ${emAberto[0].nsa}); envie-a ou limpe o preparo antes de renovar o NSA.` },
+        HttpStatus.CONFLICT,
+      );
+    }
+
+    const nsaNovo = await this.settingsService.getNextNSA(false);
+    await this.headerArquivoService.save({
+      id: header.id,
+      nsa: nsaNovo,
+      status: HeaderArquivoStatus._2_remessaGerado,
+      remessaName: headerName,
+    });
+    this.logger.log(`Remessa ${headerName} reaberta: header ${header.id}, NSA ${nsaRejeitado} -> ${nsaNovo}`);
+    return { headerArquivoId: header.id, nsaAnterior: nsaRejeitado, nsaNovo };
   }
 
   private async gerarHeaderArquivo(pagador: Pagador, remessaName: HeaderName) {
