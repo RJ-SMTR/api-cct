@@ -83,4 +83,16 @@ export class RelatorioFinancialMovementNovoRemessaData {
   valor?: number;
   status?: string;
   descricaoErro?: string;
+
+  // Preenchidos só quando o filtro STUC - Gratuidade está ativo (ADR 0012): um par por dia da
+  // janela de pagamento vigente (sexta-segunda, 4 dias; terça-quinta, 3 dias). `valor` acima
+  // passa a ser a soma desses dias, não um pagamento isolado.
+  dataOrdemPagamento1?: string | null;
+  valorOrdemPagamento1?: number | null;
+  dataOrdemPagamento2?: string | null;
+  valorOrdemPagamento2?: number | null;
+  dataOrdemPagamento3?: string | null;
+  valorOrdemPagamento3?: number | null;
+  dataOrdemPagamento4?: string | null;
+  valorOrdemPagamento4?: number | null;
 }
