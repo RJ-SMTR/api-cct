@@ -250,11 +250,15 @@ export class RemessaService {
 
     const trailerArquivo104 = structuredClone(Cnab104PgtoTemplates.file104.registros.trailerArquivo);
 
-    const registros: CnabRegistros104Pgto[] = [];
+    // Cada pagamento pertence ao lote (header lote) em que foi gerado: distribuir por banco de destino repetia a Caixa
+    // em todos os lotes não-TED (ex.: poupança "05" e conta corrente "01" no mesmo arquivo pagavam o favorecido duas vezes).
+    const registrosPorLote = new Map<number, CnabRegistros104Pgto[]>();
 
     const headersLote = await this.headerLoteService.findAll(headerArquivo.id);
 
     for (let i = 0; i < headersLote.length; i++) {
+      const registrosDoLote: CnabRegistros104Pgto[] = [];
+      registrosPorLote.set(headersLote[i].id, registrosDoLote);
 
       const detalhesA = await this.detalheAService.getDetalheAHeaderLote(headersLote[i].id);
 
@@ -273,7 +277,7 @@ export class RemessaService {
 
         const detalhes = await DetalhesToCnab.convert(detalhesA[index], detalheB, historico);
 
-        registros.push(detalhes);
+        registrosDoLote.push(detalhes);
 
       }
     }
@@ -282,9 +286,7 @@ export class RemessaService {
       headerArquivo: headerArquivoCnab,
       lotes: headersLote.map((headerLote: HeaderLote) => ({
         headerLote: CnabHeaderLote104PgtoDTO.convert(headerLote, headerArquivo),
-        registros: headerLote.formaLancamento === '41' ?//TED ou CC
-          registros.filter(r => (r.detalheA.codigoBancoDestino.value !== '104')) : //Diferente de Caixa
-          registros.filter(r => (r.detalheA.codigoBancoDestino.value === '104')),
+        registros: registrosPorLote.get(headerLote.id) ?? [],
         trailerLote: structuredClone(Cnab104PgtoTemplates.file104.registros.trailerLote),
       })),
       trailerArquivo: trailerArquivo104,
