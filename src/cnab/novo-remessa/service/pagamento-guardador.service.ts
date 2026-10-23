@@ -88,6 +88,11 @@ export class PagamentoGuardadorService {
     return this.remessaService.gerarCnabText(HeaderName.GUARDADOR, false, false, []);
   }
 
+  /** Reabre a remessa rejeitada pelo banco com um NSA novo, para ser gerada e enviada de novo. */
+  async renovarNsa(nsaRejeitado: number) {
+    return this.remessaService.renovarNsaRemessa(nsaRejeitado, HeaderName.GUARDADOR);
+  }
+
   async enviarParaBanco(senha: string, requestUserId: number): Promise<{ enviados: number; arquivos: string[] }> {
     const requestUser = await this.usersService.findOne({ id: requestUserId });
     if (!requestUser) {

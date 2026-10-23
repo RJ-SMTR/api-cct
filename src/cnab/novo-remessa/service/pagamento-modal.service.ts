@@ -141,6 +141,12 @@ export class PagamentoModalService {
     return this.remessaService.gerarCnabText(headerName, false, false, MODAIS, this.ultimoGratuidade);
   }
 
+  /** Reabre a remessa rejeitada pelo banco com um NSA novo, para ser gerada e enviada de novo. */
+  async renovarNsa(nsaRejeitado: number) {
+    const headerName = this.ultimoGratuidade ? HeaderName.GRATUIDADE : HeaderName.MODAL;
+    return this.remessaService.renovarNsaRemessa(nsaRejeitado, headerName);
+  }
+
   /**
    * Envia a remessa já gerada para o SFTP do banco. Regenera o CNAB no servidor (nunca
    * confia em conteúdo vindo do front) e exige confirmação de senha do usuário logado,

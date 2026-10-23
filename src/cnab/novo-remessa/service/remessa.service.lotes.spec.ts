@@ -43,7 +43,7 @@ describe('RemessaService.gerarListaCnab - distribuicao dos pagamentos nos lotes'
     );
     jest.spyOn(CnabHeaderLote104PgtoDTO, 'convert').mockImplementation((h: any) => ({ formaLancamento: h.formaLancamento }) as any);
     // o numero do documento identifica o pagamento; o banco de destino e de proposito 104 em todos (como a Caixa) para provar que nao filtra por banco
-    jest.spyOn(DetalhesToCnab, 'convert').mockImplementation(async (a: any) => ({ numeroDocumento: a.id, detalheA: { codigoBancoDestino: { value: '104' } } }) as any);
+    jest.spyOn(DetalhesToCnab, 'convert').mockImplementation(async (a: any) => ({ numeroDocumento: a.id, detalheA: { codigoBancoDestino: { value: '104' }, nsr: { value: a.nsr } }, detalheB: { nsr: { value: a.nsr + 1 } } }) as any);
   });
 
   it('cada pagamento sai uma unica vez, no lote em que foi gerado (poupanca 05, TED 41 e conta corrente 01 juntos)', async () => {
@@ -59,6 +59,18 @@ describe('RemessaService.gerarListaCnab - distribuicao dos pagamentos nos lotes'
       { forma: '01', docs: [6, 7] },
     ]);
     expect(lotes.flatMap((l: any) => l.docs)).toHaveLength(7);
+  });
+
+  it('NSR sai sequencial dentro de cada lote mesmo que o gravado tenha lacuna ou repita', async () => {
+    headerLoteService.findAll.mockResolvedValue([lote(1, '41'), lote(2, '01')]);
+    detalheAService.getDetalheAHeaderLote.mockImplementation(async (loteId: number) =>
+      (loteId === 1 ? [{ id: 1, nsr: 1 }, { id: 2, nsr: 3 }, { id: 3, nsr: 233 }] : [{ id: 4, nsr: 1 }, { id: 5, nsr: 231 }]));
+
+    await gerar();
+    const [cnab104] = (stringifyCnab104File as jest.Mock).mock.calls[0];
+    const nsrs = cnab104.lotes.map((l: any) => l.registros.flatMap((r: any) => [r.detalheA.nsr.value, r.detalheB.nsr.value]));
+
+    expect(nsrs).toEqual([[1, 2, 3, 4, 5, 6], [1, 2, 3, 4]]);
   });
 
   it('lote sem pagamentos sai vazio (nao herda pagamentos de outros lotes)', async () => {
