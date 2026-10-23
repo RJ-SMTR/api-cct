@@ -39,7 +39,7 @@ describe('RemessaService.gerarListaCnab - distribuicao dos pagamentos nos lotes'
     headerLoteService = { findAll: jest.fn() };
     detalheAService = { getDetalheAHeaderLote: jest.fn() };
     service = new RemessaService(
-      { getHistoricosOrdemDetalheA: jest.fn(async (id: number) => ({ username: 'x', ...(contas[id] ?? { userBankCode: 341 }) })) } as any,
+      { getHistoricosOrdemDetalheA: jest.fn((id: number) => ({ username: 'x', ...(contas[id] ?? { userBankCode: 341 }) })) } as any,
       {} as any,
       headerLoteService as any,
       detalheAService as any,
@@ -52,7 +52,7 @@ describe('RemessaService.gerarListaCnab - distribuicao dos pagamentos nos lotes'
     );
     jest.spyOn(CnabHeaderLote104PgtoDTO, 'convert').mockImplementation((h: any) => ({ formaLancamento: h.formaLancamento }) as any);
     // o numero do documento identifica o pagamento; o nsr gravado e propagado para provar que a geracao o renumera
-    jest.spyOn(DetalhesToCnab, 'convert').mockImplementation(async (a: any) => ({
+    jest.spyOn(DetalhesToCnab, 'convert').mockImplementation((a: any) => ({
       numeroDocumento: a.id,
       detalheA: { nsr: { value: a.nsr }, valorRealEfetivado: { value: 999 } },
       detalheB: { nsr: { value: a.nsr + 1 } },
@@ -62,7 +62,7 @@ describe('RemessaService.gerarListaCnab - distribuicao dos pagamentos nos lotes'
   it('cada pagamento sai uma unica vez, no lote da forma do seu banco (poupanca 05, TED 41 e conta corrente 01 juntos)', async () => {
     contas = { 1: { userBankCode: 104, userBankAccountType: 'poupanca' }, 2: { userBankCode: 104, userBankAccountType: 'poupanca' }, 6: { userBankCode: 104 }, 7: { userBankCode: 104 } };
     headerLoteService.findAll.mockResolvedValue([lote(1460, '05'), lote(1461, '41'), lote(1462, '01')]);
-    detalheAService.getDetalheAHeaderLote.mockImplementation(async (loteId: number) =>
+    detalheAService.getDetalheAHeaderLote.mockImplementation((loteId: number) =>
       ({ 1460: [detalheA(1), detalheA(2)], 1461: [detalheA(3), detalheA(4), detalheA(5)], 1462: [detalheA(6), detalheA(7)] } as any)[loteId]);
 
     const lotes = await gerar();
@@ -78,7 +78,7 @@ describe('RemessaService.gerarListaCnab - distribuicao dos pagamentos nos lotes'
   it('pagamento da Caixa preparado no lote de TED sai no lote de conta corrente, com NSR sequencial nos dois lotes', async () => {
     contas = { 3: { userBankCode: 104 }, 5: { userBankCode: 104 }, 6: { userBankCode: 104 } };
     headerLoteService.findAll.mockResolvedValue([lote(1, '41'), lote(2, '01')]);
-    detalheAService.getDetalheAHeaderLote.mockImplementation(async (loteId: number) =>
+    detalheAService.getDetalheAHeaderLote.mockImplementation((loteId: number) =>
       (loteId === 1 ? [detalheA(1, 1), detalheA(2, 3), detalheA(3, 231), detalheA(4, 233), detalheA(5, 3413)] : [detalheA(6, 1)]));
 
     const lotes = await gerar();
@@ -100,7 +100,7 @@ describe('RemessaService.gerarListaCnab - distribuicao dos pagamentos nos lotes'
   it('lote sem pagamentos sai vazio (nao herda pagamentos de outros lotes)', async () => {
     contas = { 9: { userBankCode: 104 } };
     headerLoteService.findAll.mockResolvedValue([lote(1, '05'), lote(2, '01')]);
-    detalheAService.getDetalheAHeaderLote.mockImplementation(async (loteId: number) => (loteId === 2 ? [detalheA(9)] : []));
+    detalheAService.getDetalheAHeaderLote.mockImplementation((loteId: number) => (loteId === 2 ? [detalheA(9)] : []));
 
     expect((await gerar()).map((l: any) => ({ forma: l.forma, docs: l.docs }))).toEqual([
       { forma: '05', docs: [] },
