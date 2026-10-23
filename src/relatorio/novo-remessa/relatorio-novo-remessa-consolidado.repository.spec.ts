@@ -217,8 +217,8 @@ describe('RelatorioNovoRemessaConsolidadoRepository', () => {
 
     it('sums every vanzeiro row instead of zeroing the total (STUC has no consorcio-level aggregate row to dedup against)', async () => {
       (mockQueryRunner.query as jest.Mock).mockResolvedValue([
-        { nome: 'João Vanzeiro', valor: '160.00' },
-        { nome: 'Maria Vanzeira', valor: '170.00' },
+        { nome: 'João Vanzeiro', cpfCnpj: '1', dataReferencia: '23/10/2026', valor: '160.00' },
+        { nome: 'Maria Vanzeira', cpfCnpj: '2', dataReferencia: '23/10/2026', valor: '170.00' },
       ]);
 
       const result = await repository.findConsolidado({
@@ -288,6 +288,114 @@ describe('RelatorioNovoRemessaConsolidadoRepository', () => {
       const sql = (mockQueryRunner.query as jest.Mock).mock.calls[0][0];
       expect(sql).toContain(`op."nomeConsorcio" IN('STPC','STPL','TEC')`);
       expect(sql).toContain(`length(op."operadoraCpfCnpj")<=11`);
+    });
+  });
+
+  describe('findConsolidado - STUC - Gratuidade payment window columns (ADR 0012)', () => {
+    it('pivots a complete 4-day window into one row with the 4 pairs filled and valor summed', async () => {
+      (mockQueryRunner.query as jest.Mock).mockResolvedValue([
+        { nome: 'Fulano', cpfCnpj: '1', dataReferencia: '23/10/2026', valor: '10' },
+        { nome: 'Fulano', cpfCnpj: '1', dataReferencia: '24/10/2026', valor: '20' },
+        { nome: 'Fulano', cpfCnpj: '1', dataReferencia: '25/10/2026', valor: '30' },
+        { nome: 'Fulano', cpfCnpj: '1', dataReferencia: '26/10/2026', valor: '40' },
+      ]);
+
+      const result = await repository.findConsolidado({
+        dataInicio: new Date('2026-10-23'),
+        dataFim: new Date('2026-10-26'),
+        stucGratuidade: true,
+      } as any);
+
+      expect(result.data).toHaveLength(1);
+      const [row] = result.data as any[];
+      expect(row.dataOrdemPagamento1).toBe('23/10/2026');
+      expect(row.valorOrdemPagamento1).toBe(10);
+      expect(row.dataOrdemPagamento4).toBe('26/10/2026');
+      expect(row.valorOrdemPagamento4).toBe(40);
+      expect(row.valor).toBe(100);
+      expect(result.valor).toBe(100);
+    });
+
+    it('leaves the 4th pair empty for a 3-day (Tue-Thu) window', async () => {
+      (mockQueryRunner.query as jest.Mock).mockResolvedValue([
+        { nome: 'Fulano', cpfCnpj: '1', dataReferencia: '27/10/2026', valor: '1' },
+        { nome: 'Fulano', cpfCnpj: '1', dataReferencia: '28/10/2026', valor: '2' },
+        { nome: 'Fulano', cpfCnpj: '1', dataReferencia: '29/10/2026', valor: '3' },
+      ]);
+
+      const result = await repository.findConsolidado({
+        dataInicio: new Date('2026-10-27'),
+        dataFim: new Date('2026-10-29'),
+        stucGratuidade: true,
+      } as any);
+
+      const [row] = result.data as any[];
+      expect(row.dataOrdemPagamento4).toBeFalsy();
+      expect(row.valorOrdemPagamento4).toBeFalsy();
+      expect(row.valor).toBe(6);
+    });
+
+    it('splits two different payment windows for the same favorecido into two rows, and sums both into the report total', async () => {
+      (mockQueryRunner.query as jest.Mock).mockResolvedValue([
+        { nome: 'Fulano', cpfCnpj: '1', dataReferencia: '23/10/2026', valor: '10' },
+        { nome: 'Fulano', cpfCnpj: '1', dataReferencia: '27/10/2026', valor: '20' },
+      ]);
+
+      const result = await repository.findConsolidado({
+        dataInicio: new Date('2026-10-23'),
+        dataFim: new Date('2026-10-29'),
+        stucGratuidade: true,
+      } as any);
+
+      expect(result.data).toHaveLength(2);
+      expect(result.valor).toBe(30);
+    });
+
+    it('filters by the window total (Vlr Min/Max), not by the favorecido grand total', async () => {
+      (mockQueryRunner.query as jest.Mock).mockResolvedValue([
+        { nome: 'Fulano', cpfCnpj: '1', dataReferencia: '23/10/2026', valor: '10' },
+        { nome: 'Fulano', cpfCnpj: '1', dataReferencia: '27/10/2026', valor: '200' },
+      ]);
+
+      const result = await repository.findConsolidado({
+        dataInicio: new Date('2026-10-23'),
+        dataFim: new Date('2026-10-29'),
+        stucGratuidade: true,
+        valorMin: 100,
+        valorMax: 300,
+      } as any);
+
+      expect(result.data).toHaveLength(1);
+      expect((result.data[0] as any).valor).toBe(200);
+    });
+
+    it('paginates the pivoted rows in memory without dropping or duplicating windows across pages', async () => {
+      (mockQueryRunner.query as jest.Mock).mockResolvedValue([
+        { nome: 'Ana', cpfCnpj: '1', dataReferencia: '23/10/2026', valor: '10' },
+        { nome: 'Bruno', cpfCnpj: '2', dataReferencia: '23/10/2026', valor: '20' },
+        { nome: 'Carla', cpfCnpj: '3', dataReferencia: '23/10/2026', valor: '30' },
+      ]);
+
+      const page1 = await repository.findConsolidado({
+        dataInicio: new Date('2026-10-23'),
+        dataFim: new Date('2026-10-23'),
+        stucGratuidade: true,
+        page: 1,
+        pageSize: 2,
+      } as any);
+      const page2 = await repository.findConsolidado({
+        dataInicio: new Date('2026-10-23'),
+        dataFim: new Date('2026-10-23'),
+        stucGratuidade: true,
+        page: 2,
+        pageSize: 2,
+      } as any);
+
+      expect(page1.data).toHaveLength(2);
+      expect(page2.data).toHaveLength(1);
+      expect(page1.count).toBe(3);
+      const allNomes = [...page1.data, ...page2.data].map((r: any) => r.nomefavorecido).sort();
+      expect(allNomes).toEqual(['Ana', 'Bruno', 'Carla']);
     });
   });
 });

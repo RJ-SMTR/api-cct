@@ -2,7 +2,9 @@ import { Injectable } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import * as fs from 'fs';
+import { format, parse } from 'date-fns';
 import { CustomLogger } from 'src/utils/custom-logger';
+import { pivotStucGratuidadeRows } from '../utils/stuc-gratuidade-pivot';
 import { StatusPagamento } from '../enum/statusRemessafinancial-movement';
 import {
   buildBaseQuery,
@@ -126,6 +128,7 @@ export class RelatorioNovoRemessaFinancialMovementService {
 
   public async findFinancialMovementPage(filter: IFindPublicacaoRelatorioNovoFinancialMovement) {
     const safeFilter = this.normalizeFilter(filter);
+    if (safeFilter.stucGratuidade) return this.findStucGratuidadePage(safeFilter);
     const { query, params } = this.buildBaseDataQuery(safeFilter);
     const { currentPage, pageSize } = this.resolvePagination(safeFilter);
     const cursor = this.resolveCursor(safeFilter);
@@ -182,6 +185,11 @@ export class RelatorioNovoRemessaFinancialMovementService {
 
   public async streamFinancialMovementRows(filter: IFindPublicacaoRelatorioNovoFinancialMovement, onRow: (row: RelatorioFinancialMovementNovoRemessaData) => Promise<void> | void) {
     const safeFilter = this.normalizeFilter(filter);
+    if (safeFilter.stucGratuidade) {
+      const rows = await this.findStucGratuidadePivotedRows(safeFilter);
+      for (const row of rows) await onRow(new RelatorioFinancialMovementNovoRemessaData(row));
+      return;
+    }
     let cursor: CursorValues = {
       dataReferencia: null,
       nome: null,
@@ -222,6 +230,7 @@ export class RelatorioNovoRemessaFinancialMovementService {
       'financial-movement',
       (onRow) => this.streamFinancialMovementRows(filter, onRow),
       { dataInicio: new Date(filter.dataInicio), dataFim: new Date(filter.dataFim), statusLabels: buildSelectedStatusLabels(filter) },
+      Boolean(filter.stucGratuidade),
     );
   }
 
@@ -252,6 +261,48 @@ export class RelatorioNovoRemessaFinancialMovementService {
       params,
       query: `${groupedCte} SELECT to_char(g."dataReferencia" AT TIME ZONE 'America/Sao_Paulo','DD/MM/YYYY') AS "dataReferencia", to_char(g."dataPagamento" AT TIME ZONE 'America/Sao_Paulo','DD/MM/YYYY') AS "dataPagamento", g.nomes, g.email, g."codBanco", g."nomeBanco", g."cpfCnpj", g."nomeConsorcio" AS consorcio, g.valor, g.status, g."codigoErro", to_char(g."dataPagamento", 'YYYY-MM-DD"T"HH24:MI:SS') AS "dataPagamentoCursor" FROM grouped g WHERE 1=1 AND ($6::numeric IS NULL OR g.valor >= $6::numeric) AND ($7::numeric IS NULL OR g.valor <= $7::numeric)`,
     };
+  }
+
+  // STUC - Gratuidade (ADR 0012): cada linha deixa de ser "um dia" e passa a ser "uma janela
+  // de pagamento" (até 4 dias). O pivot muda a cardinalidade das linhas, então precisa rodar
+  // sobre o conjunto completo do filtro antes de qualquer corte de página - paginação por
+  // cursor/LIMIT em SQL não se aplica a este branch.
+  private async findStucGratuidadePivotedRows(filter: NormalizedFilter): Promise<RelatorioFinancialMovementNovoRemessaData[]> {
+    const { query, params } = this.buildBaseDataQuery(filter);
+    const dayRows = await this.executeQuery(query, params, 'STUC_PIVOT');
+    const groupKeyFn = (row: any) =>
+      [row.nomes, row.email, row.codBanco, row.nomeBanco, row.cpfCnpj, row.consorcio, row.status, row.codigoErro].join('::');
+    const pivoted = pivotStucGratuidadeRows(
+      dayRows.map((row: any) => ({ ...row, dataReferencia: parse(row.dataReferencia, 'dd/MM/yyyy', new Date()) })),
+      groupKeyFn,
+    );
+    return pivoted.map(
+      (row) =>
+        new RelatorioFinancialMovementNovoRemessaData({
+          ...row,
+          dataOrdemPagamento1: row.dataOrdemPagamento1 ? format(row.dataOrdemPagamento1, 'dd/MM/yyyy') : null,
+          dataOrdemPagamento2: row.dataOrdemPagamento2 ? format(row.dataOrdemPagamento2, 'dd/MM/yyyy') : null,
+          dataOrdemPagamento3: row.dataOrdemPagamento3 ? format(row.dataOrdemPagamento3, 'dd/MM/yyyy') : null,
+          dataOrdemPagamento4: row.dataOrdemPagamento4 ? format(row.dataOrdemPagamento4, 'dd/MM/yyyy') : null,
+        } as any),
+    );
+  }
+
+  private async findStucGratuidadePage(filter: NormalizedFilter) {
+    const { currentPage, pageSize } = this.resolvePagination(filter);
+    const [pivotedRows, summary] = await Promise.all([
+      this.findStucGratuidadePivotedRows(filter),
+      this.findFinancialMovementSummary(filter),
+    ]);
+    const start = (currentPage - 1) * pageSize;
+    const data = pivotedRows.slice(start, start + pageSize);
+    return new RelatorioFinancialMovementNovoRemessaPageDto({
+      ...summary,
+      currentPage,
+      pageSize,
+      data,
+      nextCursor: null,
+    });
   }
 
   private async findFinancialMovementBatchRows(filter: NormalizedFilter, cursor: CursorValues, limit: number, label: string) {

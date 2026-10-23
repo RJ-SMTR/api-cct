@@ -453,4 +453,168 @@ describe('RelatorioNovoRemessaFinancialMovementService', () => {
       expect(countQuery).toContain('op."ordemPagamentoAgrupadoGratuidadeId" = opa.id');
     });
   });
+
+  describe('STUC - Gratuidade payment window columns (ADR 0012)', () => {
+    const DAY_ROW = {
+      dataPagamento: '27/10/2026',
+      nomes: 'FULANO',
+      email: 'fulano@email.com',
+      codBanco: '001',
+      nomeBanco: 'BB',
+      cpfCnpj: '12345678900',
+      consorcio: 'Consorcio A',
+      status: 'Pago',
+      codigoErro: null,
+    };
+
+    it('pivots a complete 4-day window into one row with the 4 pairs filled and valor summed', async () => {
+      dataSource.query
+        .mockResolvedValueOnce([
+          { ...DAY_ROW, dataReferencia: '23/10/2026', valor: 10 },
+          { ...DAY_ROW, dataReferencia: '24/10/2026', valor: 20 },
+          { ...DAY_ROW, dataReferencia: '25/10/2026', valor: 30 },
+          { ...DAY_ROW, dataReferencia: '26/10/2026', valor: 40 },
+        ])
+        .mockResolvedValueOnce([{ count: '4' }])
+        .mockResolvedValueOnce([{}]);
+
+      const page = await service.findFinancialMovementPage({
+        dataInicio: new Date('2026-10-23'),
+        dataFim: new Date('2026-10-26'),
+        stucGratuidade: true,
+        page: 1,
+        pageSize: 50,
+      } as any);
+
+      expect(page.data).toHaveLength(1);
+      const [row] = page.data as any[];
+      expect(row.dataOrdemPagamento1).toBe('23/10/2026');
+      expect(row.valorOrdemPagamento1).toBe(10);
+      expect(row.dataOrdemPagamento2).toBe('24/10/2026');
+      expect(row.valorOrdemPagamento2).toBe(20);
+      expect(row.dataOrdemPagamento3).toBe('25/10/2026');
+      expect(row.valorOrdemPagamento3).toBe(30);
+      expect(row.dataOrdemPagamento4).toBe('26/10/2026');
+      expect(row.valorOrdemPagamento4).toBe(40);
+      expect(row.valor).toBe(100);
+    });
+
+    it('leaves the 4th pair empty for a 3-day (Tue-Thu) window', async () => {
+      dataSource.query
+        .mockResolvedValueOnce([
+          { ...DAY_ROW, dataReferencia: '27/10/2026', valor: 1 },
+          { ...DAY_ROW, dataReferencia: '28/10/2026', valor: 2 },
+          { ...DAY_ROW, dataReferencia: '29/10/2026', valor: 3 },
+        ])
+        .mockResolvedValueOnce([{ count: '1' }])
+        .mockResolvedValueOnce([{}]);
+
+      const page = await service.findFinancialMovementPage({
+        dataInicio: new Date('2026-10-27'),
+        dataFim: new Date('2026-10-29'),
+        stucGratuidade: true,
+        page: 1,
+        pageSize: 50,
+      } as any);
+
+      const [row] = page.data as any[];
+      expect(row.dataOrdemPagamento3).toBe('29/10/2026');
+      expect(row.dataOrdemPagamento4).toBeFalsy();
+      expect(row.valorOrdemPagamento4).toBeFalsy();
+      expect(row.valor).toBe(6);
+    });
+
+    it('splits two different payment windows for the same favorecido into two rows', async () => {
+      dataSource.query
+        .mockResolvedValueOnce([
+          { ...DAY_ROW, dataReferencia: '23/10/2026', valor: 10 },
+          { ...DAY_ROW, dataReferencia: '27/10/2026', valor: 20 },
+        ])
+        .mockResolvedValueOnce([{ count: '2' }])
+        .mockResolvedValueOnce([{}]);
+
+      const page = await service.findFinancialMovementPage({
+        dataInicio: new Date('2026-10-23'),
+        dataFim: new Date('2026-10-29'),
+        stucGratuidade: true,
+        page: 1,
+        pageSize: 50,
+      } as any);
+
+      expect(page.data).toHaveLength(2);
+      expect((page.data as any[]).map((r) => r.valor).sort()).toEqual([10, 20]);
+    });
+
+    it('groups a Pendencia de Pagamento row (no dataPagamento) by the window derived from its dataReferencia', async () => {
+      dataSource.query
+        .mockResolvedValueOnce([
+          { ...DAY_ROW, dataPagamento: null, status: 'Rejeitado', dataReferencia: '23/10/2026', valor: 15 },
+        ])
+        .mockResolvedValueOnce([{ count: '1' }])
+        .mockResolvedValueOnce([{}]);
+
+      const page = await service.findFinancialMovementPage({
+        dataInicio: new Date('2026-10-23'),
+        dataFim: new Date('2026-10-23'),
+        stucGratuidade: true,
+        page: 1,
+        pageSize: 50,
+      } as any);
+
+      const [row] = page.data as any[];
+      expect(row.dataOrdemPagamento1).toBe('23/10/2026');
+      expect(row.valorOrdemPagamento1).toBe(15);
+    });
+
+    it('paginates the pivoted rows in memory without dropping or duplicating windows across pages', async () => {
+      dataSource.query
+        .mockResolvedValueOnce([
+          { ...DAY_ROW, cpfCnpj: '1', dataReferencia: '23/10/2026', valor: 10 },
+          { ...DAY_ROW, cpfCnpj: '2', dataReferencia: '23/10/2026', valor: 20 },
+          { ...DAY_ROW, cpfCnpj: '3', dataReferencia: '23/10/2026', valor: 30 },
+        ])
+        .mockResolvedValueOnce([{ count: '3' }])
+        .mockResolvedValueOnce([{}])
+        .mockResolvedValueOnce([
+          { ...DAY_ROW, cpfCnpj: '1', dataReferencia: '23/10/2026', valor: 10 },
+          { ...DAY_ROW, cpfCnpj: '2', dataReferencia: '23/10/2026', valor: 20 },
+          { ...DAY_ROW, cpfCnpj: '3', dataReferencia: '23/10/2026', valor: 30 },
+        ])
+        .mockResolvedValueOnce([{ count: '3' }])
+        .mockResolvedValueOnce([{}]);
+
+      const filter = {
+        dataInicio: new Date('2026-10-23'),
+        dataFim: new Date('2026-10-23'),
+        stucGratuidade: true,
+        pageSize: 2,
+      } as any;
+
+      const page1 = await service.findFinancialMovementPage({ ...filter, page: 1 });
+      const page2 = await service.findFinancialMovementPage({ ...filter, page: 2 });
+
+      expect(page1.data).toHaveLength(2);
+      expect(page2.data).toHaveLength(1);
+      const allCpfCnpj = [...(page1.data as any[]), ...(page2.data as any[])].map((r) => r.cpfCnpj).sort();
+      expect(allCpfCnpj).toEqual(['1', '2', '3']);
+    });
+
+    it('streams the same pivoted rows that findFinancialMovementPage returns', async () => {
+      dataSource.query.mockResolvedValueOnce([
+        { ...DAY_ROW, dataReferencia: '23/10/2026', valor: 10 },
+        { ...DAY_ROW, dataReferencia: '24/10/2026', valor: 20 },
+      ]);
+
+      const rows: any[] = [];
+      await service.streamFinancialMovementRows(
+        { dataInicio: new Date('2026-10-23'), dataFim: new Date('2026-10-24'), stucGratuidade: true } as any,
+        (row) => rows.push(row),
+      );
+
+      expect(rows).toHaveLength(1);
+      expect(rows[0].valorOrdemPagamento1).toBe(10);
+      expect(rows[0].valorOrdemPagamento2).toBe(20);
+      expect(rows[0].valor).toBe(30);
+    });
+  });
 });

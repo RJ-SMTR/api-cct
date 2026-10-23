@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { HttpException, HttpStatus, Injectable } from "@nestjs/common";
 import { CustomLogger } from "src/utils/custom-logger";
 import { OrdemPagamentoAgrupadoService } from "./ordem-pagamento-agrupado.service";
 import { HeaderArquivoService } from "src/cnab/service/pagamento/header-arquivo.service";
@@ -250,12 +250,21 @@ export class RemessaService {
 
     const trailerArquivo104 = structuredClone(Cnab104PgtoTemplates.file104.registros.trailerArquivo);
 
-    const registros: CnabRegistros104Pgto[] = [];
+    // Cada pagamento sai uma única vez, no lote da forma de lançamento que corresponde ao banco/tipo de conta escritos no
+    // próprio registro (Caixa -> crédito em conta "01"/poupança "05"; demais bancos -> TED "41"). Assim um pagamento preparado
+    // no lote errado (cadastro do usuário mudou após o agrupamento) não vai como TED para a Caixa, e nenhum pagamento se repete.
+    const registrosPorLote = new Map<number, CnabRegistros104Pgto[]>();
 
     const headersLote = await this.headerLoteService.findAll(headerArquivo.id);
+    const headerPorForma = new Map<string, HeaderLote>();
+    for (const headerLote of headersLote) {
+      registrosPorLote.set(headerLote.id, []);
+      if (!headerPorForma.has(headerLote.formaLancamento)) {
+        headerPorForma.set(headerLote.formaLancamento, headerLote);
+      }
+    }
 
     for (let i = 0; i < headersLote.length; i++) {
-
       const detalhesA = await this.detalheAService.getDetalheAHeaderLote(headersLote[i].id);
 
       for (let index = 0; index < detalhesA.length; index++) {
@@ -272,19 +281,31 @@ export class RemessaService {
         const detalheB = await this.detalheBService.findDetalheBDetalheAId(detalhesA[index].id);
 
         const detalhes = await DetalhesToCnab.convert(detalhesA[index], detalheB, historico);
+        // O valor real da efetivação é campo de retorno do banco: na remessa vai zerado.
+        detalhes.detalheA.valorRealEfetivado.value = 0;
 
-        registros.push(detalhes);
-
+        const formaDoPagamento = Number(historico.userBankCode) === 104
+          ? (historico.userBankAccountType === 'poupanca' ? Cnab104FormaLancamento.CreditoContaPoupanca : Cnab104FormaLancamento.CreditoContaCorrente)
+          : Cnab104FormaLancamento.TED;
+        const headerDestino = headerPorForma.get(formaDoPagamento) ?? headersLote[i];
+        registrosPorLote.get(headerDestino.id)!.push(detalhes);
       }
+    }
+
+    // O banco exige o NSR sequencial dentro do lote (A=1, B=2, A=3...). O NSR gravado no preparo pode ter lacunas ou
+    // repetir quando um detalhe muda de lote (ex.: reprocesso de preparo interrompido), e o banco rejeita o arquivo (AH).
+    for (const registros of registrosPorLote.values()) {
+      registros.forEach((registro, index) => {
+        registro.detalheA.nsr.value = index * 2 + 1;
+        registro.detalheB.nsr.value = index * 2 + 2;
+      });
     }
 
     const cnab104 = new CnabFile104PgtoDTO({
       headerArquivo: headerArquivoCnab,
       lotes: headersLote.map((headerLote: HeaderLote) => ({
         headerLote: CnabHeaderLote104PgtoDTO.convert(headerLote, headerArquivo),
-        registros: headerLote.formaLancamento === '41' ?//TED ou CC
-          registros.filter(r => (r.detalheA.codigoBancoDestino.value !== '104')) : //Diferente de Caixa
-          registros.filter(r => (r.detalheA.codigoBancoDestino.value === '104')),
+        registros: registrosPorLote.get(headerLote.id) ?? [],
         trailerLote: structuredClone(Cnab104PgtoTemplates.file104.registros.trailerLote),
       })),
       trailerArquivo: trailerArquivo104,
@@ -315,6 +336,39 @@ export class RemessaService {
         this.logger.debug("Arquivo não enviado por problemas de conexão com o SFTP");
       }
     }
+  }
+
+  /**
+   * Reabre uma remessa rejeitada pelo banco para ser gerada de novo com um NSA NOVO. O header do arquivo rejeitado (achado pelo
+   * NSA que consta nele) volta ao status "remessaGerado" e recebe o próximo NSA do contador; "Gerar Remessa"/"Enviar" passam a
+   * montar o arquivo a partir dos mesmos pagamentos já preparados, sem precisar preparar de novo.
+   */
+  async renovarNsaRemessa(nsaRejeitado: number, headerName: HeaderName) {
+    const candidatos = (await this.headerArquivoService.findMany({ nsa: nsaRejeitado }))
+      .filter((h) => h.status === HeaderArquivoStatus._2_remessaGerado || h.status === HeaderArquivoStatus._3_remessaEnviado)
+      .sort((a, b) => b.id - a.id);
+    const header = candidatos[0];
+    if (!header) {
+      throw new HttpException({ error: `Nenhuma remessa gerada/enviada encontrada com o NSA ${nsaRejeitado}.` }, HttpStatus.NOT_FOUND);
+    }
+
+    const emAberto = ((await this.headerArquivoService.getExists(HeaderArquivoStatus._2_remessaGerado, headerName)) as unknown as HeaderArquivo[]).filter((h) => h.id !== header.id);
+    if (emAberto.length > 0) {
+      throw new HttpException(
+        { error: `Já existe outra remessa gerada e não enviada (NSA ${emAberto[0].nsa}); envie-a ou limpe o preparo antes de renovar o NSA.` },
+        HttpStatus.CONFLICT,
+      );
+    }
+
+    const nsaNovo = await this.settingsService.getNextNSA(false);
+    await this.headerArquivoService.save({
+      id: header.id,
+      nsa: nsaNovo,
+      status: HeaderArquivoStatus._2_remessaGerado,
+      remessaName: headerName,
+    });
+    this.logger.log(`Remessa ${headerName} reaberta: header ${header.id}, NSA ${nsaRejeitado} -> ${nsaNovo}`);
+    return { headerArquivoId: header.id, nsaAnterior: nsaRejeitado, nsaNovo };
   }
 
   private async gerarHeaderArquivo(pagador: Pagador, remessaName: HeaderName) {
