@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-21",
+  "generatedAt": "2026-10-23",
   "node": "v18.16.0",
   "passingSuites": [
     "scripts/validate/boundaries.spec.ts",
@@ -22,6 +22,8 @@
     "src/cnab/novo-remessa/service/dashboard-pagamentos.utils.spec.ts",
     "src/cnab/novo-remessa/service/ordem-pagamento.service.importacao.spec.ts",
     "src/cnab/novo-remessa/service/ordem-pagamento.service.sincronizacao.spec.ts",
+    "src/cnab/novo-remessa/service/remessa.service.lotes.spec.ts",
+    "src/cnab/novo-remessa/service/remessa.service.renovar-nsa.spec.ts",
     "src/cnab/novo-remessa/service/remessa.service.spec.ts",
     "src/cnab/novo-remessa/service/retorno.service.spec.ts",
     "src/cnab/novo-remessa/test/build-retorno-cnab.spec.ts",
@@ -41,6 +43,9 @@
     "src/relatorio/novo-remessa/relatorio-novo-remessa-movimentacao.repository.spec.ts",
     "src/relatorio/novo-remessa/relatorio-novo-remessa.controller.spec.ts",
     "src/relatorio/novo-remessa/relatorio-novo-remessa.service.spec.ts",
+    "src/relatorio/utils/financial-movement-export-writer.spec.ts",
+    "src/relatorio/utils/stuc-gratuidade-pivot.spec.ts",
+    "src/relatorio/utils/stuc-payment-window.util.spec.ts",
     "src/sftp/sftp-client/sftp-client.service.spec.ts",
     "src/sftp/sftp.service.spec.ts",
     "src/sftp/ssh2-compat.spec.ts",
@@ -49,7 +54,8 @@
     "src/utils/all-exteptions-filter/filters/all-exceptions.filter.spec.ts",
     "src/utils/date-utils.spec.ts",
     "src/utils/file-type/pipes/file-type-validation.pipe.spec.ts",
-    "src/utils/payment-date-utils.spec.ts"
+    "src/utils/payment-date-utils.spec.ts",
+    "src/utils/worker-thread/run-with-worker-timeout.spec.ts"
   ],
   "eslintErrors": {
     "src/agentes/agentes-bigquery.repository.ts": 1,
