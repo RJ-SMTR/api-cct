@@ -230,6 +230,7 @@ export class RelatorioNovoRemessaFinancialMovementService {
       'financial-movement',
       (onRow) => this.streamFinancialMovementRows(filter, onRow),
       { dataInicio: new Date(filter.dataInicio), dataFim: new Date(filter.dataFim), statusLabels: buildSelectedStatusLabels(filter) },
+      Boolean(filter.stucGratuidade),
     );
   }
 
