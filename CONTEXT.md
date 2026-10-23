@@ -67,7 +67,10 @@ Obrigação original vinculada a uma nova tentativa de pagamento pendente. Prese
 Tentativa de pagamento pendente que consolida uma ou mais OPAs filhas do mesmo favorecido. É a única representante financeira dessas filhas na remessa.
 
 **STUC - Gratuidade**:
-Item do combo "Específico" nos relatórios Consolidado e Movimentação Financeira (perfil Permissionário, `app-cct`). Busca em `ordem_pagamento` pelo campo `valorGratuidade` (não nulo), seguindo o agrupamento de gratuidade separado do agrupamento normal: `ordem_pagamento.ordemPagamentoAgrupadoGratuidadeId` → `ordem_pagamento_agrupado` → `ordem_pagamento_agrupado_historico` (ver ADR 0004). O valor exibido é `valorGratuidade`, não o `valor` total da ordem.
+Item do combo "Específico" nos relatórios Consolidado e Movimentação Financeira (perfil Permissionário, `app-cct`). Busca em `ordem_pagamento` pelo campo `valorGratuidade` (não nulo), seguindo o agrupamento de gratuidade separado do agrupamento normal: `ordem_pagamento.ordemPagamentoAgrupadoGratuidadeId` → `ordem_pagamento_agrupado` → `ordem_pagamento_agrupado_historico` (ver ADR 0004). O valor exibido é `valorGratuidade`, não o `valor` total da ordem. Com esse filtro, cada linha do relatório representa uma **Janela de pagamento** (ver abaixo), com colunas por dia (ADR 0012).
+
+**Janela de pagamento**:
+Período fixo de dias (3 ou 4, por dia da semana) cujas ordens são pagas juntas numa mesma data de pagamento (`calcularPeriodoPagamento`, ver Regras de negócio "Pagamento"). No filtro STUC - Gratuidade, é a unidade que cada linha do relatório representa; os até-4 dias da janela aparecem como colunas (ADR 0012).
 
 **TransacaoView**:
 Visão das transações de bilhetagem por dia. **Legado: ninguém mais usa** (confirmado por Matthew em 2026-09-30); não a use em código novo.
@@ -159,6 +162,7 @@ Fonte entre parênteses. Revisado por Matthew em 2026-09-30 (janelas de pagament
 - **Seleção de usuário "Todos" continua válida com STUC selecionado**; não há exigência de escolher permissionários específicos.
 - Datas, Vlr Min./Vlr Max. e a mensagem para "data de pagamento não encontrada" seguem o comportamento padrão já usado pelos demais itens do combo — nenhuma regra nova.
 - Escopo: relatórios Consolidado e Movimentação Financeira do perfil **Permissionário** em `app-cct`. Não se aplica a Guardador.
+- **Colunas de dia da janela de pagamento** (ADR 0012, 2026-10-23, Rayanne). Cada linha do relatório passa a representar uma Janela de pagamento de um favorecido, com até 4 colunas (`dataOrdemPagamento1..4`/`valorOrdemPagamento1..4`) — uma por dia da janela, com a data de referência/vencimento da ordem daquele dia e a soma do `valorGratuidade` naquele dia. Janela de 3 dias (terça-quinta) deixa a 4ª coluna vazia. A coluna "Valor" existente passa a representar a soma da janela (deixa de ser um total geral do favorecido no Consolidado). Pendência de Pagamento deriva a janela pela própria data de referência da ordem (mesma regra `calcularPeriodoPagamento`), já que ainda não tem `dataPagamento`. Sem overflow: a janela nunca passa de 4 dias, então nunca precisa de linha extra — múltiplas janelas no período geram múltiplas linhas, como já é hoje.
 
 ### Pagamento
 
