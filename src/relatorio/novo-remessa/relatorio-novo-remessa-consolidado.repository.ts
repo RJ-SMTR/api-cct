@@ -4,7 +4,7 @@ import { DataSource } from 'typeorm';
 
 import { format, parse } from 'date-fns';
 import { CustomLogger } from 'src/utils/custom-logger';
-import { buildStucGratuidadeQuery, buildStucGratuidadePendenciaPagaSingleDateQuery } from './queries/novo-remessa-query-builder';
+import { buildStucGratuidadeQuery, buildStucGratuidadePendenciaPagaSingleDateQuery, buildStucGratuidadePendenciaPagamentoSingleDateQuery } from './queries/novo-remessa-query-builder';
 import { IFindPublicacaoRelatorioNovoRemessa } from '../interfaces/find-publicacao-relatorio-novo-remessa.interface';
 import {
   RelatorioConsolidadoNovoRemessaData,
@@ -484,7 +484,20 @@ export class RelatorioNovoRemessaConsolidadoRepository {
     let queryStucPendenciaPagaVanzeiro = ``;
     let queryStucPendenciaPagaConsorcio = ``;
 
+    // STUC - Gratuidade "Pendência de Pagamento" (Estorno/Rejeitado) em dia único: espelha
+    // Movimentação Financeira (resolveStatuses/buildFinalBaseQuery), que só troca para a consulta
+    // ciente de cadeia de retentativa (buildStucGratuidadePendenciaPagamentoSingleDateQuery, usa
+    // op_pai."dataPagamento" para achar a tentativa certa) quando De === Até. Fora desse caso, o
+    // filtro de data abaixo (BETWEEN) já cobre o intervalo via dataVencimento sem precisar da
+    // cadeia de retentativa - manter o comportamento existente para intervalos.
+    const isSingleDate = dataInicio === dataFim;
+    let queryStucPendenciaPagamentoVanzeiro = ``;
+    let queryStucPendenciaPagamentoConsorcio = ``;
+
     if (filter.stucGratuidade) {
+      // Em dia único, Estorno/Rejeitado migra para queryStucPendenciaPagamentoVanzeiro/Consorcio
+      // (abaixo): sem excluí-los daqui, as mesmas linhas entrariam duas vezes.
+      const condicoesStucRejeitadoSingleDate = isSingleDate;
       const buildStucGratuidadeLiteral = (): string => {
         // $3/$4/$5 aparecem duas vezes cada em buildStucGratuidadeQuery (uma com o cast
         // ::integer[]/::text[], outra solta dentro do "= ANY($N)" do mesmo OR) - as duas
@@ -499,11 +512,24 @@ export class RelatorioNovoRemessaConsolidadoRepository {
         // tornava "Pendência de Pagamento" (Todos) bem mais restritivo para STUC do que para o
         // fluxo normal, e divergia da Movimentação Financeira (que classifica pelo status
         // computado via STATUS_CASE, cujo ELSE cobre motivo fora da lista, ex.: 'AR').
+        // statusRemessa=4 ("Pendência de Pagamento"/Todos) sozinho já cobre Estorno E Rejeitado
+        // (motivo='02' ou não) - em dia único precisa sair daqui junto com subErroStatus/
+        // condicaoRejeitado, senão as linhas que migraram para a consulta ciente de retentativa
+        // (abaixo) voltam a entrar também por esta condição mais ampla.
+        const statusStucSemRejeitado = condicoesStucRejeitadoSingleDate ? statusStuc.filter((s) => s !== 4) : statusStuc;
         const condicoesStuc: string[] = [];
-        if (subErroStatus.length > 0) condicoesStuc.push(`oph."motivoStatusRemessa" IN (${subErroStatus.map((s) => `'${s}'`).join(',')})`);
-        if (statusStuc.length > 0) condicoesStuc.push(`oph."statusRemessa" IN (${statusStuc.join(',')})`);
-        if (condicaoRejeitado) condicoesStuc.push(condicaoRejeitado);
-        if (condicoesStuc.length > 0) literal += ` AND (${condicoesStuc.join(' OR ')}) `;
+        if (subErroStatus.length > 0 && !condicoesStucRejeitadoSingleDate) condicoesStuc.push(`oph."motivoStatusRemessa" IN (${subErroStatus.map((s) => `'${s}'`).join(',')})`);
+        if (statusStucSemRejeitado.length > 0) condicoesStuc.push(`oph."statusRemessa" IN (${statusStucSemRejeitado.join(',')})`);
+        if (condicaoRejeitado && !condicoesStucRejeitadoSingleDate) condicoesStuc.push(condicaoRejeitado);
+        const tinhaFiltroDeStatus = subErroStatus.length > 0 || statusStuc.length > 0 || !!condicaoRejeitado;
+        if (condicoesStuc.length > 0) {
+          literal += ` AND (${condicoesStuc.join(' OR ')}) `;
+        } else if (tinhaFiltroDeStatus) {
+          // Único status pedido era Estorno/Rejeitado e migrou inteiro para a consulta de dia
+          // único (abaixo, ciente de retentativa) - sem isto, a ausência de condição aqui faria
+          // esta consulta devolver TODOS os status, não nada.
+          literal += ` AND FALSE `;
+        }
         return literal;
       };
 
@@ -580,11 +606,58 @@ export class RelatorioNovoRemessaConsolidadoRepository {
           queryStucPendenciaPagaConsorcio = `SELECT nomes AS "nome", "nomeConsorcio" AS "nome2", "dataReferencia", "dataPagamento", "cpfCnpj", valor AS valor FROM (${literal}) q`;
         }
       }
+
+      // Pendência de Pagamento (Estorno/Rejeitado) em dia único: mesma consulta ciente de cadeia
+      // de retentativa que a Movimentação Financeira usa (buildStucGratuidadePendenciaPagamentoSingleDateQuery),
+      // para não perder/colapsar dias de uma janela STUC cuja tentativa mais recente não é do
+      // próprio dia filtrado. Fora do dia único, buildStucGratuidadeLiteral acima já cobre.
+      const parentErrorStatuses: Array<'Estorno' | 'Rejeitado'> = [];
+      if (filter.estorno || filter.erro) parentErrorStatuses.push('Estorno');
+      if (filter.rejeitado || filter.erro) parentErrorStatuses.push('Rejeitado');
+
+      if (isSingleDate && parentErrorStatuses.length > 0) {
+        const buildStucPendenciaPagamentoLiteral = (): string =>
+          buildStucGratuidadePendenciaPagamentoSingleDateQuery({ consorcioFilterParamIndex: 5, parentErrorStatuses })
+            .replace(/\$1/g, `'${dataInicio}'`)
+            .replace(/\$2/g, `'${dataFim}'`)
+            .replace(/\$3/g, 'NULL::integer[]')
+            .replace(/\$4/g, 'NULL::text[]')
+            .replace(/\$5/g, 'NULL::text[]');
+
+        if ((filter.userIds && filter.userIds.length > 0) || filter.todosVanzeiros) {
+          let literal = buildStucPendenciaPagamentoLiteral();
+          if (!filter.todosVanzeiros) {
+            const userPlaceholders = filter.userIds?.join(`','`);
+            literal += ` AND pu."id" IN('${userPlaceholders}') `;
+          } else {
+            const consorcioPlaceholders = this.MODAIS.join(`','`);
+            literal += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') AND length(op."operadoraCpfCnpj")<=11 `;
+          }
+          queryStucPendenciaPagamentoVanzeiro = `SELECT nomes AS "nome", "nomeConsorcio" AS "nome2", "dataReferencia", "dataPagamento", "cpfCnpj", valor AS valor FROM (${literal}) q`;
+        }
+
+        if ((filter.consorcioNome && filter.consorcioNome.length > 0) || filter.todosConsorcios) {
+          let literal = buildStucPendenciaPagamentoLiteral();
+          if (!filter.todosConsorcios) {
+            const consorcioPlaceholders = filter.consorcioNome?.map((c) => c.trim().toUpperCase().replace(/'/g, `''`)).join(`','`);
+            literal += ` AND UPPER(TRIM(${this.consorcioCaseSimples})) IN('${consorcioPlaceholders}') `;
+          } else {
+            const consorcioPlaceholders = this.CONSORCIOS.join(`','`);
+            literal += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') `;
+            if (filter.todosVanzeiros) {
+              const modaisPlaceholders = this.MODAIS.join(`','`);
+              literal += ` AND NOT (op."nomeConsorcio" IN('${modaisPlaceholders}') AND length(op."operadoraCpfCnpj")<=11) `;
+            }
+          }
+          queryStucPendenciaPagamentoConsorcio = `SELECT nomes AS "nome", "nomeConsorcio" AS "nome2", "dataReferencia", "dataPagamento", "cpfCnpj", valor AS valor FROM (${literal}) q`;
+        }
+      }
     }
 
     const hasQuery = queryAPagarConsorcios !== `` || queryAPagarVanzeiros !== `` || queryConsorcios !== `` || queryVanzeiros !== ``
       || queryAPagarEleicaoConsorcio !== `` || queryAPagarConsorcios !== `` || queryEleicaoConsorcio !== `` || queryAPagarEleicaoVanzeiro !== ``
       || queryPendentesConsorcio !== `` || queryPendentesVanzeiro !== ``
+      || queryStucPendenciaPagamentoVanzeiro !== `` || queryStucPendenciaPagamentoConsorcio !== ``
       || queryPendenciaPagaConsorcios !== `` || queryPendenciaPagaVanzeiros !== ``
       || queryStucGratuidadeVanzeiro !== `` || queryStucGratuidadeConsorcio !== ``
       || queryStucPendenciaPagaVanzeiro !== `` || queryStucPendenciaPagaConsorcio !== ``;
@@ -613,6 +686,8 @@ export class RelatorioNovoRemessaConsolidadoRepository {
       if (queryStucGratuidadeVanzeiro) queries.push(queryStucGratuidadeVanzeiro);
       if (queryStucPendenciaPagaConsorcio) queries.push(queryStucPendenciaPagaConsorcio);
       if (queryStucPendenciaPagaVanzeiro) queries.push(queryStucPendenciaPagaVanzeiro);
+      if (queryStucPendenciaPagamentoConsorcio) queries.push(queryStucPendenciaPagamentoConsorcio);
+      if (queryStucPendenciaPagamentoVanzeiro) queries.push(queryStucPendenciaPagamentoVanzeiro);
     } else {
       if (querAPagar) {
         if (buscarConsorcio) queries.push(temEleicao ? queryAPagarEleicaoConsorcio : queryAPagarConsorcios);
