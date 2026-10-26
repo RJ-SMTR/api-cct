@@ -480,7 +480,14 @@ describe('RelatorioNovoRemessaConsolidadoRepository', () => {
   // para TODOS os status filtráveis na tela, não só o fluxo "sem filtro" - um gap aqui faz
   // pivotStucGratuidadeRows receber uma linha por janela em vez de uma por dia, colapsando os
   // dias distintos numa única coluna/linha (o mesmo bug que a correção de Estorno/Rejeitado em
-  // dia único, acima, fechou para esse status específico).
+  // dia único, abaixo, fechou para esse status específico).
+  //
+  // Correção (achado testando contra produção, 2026-10-26): a asserção aqui checava
+  // da."dataVencimento" AS "dataReferencia", mas da."dataVencimento" é a data de pagamento do
+  // LOTE (um só detalhe_a por agrupamento) - igual pra toda ordem irmã, não varia por dia. O
+  // pivot recebia sempre a mesma dataReferencia pras ordens de uma mesma janela, caindo todas na
+  // mesma coluna em vez de se espalhar - o oposto do que o comentário acima (e o ADR 0012)
+  // pedia. Trocado para DATE(op."dataOrdem"), que de fato varia por ordem.
   describe('findConsolidado - STUC - Gratuidade: dataReferencia é por dia em todos os status (Todos, A pagar, Pago, Aguardando Pagamento, Pendência de Pagamento, Pendência Paga)', () => {
     const casosPorDiaUnico: Array<{ label: string; filtro: Record<string, unknown> }> = [
       { label: 'Todos', filtro: {} },
@@ -490,7 +497,7 @@ describe('RelatorioNovoRemessaConsolidadoRepository', () => {
       { label: 'Pendência Paga', filtro: { pendenciaPaga: true } },
     ];
 
-    it.each(casosPorDiaUnico)('$label: usa da."dataVencimento" como dataReferencia (por dia, não por janela)', async ({ filtro }) => {
+    it.each(casosPorDiaUnico)('$label: usa DATE(op."dataOrdem") como dataReferencia (por dia, não por janela)', async ({ filtro }) => {
       await repository.findConsolidado({
         dataInicio: new Date('2026-10-16'),
         dataFim: new Date('2026-10-16'),
@@ -500,7 +507,7 @@ describe('RelatorioNovoRemessaConsolidadoRepository', () => {
       } as any);
 
       const sql = (mockQueryRunner.query as jest.Mock).mock.calls[0][0];
-      expect(sql).toContain('da."dataVencimento" AS "dataReferencia"');
+      expect(sql).toContain('DATE(op."dataOrdem") AS "dataReferencia"');
     });
 
     it('Pendência de Pagamento (Estorno/Rejeitado): usa da."dataVencimento" como dataReferencia via a consulta ciente de retentativa (dia único)', async () => {

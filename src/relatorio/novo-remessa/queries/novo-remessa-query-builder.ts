@@ -107,6 +107,16 @@ type AgrupamentoSource = {
    * aqui colapsaria os dias distintos de uma mesma janela em uma única linha.
    */
   dataReferenciaPendenciaPagamento?: string;
+  /**
+   * Override de "dataReferencia" para buildGroupedQuery/buildPendenciaPagaTemplate. Por padrão
+   * (undefined) é da."dataVencimento" (a data de pagamento do lote, AGRUPAMENTO_NORMAL).
+   * AGRUPAMENTO_GRATUIDADE agrupa várias ordens no mesmo lote (mesmo detalhe_a), então
+   * da."dataVencimento" é igual para toda ordem irmã e o pivot de janela (ADR 0012/
+   * pivotStucGratuidadeRows) não consegue separar os dias - toda ordem cai na mesma coluna e é
+   * somada ali, com a data do lote em vez do dia real exibida na coluna (achado testando contra
+   * produção, 2026-10-26). Usa o dia da própria ordem para o pivot conseguir espalhar as colunas.
+   */
+  dataReferenciaGrouped?: string;
 };
 
 const AGRUPAMENTO_NORMAL: AgrupamentoSource = {
@@ -120,6 +130,7 @@ const AGRUPAMENTO_GRATUIDADE: AgrupamentoSource = {
   valorSelect: 'op."valorGratuidade" AS valor',
   extraWhere: 'op."valorGratuidade" IS NOT NULL AND op."valorGratuidade" <> 0',
   dataReferenciaPendenciaPagamento: 'da."dataVencimento"',
+  dataReferenciaGrouped: 'DATE(op."dataOrdem")',
 };
 
 const umaOrdemPorAgrupamentoFilter = (source: AgrupamentoSource) =>
@@ -136,7 +147,7 @@ const buildGroupedQuery = (params: NovoRemessaBaseParams, source: AgrupamentoSou
   const consorcioParam = `$${params.consorcioFilterParamIndex}`;
   return `
     SELECT
-      da."dataVencimento" AS "dataReferencia",
+      ${source.dataReferenciaGrouped ?? 'da."dataVencimento"'} AS "dataReferencia",
       opa.id,
       pu."fullName" AS nomes,
       pu.email,
@@ -189,7 +200,7 @@ const buildPendenciaPagaTemplate = (params: NovoRemessaBaseParams, source: Agrup
   const consorcioParam = `$${params.consorcioFilterParamIndex}`;
   return `
     SELECT
-      da."dataVencimento" AS "dataReferencia",
+      ${source.dataReferenciaGrouped ?? 'da."dataVencimento"'} AS "dataReferencia",
       opa.id,
       pu."fullName" AS nomes,
       pu.email,
