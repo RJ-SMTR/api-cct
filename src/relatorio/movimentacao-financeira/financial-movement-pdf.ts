@@ -8,7 +8,7 @@ const LOGO_PATH = path.join(__dirname, '..', '..', 'assets', 'logo-prefeitura.pn
 const PAGE_SIZE: [number, number] = [842, 595]; // A4 landscape, pt - same as the Consolidado PDF (app-cct ConsolidatedReportPage.js).
 const MARGIN = 28;
 const CONTENT_WIDTH = PAGE_SIZE[0] - MARGIN * 2;
-const HEADER_HEIGHT = 76; // Logo + separator line + title/period/status, stacked vertically.
+const HEADER_HEIGHT = 86; // Logo + separator line + title/period/status, stacked vertically.
 const FOOTER_HEIGHT = 24;
 const ROW_HEIGHT = 16;
 const LINE_HEIGHT = 9; // altura de uma linha extra dentro de uma célula de 2 linhas (cabeçalho ou dado como "Ord. de Pag.").
@@ -133,22 +133,24 @@ export class FinancialMovementPdfWriter {
 
   private drawPageHeader(): void {
     if (fs.existsSync(LOGO_PATH)) {
+      // width: 70 at the logo's real aspect ratio (751x377) renders ~35pt tall, so its bottom
+      // sits around MARGIN + 25 - the separator line must clear that before drawing the title.
       this.doc.image(LOGO_PATH, MARGIN, MARGIN - 10, { width: 70 });
     }
     this.doc
-      .moveTo(MARGIN, MARGIN + 22)
-      .lineTo(MARGIN + CONTENT_WIDTH, MARGIN + 22)
+      .moveTo(MARGIN, MARGIN + 32)
+      .lineTo(MARGIN + CONTENT_WIDTH, MARGIN + 32)
       .lineWidth(0.6)
       .strokeColor('#000000')
       .stroke();
 
-    this.doc.font('Helvetica-Bold').fontSize(10).fillColor('#000000').text(this.options.title, MARGIN, MARGIN + 28);
+    this.doc.font('Helvetica-Bold').fontSize(10).fillColor('#000000').text(this.options.title, MARGIN, MARGIN + 38);
 
     const periodo = this.options.dataInicio && this.options.dataFim
       ? `Relatório dos dias: ${formatDate(this.options.dataInicio)} a ${formatDate(this.options.dataFim)}`
       : undefined;
     this.doc.font('Helvetica').fontSize(8);
-    let y = MARGIN + 42;
+    let y = MARGIN + 52;
     if (periodo) {
       this.doc.text(periodo, MARGIN, y);
       y += 11;
