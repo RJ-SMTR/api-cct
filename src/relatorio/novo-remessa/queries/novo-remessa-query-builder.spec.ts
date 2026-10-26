@@ -218,4 +218,25 @@ describe('novo-remessa-query-builder uma ordem por agrupamento (ADR 0011, corrig
   ])('%s query (AGRUPAMENTO_GRATUIDADE) is not restricted to one ordem_pagamento per agrupamento', (_name, sql) => {
     expect(sql).not.toContain('SELECT MIN(o.id)');
   });
+
+  // Found testing against prod (real data, 2026-10-26): sibling ordens of the same lote share
+  // one detalhe_a, so da."dataVencimento" is identical for every ordem in the window - the
+  // pivot (resolveStucPaymentWindow/pivotStucGratuidadeRows, ADR 0012) needs each ordem's own
+  // day to place it in the right dataOrdemPagamento1-4 column; with the lote's shared payment
+  // date, every sibling collapses into the same column instead of spreading across the window.
+  // AGRUPAMENTO_NORMAL doesn't pivot, so it keeps da."dataVencimento" (the lote's date).
+  it.each([
+    ['stucGratuidade', buildStucGratuidadeQuery(params)],
+    ['stucGratuidadePendenciaPagaSingleDate', buildStucGratuidadePendenciaPagaSingleDateQuery(params)],
+  ])('%s query (AGRUPAMENTO_GRATUIDADE) uses each ordem\'s own day as dataReferencia, not the lote\'s dataVencimento', (_name, sql) => {
+    expect(sql).toContain('DATE(op."dataOrdem") AS "dataReferencia"');
+    expect(sql).not.toContain('da."dataVencimento" AS "dataReferencia"');
+  });
+
+  it.each([
+    ['base', buildBaseQuery(params)],
+    ['pendenciaPagaSingleDate', buildPendenciaPagaSingleDateQuery(params)],
+  ])('%s query (AGRUPAMENTO_NORMAL) keeps the lote\'s dataVencimento as dataReferencia', (_name, sql) => {
+    expect(sql).toContain('da."dataVencimento" AS "dataReferencia"');
+  });
 });
