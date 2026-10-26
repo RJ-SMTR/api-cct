@@ -116,6 +116,8 @@ describe('RelatorioNovoRemessaController', () => {
       undefined, // estorno
       undefined, // pendenciaPaga
       true, // stucGratuidade
+      undefined, // page
+      undefined, // pageSize
     );
 
     expect(novoRemessaService.findConsolidado).toHaveBeenCalledWith(

@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 
+import { format, parse } from 'date-fns';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { buildStucGratuidadeQuery, buildStucGratuidadePendenciaPagaSingleDateQuery } from './queries/novo-remessa-query-builder';
 import { IFindPublicacaoRelatorioNovoRemessa } from '../interfaces/find-publicacao-relatorio-novo-remessa.interface';
@@ -9,6 +10,7 @@ import {
   RelatorioConsolidadoNovoRemessaData,
   RelatorioConsolidadoNovoRemessaDto,
 } from '../dtos/relatorio-consolidado-novo-remessa.dto';
+import { pivotStucGratuidadeRows } from '../utils/stuc-gratuidade-pivot';
 
 
 @Injectable()
@@ -514,7 +516,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
           const consorcioPlaceholders = this.MODAIS.join(`','`);
           literal += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') AND length(op."operadoraCpfCnpj")<=11 `;
         }
-        queryStucGratuidadeVanzeiro = `SELECT nomes AS "nome", "nomeConsorcio" AS "nome2", valor AS valor FROM (${literal}) q`;
+        queryStucGratuidadeVanzeiro = `SELECT nomes AS "nome", "nomeConsorcio" AS "nome2", "dataReferencia", "dataPagamento", "cpfCnpj", valor AS valor FROM (${literal}) q`;
       }
 
       if ((filter.consorcioNome && filter.consorcioNome.length > 0) || filter.todosConsorcios) {
@@ -538,7 +540,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
             literal += ` AND NOT (op."nomeConsorcio" IN('${modaisPlaceholders}') AND length(op."operadoraCpfCnpj")<=11) `;
           }
         }
-        queryStucGratuidadeConsorcio = `SELECT nomes AS "nome", "nomeConsorcio" AS "nome2", valor AS valor FROM (${literal}) q`;
+        queryStucGratuidadeConsorcio = `SELECT nomes AS "nome", "nomeConsorcio" AS "nome2", "dataReferencia", "dataPagamento", "cpfCnpj", valor AS valor FROM (${literal}) q`;
       }
 
       if (filter.pendenciaPaga) {
@@ -559,7 +561,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
             const consorcioPlaceholders = this.MODAIS.join(`','`);
             literal += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') AND length(op."operadoraCpfCnpj")<=11 `;
           }
-          queryStucPendenciaPagaVanzeiro = `SELECT nomes AS "nome", "nomeConsorcio" AS "nome2", valor AS valor FROM (${literal}) q`;
+          queryStucPendenciaPagaVanzeiro = `SELECT nomes AS "nome", "nomeConsorcio" AS "nome2", "dataReferencia", "dataPagamento", "cpfCnpj", valor AS valor FROM (${literal}) q`;
         }
 
         if ((filter.consorcioNome && filter.consorcioNome.length > 0) || filter.todosConsorcios) {
@@ -575,7 +577,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
               literal += ` AND NOT (op."nomeConsorcio" IN('${modaisPlaceholders}') AND length(op."operadoraCpfCnpj")<=11) `;
             }
           }
-          queryStucPendenciaPagaConsorcio = `SELECT nomes AS "nome", "nomeConsorcio" AS "nome2", valor AS valor FROM (${literal}) q`;
+          queryStucPendenciaPagaConsorcio = `SELECT nomes AS "nome", "nomeConsorcio" AS "nome2", "dataReferencia", "dataPagamento", "cpfCnpj", valor AS valor FROM (${literal}) q`;
         }
       }
     }
@@ -648,6 +650,13 @@ export class RelatorioNovoRemessaConsolidadoRepository {
         count: 0,
         valor: 0,
       });
+    }
+
+    // STUC - Gratuidade (ADR 0012): cada linha deixa de ser "um favorecido somando o período"
+    // e passa a ser "uma janela de pagamento" (até 4 dias) - agregação e paginação próprias,
+    // os demais filtros continuam com o GROUP BY "nome" original abaixo, intocado.
+    if (filter.stucGratuidade) {
+      return this.findConsolidadoStucGratuidade(parts, filter);
     }
 
     query = `SELECT "nome", SUM("valor") AS "valor" FROM (${parts.join(' UNION ALL ')}) AS R WHERE  (R."nome" is not null AND R."nome2" is not null)  `;
@@ -738,6 +747,85 @@ export class RelatorioNovoRemessaConsolidadoRepository {
       data: mappedResults,
       count: totalCount,
       valor,
+    });
+  }
+
+  private async findConsolidadoStucGratuidade(
+    parts: string[],
+    filter: IFindPublicacaoRelatorioNovoRemessa,
+  ): Promise<RelatorioConsolidadoNovoRemessaDto> {
+    const query = `SELECT "nome", "cpfCnpj", "dataReferencia", "dataPagamento", SUM("valor") AS "valor" FROM (${parts.join(' UNION ALL ')}) AS R WHERE (R."nome" IS NOT NULL AND R."nome2" IS NOT NULL) GROUP BY "nome", "cpfCnpj", "dataReferencia", "dataPagamento"`;
+
+    this.logger.debug(`Executing query: ${query}`, RelatorioNovoRemessaConsolidadoRepository.name);
+
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    let rawRows: any[];
+    try {
+      rawRows = await queryRunner.query(query, []);
+    } finally {
+      await queryRunner.release();
+    }
+
+    const valorTotal = rawRows.reduce((acc: number, r: any) => acc + parseFloat(String(r.valor)), 0);
+
+    const dayRows = rawRows.map((r: any) => ({
+      nome: r.nome as string,
+      cpfCnpj: (r.cpfCnpj ?? null) as string | null,
+      valor: parseFloat(String(r.valor)),
+      // pg retorna "dataReferencia"/"dataPagamento" (colunas timestamp) como Date nativo, não
+      // como string - parse() do date-fns exige string e produz Invalid Date se receber um
+      // Date já pronto.
+      dataReferencia: r.dataReferencia instanceof Date ? r.dataReferencia : parse(r.dataReferencia, 'dd/MM/yyyy', new Date()),
+      dataPagamento: r.dataPagamento instanceof Date || r.dataPagamento == null
+        ? r.dataPagamento
+        : parse(r.dataPagamento, 'dd/MM/yyyy', new Date()),
+    }));
+
+    let pivoted = pivotStucGratuidadeRows(dayRows, (row) => `${row.nome}::${row.cpfCnpj}`);
+
+    const { valorMin, valorMax } = filter;
+    if (valorMin !== undefined && valorMax !== undefined) {
+      pivoted = pivoted.filter((row) => row.valor >= valorMin && row.valor <= valorMax);
+    } else if (valorMin !== undefined) {
+      pivoted = pivoted.filter((row) => row.valor >= valorMin);
+    } else if (valorMax !== undefined) {
+      pivoted = pivoted.filter((row) => row.valor <= valorMax);
+    }
+
+    pivoted = [...pivoted].sort((a, b) => a.nome.localeCompare(b.nome));
+
+    const hasPagination = filter.page !== undefined && filter.pageSize !== undefined;
+    const totalCount = pivoted.length;
+    const pageRows = hasPagination
+      ? pivoted.slice(
+          ((filter.page as number) - 1) * (filter.pageSize as number),
+          ((filter.page as number) - 1) * (filter.pageSize as number) + (filter.pageSize as number),
+        )
+      : pivoted;
+
+    const data = pageRows.map(
+      (row) =>
+        new RelatorioConsolidadoNovoRemessaData({
+          nomefavorecido: row.nome,
+          cpfCnpj: row.cpfCnpj,
+          valor: row.valor,
+          dataOrdemPagamento1: row.dataOrdemPagamento1 ? format(row.dataOrdemPagamento1, 'dd/MM/yyyy') : null,
+          valorOrdemPagamento1: row.valorOrdemPagamento1,
+          dataOrdemPagamento2: row.dataOrdemPagamento2 ? format(row.dataOrdemPagamento2, 'dd/MM/yyyy') : null,
+          valorOrdemPagamento2: row.valorOrdemPagamento2,
+          dataOrdemPagamento3: row.dataOrdemPagamento3 ? format(row.dataOrdemPagamento3, 'dd/MM/yyyy') : null,
+          valorOrdemPagamento3: row.valorOrdemPagamento3,
+          dataOrdemPagamento4: row.dataOrdemPagamento4 ? format(row.dataOrdemPagamento4, 'dd/MM/yyyy') : null,
+          valorOrdemPagamento4: row.valorOrdemPagamento4,
+          dataPagamento: row.dataPagamento ? format(row.dataPagamento, 'dd/MM/yyyy') : null,
+        }),
+    );
+
+    return new RelatorioConsolidadoNovoRemessaDto({
+      data,
+      count: totalCount,
+      valor: valorTotal,
     });
   }
 
