@@ -608,7 +608,7 @@ describe('RelatorioNovoRemessaFinancialMovementService', () => {
       const rows: any[] = [];
       await service.streamFinancialMovementRows(
         { dataInicio: new Date('2026-10-23'), dataFim: new Date('2026-10-24'), stucGratuidade: true } as any,
-        (row) => rows.push(row),
+        (row) => { rows.push(row); },
       );
 
       expect(rows).toHaveLength(1);

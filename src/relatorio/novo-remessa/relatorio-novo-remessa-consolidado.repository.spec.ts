@@ -316,6 +316,30 @@ describe('RelatorioNovoRemessaConsolidadoRepository', () => {
       expect(result.valor).toBe(100);
     });
 
+    it('pivots correctly when pg returns "dataReferencia" as a native Date (not a string)', async () => {
+      // Regressão: "dataReferencia" vem de uma coluna timestamp (da."dataVencimento") sem
+      // to_char no SQL deste método - node-postgres entrega isso como Date, não string. Um
+      // mock só com string mascarava esse caso e deixava passar um parse(Date, 'dd/MM/yyyy')
+      // que sempre resultava em Invalid Date (erro 400 "Invalid time value" em runtime real).
+      (mockQueryRunner.query as jest.Mock).mockResolvedValue([
+        { nome: 'Fulano', cpfCnpj: '1', dataReferencia: new Date('2026-10-23T00:00:00.000Z'), valor: '10' },
+        { nome: 'Fulano', cpfCnpj: '1', dataReferencia: new Date('2026-10-24T00:00:00.000Z'), valor: '20' },
+      ]);
+
+      const result = await repository.findConsolidado({
+        dataInicio: new Date('2026-10-23'),
+        dataFim: new Date('2026-10-24'),
+        stucGratuidade: true,
+      } as any);
+
+      const [row] = result.data as any[];
+      expect(row.dataOrdemPagamento1).toBe('23/10/2026');
+      expect(row.valorOrdemPagamento1).toBe(10);
+      expect(row.dataOrdemPagamento2).toBe('24/10/2026');
+      expect(row.valorOrdemPagamento2).toBe(20);
+      expect(row.valor).toBe(30);
+    });
+
     it('leaves the 4th pair empty for a 3-day (Tue-Thu) window', async () => {
       (mockQueryRunner.query as jest.Mock).mockResolvedValue([
         { nome: 'Fulano', cpfCnpj: '1', dataReferencia: '27/10/2026', valor: '1' },

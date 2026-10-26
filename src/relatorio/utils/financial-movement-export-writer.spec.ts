@@ -28,30 +28,29 @@ const streamOneRow = async (onRow: (row: RelatorioFinancialMovementNovoRemessaDa
   await onRow(ROW);
 };
 
-describe('writeFinancialMovementExport - STUC payment window columns (ADR 0012)', () => {
-  it('omits the 8 STUC columns from the CSV when stuc is false (regression)', async () => {
-    const { filePath } = await writeFinancialMovementExport('csv', 'test', streamOneRow, undefined, false);
-    const [header] = fs.readFileSync(filePath, 'utf8').trim().split('\n');
-    expect(header).not.toContain('dataOrdemPagamento1');
-    fs.unlinkSync(filePath);
+// O modelo de colunas "Ord. de Pag. N" (ADR 0012) é exclusivo do Relatório Consolidado - a
+// Movimentação Financeira nunca ganha colunas extras para o filtro STUC - Gratuidade, mesmo
+// quando o campo `stuc` é passado como true (mantido por compatibilidade de assinatura).
+describe('writeFinancialMovementExport - sem colunas extras de STUC (Movimentação Financeira)', () => {
+  it('never includes the STUC payment window fields in the CSV header, regardless of the stuc flag', async () => {
+    const withoutStuc = await writeFinancialMovementExport('csv', 'test', streamOneRow, undefined, false);
+    const withStuc = await writeFinancialMovementExport('csv', 'test', streamOneRow, undefined, true);
+    for (const { filePath } of [withoutStuc, withStuc]) {
+      const [header] = fs.readFileSync(filePath, 'utf8').trim().split('\n');
+      expect(header).not.toContain('dataOrdemPagamento1');
+      expect(header).toContain('valor');
+      fs.unlinkSync(filePath);
+    }
   });
 
-  it('appends the 8 STUC columns to the CSV, with comma-decimal values, when stuc is true', async () => {
-    const { filePath } = await writeFinancialMovementExport('csv', 'test', streamOneRow, undefined, true);
-    const [header, line] = fs.readFileSync(filePath, 'utf8').trim().split('\n');
-    expect(header.endsWith('dataOrdemPagamento4;valorOrdemPagamento4')).toBe(true);
-    expect(line.endsWith('25/10/2026;30;;')).toBe(true);
-    fs.unlinkSync(filePath);
-  });
-
-  it('appends the 8 STUC columns to the XLSX header when stuc is true', async () => {
+  it('writes a valid XLSX regardless of the stuc flag', async () => {
     const { filePath } = await writeFinancialMovementExport('xlsx', 'test', streamOneRow, undefined, true);
     expect(fs.existsSync(filePath)).toBe(true);
     expect(fs.statSync(filePath).size).toBeGreaterThan(0);
     fs.unlinkSync(filePath);
   });
 
-  it('appends the 8 STUC columns to the PDF table when stuc is true', async () => {
+  it('writes a valid PDF regardless of the stuc flag', async () => {
     const { filePath } = await writeFinancialMovementExport('pdf', 'test', streamOneRow, undefined, true);
     expect(fs.existsSync(filePath)).toBe(true);
     expect(fs.statSync(filePath).size).toBeGreaterThan(0);

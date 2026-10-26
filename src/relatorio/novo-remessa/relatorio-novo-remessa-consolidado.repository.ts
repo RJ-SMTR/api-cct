@@ -773,7 +773,9 @@ export class RelatorioNovoRemessaConsolidadoRepository {
       nome: r.nome as string,
       cpfCnpj: (r.cpfCnpj ?? null) as string | null,
       valor: parseFloat(String(r.valor)),
-      dataReferencia: parse(r.dataReferencia, 'dd/MM/yyyy', new Date()),
+      // pg retorna "dataReferencia" (coluna timestamp) como Date nativo, não como string -
+      // parse() do date-fns exige string e produz Invalid Date se receber um Date já pronto.
+      dataReferencia: r.dataReferencia instanceof Date ? r.dataReferencia : parse(r.dataReferencia, 'dd/MM/yyyy', new Date()),
     }));
 
     let pivoted = pivotStucGratuidadeRows(dayRows, (row) => `${row.nome}::${row.cpfCnpj}`);
