@@ -266,6 +266,62 @@ export const buildGuardadorPendenciaPagaSingleDateQuery = (params: GuardadorBase
       AND (oph."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph."motivoStatusRemessa" IS NULL)
       ${favorecidoClause}
       ${params.desativados ? 'AND pu.bloqueado = true' : ''}
+
+    UNION ALL
+
+    -- PASSO 0 children: paid (status 5) pending orders that were never sent in a file of
+    -- their own, so no history row has a detalhe_a and the INNER JOIN above drops them. The
+    -- value is the order's valorTotal and the date is the parent's payment date; only the
+    -- latest history row counts (each child has one per attempt).
+    SELECT DISTINCT
+      oph."dataReferencia"::timestamp AS "dataReferencia",
+      opa.id,
+      pu."fullName" AS nomes,
+      COALESCE(pu.email, '') AS email,
+      pu."bankCode" AS "codBanco",
+      COALESCE(bc.name, '') AS "nomeBanco",
+      pu."cpfCnpj" AS "cpfCnpj",
+      ${GUARDADOR_CONSORCIO_CASE} AS "nomeConsorcio",
+      ROUND(opa."valorTotal"::numeric, 2) AS valor,
+      op_pai."dataPagamento" AS "dataPagamento",
+      'Pendencia Paga' AS status,
+      NULL::text AS "codigoErro"
+    FROM ordem_pagamento_guardador opg
+    INNER JOIN ordem_pagamento_agrupado opa
+      ON opg."ordemPagamentoAgrupadoId" = opa.id
+    INNER JOIN ordem_pagamento_agrupado op_pai
+      ON op_pai.id = opa."ordemPagamentoAgrupadoId"
+    INNER JOIN ordem_pagamento_agrupado_historico oph
+      ON oph.id = (
+        SELECT MAX(oph_mais_recente.id)
+        FROM ordem_pagamento_agrupado_historico oph_mais_recente
+        WHERE oph_mais_recente."ordemPagamentoAgrupadoId" = opa.id
+      )
+    INNER JOIN public."user" pu
+      ON pu.id = opg."userId"
+    LEFT JOIN bank bc
+      ON bc.code = pu."bankCode"
+    ${GUARDADOR_ASSOCIACAO_JOIN}
+    WHERE
+      ($3::integer[] IS NULL OR pu.id = ANY($3))
+      AND ($4::text[] IS NULL OR TRUE)
+      AND ${buildConsorcioFilter(consorcioParam, params.todosConsorcios)}
+      AND ${GUARDADOR_OPA_WITHOUT_CHILDREN}
+      AND oph."statusRemessa" = 5
+      AND op_pai."dataPagamento"::date BETWEEN $1::date AND $2::date
+      AND (oph."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph."motivoStatusRemessa" IS NULL)
+      -- Correlated on purpose: this only runs for the few children whose parent was paid in the
+      -- window, driven by the detalhe_a unique index. An uncorrelated NOT IN would have to hash
+      -- every history row (~330k), which does not fit in work_mem and is not hashed.
+      AND NOT EXISTS (
+        SELECT 1
+        FROM ordem_pagamento_agrupado_historico oph_qualquer
+        INNER JOIN detalhe_a da_qualquer
+          ON da_qualquer."ordemPagamentoAgrupadoHistoricoId" = oph_qualquer.id
+        WHERE oph_qualquer."ordemPagamentoAgrupadoId" = opa.id
+      )
+      ${favorecidoClause}
+      ${params.desativados ? 'AND pu.bloqueado = true' : ''}
   )`.trim();
 };
 
