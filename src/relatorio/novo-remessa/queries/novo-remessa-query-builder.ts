@@ -98,6 +98,15 @@ type AgrupamentoSource = {
    * tem seu próprio valorGratuidade, genuinamente por ordem (ADR 0007).
    */
   umaOrdemPorAgrupamento?: boolean;
+  /**
+   * Override de "dataReferencia" para buildPendenciaPagamentoTemplate (Estorno/Rejeitado).
+   * Por padrão esse template usa a data de pagamento da tentativa (op_pai/opa."dataPagamento")
+   * - undefined mantém esse comportamento (AGRUPAMENTO_NORMAL). AGRUPAMENTO_GRATUIDADE precisa
+   * do dia real de cada ordem (da."dataVencimento") para o pivot de janela de pagamento (ADR
+   * 0012/pivotStucGratuidadeRows) conseguir separar os dias da janela - usar a data de pagamento
+   * aqui colapsaria os dias distintos de uma mesma janela em uma única linha.
+   */
+  dataReferenciaPendenciaPagamento?: string;
 };
 
 const AGRUPAMENTO_NORMAL: AgrupamentoSource = {
@@ -110,6 +119,7 @@ const AGRUPAMENTO_GRATUIDADE: AgrupamentoSource = {
   agrupamentoJoinColumn: 'ordemPagamentoAgrupadoGratuidadeId',
   valorSelect: 'op."valorGratuidade" AS valor',
   extraWhere: 'op."valorGratuidade" IS NOT NULL AND op."valorGratuidade" <> 0',
+  dataReferenciaPendenciaPagamento: 'da."dataVencimento"',
 };
 
 const umaOrdemPorAgrupamentoFilter = (source: AgrupamentoSource) =>
@@ -252,7 +262,7 @@ const buildPendenciaPagamentoTemplate = (
 
   return `
     SELECT
-      op_pai."dataPagamento" AS "dataReferencia",
+      ${source.dataReferenciaPendenciaPagamento ?? 'op_pai."dataPagamento"'} AS "dataReferencia",
       opa.id,
       pu."fullName" AS nomes,
       pu.email,
@@ -303,7 +313,7 @@ const buildPendenciaPagamentoTemplate = (
     -- opa.id, e duas ordens de pagamento distintas do mesmo agrupamento podem coincidir em
     -- todos os outros campos - DISTINCT as colapsaria em uma só, subcontando o total.
     SELECT
-      opa."dataPagamento" AS "dataReferencia",
+      ${source.dataReferenciaPendenciaPagamento ?? 'opa."dataPagamento"'} AS "dataReferencia",
       opa.id,
       pu."fullName" AS nomes,
       pu.email,

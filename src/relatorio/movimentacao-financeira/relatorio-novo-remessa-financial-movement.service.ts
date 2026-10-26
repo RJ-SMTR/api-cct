@@ -193,8 +193,24 @@ export class RelatorioNovoRemessaFinancialMovementService {
   public async streamFinancialMovementRows(filter: IFindPublicacaoRelatorioNovoFinancialMovement, onRow: (row: RelatorioFinancialMovementNovoRemessaData) => Promise<void> | void) {
     const safeFilter = this.normalizeFilter(filter);
     if (safeFilter.stucGratuidade) {
-      const rows = await this.findStucGratuidadePivotedRows(safeFilter);
-      for (const row of rows) await onRow(new RelatorioFinancialMovementNovoRemessaData(row));
+      // A Movimentação Financeira não ganha colunas extras "Ord. de Pag. N" (ADR 0012, exclusivo
+      // do Consolidado), mas cada dia da janela ainda precisa virar sua própria linha no export -
+      // igual já acontece na tela (StucGratuidadeTable.js, explodeStucGratuidadeRows) e no export
+      // do Consolidado. "Data Referência"/"Valor" passam a ser os do dia; "Data Pagamento" continua
+      // sendo o da janela (repetido a cada linha).
+      const windows = await this.findStucGratuidadePivotedRows(safeFilter);
+      for (const windowRow of windows) {
+        for (const n of [1, 2, 3, 4] as const) {
+          const dataOrdem = (windowRow as any)[`dataOrdemPagamento${n}`];
+          const valorOrdem = (windowRow as any)[`valorOrdemPagamento${n}`];
+          if (!dataOrdem && valorOrdem == null) continue;
+          // Spread puro (sem passar de novo pelo construtor): windowRow já é uma instância com
+          // "descricaoErro" calculado a partir de codigoErro (que não sobrevive na instância) -
+          // reconstruir via `new RelatorioFinancialMovementNovoRemessaData({...})` recalcularia
+          // sem o código original e trocaria a descrição real por "Motivo não informado".
+          await onRow({ ...windowRow, dataReferencia: dataOrdem, valor: valorOrdem });
+        }
+      }
       return;
     }
     let cursor: CursorValues = {
