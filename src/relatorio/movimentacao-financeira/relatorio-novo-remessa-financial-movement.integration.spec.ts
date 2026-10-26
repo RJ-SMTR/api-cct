@@ -303,6 +303,121 @@ suite('RelatorioNovoRemessaFinancialMovementService (PostgreSQL)', () => {
     expect(otherDay.data).toEqual([]);
   });
 
+  // Edge cases around the PASSO 0 children: every other filter must treat them like any other
+  // paid-pending row, and the date bounds must be exact.
+  const passo0Day = (extra: Record<string, unknown> = {}) => ({
+    dataInicio: new Date('2099-05-10T00:00:00.000Z'),
+    dataFim: new Date('2099-05-10T00:00:00.000Z'),
+    pendenciaPaga: true,
+    page: 1,
+    pageSize: 50,
+    ...extra,
+  });
+  const valores = (page: { data?: Array<{ valor: string }> }) => page.data?.map((row) => row.valor);
+
+  it('applies the valor range to PASSO 0 children', async () => {
+    await seedPasso0Family();
+
+    expect(valores(await service.findFinancialMovementPage(passo0Day({ valorMin: 100 })))).toEqual(['179.20']);
+    expect(valores(await service.findFinancialMovementPage(passo0Day({ valorMax: 100 })))).toEqual(['54.60']);
+    expect(valores(await service.findFinancialMovementPage(passo0Day({ valorMin: 60, valorMax: 100 })))).toEqual([]);
+  });
+
+  it('applies the consorcio filter to PASSO 0 children', async () => {
+    await seedPasso0Family();
+
+    expect(valores(await service.findFinancialMovementPage(passo0Day({ consorcioNome: ['CONSORCIO TESTE'] })))).toEqual(['54.60', '179.20']);
+    expect(valores(await service.findFinancialMovementPage(passo0Day({ consorcioNome: ['OUTRO CONSORCIO'] })))).toEqual([]);
+  });
+
+  it('keeps PASSO 0 children out when paid-pending is not selected', async () => {
+    await seedPasso0Family();
+
+    const page = await service.findFinancialMovementPage(passo0Day({ pendenciaPaga: false, pago: true }));
+
+    expect(page.data?.filter((row) => row.status === 'Pendencia Paga')).toEqual([]);
+  });
+
+  it('matches the parent payment date exactly, one day before and after included', async () => {
+    await seedPasso0Family();
+    const day = (iso: string, end = iso) => passo0Day({ dataInicio: new Date(`${iso}T00:00:00.000Z`), dataFim: new Date(`${end}T00:00:00.000Z`) });
+
+    expect(valores(await service.findFinancialMovementPage(day('2099-05-09')))).toEqual([]);
+    expect(valores(await service.findFinancialMovementPage(day('2099-05-11')))).toEqual([]);
+    expect(valores(await service.findFinancialMovementPage(day('2099-05-09', '2099-05-11')))).toEqual(['54.60', '179.20']);
+  });
+
+  it('walks PASSO 0 children across pages with the keyset cursor without losing or repeating one', async () => {
+    await seedPasso0Family();
+
+    const first = await service.findFinancialMovementPage(passo0Day({ pageSize: 1 }));
+    const cursor = first.nextCursor as Record<string, string>;
+    const second = await service.findFinancialMovementPage(
+      passo0Day({
+        pageSize: 1,
+        cursorDataReferencia: cursor.dataReferencia,
+        cursorNome: cursor.nomes,
+        cursorStatus: cursor.status,
+        cursorCpfCnpj: cursor.cpfCnpj,
+        cursorNomeConsorcio: cursor.nomeConsorcio,
+        cursorCodBanco: cursor.codBanco,
+        cursorDataPagamento: cursor.dataPagamento,
+        cursorEmail: cursor.email,
+      }),
+    );
+
+    expect([...(valores(first) ?? []), ...(valores(second) ?? [])]).toEqual(['54.60', '179.20']);
+  });
+
+  it('streams the same PASSO 0 rows the page shows (export path)', async () => {
+    await seedPasso0Family();
+
+    const streamed: string[] = [];
+    await service.streamFinancialMovementRows(passo0Day(), (row) => {
+      streamed.push(row.valor);
+    });
+
+    expect(streamed).toEqual(['54.60', '179.20']);
+  });
+
+  it('ignores a paid child that has neither a detalhe_a nor an ordem_pagamento', async () => {
+    await seedPasso0Family();
+    await dataSource.query(
+      `INSERT INTO ordem_pagamento_agrupado (id, "dataPagamento", "valorTotal", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt")
+       VALUES ($1, DATE '2099-05-01', 0, $2, now(), now())`,
+      [BASE_ID + 19, BASE_ID + 12],
+    );
+    await dataSource.query(
+      `INSERT INTO ordem_pagamento_agrupado_historico (
+        id, "ordemPagamentoAgrupadoId", "dataReferencia", "userBankCode",
+        "userBankAgency", "userBankAccount", "userBankAccountDigit", "statusRemessa", "motivoStatusRemessa"
+      ) VALUES ($1, $2, DATE '2099-05-03', '104', '0001', '99990002', '1', 5, NULL)`,
+      [BASE_ID + 28, BASE_ID + 19],
+    );
+
+    const page = await service.findFinancialMovementPage(passo0Day());
+
+    expect(valores(page)).toEqual(['54.60', '179.20']);
+    expect(page.count).toBe(2);
+  });
+
+  // Two old lines with exactly the child's valorTotal: the most recent line is kept, so the
+  // result is the same on every run.
+  it('keeps the most recent line when two old lines match the child valorTotal', async () => {
+    await seedChildWithOldAttempts();
+    await dataSource.query(`UPDATE detalhe_a SET "valorLancamento" = 19.20, "valorRealEfetivado" = 19.20 WHERE id = $1`, [BASE_ID + 32]);
+
+    const page = await service.findFinancialMovementPage({
+      dataInicio: new Date('2099-06-08T00:00:00.000Z'),
+      dataFim: new Date('2099-06-08T00:00:00.000Z'),
+      pendenciaPaga: true,
+      page: 1,
+      pageSize: 50,
+    });
+
+    expect(page.data?.map((row) => [row.dataReferencia, row.valor])).toEqual([['07/05/2099', '19.20']]);
+  });
+
   it('applies the desativados filter to both paid-pending queries', async () => {
     await seedPasso0Family();
 
