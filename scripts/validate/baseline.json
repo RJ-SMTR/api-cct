@@ -29,7 +29,6 @@
     "src/cnab/novo-remessa/test/build-retorno-cnab.spec.ts",
     "src/cnab/repository/pagamento/detalhe-a.repository.retorno.spec.ts",
     "src/cnab/service/extrato/extrato-dashboard.utils.spec.ts",
-    "src/cron-jobs/cron-jobs-pendentes.spec.ts",
     "src/mail-history/pipes/mail-history-validation.pipe.spec.ts",
     "src/mail/mail.service.spec.ts",
     "src/relatorio/consolidado/relatorio-guardador-consolidado.repository.spec.ts",
