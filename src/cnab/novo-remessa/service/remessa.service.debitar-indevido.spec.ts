@@ -1,6 +1,6 @@
 import { RemessaService } from './remessa.service';
 
-/** Desconto do pagamento indevido no valor da remessa: teto de X% do saldo devedor, nunca mais que o pagamento. */
+/** Desconto do pagamento indevido no valor da remessa: teto de R$ por indevido (padrão 100), nunca mais que o saldo nem que o pagamento. */
 describe('RemessaService.debitarPagamentoIndevido', () => {
   let service: RemessaService;
   let salvos: any[];
@@ -16,38 +16,32 @@ describe('RemessaService.debitarPagamentoIndevido', () => {
     );
   });
 
-  it('100% (padrão): saldo maior que o pagamento -> paga 0 e o saldo cai pelo valor do pagamento', async () => {
-    const p = indevido(300);
-    await expect(service.debitarPagamentoIndevido(p, 120)).resolves.toBe(0);
-    expect(p.saldoDevedor).toBe(180);
+  it('padrão R$ 100: saldo maior que o teto desconta 100 do pagamento e o saldo cai 100', async () => {
+    const p = indevido(639.8);
+    await expect(service.debitarPagamentoIndevido(p, 238)).resolves.toBe(138);
+    expect(p.saldoDevedor).toBe(539.8);
     expect(salvos).toHaveLength(1);
   });
 
-  it('100%: saldo menor que o pagamento -> quita o saldo e paga a diferença', async () => {
-    const p = indevido(50);
-    await expect(service.debitarPagamentoIndevido(p, 120)).resolves.toBe(70);
+  it('pagamento menor que o teto: desconta o pagamento inteiro e paga 0', async () => {
+    const p = indevido(300);
+    await expect(service.debitarPagamentoIndevido(p, 60)).resolves.toBe(0);
+    expect(p.saldoDevedor).toBe(240);
+  });
+
+  it('saldo menor que o teto: desconta só o saldo, quita e paga o resto', async () => {
+    const p = indevido(40);
+    await expect(service.debitarPagamentoIndevido(p, 120)).resolves.toBe(80);
     expect(p.saldoDevedor).toBe(0);
   });
 
-  it('100%: saldo igual ao pagamento -> quita e paga 0', async () => {
-    const p = indevido(120);
-    await expect(service.debitarPagamentoIndevido(p, 120)).resolves.toBe(0);
-    expect(p.saldoDevedor).toBe(0);
+  it('valor máximo informado: R$ 250 por indevido', async () => {
+    const p = indevido(600);
+    await expect(service.debitarPagamentoIndevido(p, 400, 250)).resolves.toBe(150);
+    expect(p.saldoDevedor).toBe(350);
   });
 
-  it('50% do saldo: desconta no máximo metade do saldo devedor e paga o resto', async () => {
-    const p = indevido(300);
-    await expect(service.debitarPagamentoIndevido(p, 200, 50)).resolves.toBe(50); // teto 150 -> paga 200-150
-    expect(p.saldoDevedor).toBe(150);
-  });
-
-  it('percentual alto não desconta mais que o pagamento', async () => {
-    const p = indevido(300);
-    await expect(service.debitarPagamentoIndevido(p, 100, 80)).resolves.toBe(0); // teto 240, mas o pagamento é 100
-    expect(p.saldoDevedor).toBe(200);
-  });
-
-  it('percentual 0 não desconta nem grava nada', async () => {
+  it('valor máximo 0 não desconta nem grava nada', async () => {
     const p = indevido(300);
     await expect(service.debitarPagamentoIndevido(p, 100, 0)).resolves.toBe(100);
     expect(p.saldoDevedor).toBe(300);
@@ -56,7 +50,7 @@ describe('RemessaService.debitarPagamentoIndevido', () => {
 
   it('arredonda em centavos', async () => {
     const p = indevido(100.55);
-    await expect(service.debitarPagamentoIndevido(p, 33.33, 33.33)).resolves.toBe(0); // teto 33.51 > 33.33
-    expect(p.saldoDevedor).toBe(67.22);
+    await expect(service.debitarPagamentoIndevido(p, 33.33, 20.1)).resolves.toBe(13.23);
+    expect(p.saldoDevedor).toBe(80.45);
   });
 });

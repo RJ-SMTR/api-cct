@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsBoolean, IsNumber, IsOptional, Max, Min } from 'class-validator';
+import { IsBoolean, IsNumber, IsOptional, Min } from 'class-validator';
 import { PagamentoConsorcioPrepararDto } from './pagamento-consorcio-preparar.dto';
 
 export class PagamentoGuardadorPrepararDto extends PagamentoConsorcioPrepararDto {
@@ -9,11 +9,10 @@ export class PagamentoGuardadorPrepararDto extends PagamentoConsorcioPrepararDto
   @IsBoolean()
   descontarIndevido?: boolean;
 
-  /** Máximo, em % do saldo devedor de cada indevido, que pode ser descontado (padrão 100 = o saldo inteiro). */
+  /** Máximo, em R$, que pode ser descontado de cada indevido nesta remessa (padrão 100). */
   @ApiProperty({ required: false, default: 100 })
   @IsOptional()
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0.01)
-  @Max(100)
-  percentualDescontoIndevido?: number;
+  valorDescontoIndevido?: number;
 }

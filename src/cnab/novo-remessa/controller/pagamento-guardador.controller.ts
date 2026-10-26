@@ -8,6 +8,7 @@ import { ParseNumberPipe } from 'src/utils/pipes/parse-number.pipe';
 import { IRequest } from 'src/utils/interfaces/request.interface';
 import { parseFimDoDia, parseInicioDoDia } from 'src/utils/date-utils';
 import { PagamentoGuardadorService } from '../service/pagamento-guardador.service';
+import { VALOR_MAXIMO_DESCONTO_INDEVIDO_PADRAO } from '../service/remessa.service';
 import { PagamentoGuardadorPrepararDto } from '../dto/pagamento-guardador-preparar.dto';
 import { PagamentoConsorcioValorBiDto } from '../dto/pagamento-consorcio-valor-bi.dto';
 import { PagamentoRenovarNsaDto } from '../dto/pagamento-renovar-nsa.dto';
@@ -28,7 +29,7 @@ export class PagamentoGuardadorController {
   @HttpCode(HttpStatus.OK)
   async preparar(@Body() dto: PagamentoGuardadorPrepararDto) {
     const opcoesIndevido =
-      dto.descontarIndevido === undefined ? undefined : { descontar: dto.descontarIndevido, percentual: dto.percentualDescontoIndevido ?? 100 };
+      dto.descontarIndevido === undefined ? undefined : { descontar: dto.descontarIndevido, valorMaximo: dto.valorDescontoIndevido ?? VALOR_MAXIMO_DESCONTO_INDEVIDO_PADRAO };
     return this.pagamentoGuardadorService.prepararPagamentos(parseInicioDoDia(dto.dataInicio), parseFimDoDia(dto.dataFim), opcoesIndevido);
   }
 

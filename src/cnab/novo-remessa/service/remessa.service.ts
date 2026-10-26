@@ -37,13 +37,14 @@ import { PagamentoIndevidoDTO } from "src/pagamento_indevido/dto/pagamento-indev
 export const DESCONTAR_PAGAMENTO_INDEVIDO = false;
 
 /**
- * Opções do desconto de pagamentos indevidos na preparação da remessa (hoje só guardadores). `percentual` é o máximo, em % do saldo
- * devedor de cada indevido, que pode ser descontado do pagamento (100 = o saldo inteiro, como era). Sem opções vale
- * DESCONTAR_PAGAMENTO_INDEVIDO e 100%.
+ * Opções do desconto de pagamentos indevidos na preparação da remessa (hoje só guardadores). `valorMaximo` é o máximo, em R$, que pode
+ * ser descontado de cada indevido nesta remessa (padrão R$ 100,00). Sem opções vale DESCONTAR_PAGAMENTO_INDEVIDO e R$ 100,00.
  */
+export const VALOR_MAXIMO_DESCONTO_INDEVIDO_PADRAO = 100;
+
 export interface OpcoesDescontoIndevido {
   descontar: boolean;
-  percentual?: number;
+  valorMaximo?: number;
 }
 
 @Injectable()
@@ -66,7 +67,7 @@ export class RemessaService {
   //PREPARA DADOS AGRUPADOS SALVANDO NAS TABELAS CNAB
   public async prepararRemessa(dataInicio: Date, dataFim: Date, dataPgto?: Date, consorcio?: string[], pagamentoUnico?: boolean, isPendente?: boolean, idsFavorecidos?: string[], gratuidade = false, headerNameOverride?: HeaderName, opcoesIndevido?: OpcoesDescontoIndevido) {
     const descontarIndevido = opcoesIndevido?.descontar ?? DESCONTAR_PAGAMENTO_INDEVIDO;
-    const percentualIndevido = opcoesIndevido?.percentual ?? 100;
+    const valorMaximoIndevido = opcoesIndevido?.valorMaximo ?? VALOR_MAXIMO_DESCONTO_INDEVIDO_PADRAO;
     let ordens;
     if (gratuidade) {
       ordens = await this.ordemPagamentoAgrupadoService.getOrdensGratuidade(dataInicio, dataFim, consorcio, dataPgto);
@@ -220,21 +221,21 @@ export class RemessaService {
 
           if (headerLote) {
             if (headerLote.formaLancamento === Cnab104FormaLancamento.TED) {
-              detB = await this.gerarDetalheAB(headerLote, opa, nsrTed, indevido ? indevido[0] : indevido, pagamentoUnico, numeroDocumentoRef, percentualIndevido);
+              detB = await this.gerarDetalheAB(headerLote, opa, nsrTed, indevido ? indevido[0] : indevido, pagamentoUnico, numeroDocumentoRef, valorMaximoIndevido);
               if (detB !== null) {
                 await this.atualizaStatusRemessa(ordens[i], StatusRemessaEnum.PreparadoParaEnvio);
                 this.logger.debug(`Remessa preparado para: ${user.fullName} - TED`);
                 nsrTed = detB.nsr + 1;
               }
             } else if (headerLote.formaLancamento === Cnab104FormaLancamento.CreditoContaPoupanca) {
-              detB = await this.gerarDetalheAB(headerLote, opa, nsrPoupanca, indevido ? indevido[0] : indevido, pagamentoUnico, numeroDocumentoRef, percentualIndevido);
+              detB = await this.gerarDetalheAB(headerLote, opa, nsrPoupanca, indevido ? indevido[0] : indevido, pagamentoUnico, numeroDocumentoRef, valorMaximoIndevido);
               if (detB !== null) {
                 await this.atualizaStatusRemessa(ordens[i], StatusRemessaEnum.PreparadoParaEnvio);
                 this.logger.debug(`Remessa preparado para: ${user.fullName} - Poupança`);
                 nsrPoupanca = detB.nsr + 1;
               }
             } else {
-              detB = await this.gerarDetalheAB(headerLote, opa, nsrCC, indevido ? indevido[0] : indevido, pagamentoUnico, numeroDocumentoRef, percentualIndevido);
+              detB = await this.gerarDetalheAB(headerLote, opa, nsrCC, indevido ? indevido[0] : indevido, pagamentoUnico, numeroDocumentoRef, valorMaximoIndevido);
               if (detB !== null) {
                 await this.atualizaStatusRemessa(ordens[i], StatusRemessaEnum.PreparadoParaEnvio);
                 this.logger.debug(`Remessa preparado para: ${user.fullName} - CC`);
@@ -417,7 +418,7 @@ export class RemessaService {
   }
 
   private async gerarDetalheAB(headerLote: HeaderLote, ordem: OrdemPagamentoAgrupado, nsr: number,
-    indevido?: PagamentoIndevidoDTO, pagamentoUnico?: boolean, numeroDocumentoRef?: { value: number }, percentualIndevido = 100) {
+    indevido?: PagamentoIndevidoDTO, pagamentoUnico?: boolean, numeroDocumentoRef?: { value: number }, valorMaximoIndevido = VALOR_MAXIMO_DESCONTO_INDEVIDO_PADRAO) {
     let ultimoHistorico;
     if (pagamentoUnico) {
       ultimoHistorico = await this.ordemPagamentoAgrupadoService.getHistoricoUnico(ordem.id);
@@ -441,7 +442,7 @@ export class RemessaService {
     }
 
     if (indevido && indevido.saldoDevedor > 0) {
-      const valor = await this.debitarPagamentoIndevido(indevido, detalheADTO.valorLancamento, percentualIndevido);
+      const valor = await this.debitarPagamentoIndevido(indevido, detalheADTO.valorLancamento, valorMaximoIndevido);
       detalheADTO.valorLancamento = valor;
       detalheADTO.valorRealEfetivado = valor;
     }
@@ -490,14 +491,13 @@ export class RemessaService {
   }
 
   /**
-   * Desconta do pagamento (`valor`) o indevido: no máximo `percentual`% do saldo devedor (100 = o saldo inteiro) e nunca mais que o
+   * Desconta do pagamento (`valor`) o indevido: no máximo `valorMaximo` (R$) por indevido, nunca mais que o saldo devedor nem que o
    * próprio pagamento. Grava o novo saldo devedor e devolve o que sobra a pagar (valor - desconto).
    */
-  async debitarPagamentoIndevido(pagamentoIndevido: PagamentoIndevidoDTO, valor: any, percentual = 100) {
+  async debitarPagamentoIndevido(pagamentoIndevido: PagamentoIndevidoDTO, valor: any, valorMaximo = VALOR_MAXIMO_DESCONTO_INDEVIDO_PADRAO) {
     const valorPagamento = Number(Number(valor).toFixed(2));
-    const fator = Math.min(Math.max(Number(percentual) || 0, 0), 100) / 100;
-    const teto = Number((pagamentoIndevido.saldoDevedor * fator).toFixed(2));
-    const desconto = Math.min(valorPagamento, teto);
+    const teto = Math.min(pagamentoIndevido.saldoDevedor, Math.max(Number(valorMaximo) || 0, 0));
+    const desconto = Number(Math.min(valorPagamento, teto).toFixed(2));
     const aPagar = Number((valorPagamento - desconto).toFixed(2));
 
     if (desconto > 0) {
