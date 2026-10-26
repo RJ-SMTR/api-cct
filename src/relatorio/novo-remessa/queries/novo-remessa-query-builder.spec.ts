@@ -78,6 +78,32 @@ describe('novo-remessa-query-builder codigoErro', () => {
     expect(sql).toContain("IN ('Rejeitado')");
   });
 
+  // ADR 0012/pivotStucGratuidadeRows precisa do dia real de cada ordem para separar os dias
+  // de uma janela de pagamento em colunas distintas. Usar a data de pagamento da tentativa
+  // (igual para todos os dias da janela) colapsava os dias em uma única coluna/linha.
+  it('stucGratuidade pendenciaPagamentoSingleDate query uses dataVencimento (not dataPagamento) as dataReferencia', () => {
+    const sql = buildStucGratuidadePendenciaPagamentoSingleDateQuery({
+      ...params,
+      parentErrorStatuses: ['Rejeitado'],
+    });
+
+    expect(sql).toContain('da."dataVencimento" AS "dataReferencia"');
+    expect(sql).not.toContain('op_pai."dataPagamento" AS "dataReferencia"');
+    expect(sql).not.toContain('opa."dataPagamento" AS "dataReferencia"');
+    // A data de pagamento continua disponível na própria coluna "dataPagamento".
+    expect(sql).toContain('opa."dataPagamento" AS "dataPagamento"');
+  });
+
+  it('pendenciaPagamentoSingleDate (normal) keeps dataPagamento as dataReferencia', () => {
+    const sql = buildPendenciaPagamentoSingleDateQuery({
+      ...params,
+      parentErrorStatuses: ['Rejeitado'],
+    });
+
+    expect(sql).toContain('op_pai."dataPagamento" AS "dataReferencia"');
+    expect(sql).toContain('opa."dataPagamento" AS "dataReferencia"');
+  });
+
   it('selects a single-day rejected family through the parent attempt and latest history', () => {
     const sql = buildPendenciaPagamentoSingleDateQuery({
       ...params,

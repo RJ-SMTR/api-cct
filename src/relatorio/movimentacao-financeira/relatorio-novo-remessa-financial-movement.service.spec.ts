@@ -588,7 +588,7 @@ describe('RelatorioNovoRemessaFinancialMovementService', () => {
       expect(allCpfCnpj).toEqual(['1', '2', '3']);
     });
 
-    it('streams the same pivoted rows that findFinancialMovementPage returns', async () => {
+    it('explodes each day of the window into its own exported row, like the screen and the Consolidado export do', async () => {
       dataSource.query.mockResolvedValueOnce([
         { ...DAY_ROW, dataReferencia: '23/10/2026', valor: 10 },
         { ...DAY_ROW, dataReferencia: '24/10/2026', valor: 20 },
@@ -600,10 +600,13 @@ describe('RelatorioNovoRemessaFinancialMovementService', () => {
         (row) => { rows.push(row); },
       );
 
-      expect(rows).toHaveLength(1);
-      expect(rows[0].valorOrdemPagamento1).toBe(10);
-      expect(rows[0].valorOrdemPagamento2).toBe(20);
-      expect(rows[0].valor).toBe(30);
+      expect(rows).toHaveLength(2);
+      // "Data Referência"/"Valor" exportados são os do dia; "Data Pagamento" (a janela) se repete.
+      expect(rows[0].dataReferencia).toBe('23/10/2026');
+      expect(rows[0].valor).toBe(10);
+      expect(rows[1].dataReferencia).toBe('24/10/2026');
+      expect(rows[1].valor).toBe(20);
+      expect(rows[0].dataPagamento).toBe(rows[1].dataPagamento);
     });
 
     it('filters by Valor Lançamento (the pivoted window total), not by a single day value', async () => {
