@@ -229,6 +229,80 @@ suite('RelatorioNovoRemessaFinancialMovementService (PostgreSQL)', () => {
     expect(summary.valorPendenciaPaga).toBeCloseTo(233.8, 2);
   });
 
+  // Real case: 08/06/2026, child OPA 294935 (valorTotal 1.920,00) kept the detalhe_a lines of two
+  // old attempts (1.920,00 and 4.497,60). The report summed both, R$ 4.497,60 above the extrato.
+  async function seedChildWithOldAttempts(): Promise<{ parent: number }> {
+    const parent = BASE_ID + 17;
+    const child = BASE_ID + 18;
+
+    await dataSource.query(
+      `INSERT INTO ordem_pagamento_agrupado (
+        id, "dataPagamento", "valorTotal", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt"
+      ) VALUES
+        ($1, DATE '2099-06-08', 19.20, NULL, now(), now()),
+        ($2, DATE '2099-03-06', 19.20, $1, now(), now())`,
+      [parent, child],
+    );
+
+    await dataSource.query(
+      `INSERT INTO ordem_pagamento (
+        id, "dataOrdem", valor, "bqUpdatedAt", "userId", "nomeConsorcio", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt"
+      ) VALUES ($1, DATE '2099-03-01', 19.20, now(), $2, 'CONSORCIO TESTE', $3, now(), now())`,
+      [BASE_ID + 47, USER_ID, child],
+    );
+
+    await dataSource.query(
+      `INSERT INTO ordem_pagamento_agrupado_historico (
+        id, "ordemPagamentoAgrupadoId", "dataReferencia", "userBankCode",
+        "userBankAgency", "userBankAccount", "userBankAccountDigit", "statusRemessa", "motivoStatusRemessa"
+      ) VALUES
+        ($1, $3, DATE '2099-03-07', '104', '0001', '99990002', '1', 5, '00'),
+        ($2, $3, DATE '2099-05-07', '104', '0001', '99990002', '1', 5, '00')`,
+      [BASE_ID + 28, BASE_ID + 29, child],
+    );
+
+    await dataSource.query(
+      `INSERT INTO detalhe_a (
+        id, "ordemPagamentoAgrupadoHistoricoId", "numeroDocumentoEmpresa",
+        "dataVencimento", "valorLancamento", "valorRealEfetivado", nsr,
+        "createdAt", "updatedAt"
+      ) OVERRIDING SYSTEM VALUE VALUES
+        ($1, $3, 995002, DATE '2099-03-06', 19.20, 19.20, 995002, now(), now()),
+        ($2, $4, 995003, DATE '2099-05-07', 44.97, 44.97, 995003, now(), now())`,
+      [BASE_ID + 31, BASE_ID + 32, BASE_ID + 28, BASE_ID + 29],
+    );
+
+    return { parent };
+  }
+
+  it('counts a child with several old attempt lines once, at its own value', async () => {
+    await seedChildWithOldAttempts();
+
+    const filter = {
+      dataInicio: new Date('2099-06-08T00:00:00.000Z'),
+      dataFim: new Date('2099-06-08T00:00:00.000Z'),
+      pendenciaPaga: true,
+      page: 1,
+      pageSize: 50,
+    };
+
+    const [page, summary] = await Promise.all([service.findFinancialMovementPage(filter), service.findFinancialMovementSummary(filter)]);
+
+    expect(page.data?.map((row) => [row.dataReferencia, row.valor, row.dataPagamento, row.status])).toEqual([
+      ['06/03/2099', '19.20', '08/06/2099', 'Pendencia Paga'],
+    ]);
+    expect(summary.count).toBe(1);
+    expect(summary.valorPendenciaPaga).toBeCloseTo(19.2, 2);
+
+    // The day of the other attempt is not the payment day: the child must not show up there.
+    const otherDay = await service.findFinancialMovementPage({
+      ...filter,
+      dataInicio: new Date('2099-05-07T00:00:00.000Z'),
+      dataFim: new Date('2099-05-07T00:00:00.000Z'),
+    });
+    expect(otherDay.data).toEqual([]);
+  });
+
   it('applies the desativados filter to both paid-pending queries', async () => {
     await seedPasso0Family();
 

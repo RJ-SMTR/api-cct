@@ -107,12 +107,19 @@ type AgrupamentoSource = {
    * aqui colapsaria os dias distintos de uma mesma janela em uma única linha.
    */
   dataReferenciaPendenciaPagamento?: string;
+  /**
+   * Uma filha paga pela pai (Pendência Paga) guarda os detalhe_a de todas as tentativas antigas,
+   * e cada linha repetia a filha no relatório (08/06/2026: R$ 4.497,60 a mais que o extrato).
+   * Mantém uma só linha por filha: a de mesmo valor do valorTotal da filha, senão a mais recente.
+   */
+  umaLinhaPorFilhaPaga?: boolean;
 };
 
 const AGRUPAMENTO_NORMAL: AgrupamentoSource = {
   agrupamentoJoinColumn: 'ordemPagamentoAgrupadoId',
   valorSelect: 'da."valorLancamento" AS valor',
   umaOrdemPorAgrupamento: true,
+  umaLinhaPorFilhaPaga: true,
 };
 
 const AGRUPAMENTO_GRATUIDADE: AgrupamentoSource = {
@@ -126,6 +133,22 @@ const umaOrdemPorAgrupamentoFilter = (source: AgrupamentoSource) =>
   source.umaOrdemPorAgrupamento
     ? `AND op.id = (
         SELECT MIN(o.id) FROM ordem_pagamento o WHERE o."${source.agrupamentoJoinColumn}" = opa.id
+      )`
+    : '';
+
+const umaLinhaPorFilhaPagaFilter = (source: AgrupamentoSource) =>
+  source.umaLinhaPorFilhaPaga
+    ? `AND da.id = (
+        SELECT da_filha.id
+        FROM ordem_pagamento_agrupado_historico oph_filha
+        INNER JOIN detalhe_a da_filha
+          ON da_filha."ordemPagamentoAgrupadoHistoricoId" = oph_filha.id
+        WHERE oph_filha."ordemPagamentoAgrupadoId" = opa.id
+          AND oph_filha."statusRemessa" = 5
+        ORDER BY
+          (ROUND(da_filha."valorLancamento"::numeric, 2) = ROUND(opa."valorTotal"::numeric, 2)) DESC,
+          da_filha.id DESC
+        LIMIT 1
       )`
     : '';
 
@@ -241,6 +264,7 @@ const buildPendenciaPagaTemplate = (params: NovoRemessaBaseParams, source: Agrup
       )
       AND (oph."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph."motivoStatusRemessa" IS NULL)
       ${umaOrdemPorAgrupamentoFilter(source)}
+      ${umaLinhaPorFilhaPagaFilter(source)}
       ${params.todosVanzeiros ? NOT_CPF_FILTER : ''}
   `;
 };
