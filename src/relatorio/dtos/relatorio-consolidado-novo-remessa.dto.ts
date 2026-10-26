@@ -38,5 +38,6 @@ export class RelatorioConsolidadoNovoRemessaData {
   valorOrdemPagamento3?: number | null;
   dataOrdemPagamento4?: string | null;
   valorOrdemPagamento4?: number | null;
+  dataPagamento?: string | null;
 
 }

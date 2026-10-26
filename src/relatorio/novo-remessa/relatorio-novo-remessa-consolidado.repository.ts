@@ -516,7 +516,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
           const consorcioPlaceholders = this.MODAIS.join(`','`);
           literal += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') AND length(op."operadoraCpfCnpj")<=11 `;
         }
-        queryStucGratuidadeVanzeiro = `SELECT nomes AS "nome", "nomeConsorcio" AS "nome2", "dataReferencia", "cpfCnpj", valor AS valor FROM (${literal}) q`;
+        queryStucGratuidadeVanzeiro = `SELECT nomes AS "nome", "nomeConsorcio" AS "nome2", "dataReferencia", "dataPagamento", "cpfCnpj", valor AS valor FROM (${literal}) q`;
       }
 
       if ((filter.consorcioNome && filter.consorcioNome.length > 0) || filter.todosConsorcios) {
@@ -540,7 +540,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
             literal += ` AND NOT (op."nomeConsorcio" IN('${modaisPlaceholders}') AND length(op."operadoraCpfCnpj")<=11) `;
           }
         }
-        queryStucGratuidadeConsorcio = `SELECT nomes AS "nome", "nomeConsorcio" AS "nome2", "dataReferencia", "cpfCnpj", valor AS valor FROM (${literal}) q`;
+        queryStucGratuidadeConsorcio = `SELECT nomes AS "nome", "nomeConsorcio" AS "nome2", "dataReferencia", "dataPagamento", "cpfCnpj", valor AS valor FROM (${literal}) q`;
       }
 
       if (filter.pendenciaPaga) {
@@ -561,7 +561,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
             const consorcioPlaceholders = this.MODAIS.join(`','`);
             literal += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') AND length(op."operadoraCpfCnpj")<=11 `;
           }
-          queryStucPendenciaPagaVanzeiro = `SELECT nomes AS "nome", "nomeConsorcio" AS "nome2", "dataReferencia", "cpfCnpj", valor AS valor FROM (${literal}) q`;
+          queryStucPendenciaPagaVanzeiro = `SELECT nomes AS "nome", "nomeConsorcio" AS "nome2", "dataReferencia", "dataPagamento", "cpfCnpj", valor AS valor FROM (${literal}) q`;
         }
 
         if ((filter.consorcioNome && filter.consorcioNome.length > 0) || filter.todosConsorcios) {
@@ -577,7 +577,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
               literal += ` AND NOT (op."nomeConsorcio" IN('${modaisPlaceholders}') AND length(op."operadoraCpfCnpj")<=11) `;
             }
           }
-          queryStucPendenciaPagaConsorcio = `SELECT nomes AS "nome", "nomeConsorcio" AS "nome2", "dataReferencia", "cpfCnpj", valor AS valor FROM (${literal}) q`;
+          queryStucPendenciaPagaConsorcio = `SELECT nomes AS "nome", "nomeConsorcio" AS "nome2", "dataReferencia", "dataPagamento", "cpfCnpj", valor AS valor FROM (${literal}) q`;
         }
       }
     }
@@ -754,7 +754,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
     parts: string[],
     filter: IFindPublicacaoRelatorioNovoRemessa,
   ): Promise<RelatorioConsolidadoNovoRemessaDto> {
-    const query = `SELECT "nome", "cpfCnpj", "dataReferencia", SUM("valor") AS "valor" FROM (${parts.join(' UNION ALL ')}) AS R WHERE (R."nome" IS NOT NULL AND R."nome2" IS NOT NULL) GROUP BY "nome", "cpfCnpj", "dataReferencia"`;
+    const query = `SELECT "nome", "cpfCnpj", "dataReferencia", "dataPagamento", SUM("valor") AS "valor" FROM (${parts.join(' UNION ALL ')}) AS R WHERE (R."nome" IS NOT NULL AND R."nome2" IS NOT NULL) GROUP BY "nome", "cpfCnpj", "dataReferencia", "dataPagamento"`;
 
     this.logger.debug(`Executing query: ${query}`, RelatorioNovoRemessaConsolidadoRepository.name);
 
@@ -773,9 +773,13 @@ export class RelatorioNovoRemessaConsolidadoRepository {
       nome: r.nome as string,
       cpfCnpj: (r.cpfCnpj ?? null) as string | null,
       valor: parseFloat(String(r.valor)),
-      // pg retorna "dataReferencia" (coluna timestamp) como Date nativo, não como string -
-      // parse() do date-fns exige string e produz Invalid Date se receber um Date já pronto.
+      // pg retorna "dataReferencia"/"dataPagamento" (colunas timestamp) como Date nativo, não
+      // como string - parse() do date-fns exige string e produz Invalid Date se receber um
+      // Date já pronto.
       dataReferencia: r.dataReferencia instanceof Date ? r.dataReferencia : parse(r.dataReferencia, 'dd/MM/yyyy', new Date()),
+      dataPagamento: r.dataPagamento instanceof Date || r.dataPagamento == null
+        ? r.dataPagamento
+        : parse(r.dataPagamento, 'dd/MM/yyyy', new Date()),
     }));
 
     let pivoted = pivotStucGratuidadeRows(dayRows, (row) => `${row.nome}::${row.cpfCnpj}`);
@@ -814,6 +818,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
           valorOrdemPagamento3: row.valorOrdemPagamento3,
           dataOrdemPagamento4: row.dataOrdemPagamento4 ? format(row.dataOrdemPagamento4, 'dd/MM/yyyy') : null,
           valorOrdemPagamento4: row.valorOrdemPagamento4,
+          dataPagamento: row.dataPagamento ? format(row.dataPagamento, 'dd/MM/yyyy') : null,
         }),
     );
 
