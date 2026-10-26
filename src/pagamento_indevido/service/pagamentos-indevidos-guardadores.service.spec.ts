@@ -29,10 +29,21 @@ describe('PagamentosIndevidosGuardadoresService.porUsuario', () => {
     });
   });
 
-  it('sem saldo devedor não busca mais nada e o quadro fica vazio', async () => {
-    const { service, query } = build([totaisSemSaldo]);
+  it('com o débito quitado os pagamentos abatidos continuam saindo (a tela marca o abatimento por duplicidade)', async () => {
+    const { service } = build([totaisSemSaldo], lancamentos, ordens);
 
-    await expect(service.porUsuario(2456)).resolves.toEqual({ totais: totaisSemSaldo, lancamentos: [], datasDuplicidade: [] });
+    await expect(service.porUsuario(2456)).resolves.toEqual({
+      totais: totaisSemSaldo,
+      lancamentos,
+      datasDuplicidade: ['2026-09-03', '2026-09-23'],
+    });
+  });
+
+  it('sem nenhum pagamento indevido não busca mais nada', async () => {
+    const semIndevido = { quantidade: 0, devendo: 0, valorIndevido: '0.00', valorDebitado: '0.00', saldoDevedor: '0.00' };
+    const { service, query } = build([semIndevido]);
+
+    await expect(service.porUsuario(2456)).resolves.toEqual({ totais: semIndevido, lancamentos: [], datasDuplicidade: [] });
     expect(query).toHaveBeenCalledTimes(1);
   });
 
@@ -50,7 +61,7 @@ describe('PagamentosIndevidosGuardadoresService.porUsuario', () => {
   });
 
   it('só considera guardadores (permitCode de até 4 caracteres)', async () => {
-    const { service, query } = build([totaisSemSaldo]);
+    const { service, query } = build([totaisSemSaldo], lancamentos, ordens);
 
     await service.porUsuario(2456);
 

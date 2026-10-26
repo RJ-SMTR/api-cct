@@ -144,8 +144,9 @@ export class PagamentosIndevidosGuardadoresService {
   }
 
   /**
-   * Indevido de UM guardador (para o quadro da tela do guardador): as linhas dele e os totais. O quadro só aparece quando
-   * `totais.saldoDevedor` é maior que zero. Guardador desconhecido ou sem linhas devolve totais zerados e lista vazia.
+   * Indevido de UM guardador (para a tela do guardador): as linhas dele e os totais. O quadro só aparece quando
+   * `totais.saldoDevedor` é maior que zero, mas os lançamentos (pagamentos abatidos) saem enquanto houver indevido, mesmo quitado.
+   * Guardador desconhecido ou sem linhas devolve totais zerados e lista vazia.
    */
   async porUsuario(userId: number): Promise<IndevidoDoGuardador> {
     const params = [userId];
@@ -158,8 +159,9 @@ export class PagamentosIndevidosGuardadoresService {
          FROM calculado WHERE user_id = $1`,
       params,
     );
-    // Sem saldo devedor o quadro não aparece: poupa as consultas abaixo.
-    if (!(Number(totais?.saldoDevedor) > 0)) {
+    // Sem pagamento indevido não há abatimento a mostrar: poupa as consultas abaixo. Com o débito quitado os lançamentos continuam
+    // saindo, porque a tela marca como "Abatimento por duplicidade" os pagamentos que foram abatidos.
+    if (!(Number(totais?.quantidade) > 0)) {
       return { totais, lancamentos: [], datasDuplicidade: [] };
     }
 
