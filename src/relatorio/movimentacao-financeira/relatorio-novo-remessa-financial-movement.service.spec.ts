@@ -403,6 +403,9 @@ describe('RelatorioNovoRemessaFinancialMovementService', () => {
     const PENDENTES_MARKER = 'op."ordemPagamentoAgrupadoId" IS NULL';
 
     it('reads ordem_pagamento.valorGratuidade through the gratuidade grouping', async () => {
+      // findFinancialMovementSummary(STUC) agrega em memória a partir das linhas pivotadas
+      // (ver findStucGratuidadePivotedRows), então só há 1 query - a das linhas por dia.
+      dataSource.query.mockResolvedValueOnce([]);
       await service.findFinancialMovementSummary({
         dataInicio: new Date('2026-04-01'),
         dataFim: new Date('2026-04-22'),
@@ -410,23 +413,25 @@ describe('RelatorioNovoRemessaFinancialMovementService', () => {
         pago: true,
       } as any);
 
-      const [countQuery] = dataSource.query.mock.calls[0];
-      expect(countQuery).toContain('op."valorGratuidade"');
-      expect(countQuery).toContain('op."ordemPagamentoAgrupadoGratuidadeId" = opa.id');
+      const [dataQuery] = dataSource.query.mock.calls[0];
+      expect(dataQuery).toContain('op."valorGratuidade"');
+      expect(dataQuery).toContain('op."ordemPagamentoAgrupadoGratuidadeId" = opa.id');
     });
 
     it('never includes the Pendentes/OPs atrasadas query, even without a restrictive status filter', async () => {
+      dataSource.query.mockResolvedValueOnce([]);
       await service.findFinancialMovementSummary({
         dataInicio: new Date('2026-04-01'),
         dataFim: new Date('2026-04-22'),
         stucGratuidade: true,
       } as any);
 
-      const [countQuery] = dataSource.query.mock.calls[0];
-      expect(countQuery).not.toContain(PENDENTES_MARKER);
+      const [dataQuery] = dataSource.query.mock.calls[0];
+      expect(dataQuery).not.toContain(PENDENTES_MARKER);
     });
 
     it('includes Pendencia Paga filtered by payment date, following the gratuidade grouping', async () => {
+      dataSource.query.mockResolvedValueOnce([]);
       await service.findFinancialMovementSummary({
         dataInicio: new Date('2026-04-01'),
         dataFim: new Date('2026-04-22'),
@@ -434,12 +439,13 @@ describe('RelatorioNovoRemessaFinancialMovementService', () => {
         pendenciaPaga: true,
       } as any);
 
-      const [countQuery] = dataSource.query.mock.calls[0];
-      expect(countQuery).toContain('opa."dataPagamento"::date BETWEEN $1::date AND $2::date');
-      expect(countQuery).toContain('op."ordemPagamentoAgrupadoGratuidadeId" = opa.id');
+      const [dataQuery] = dataSource.query.mock.calls[0];
+      expect(dataQuery).toContain('opa."dataPagamento"::date BETWEEN $1::date AND $2::date');
+      expect(dataQuery).toContain('op."ordemPagamentoAgrupadoGratuidadeId" = opa.id');
     });
 
     it('includes Pendencia de Pagamento in a single day through the parent attempt, following the gratuidade grouping', async () => {
+      dataSource.query.mockResolvedValueOnce([]);
       await service.findFinancialMovementSummary({
         dataInicio: new Date('2026-04-01'),
         dataFim: new Date('2026-04-01'),
@@ -448,9 +454,9 @@ describe('RelatorioNovoRemessaFinancialMovementService', () => {
         estorno: true,
       } as any);
 
-      const [countQuery] = dataSource.query.mock.calls[0];
-      expect(countQuery).toContain('oph_pai');
-      expect(countQuery).toContain('op."ordemPagamentoAgrupadoGratuidadeId" = opa.id');
+      const [dataQuery] = dataSource.query.mock.calls[0];
+      expect(dataQuery).toContain('oph_pai');
+      expect(dataQuery).toContain('op."ordemPagamentoAgrupadoGratuidadeId" = opa.id');
     });
   });
 
@@ -468,15 +474,12 @@ describe('RelatorioNovoRemessaFinancialMovementService', () => {
     };
 
     it('pivots a complete 4-day window into one row with the 4 pairs filled and valor summed', async () => {
-      dataSource.query
-        .mockResolvedValueOnce([
-          { ...DAY_ROW, dataReferencia: '23/10/2026', valor: 10 },
-          { ...DAY_ROW, dataReferencia: '24/10/2026', valor: 20 },
-          { ...DAY_ROW, dataReferencia: '25/10/2026', valor: 30 },
-          { ...DAY_ROW, dataReferencia: '26/10/2026', valor: 40 },
-        ])
-        .mockResolvedValueOnce([{ count: '4' }])
-        .mockResolvedValueOnce([{}]);
+      dataSource.query.mockResolvedValueOnce([
+        { ...DAY_ROW, dataReferencia: '23/10/2026', valor: 10 },
+        { ...DAY_ROW, dataReferencia: '24/10/2026', valor: 20 },
+        { ...DAY_ROW, dataReferencia: '25/10/2026', valor: 30 },
+        { ...DAY_ROW, dataReferencia: '26/10/2026', valor: 40 },
+      ]);
 
       const page = await service.findFinancialMovementPage({
         dataInicio: new Date('2026-10-23'),
@@ -500,14 +503,11 @@ describe('RelatorioNovoRemessaFinancialMovementService', () => {
     });
 
     it('leaves the 4th pair empty for a 3-day (Tue-Thu) window', async () => {
-      dataSource.query
-        .mockResolvedValueOnce([
-          { ...DAY_ROW, dataReferencia: '27/10/2026', valor: 1 },
-          { ...DAY_ROW, dataReferencia: '28/10/2026', valor: 2 },
-          { ...DAY_ROW, dataReferencia: '29/10/2026', valor: 3 },
-        ])
-        .mockResolvedValueOnce([{ count: '1' }])
-        .mockResolvedValueOnce([{}]);
+      dataSource.query.mockResolvedValueOnce([
+        { ...DAY_ROW, dataReferencia: '27/10/2026', valor: 1 },
+        { ...DAY_ROW, dataReferencia: '28/10/2026', valor: 2 },
+        { ...DAY_ROW, dataReferencia: '29/10/2026', valor: 3 },
+      ]);
 
       const page = await service.findFinancialMovementPage({
         dataInicio: new Date('2026-10-27'),
@@ -525,13 +525,10 @@ describe('RelatorioNovoRemessaFinancialMovementService', () => {
     });
 
     it('splits two different payment windows for the same favorecido into two rows', async () => {
-      dataSource.query
-        .mockResolvedValueOnce([
-          { ...DAY_ROW, dataReferencia: '23/10/2026', valor: 10 },
-          { ...DAY_ROW, dataReferencia: '27/10/2026', valor: 20 },
-        ])
-        .mockResolvedValueOnce([{ count: '2' }])
-        .mockResolvedValueOnce([{}]);
+      dataSource.query.mockResolvedValueOnce([
+        { ...DAY_ROW, dataReferencia: '23/10/2026', valor: 10 },
+        { ...DAY_ROW, dataReferencia: '27/10/2026', valor: 20 },
+      ]);
 
       const page = await service.findFinancialMovementPage({
         dataInicio: new Date('2026-10-23'),
@@ -546,12 +543,9 @@ describe('RelatorioNovoRemessaFinancialMovementService', () => {
     });
 
     it('groups a Pendencia de Pagamento row (no dataPagamento) by the window derived from its dataReferencia', async () => {
-      dataSource.query
-        .mockResolvedValueOnce([
-          { ...DAY_ROW, dataPagamento: null, status: 'Rejeitado', dataReferencia: '23/10/2026', valor: 15 },
-        ])
-        .mockResolvedValueOnce([{ count: '1' }])
-        .mockResolvedValueOnce([{}]);
+      dataSource.query.mockResolvedValueOnce([
+        { ...DAY_ROW, dataPagamento: null, status: 'Rejeitado', dataReferencia: '23/10/2026', valor: 15 },
+      ]);
 
       const page = await service.findFinancialMovementPage({
         dataInicio: new Date('2026-10-23'),
@@ -567,21 +561,16 @@ describe('RelatorioNovoRemessaFinancialMovementService', () => {
     });
 
     it('paginates the pivoted rows in memory without dropping or duplicating windows across pages', async () => {
+      // findFinancialMovementPage(STUC) faz 1 query por chamada (não há cache entre
+      // page1/page2), então cada chamada precisa do seu próprio mock com as mesmas linhas.
+      const dayRows = [
+        { ...DAY_ROW, cpfCnpj: '1', dataReferencia: '23/10/2026', valor: 10 },
+        { ...DAY_ROW, cpfCnpj: '2', dataReferencia: '23/10/2026', valor: 20 },
+        { ...DAY_ROW, cpfCnpj: '3', dataReferencia: '23/10/2026', valor: 30 },
+      ];
       dataSource.query
-        .mockResolvedValueOnce([
-          { ...DAY_ROW, cpfCnpj: '1', dataReferencia: '23/10/2026', valor: 10 },
-          { ...DAY_ROW, cpfCnpj: '2', dataReferencia: '23/10/2026', valor: 20 },
-          { ...DAY_ROW, cpfCnpj: '3', dataReferencia: '23/10/2026', valor: 30 },
-        ])
-        .mockResolvedValueOnce([{ count: '3' }])
-        .mockResolvedValueOnce([{}])
-        .mockResolvedValueOnce([
-          { ...DAY_ROW, cpfCnpj: '1', dataReferencia: '23/10/2026', valor: 10 },
-          { ...DAY_ROW, cpfCnpj: '2', dataReferencia: '23/10/2026', valor: 20 },
-          { ...DAY_ROW, cpfCnpj: '3', dataReferencia: '23/10/2026', valor: 30 },
-        ])
-        .mockResolvedValueOnce([{ count: '3' }])
-        .mockResolvedValueOnce([{}]);
+        .mockResolvedValueOnce(dayRows)
+        .mockResolvedValueOnce(dayRows);
 
       const filter = {
         dataInicio: new Date('2026-10-23'),
@@ -615,6 +604,54 @@ describe('RelatorioNovoRemessaFinancialMovementService', () => {
       expect(rows[0].valorOrdemPagamento1).toBe(10);
       expect(rows[0].valorOrdemPagamento2).toBe(20);
       expect(rows[0].valor).toBe(30);
+    });
+
+    it('filters by Valor Lançamento (the pivoted window total), not by a single day value', async () => {
+      // FULANO: dias de 10+20+30 = 60 (passa min=50). CICLANO: só um dia de 15 (não passa
+      // min=50, mesmo tendo um dia isolado de 15 que por si só ficaria entre min/max se o
+      // filtro fosse aplicado por dia em vez de pela janela pivotada).
+      dataSource.query.mockResolvedValueOnce([
+        { ...DAY_ROW, cpfCnpj: '1', dataReferencia: '23/10/2026', valor: 10 },
+        { ...DAY_ROW, cpfCnpj: '1', dataReferencia: '24/10/2026', valor: 20 },
+        { ...DAY_ROW, cpfCnpj: '1', dataReferencia: '25/10/2026', valor: 30 },
+        { ...DAY_ROW, cpfCnpj: '2', dataReferencia: '23/10/2026', valor: 15 },
+      ]);
+
+      const page = await service.findFinancialMovementPage({
+        dataInicio: new Date('2026-10-23'),
+        dataFim: new Date('2026-10-25'),
+        stucGratuidade: true,
+        valorMin: 50,
+        valorMax: 100,
+        page: 1,
+        pageSize: 50,
+      } as any);
+
+      expect(page.data).toHaveLength(1);
+      expect((page.data as any[])[0].cpfCnpj).toBe('1');
+      expect((page.data as any[])[0].valor).toBe(60);
+      expect(page.count).toBe(1);
+      expect(page.valorTotal).toBe(60);
+    });
+
+    it('respects both valorMin and valorMax together when filtering by Valor Lançamento', async () => {
+      dataSource.query.mockResolvedValueOnce([
+        { ...DAY_ROW, cpfCnpj: '1', dataReferencia: '23/10/2026', valor: 10 },
+        { ...DAY_ROW, cpfCnpj: '2', dataReferencia: '23/10/2026', valor: 50 },
+        { ...DAY_ROW, cpfCnpj: '3', dataReferencia: '23/10/2026', valor: 200 },
+      ]);
+
+      const page = await service.findFinancialMovementPage({
+        dataInicio: new Date('2026-10-23'),
+        dataFim: new Date('2026-10-23'),
+        stucGratuidade: true,
+        valorMin: 20,
+        valorMax: 100,
+        page: 1,
+        pageSize: 50,
+      } as any);
+
+      expect((page.data as any[]).map((r) => r.cpfCnpj)).toEqual(['2']);
     });
   });
 });

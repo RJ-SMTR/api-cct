@@ -101,6 +101,13 @@ export class RelatorioNovoRemessaFinancialMovementService {
 
   public async findFinancialMovementSummary(filter: IFindPublicacaoRelatorioNovoFinancialMovement) {
     const safeFilter = this.normalizeFilter(filter);
+    // A agregação em SQL abaixo soma por dia (grouped.valor), não pela janela de pagamento
+    // pivotada - incompatível com STUC - Gratuidade, que agrega e filtra por Valor Lançamento
+    // (ver findStucGratuidadePivotedRows). Ver stuc-gratuidade-pivot.ts.
+    if (safeFilter.stucGratuidade) {
+      const pivotedRows = await this.findStucGratuidadePivotedRows(safeFilter);
+      return this.buildStucGratuidadeSummary(pivotedRows);
+    }
     const statuses = this.resolveStatuses(safeFilter);
     const innerParams = this.getInnerQueryParameters(safeFilter, statuses.baseStatuses);
     const finalBaseQuery = this.buildFinalBaseQuery(safeFilter, statuses);
@@ -268,14 +275,26 @@ export class RelatorioNovoRemessaFinancialMovementService {
   // sobre o conjunto completo do filtro antes de qualquer corte de página - paginação por
   // cursor/LIMIT em SQL não se aplica a este branch.
   private async findStucGratuidadePivotedRows(filter: NormalizedFilter): Promise<RelatorioFinancialMovementNovoRemessaData[]> {
-    const { query, params } = this.buildBaseDataQuery(filter);
+    // valorMin/valorMax se referem ao Valor Lançamento (a janela de pagamento já pivotada,
+    // até 4 dias somados), não ao valor de um dia isolado. Busca sem filtro de valor em SQL
+    // (senão um dia abaixo do mínimo sumiria mesmo com a janela toda acima dele) e filtra
+    // depois do pivot - mesma abordagem do Consolidado (findConsolidadoStucGratuidade).
+    const { query, params } = this.buildBaseDataQuery({ ...filter, valorMin: undefined, valorMax: undefined });
     const dayRows = await this.executeQuery(query, params, 'STUC_PIVOT');
     const groupKeyFn = (row: any) =>
       [row.nomes, row.email, row.codBanco, row.nomeBanco, row.cpfCnpj, row.consorcio, row.status, row.codigoErro].join('::');
-    const pivoted = pivotStucGratuidadeRows(
+    let pivoted = pivotStucGratuidadeRows(
       dayRows.map((row: any) => ({ ...row, dataReferencia: parse(row.dataReferencia, 'dd/MM/yyyy', new Date()) })),
       groupKeyFn,
     );
+    const { valorMin, valorMax } = filter;
+    if (valorMin !== undefined && valorMax !== undefined) {
+      pivoted = pivoted.filter((row) => row.valor >= valorMin && row.valor <= valorMax);
+    } else if (valorMin !== undefined) {
+      pivoted = pivoted.filter((row) => row.valor >= valorMin);
+    } else if (valorMax !== undefined) {
+      pivoted = pivoted.filter((row) => row.valor <= valorMax);
+    }
     return pivoted.map(
       (row) =>
         new RelatorioFinancialMovementNovoRemessaData({
@@ -288,12 +307,30 @@ export class RelatorioNovoRemessaFinancialMovementService {
     );
   }
 
+  // Soma por status a partir das linhas já pivotadas (e já filtradas por valorMin/valorMax,
+  // se houver) - evita repetir em SQL uma agregação que só faz sentido por Valor Lançamento.
+  // STUC - Gratuidade nunca inclui buildPendentesQuery (ver buildFinalBaseQuery), então não
+  // há status 'Pendentes' aqui.
+  private buildStucGratuidadeSummary(rows: RelatorioFinancialMovementNovoRemessaData[]): RelatorioFinancialMovementNovoRemessaSummaryDto {
+    const sumByStatus = (status: string) =>
+      rows.filter((r) => r.status === status).reduce((acc, r) => acc + (r.valor ?? 0), 0);
+    return new RelatorioFinancialMovementNovoRemessaSummaryDto({
+      count: rows.length,
+      valorTotal: rows.reduce((acc, r) => acc + (r.valor ?? 0), 0),
+      valorPago: sumByStatus('Pago'),
+      valorEstornado: sumByStatus('Estorno'),
+      valorRejeitado: sumByStatus('Rejeitado'),
+      valorAguardandoPagamento: sumByStatus('Aguardando Pagamento'),
+      valorAPagar: sumByStatus('A Pagar'),
+      valorPendente: 0,
+      valorPendenciaPaga: sumByStatus('Pendencia Paga'),
+    });
+  }
+
   private async findStucGratuidadePage(filter: NormalizedFilter) {
     const { currentPage, pageSize } = this.resolvePagination(filter);
-    const [pivotedRows, summary] = await Promise.all([
-      this.findStucGratuidadePivotedRows(filter),
-      this.findFinancialMovementSummary(filter),
-    ]);
+    const pivotedRows = await this.findStucGratuidadePivotedRows(filter);
+    const summary = this.buildStucGratuidadeSummary(pivotedRows);
     const start = (currentPage - 1) * pageSize;
     const data = pivotedRows.slice(start, start + pageSize);
     return new RelatorioFinancialMovementNovoRemessaPageDto({
