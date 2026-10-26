@@ -81,4 +81,17 @@ describe('pivotStucGratuidadeRows', () => {
   it('com lista vazia, devolve lista vazia', () => {
     expect(pivotStucGratuidadeRows([], porFavorecido)).toEqual([]);
   });
+
+  it('soma corretamente quando "valor" vem como string (pg devolve numeric/decimal como string)', () => {
+    // Regressão: "sum + valor" sem Number() vira concatenação assim que um operando é string
+    // ("80.00000" + "10.00000" = "080.0000010.00000"), não soma. Confirmado via Movimentação
+    // Financeira, cujo SUM(valor) do SQL chega como string ao Node - diferente do Consolidado,
+    // que já convertia para número antes de chamar o pivot.
+    const rows = [row(sexta, '80.00000' as unknown as number), row(sabado, '10.00000' as unknown as number)];
+    const [resultado] = pivotStucGratuidadeRows(rows, porFavorecido);
+
+    expect(resultado.valorOrdemPagamento1).toBe(80);
+    expect(resultado.valorOrdemPagamento2).toBe(10);
+    expect(resultado.valor).toBe(90);
+  });
 });

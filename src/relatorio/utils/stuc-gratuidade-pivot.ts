@@ -29,10 +29,15 @@ export function pivotStucGratuidadeRows<T extends StucPivotInputRow>(
     const { windowKey, dayIndex } = resolveStucPaymentWindow(r.dataReferencia);
     const groupKey = `${groupKeyFn(r)}::${windowKey}`;
     const group = groups.get(groupKey) ?? { firstRow: r, days: [undefined, undefined, undefined, undefined] };
+    // pg devolve coluna numeric/decimal como string (evita perda de precisão) - sem Number()
+    // aqui, "sum + valor" vira concatenação de string assim que um operando é string (ex.:
+    // "80.00000" + "10.00000" = "080.0000010.00000"), não soma. Confirmado em produção via
+    // Movimentação Financeira, cujo SUM(valor) do SQL chega como string.
+    const valorNumerico = Number(r.valor);
     const existing = group.days[dayIndex];
     group.days[dayIndex] = existing
-      ? { data: existing.data, valor: existing.valor + r.valor }
-      : { data: r.dataReferencia, valor: r.valor };
+      ? { data: existing.data, valor: existing.valor + valorNumerico }
+      : { data: r.dataReferencia, valor: valorNumerico };
     groups.set(groupKey, group);
   }
 
