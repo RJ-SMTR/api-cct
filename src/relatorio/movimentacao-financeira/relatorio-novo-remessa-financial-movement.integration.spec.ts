@@ -77,7 +77,7 @@ suite('RelatorioNovoRemessaFinancialMovementService (PostgreSQL)', () => {
     await dataSource.query(`DELETE FROM detalhe_a WHERE id BETWEEN $1 AND $2`, [BASE_ID + 30, BASE_ID + 99]);
     await dataSource.query(`DELETE FROM ordem_pagamento_agrupado_historico WHERE id BETWEEN $1 AND $2`, [BASE_ID + 20, BASE_ID + 29]);
     await dataSource.query(`DELETE FROM ordem_pagamento WHERE id BETWEEN $1 AND $2`, [BASE_ID + 40, BASE_ID + 99]);
-    await dataSource.query(`UPDATE ordem_pagamento_agrupado SET "ordemPagamentoAgrupadoId" = NULL WHERE id = $1`, [CHILD_ID]);
+    await dataSource.query(`UPDATE ordem_pagamento_agrupado SET "ordemPagamentoAgrupadoId" = NULL WHERE id BETWEEN $1 AND $2`, [BASE_ID + 10, BASE_ID + 19]);
     await dataSource.query(`DELETE FROM ordem_pagamento_agrupado WHERE id BETWEEN $1 AND $2`, [BASE_ID + 10, BASE_ID + 19]);
     await dataSource.query(`DELETE FROM public."user" WHERE id = $1`, [USER_ID]);
   }
@@ -153,5 +153,95 @@ suite('RelatorioNovoRemessaFinancialMovementService (PostgreSQL)', () => {
     ]);
     expect(summary.count).toBe(1);
     expect(summary.valorPendenciaPaga).toBe(100);
+  });
+
+  // PASSO 0 children: paid pending orders never sent in a file of their own, so their history
+  // rows (status 5) have no detalhe_a at all. In production each one has 1 to 6 ordem_pagamento
+  // rows and its valorTotal is their sum (real case: 08/10/2026, 7 children, R$ 14.614,50).
+  async function seedPasso0Family(): Promise<void> {
+    const parent = BASE_ID + 12;
+    const paidOne = BASE_ID + 13;
+    const paidTwo = BASE_ID + 14;
+    const unpaid = BASE_ID + 15;
+    const am = BASE_ID + 16;
+
+    await dataSource.query(
+      `INSERT INTO ordem_pagamento_agrupado (
+        id, "dataPagamento", "valorTotal", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt"
+      ) VALUES
+        ($1, DATE '2099-05-10', 266.20, NULL, now(), now()),
+        ($2, DATE '2099-05-01', 54.60, $1, now(), now()),
+        ($3, DATE '2099-05-01', 179.20, $1, now(), now()),
+        ($4, DATE '2099-05-01', 22.40, $1, now(), now()),
+        ($5, DATE '2099-05-01', 10.00, $1, now(), now())`,
+      [parent, paidOne, paidTwo, unpaid, am],
+    );
+
+    // paidOne has three ordem_pagamento rows that add up to its valorTotal.
+    await dataSource.query(
+      `INSERT INTO ordem_pagamento (
+        id, "dataOrdem", valor, "bqUpdatedAt", "userId", "nomeConsorcio", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt"
+      ) VALUES
+        ($1, DATE '2099-04-28', 20.00, now(), $7, 'CONSORCIO TESTE', $8, now(), now()),
+        ($2, DATE '2099-04-29', 20.00, now(), $7, 'CONSORCIO TESTE', $8, now(), now()),
+        ($3, DATE '2099-04-30', 14.60, now(), $7, 'CONSORCIO TESTE', $8, now(), now()),
+        ($4, DATE '2099-04-30', 179.20, now(), $7, 'CONSORCIO TESTE', $9, now(), now()),
+        ($5, DATE '2099-04-30', 22.40, now(), $7, 'CONSORCIO TESTE', $10, now(), now()),
+        ($6, DATE '2099-04-30', 10.00, now(), $7, 'CONSORCIO TESTE', $11, now(), now())`,
+      [BASE_ID + 41, BASE_ID + 42, BASE_ID + 43, BASE_ID + 44, BASE_ID + 45, BASE_ID + 46, USER_ID, paidOne, paidTwo, unpaid, am],
+    );
+
+    // paidTwo has two history rows (both status 5); unpaid is still status 1; am is paid but AM.
+    await dataSource.query(
+      `INSERT INTO ordem_pagamento_agrupado_historico (
+        id, "ordemPagamentoAgrupadoId", "dataReferencia", "userBankCode",
+        "userBankAgency", "userBankAccount", "userBankAccountDigit", "statusRemessa", "motivoStatusRemessa"
+      ) VALUES
+        ($1, $7, DATE '2099-05-10', '104', '0001', '99990002', '1', 5, '00'),
+        ($2, $8, DATE '2099-05-02', '104', '0001', '99990002', '1', 5, NULL),
+        ($3, $9, DATE '2099-05-03', '104', '0001', '99990002', '1', 5, NULL),
+        ($4, $9, DATE '2099-05-03', '104', '0001', '99990002', '1', 5, NULL),
+        ($5, $10, DATE '2099-05-03', '104', '0001', '99990002', '1', 1, NULL),
+        ($6, $11, DATE '2099-05-03', '104', '0001', '99990002', '1', 5, 'AM')`,
+      [BASE_ID + 22, BASE_ID + 23, BASE_ID + 24, BASE_ID + 25, BASE_ID + 26, BASE_ID + 27, parent, paidOne, paidTwo, unpaid, am],
+    );
+  }
+
+  it('includes paid children without any detalhe_a (PASSO 0) once each, with the order value and the parent payment date', async () => {
+    await seedPasso0Family();
+
+    const filter = {
+      dataInicio: new Date('2099-05-10T00:00:00.000Z'),
+      dataFim: new Date('2099-05-10T00:00:00.000Z'),
+      pendenciaPaga: true,
+      page: 1,
+      pageSize: 50,
+    };
+
+    const [page, summary] = await Promise.all([service.findFinancialMovementPage(filter), service.findFinancialMovementSummary(filter)]);
+
+    // One row per child (not per ordem_pagamento); the unpaid child and the AM child stay out.
+    expect(page.data?.map((row) => [row.dataReferencia, row.valor, row.dataPagamento, row.status])).toEqual([
+      ['02/05/2099', '54.60', '10/05/2099', 'Pendencia Paga'],
+      ['03/05/2099', '179.20', '10/05/2099', 'Pendencia Paga'],
+    ]);
+    expect(summary.count).toBe(2);
+    expect(summary.valorPendenciaPaga).toBeCloseTo(233.8, 2);
+  });
+
+  it('applies the desativados filter to both paid-pending queries', async () => {
+    await seedPasso0Family();
+
+    // The fixture user is not blocked, so no row of either query may come back.
+    const page = await service.findFinancialMovementPage({
+      dataInicio: new Date('2099-05-10T00:00:00.000Z'),
+      dataFim: new Date('2099-05-10T00:00:00.000Z'),
+      pendenciaPaga: true,
+      desativados: true,
+      page: 1,
+      pageSize: 50,
+    });
+
+    expect(page.data).toEqual([]);
   });
 });

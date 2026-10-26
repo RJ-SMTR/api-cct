@@ -434,6 +434,67 @@ export const buildPendentesQuery = (params: NovoRemessaPendentesParams) => {
 export const buildPendenciaPagaSingleDateQuery = (params: NovoRemessaBaseParams) =>
   buildPendenciaPagaTemplate(params, AGRUPAMENTO_NORMAL);
 
+// Filhas PASSO 0: pendências pagas (status 5) que nunca foram enviadas em arquivo próprio, então
+// nenhum histórico delas tem detalhe_a e o INNER JOIN de buildPendenciaPagaTemplate as descarta.
+// Valor = valorTotal da OPA da filha (cada filha tem de 1 a N ordem_pagamento que somam esse
+// valor, então só a ordem de menor id representa a filha) e data = dataPagamento da pai.
+// Fica numa consulta separada, e não num UNION ALL dentro do template, porque o service anexa
+// "AND pu.bloqueado = true" ao final do SQL de cada consulta.
+export const buildPendenciaPagaPasso0Query = (params: NovoRemessaBaseParams) => {
+  const consorcioParam = `$${params.consorcioFilterParamIndex}`;
+  return `
+    SELECT
+      oph."dataReferencia" AS "dataReferencia",
+      opa.id,
+      pu."fullName" AS nomes,
+      pu.email,
+      pu."bankCode" AS "codBanco",
+      bc.name AS "nomeBanco",
+      pu."cpfCnpj" AS "cpfCnpj",
+      ${CONSORCIO_CASE} AS "nomeConsorcio",
+      ROUND(opa."valorTotal"::numeric, 2) AS valor,
+      op_pai."dataPagamento" AS "dataPagamento",
+      'Pendencia Paga' AS status,
+      NULL::text AS "codigoErro"
+      FROM ordem_pagamento op
+      INNER JOIN ordem_pagamento_agrupado opa
+        ON op."ordemPagamentoAgrupadoId" = opa.id
+      INNER JOIN ordem_pagamento_agrupado op_pai
+        ON op_pai.id = opa."ordemPagamentoAgrupadoId"
+      INNER JOIN ordem_pagamento_agrupado_historico oph
+        ON oph.id = (
+          SELECT MAX(oph_mais_recente.id)
+          FROM ordem_pagamento_agrupado_historico oph_mais_recente
+          WHERE oph_mais_recente."ordemPagamentoAgrupadoId" = opa.id
+        )
+      INNER JOIN public."user" pu
+        ON pu.id = op."userId"
+      INNER JOIN bank bc
+        ON bc.code = pu."bankCode"
+    WHERE
+      ($3::integer[] IS NULL OR pu.id = ANY($3))
+      AND ($4::text[] IS NULL OR TRUE)
+      AND (${consorcioParam}::text[] IS NULL OR UPPER(TRIM(${CONSORCIO_CASE})) = ANY(${consorcioParam}))
+      AND NOT EXISTS (
+        SELECT 1
+        FROM ordem_pagamento_agrupado filha
+        WHERE filha."ordemPagamentoAgrupadoId" = opa.id
+      )
+      AND oph."statusRemessa" = 5
+      AND op_pai."dataPagamento"::date BETWEEN $1::date AND $2::date
+      AND (oph."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph."motivoStatusRemessa" IS NULL)
+      AND NOT EXISTS (
+        SELECT 1
+        FROM ordem_pagamento_agrupado_historico oph_qualquer
+        INNER JOIN detalhe_a da_qualquer
+          ON da_qualquer."ordemPagamentoAgrupadoHistoricoId" = oph_qualquer.id
+        WHERE oph_qualquer."ordemPagamentoAgrupadoId" = opa.id
+      )
+      ${umaOrdemPorAgrupamentoFilter(AGRUPAMENTO_NORMAL)}
+      ${params.todosVanzeiros ? NOT_CPF_FILTER : ''}
+  `;
+};
+
 export const buildStucGratuidadePendenciaPagaSingleDateQuery = (params: NovoRemessaBaseParams) =>
   buildPendenciaPagaTemplate(params, AGRUPAMENTO_GRATUIDADE);
 
