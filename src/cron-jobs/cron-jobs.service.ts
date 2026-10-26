@@ -106,7 +106,7 @@ export class CronJobsService {
   ) { }
 
   onModuleInit() {
-     this.sincronizarEAgruparOrdensPagamento();
+    void this.sincronizarEAgruparOrdensPagamento();
     this.onModuleLoad().catch((error: Error) => {
       throw error;
     });
