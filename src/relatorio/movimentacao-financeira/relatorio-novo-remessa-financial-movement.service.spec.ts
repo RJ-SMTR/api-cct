@@ -628,6 +628,11 @@ describe('RelatorioNovoRemessaFinancialMovementService', () => {
       expect(page2.data).toHaveLength(1);
       const allCpfCnpj = [...(page1.data as any[]), ...(page2.data as any[])].map((r) => r.cpfCnpj).sort();
       expect(allCpfCnpj).toEqual(['1', '2', '3']);
+
+      // Regressão: nextCursor fixo em null deixava a seta de "próxima página" sempre
+      // desabilitada no front, mesmo havendo mais linhas além da página atual.
+      expect(page1.nextCursor).toBeTruthy();
+      expect(page2.nextCursor).toBeNull();
     });
 
     it('orders rows by nomes and, within the same nomes, by dataPagamento (ascending)', async () => {
@@ -673,6 +678,11 @@ describe('RelatorioNovoRemessaFinancialMovementService', () => {
       expect(rows[1].dataReferencia).toBe('24/10/2026');
       expect(rows[1].valor).toBe(20);
       expect(rows[0].dataPagamento).toBe(rows[1].dataPagamento);
+      // "valorLancamento" preserva o total da janela (10+20=30) nas duas linhas, igual à tela -
+      // sem ele, o export STUC (financial-movement-export-writer.ts) perderia a coluna "Valor
+      // Lançamento" ao sobrescrever "valor" acima com o valor do dia.
+      expect(rows[0].valorLancamento).toBe(30);
+      expect(rows[1].valorLancamento).toBe(30);
     });
 
     it('filters by Valor Lançamento (the pivoted window total), not by a single day value', async () => {
