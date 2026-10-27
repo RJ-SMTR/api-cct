@@ -26,16 +26,20 @@ export type FinancialMovementExportMeta = {
   statusLabels?: string[];
 };
 
-// Mesmas colunas usadas pelo CSV original (Permissionário e Guardador). Compartilhada entre
-// os três formatos para os três não divergirem silenciosamente entre si. pdfWeight é o peso
-// relativo da coluna na largura da tabela do PDF (ver financial-movement-pdf.ts).
-const COLUMNS: Array<{
+type Column = {
   key: keyof RelatorioFinancialMovementNovoRemessaData;
   label: string;
   pdfWeight: number;
   pdfAlign?: 'left' | 'right';
   pdfLabel?: string;
-}> = [
+};
+
+// Mesmas colunas usadas pelo CSV original (Permissionário e Guardador). Compartilhada entre
+// os três formatos para os três não divergirem silenciosamente entre si. pdfWeight é o peso
+// relativo da coluna na largura da tabela do PDF (ver financial-movement-pdf.ts).
+// O modelo de colunas "Ord. de Pag. N" (ADR 0012) é exclusivo do Relatório Consolidado - a
+// Movimentação Financeira não ganha colunas extras quando o filtro STUC - Gratuidade está ativo.
+const BASE_COLUMNS: Column[] = [
   { key: 'dataReferencia', label: 'Data Referência', pdfWeight: 10, pdfLabel: 'Dt Refer.' },
   { key: 'dataPagamento', label: 'Data Pagamento', pdfWeight: 10, pdfLabel: 'Dt Pagto.' },
   { key: 'nomes', label: 'Nome', pdfWeight: 18 },
@@ -49,21 +53,26 @@ const COLUMNS: Array<{
   { key: 'descricaoErro', label: 'Erro', pdfWeight: 16 },
 ];
 
+const VALOR_KEYS = new Set<string>(['valor']);
+
 const csvEscape = (value: unknown): string => `"${String(value ?? '').replace(/"/g, '""')}"`;
 
 async function writeCsv(prefix: string, streamRows: StreamRows): Promise<FinancialMovementExportResult> {
+  const columns = BASE_COLUMNS;
   const fileName = `${prefix}-${Date.now()}.csv`;
   const filePath = path.join(os.tmpdir(), fileName);
   const ws = fs.createWriteStream(filePath, { encoding: 'utf8' });
-  ws.write(COLUMNS.map((c) => c.key).join(';') + '\n');
+  ws.write(columns.map((c) => c.key).join(';') + '\n');
   await streamRows((row) => {
     ws.write(
-      COLUMNS.map((c) => {
-        const value = row[c.key];
-        if (c.key === 'nomes' || c.key === 'descricaoErro') return csvEscape(value);
-        if (c.key === 'valor') return String(value ?? '').replace('.', ',');
-        return String(value ?? '');
-      }).join(';') + '\n',
+      columns
+        .map((c) => {
+          const value = row[c.key];
+          if (c.key === 'nomes' || c.key === 'descricaoErro') return csvEscape(value);
+          if (VALOR_KEYS.has(c.key)) return value == null ? '' : String(value).replace('.', ',');
+          return String(value ?? '');
+        })
+        .join(';') + '\n',
     );
   });
   await new Promise<void>((resolve, reject) => ws.end((error: unknown) => (error ? reject(error) : resolve())));
@@ -71,11 +80,12 @@ async function writeCsv(prefix: string, streamRows: StreamRows): Promise<Financi
 }
 
 async function writeXlsx(prefix: string, streamRows: StreamRows): Promise<FinancialMovementExportResult> {
+  const columns = BASE_COLUMNS;
   const fileName = `${prefix}-${Date.now()}.xlsx`;
   const filePath = path.join(os.tmpdir(), fileName);
-  const rows: Array<Array<string | number>> = [COLUMNS.map((c) => c.label)];
+  const rows: Array<Array<string | number>> = [columns.map((c) => c.label)];
   await streamRows((row) => {
-    rows.push(COLUMNS.map((c) => row[c.key] ?? ''));
+    rows.push(columns.map((c) => row[c.key] ?? ''));
   });
   const worksheet = xlsxUtils.aoa_to_sheet(rows);
   const workbook = xlsxUtils.book_new();
@@ -93,6 +103,7 @@ async function writeXlsx(prefix: string, streamRows: StreamRows): Promise<Financ
 // cabeçalho com período/status, grade de tabela de verdade e rodapé com paginação + valor
 // total - ver financial-movement-pdf.ts.
 async function writePdf(prefix: string, streamRows: StreamRows, meta: FinancialMovementExportMeta = {}): Promise<FinancialMovementExportResult> {
+  const columns = BASE_COLUMNS;
   const fileName = `${prefix}-${Date.now()}.pdf`;
   const filePath = path.join(os.tmpdir(), fileName);
 
@@ -102,13 +113,13 @@ async function writePdf(prefix: string, streamRows: StreamRows, meta: FinancialM
     dataInicio: meta.dataInicio,
     dataFim: meta.dataFim,
     statusLabels: meta.statusLabels ?? [],
-    columns: COLUMNS.map((c) => ({ key: c.key, label: c.pdfLabel ?? c.label, weight: c.pdfWeight, align: c.pdfAlign })),
+    columns: columns.map((c) => ({ key: c.key, label: c.pdfLabel ?? c.label, weight: c.pdfWeight, align: c.pdfAlign })),
   });
 
   await streamRows((row) => {
     const values: Record<string, string | number> = {};
-    for (const column of COLUMNS) {
-      values[column.key] = column.key === 'valor' ? formatCurrency(row.valor) : String(row[column.key] ?? '');
+    for (const column of columns) {
+      values[column.key] = VALOR_KEYS.has(column.key) ? formatCurrency(row[column.key] as number) : String(row[column.key] ?? '');
     }
     writer.addRow(values, Number(row.valor ?? 0));
   });
@@ -117,11 +128,15 @@ async function writePdf(prefix: string, streamRows: StreamRows, meta: FinancialM
   return { filePath, fileName, filename: fileName, contentType: 'application/pdf' };
 }
 
+// `stuc` é mantido na assinatura por compatibilidade com o chamador (service) e com os specs,
+// mas não afeta mais as colunas geradas - ver comentário acima de BASE_COLUMNS.
 export async function writeFinancialMovementExport(
   format: FinancialMovementExportFormatValue,
   fileNamePrefix: string,
   streamRows: StreamRows,
   meta?: FinancialMovementExportMeta,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  stuc = false,
 ): Promise<FinancialMovementExportResult> {
   if (format === 'xlsx') return writeXlsx(fileNamePrefix, streamRows);
   if (format === 'pdf') return writePdf(fileNamePrefix, streamRows, meta);

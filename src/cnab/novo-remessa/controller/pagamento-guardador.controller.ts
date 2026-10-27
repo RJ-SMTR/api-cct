@@ -8,8 +8,10 @@ import { ParseNumberPipe } from 'src/utils/pipes/parse-number.pipe';
 import { IRequest } from 'src/utils/interfaces/request.interface';
 import { parseFimDoDia, parseInicioDoDia } from 'src/utils/date-utils';
 import { PagamentoGuardadorService } from '../service/pagamento-guardador.service';
-import { PagamentoConsorcioPrepararDto } from '../dto/pagamento-consorcio-preparar.dto';
+import { VALOR_MAXIMO_DESCONTO_INDEVIDO_PADRAO } from '../service/remessa.service';
+import { PagamentoGuardadorPrepararDto } from '../dto/pagamento-guardador-preparar.dto';
 import { PagamentoConsorcioValorBiDto } from '../dto/pagamento-consorcio-valor-bi.dto';
+import { PagamentoRenovarNsaDto } from '../dto/pagamento-renovar-nsa.dto';
 import { PagamentoConsorcioEnviarBancoDto } from '../dto/pagamento-consorcio-enviar-banco.dto';
 
 @ApiTags('PagamentoGuardador')
@@ -25,8 +27,10 @@ export class PagamentoGuardadorController {
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
-  async preparar(@Body() dto: PagamentoConsorcioPrepararDto) {
-    return this.pagamentoGuardadorService.prepararPagamentos(parseInicioDoDia(dto.dataInicio), parseFimDoDia(dto.dataFim));
+  async preparar(@Body() dto: PagamentoGuardadorPrepararDto) {
+    const opcoesIndevido =
+      dto.descontarIndevido === undefined ? undefined : { descontar: dto.descontarIndevido, valorMaximo: dto.valorDescontoIndevido ?? VALOR_MAXIMO_DESCONTO_INDEVIDO_PADRAO };
+    return this.pagamentoGuardadorService.prepararPagamentos(parseInicioDoDia(dto.dataInicio), parseFimDoDia(dto.dataFim), opcoesIndevido);
   }
 
   @Patch('valor-bi/:detalheAId')
@@ -67,6 +71,15 @@ export class PagamentoGuardadorController {
   @HttpCode(HttpStatus.OK)
   async limparPreparo() {
     return this.pagamentoGuardadorService.limparPreparoAtual();
+  }
+
+  @Post('renovar-nsa')
+  @Roles(RoleEnum.master, RoleEnum.admin)
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  async renovarNsa(@Body() dto: PagamentoRenovarNsaDto) {
+    return this.pagamentoGuardadorService.renovarNsa(dto.nsa);
   }
 
   @Post('gerar-remessa')

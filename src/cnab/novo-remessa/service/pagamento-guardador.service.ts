@@ -7,7 +7,7 @@ import { DetalheAValorLancamentoAuditoria } from 'src/cnab/entity/pagamento/deta
 import { DetalheARepository } from 'src/cnab/repository/pagamento/detalhe-a.repository';
 import { HeaderName } from 'src/cnab/enums/pagamento/header-arquivo-status.enum';
 import { ICnabInfo } from 'src/cnab/cnab.service';
-import { RemessaService } from './remessa.service';
+import { OpcoesDescontoIndevido, RemessaService } from './remessa.service';
 import { OrdemPagamentoAgrupadoService } from './ordem-pagamento-agrupado.service';
 import {
   IDetalhamentoPorDia,
@@ -36,7 +36,7 @@ export class PagamentoGuardadorService {
     private usersService: UsersService,
   ) {}
 
-  async prepararPagamentos(dataInicio: Date, dataFim: Date): Promise<IPagamentoGuardadorPreparado[]> {
+  async prepararPagamentos(dataInicio: Date, dataFim: Date, opcoesIndevido?: OpcoesDescontoIndevido): Promise<IPagamentoGuardadorPreparado[]> {
     const dataPagamento = getInicioDoDiaBrasilia();
 
     // Agrupamento pela procedure da main (`P_AGRUPAR_ORDENS_GUARDADOR`), a mesma usada pelos cron jobs.
@@ -45,7 +45,7 @@ export class PagamentoGuardadorService {
     const tiposAtualizados = await this.pagamentoGuardadorRepository.sincronizarTipoContaHistorico(dataPagamento, dataInicio, dataFim);
     this.logger.log(`Guardadores agrupados (${tiposAtualizados} histórico(s) com tipo de conta ajustado)`);
 
-    await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, [], false);
+    await this.remessaService.prepararRemessa(dataInicio, dataFim, dataPagamento, [], false, undefined, undefined, false, undefined, opcoesIndevido);
 
     return (await this.pagamentoGuardadorRepository.listarPreparados(dataPagamento, { dataInicio, dataFim })) as IPagamentoGuardadorPreparado[];
   }
@@ -86,6 +86,11 @@ export class PagamentoGuardadorService {
 
   async gerarRemessa(): Promise<ICnabInfo[]> {
     return this.remessaService.gerarCnabText(HeaderName.GUARDADOR, false, false, []);
+  }
+
+  /** Reabre a remessa rejeitada pelo banco com um NSA novo, para ser gerada e enviada de novo. */
+  async renovarNsa(nsaRejeitado: number) {
+    return this.remessaService.renovarNsaRemessa(nsaRejeitado, HeaderName.GUARDADOR);
   }
 
   async enviarParaBanco(senha: string, requestUserId: number): Promise<{ enviados: number; arquivos: string[] }> {

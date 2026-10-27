@@ -9,6 +9,7 @@ import { IRequest } from 'src/utils/interfaces/request.interface';
 import { parseFimDoDia, parseInicioDoDia } from 'src/utils/date-utils';
 import { PagamentoModalService } from '../service/pagamento-modal.service';
 import { PagamentoConsorcioPrepararDto } from '../dto/pagamento-consorcio-preparar.dto';
+import { PagamentoRenovarNsaDto } from '../dto/pagamento-renovar-nsa.dto';
 import { PagamentoConsorcioEnviarBancoDto } from '../dto/pagamento-consorcio-enviar-banco.dto';
 
 @ApiTags('PagamentoModal')
@@ -74,6 +75,15 @@ export class PagamentoModalController {
   @HttpCode(HttpStatus.OK)
   async limparPreparo() {
     return this.pagamentoModalService.limparPreparoAtual();
+  }
+
+  @Post('renovar-nsa')
+  @Roles(RoleEnum.master, RoleEnum.admin)
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  async renovarNsa(@Body() dto: PagamentoRenovarNsaDto) {
+    return this.pagamentoModalService.renovarNsa(dto.nsa);
   }
 
   @Post('gerar-remessa')

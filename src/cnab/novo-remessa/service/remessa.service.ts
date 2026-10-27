@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { HttpException, HttpStatus, Injectable } from "@nestjs/common";
 import { CustomLogger } from "src/utils/custom-logger";
 import { OrdemPagamentoAgrupadoService } from "./ordem-pagamento-agrupado.service";
 import { HeaderArquivoService } from "src/cnab/service/pagamento/header-arquivo.service";
@@ -36,6 +36,17 @@ import { PagamentoIndevidoDTO } from "src/pagamento_indevido/dto/pagamento-indev
 /** Quando false, prepararRemessa não abate pagamentos indevidos do valor remetido (nem altera o saldo devedor). */
 export const DESCONTAR_PAGAMENTO_INDEVIDO = false;
 
+/**
+ * Opções do desconto de pagamentos indevidos na preparação da remessa (hoje só guardadores). `valorMaximo` é o máximo, em R$, que pode
+ * ser descontado de cada indevido nesta remessa (padrão R$ 100,00). Sem opções vale DESCONTAR_PAGAMENTO_INDEVIDO e R$ 100,00.
+ */
+export const VALOR_MAXIMO_DESCONTO_INDEVIDO_PADRAO = 100;
+
+export interface OpcoesDescontoIndevido {
+  descontar: boolean;
+  valorMaximo?: number;
+}
+
 @Injectable()
 export class RemessaService {
   private logger = new CustomLogger(RemessaService.name, { timestamp: true });
@@ -54,7 +65,9 @@ export class RemessaService {
   ) { }
 
   //PREPARA DADOS AGRUPADOS SALVANDO NAS TABELAS CNAB
-  public async prepararRemessa(dataInicio: Date, dataFim: Date, dataPgto?: Date, consorcio?: string[], pagamentoUnico?: boolean, isPendente?: boolean, idsFavorecidos?: string[], gratuidade = false, headerNameOverride?: HeaderName) {
+  public async prepararRemessa(dataInicio: Date, dataFim: Date, dataPgto?: Date, consorcio?: string[], pagamentoUnico?: boolean, isPendente?: boolean, idsFavorecidos?: string[], gratuidade = false, headerNameOverride?: HeaderName, opcoesIndevido?: OpcoesDescontoIndevido) {
+    const descontarIndevido = opcoesIndevido?.descontar ?? DESCONTAR_PAGAMENTO_INDEVIDO;
+    const valorMaximoIndevido = opcoesIndevido?.valorMaximo ?? VALOR_MAXIMO_DESCONTO_INDEVIDO_PADRAO;
     let ordens;
     if (gratuidade) {
       ordens = await this.ordemPagamentoAgrupadoService.getOrdensGratuidade(dataInicio, dataFim, consorcio, dataPgto);
@@ -157,9 +170,9 @@ export class RemessaService {
             return;
           }
 
-          // Desconto de pagamentos indevidos inativo (mudança operacional): sem "indevido" o valor da remessa
-          // não é abatido nem o saldo devedor é alterado. Para reativar, ligue DESCONTAR_PAGAMENTO_INDEVIDO.
-          const indevido = DESCONTAR_PAGAMENTO_INDEVIDO
+          // Desconto de pagamentos indevidos: sem "indevido" o valor da remessa não é abatido nem o saldo devedor é alterado.
+          // Liga-se por opção do preparo (guardadores) ou, sem opção, por DESCONTAR_PAGAMENTO_INDEVIDO.
+          const indevido = descontarIndevido
             ? await this.pagamentoIndevidoService.findByNome(user.fullName)
             : undefined;
 
@@ -208,21 +221,21 @@ export class RemessaService {
 
           if (headerLote) {
             if (headerLote.formaLancamento === Cnab104FormaLancamento.TED) {
-              detB = await this.gerarDetalheAB(headerLote, opa, nsrTed, indevido ? indevido[0] : indevido, pagamentoUnico, numeroDocumentoRef);
+              detB = await this.gerarDetalheAB(headerLote, opa, nsrTed, indevido ? indevido[0] : indevido, pagamentoUnico, numeroDocumentoRef, valorMaximoIndevido);
               if (detB !== null) {
                 await this.atualizaStatusRemessa(ordens[i], StatusRemessaEnum.PreparadoParaEnvio);
                 this.logger.debug(`Remessa preparado para: ${user.fullName} - TED`);
                 nsrTed = detB.nsr + 1;
               }
             } else if (headerLote.formaLancamento === Cnab104FormaLancamento.CreditoContaPoupanca) {
-              detB = await this.gerarDetalheAB(headerLote, opa, nsrPoupanca, indevido ? indevido[0] : indevido, pagamentoUnico, numeroDocumentoRef);
+              detB = await this.gerarDetalheAB(headerLote, opa, nsrPoupanca, indevido ? indevido[0] : indevido, pagamentoUnico, numeroDocumentoRef, valorMaximoIndevido);
               if (detB !== null) {
                 await this.atualizaStatusRemessa(ordens[i], StatusRemessaEnum.PreparadoParaEnvio);
                 this.logger.debug(`Remessa preparado para: ${user.fullName} - Poupança`);
                 nsrPoupanca = detB.nsr + 1;
               }
             } else {
-              detB = await this.gerarDetalheAB(headerLote, opa, nsrCC, indevido ? indevido[0] : indevido, pagamentoUnico, numeroDocumentoRef);
+              detB = await this.gerarDetalheAB(headerLote, opa, nsrCC, indevido ? indevido[0] : indevido, pagamentoUnico, numeroDocumentoRef, valorMaximoIndevido);
               if (detB !== null) {
                 await this.atualizaStatusRemessa(ordens[i], StatusRemessaEnum.PreparadoParaEnvio);
                 this.logger.debug(`Remessa preparado para: ${user.fullName} - CC`);
@@ -250,12 +263,21 @@ export class RemessaService {
 
     const trailerArquivo104 = structuredClone(Cnab104PgtoTemplates.file104.registros.trailerArquivo);
 
-    const registros: CnabRegistros104Pgto[] = [];
+    // Cada pagamento sai uma única vez, no lote da forma de lançamento que corresponde ao banco/tipo de conta escritos no
+    // próprio registro (Caixa -> crédito em conta "01"/poupança "05"; demais bancos -> TED "41"). Assim um pagamento preparado
+    // no lote errado (cadastro do usuário mudou após o agrupamento) não vai como TED para a Caixa, e nenhum pagamento se repete.
+    const registrosPorLote = new Map<number, CnabRegistros104Pgto[]>();
 
     const headersLote = await this.headerLoteService.findAll(headerArquivo.id);
+    const headerPorForma = new Map<string, HeaderLote>();
+    for (const headerLote of headersLote) {
+      registrosPorLote.set(headerLote.id, []);
+      if (!headerPorForma.has(headerLote.formaLancamento)) {
+        headerPorForma.set(headerLote.formaLancamento, headerLote);
+      }
+    }
 
     for (let i = 0; i < headersLote.length; i++) {
-
       const detalhesA = await this.detalheAService.getDetalheAHeaderLote(headersLote[i].id);
 
       for (let index = 0; index < detalhesA.length; index++) {
@@ -272,19 +294,31 @@ export class RemessaService {
         const detalheB = await this.detalheBService.findDetalheBDetalheAId(detalhesA[index].id);
 
         const detalhes = await DetalhesToCnab.convert(detalhesA[index], detalheB, historico);
+        // O valor real da efetivação é campo de retorno do banco: na remessa vai zerado.
+        detalhes.detalheA.valorRealEfetivado.value = 0;
 
-        registros.push(detalhes);
-
+        const formaDoPagamento = Number(historico.userBankCode) === 104
+          ? (historico.userBankAccountType === 'poupanca' ? Cnab104FormaLancamento.CreditoContaPoupanca : Cnab104FormaLancamento.CreditoContaCorrente)
+          : Cnab104FormaLancamento.TED;
+        const headerDestino = headerPorForma.get(formaDoPagamento) ?? headersLote[i];
+        registrosPorLote.get(headerDestino.id)!.push(detalhes);
       }
+    }
+
+    // O banco exige o NSR sequencial dentro do lote (A=1, B=2, A=3...). O NSR gravado no preparo pode ter lacunas ou
+    // repetir quando um detalhe muda de lote (ex.: reprocesso de preparo interrompido), e o banco rejeita o arquivo (AH).
+    for (const registros of registrosPorLote.values()) {
+      registros.forEach((registro, index) => {
+        registro.detalheA.nsr.value = index * 2 + 1;
+        registro.detalheB.nsr.value = index * 2 + 2;
+      });
     }
 
     const cnab104 = new CnabFile104PgtoDTO({
       headerArquivo: headerArquivoCnab,
       lotes: headersLote.map((headerLote: HeaderLote) => ({
         headerLote: CnabHeaderLote104PgtoDTO.convert(headerLote, headerArquivo),
-        registros: headerLote.formaLancamento === '41' ?//TED ou CC
-          registros.filter(r => (r.detalheA.codigoBancoDestino.value !== '104')) : //Diferente de Caixa
-          registros.filter(r => (r.detalheA.codigoBancoDestino.value === '104')),
+        registros: registrosPorLote.get(headerLote.id) ?? [],
         trailerLote: structuredClone(Cnab104PgtoTemplates.file104.registros.trailerLote),
       })),
       trailerArquivo: trailerArquivo104,
@@ -315,6 +349,39 @@ export class RemessaService {
         this.logger.debug("Arquivo não enviado por problemas de conexão com o SFTP");
       }
     }
+  }
+
+  /**
+   * Reabre uma remessa rejeitada pelo banco para ser gerada de novo com um NSA NOVO. O header do arquivo rejeitado (achado pelo
+   * NSA que consta nele) volta ao status "remessaGerado" e recebe o próximo NSA do contador; "Gerar Remessa"/"Enviar" passam a
+   * montar o arquivo a partir dos mesmos pagamentos já preparados, sem precisar preparar de novo.
+   */
+  async renovarNsaRemessa(nsaRejeitado: number, headerName: HeaderName) {
+    const candidatos = (await this.headerArquivoService.findMany({ nsa: nsaRejeitado }))
+      .filter((h) => h.status === HeaderArquivoStatus._2_remessaGerado || h.status === HeaderArquivoStatus._3_remessaEnviado)
+      .sort((a, b) => b.id - a.id);
+    const header = candidatos[0];
+    if (!header) {
+      throw new HttpException({ error: `Nenhuma remessa gerada/enviada encontrada com o NSA ${nsaRejeitado}.` }, HttpStatus.NOT_FOUND);
+    }
+
+    const emAberto = ((await this.headerArquivoService.getExists(HeaderArquivoStatus._2_remessaGerado, headerName)) as unknown as HeaderArquivo[]).filter((h) => h.id !== header.id);
+    if (emAberto.length > 0) {
+      throw new HttpException(
+        { error: `Já existe outra remessa gerada e não enviada (NSA ${emAberto[0].nsa}); envie-a ou limpe o preparo antes de renovar o NSA.` },
+        HttpStatus.CONFLICT,
+      );
+    }
+
+    const nsaNovo = await this.settingsService.getNextNSA(false);
+    await this.headerArquivoService.save({
+      id: header.id,
+      nsa: nsaNovo,
+      status: HeaderArquivoStatus._2_remessaGerado,
+      remessaName: headerName,
+    });
+    this.logger.log(`Remessa ${headerName} reaberta: header ${header.id}, NSA ${nsaRejeitado} -> ${nsaNovo}`);
+    return { headerArquivoId: header.id, nsaAnterior: nsaRejeitado, nsaNovo };
   }
 
   private async gerarHeaderArquivo(pagador: Pagador, remessaName: HeaderName) {
@@ -351,7 +418,7 @@ export class RemessaService {
   }
 
   private async gerarDetalheAB(headerLote: HeaderLote, ordem: OrdemPagamentoAgrupado, nsr: number,
-    indevido?: PagamentoIndevidoDTO, pagamentoUnico?: boolean, numeroDocumentoRef?: { value: number }) {
+    indevido?: PagamentoIndevidoDTO, pagamentoUnico?: boolean, numeroDocumentoRef?: { value: number }, valorMaximoIndevido = VALOR_MAXIMO_DESCONTO_INDEVIDO_PADRAO) {
     let ultimoHistorico;
     if (pagamentoUnico) {
       ultimoHistorico = await this.ordemPagamentoAgrupadoService.getHistoricoUnico(ordem.id);
@@ -375,7 +442,7 @@ export class RemessaService {
     }
 
     if (indevido && indevido.saldoDevedor > 0) {
-      const valor = await this.debitarPagamentoIndevido(indevido, detalheADTO.valorLancamento);
+      const valor = await this.debitarPagamentoIndevido(indevido, detalheADTO.valorLancamento, valorMaximoIndevido);
       detalheADTO.valorLancamento = valor;
       detalheADTO.valorRealEfetivado = valor;
     }
@@ -423,30 +490,20 @@ export class RemessaService {
 
   }
 
-  async debitarPagamentoIndevido(pagamentoIndevido: PagamentoIndevidoDTO, valor: any) {
-    let aPagar = 0;
-    const arr = Number(valor).toFixed(2);
-    let result = pagamentoIndevido.saldoDevedor - Number(arr);
-    const resultArr = result.toFixed(2);
-    result = Number(resultArr);
-    if (result > 0) {
-      //Vanzeiro continua devendo
-      //Atualizar o banco com o debito restante
-      pagamentoIndevido.saldoDevedor = result;
+  /**
+   * Desconta do pagamento (`valor`) o indevido: no máximo `valorMaximo` (R$) por indevido, nunca mais que o saldo devedor nem que o
+   * próprio pagamento. Grava o novo saldo devedor e devolve o que sobra a pagar (valor - desconto).
+   */
+  async debitarPagamentoIndevido(pagamentoIndevido: PagamentoIndevidoDTO, valor: any, valorMaximo = VALOR_MAXIMO_DESCONTO_INDEVIDO_PADRAO) {
+    const valorPagamento = Number(Number(valor).toFixed(2));
+    const teto = Math.min(pagamentoIndevido.saldoDevedor, Math.max(Number(valorMaximo) || 0, 0));
+    const desconto = Number(Math.min(valorPagamento, teto).toFixed(2));
+    const aPagar = Number((valorPagamento - desconto).toFixed(2));
+
+    if (desconto > 0) {
+      pagamentoIndevido.saldoDevedor = Number((pagamentoIndevido.saldoDevedor - desconto).toFixed(2));
       pagamentoIndevido.dataReferencia = new Date();
       await this.pagamentoIndevidoService.save(pagamentoIndevido);
-
-    } else {
-      //debito encerrado
-      if (result <= 0) {
-        //ex: result = -10
-        //pagar diferença para o vanzeiro
-        aPagar = Math.abs(result);
-        pagamentoIndevido.saldoDevedor = 0;
-        pagamentoIndevido.dataReferencia = new Date();
-        //deletar debito do vanzeiro
-        await this.pagamentoIndevidoService.save(pagamentoIndevido);
-      }
     }
 
     return aPagar;
