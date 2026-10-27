@@ -95,4 +95,9 @@ export class RelatorioFinancialMovementNovoRemessaData {
   valorOrdemPagamento3?: number | null;
   dataOrdemPagamento4?: string | null;
   valorOrdemPagamento4?: number | null;
+
+  // Preenchido só nas linhas explodidas por dia do export STUC - Gratuidade
+  // (streamFinancialMovementRows): o total da janela de pagamento, que `valor` deixa de
+  // representar ali (vira o valor do dia). Ver financial-movement-export-writer.ts.
+  valorLancamento?: number | null;
 }

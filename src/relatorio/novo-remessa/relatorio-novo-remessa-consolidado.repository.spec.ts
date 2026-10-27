@@ -289,6 +289,58 @@ describe('RelatorioNovoRemessaConsolidadoRepository', () => {
       expect(sql).toContain(`op."nomeConsorcio" IN('STPC','STPL','TEC')`);
       expect(sql).toContain(`length(op."operadoraCpfCnpj")<=11`);
     });
+
+    // Bug: em dia único (De === Até), "Pendência de Pagamento" (Estorno/Rejeitado) usava a mesma
+    // consulta geral por dataVencimento das demais abas - sem a cadeia de retentativa (op_pai),
+    // perdia/colapsava dias de uma janela STUC cuja tentativa mais recente não cai no próprio dia
+    // filtrado. Movimentação Financeira já trocava para a consulta ciente de retentativa
+    // (buildStucGratuidadePendenciaPagamentoSingleDateQuery) nesse caso; Consolidado não.
+    it('"Pendência de Pagamento" (Todos) em dia único usa a consulta ciente de retentativa, igual à Movimentação Financeira', async () => {
+      await repository.findConsolidado({
+        dataInicio: new Date('2026-10-16'),
+        dataFim: new Date('2026-10-16'),
+        userIds: [10],
+        stucGratuidade: true,
+        erro: true,
+      } as any);
+
+      const sql = (mockQueryRunner.query as jest.Mock).mock.calls[0][0];
+      // Consulta ciente de retentativa: usa a data real da ordem (ADR 0012/pivot), não a data de
+      // pagamento da tentativa, e junta oph_pai para achar a tentativa mais recente da família.
+      expect(sql).toContain('da."dataVencimento" AS "dataReferencia"');
+      expect(sql).toContain('ordem_pagamento_agrupado_historico oph_pai');
+      expect(sql).toContain(`IN ('Estorno', 'Rejeitado')`);
+      expect(sql).not.toMatch(/\$[1-5]\b/);
+    });
+
+    it('"Pendência de Pagamento" (Todos) em dia único não duplica linhas entre a consulta geral e a de retentativa', async () => {
+      await repository.findConsolidado({
+        dataInicio: new Date('2026-10-16'),
+        dataFim: new Date('2026-10-16'),
+        userIds: [10],
+        stucGratuidade: true,
+        erro: true,
+      } as any);
+
+      const sql = (mockQueryRunner.query as jest.Mock).mock.calls[0][0];
+      // A consulta geral (buildStucGratuidadeQuery) não deve mais filtrar por Estorno/Rejeitado -
+      // sem FALSE aqui ela voltaria a trazer status=4 sem a cadeia de retentativa, duplicando.
+      expect(sql).toContain('AND FALSE');
+    });
+
+    it('"Pendência de Pagamento" (Todos) num intervalo de mais de um dia continua usando só a consulta geral (comportamento existente preservado)', async () => {
+      await repository.findConsolidado({
+        dataInicio: new Date('2026-10-14'),
+        dataFim: new Date('2026-10-16'),
+        userIds: [10],
+        stucGratuidade: true,
+        erro: true,
+      } as any);
+
+      const sql = (mockQueryRunner.query as jest.Mock).mock.calls[0][0];
+      expect(sql).toContain(`AND (oph."motivoStatusRemessa" IN ('02') OR oph."statusRemessa" IN (4) OR (oph."statusRemessa" = 4 AND (oph."motivoStatusRemessa" IS NULL OR oph."motivoStatusRemessa" <> '02')))`);
+      expect(sql).not.toContain('ordem_pagamento_agrupado_historico oph_pai');
+    });
   });
 
   describe('findConsolidado - STUC - Gratuidade payment window columns (ADR 0012)', () => {
@@ -420,6 +472,79 @@ describe('RelatorioNovoRemessaConsolidadoRepository', () => {
       expect(page1.count).toBe(3);
       const allNomes = [...page1.data, ...page2.data].map((r: any) => r.nomefavorecido).sort();
       expect(allNomes).toEqual(['Ana', 'Bruno', 'Carla']);
+    });
+
+    it('orders rows by nome and, within the same nome, by dataPagamento (ascending)', async () => {
+      (mockQueryRunner.query as jest.Mock).mockResolvedValue([
+        // Zeca tem duas janelas de pagamento distintas: a mais recente (23/10) vem primeiro na
+        // query bruta, mas deve aparecer depois da mais antiga (16/10) uma vez ordenado.
+        { nome: 'Zeca', cpfCnpj: '1', dataReferencia: '20/10/2026', dataPagamento: '23/10/2026', valor: '10' },
+        { nome: 'Zeca', cpfCnpj: '1', dataReferencia: '13/10/2026', dataPagamento: '16/10/2026', valor: '20' },
+        { nome: 'Ana', cpfCnpj: '2', dataReferencia: '13/10/2026', dataPagamento: '16/10/2026', valor: '30' },
+      ]);
+
+      const result = await repository.findConsolidado({
+        dataInicio: new Date('2026-10-13'),
+        dataFim: new Date('2026-10-20'),
+        stucGratuidade: true,
+      } as any);
+
+      expect((result.data as any[]).map((r) => [r.nomefavorecido, r.dataPagamento])).toEqual([
+        ['Ana', '16/10/2026'],
+        ['Zeca', '16/10/2026'],
+        ['Zeca', '23/10/2026'],
+      ]);
+    });
+  });
+
+  // ADR 0012: STUC - Gratuidade explode cada dia da janela de pagamento em sua própria entrada
+  // (dataReferencia por dia, não a data de pagamento da janela toda) antes do pivot. Isso vale
+  // para TODOS os status filtráveis na tela, não só o fluxo "sem filtro" - um gap aqui faz
+  // pivotStucGratuidadeRows receber uma linha por janela em vez de uma por dia, colapsando os
+  // dias distintos numa única coluna/linha (o mesmo bug que a correção de Estorno/Rejeitado em
+  // dia único, abaixo, fechou para esse status específico).
+  //
+  // Correção (achado testando contra produção, 2026-10-26): a asserção aqui checava
+  // da."dataVencimento" AS "dataReferencia", mas da."dataVencimento" é a data de pagamento do
+  // LOTE (um só detalhe_a por agrupamento) - igual pra toda ordem irmã, não varia por dia. O
+  // pivot recebia sempre a mesma dataReferencia pras ordens de uma mesma janela, caindo todas na
+  // mesma coluna em vez de se espalhar - o oposto do que o comentário acima (e o ADR 0012)
+  // pedia. Trocado para DATE(op."dataOrdem"), que de fato varia por ordem.
+  describe('findConsolidado - STUC - Gratuidade: dataReferencia é por dia em todos os status (Todos, A pagar, Pago, Aguardando Pagamento, Pendência de Pagamento, Pendência Paga)', () => {
+    const casosPorDiaUnico: Array<{ label: string; filtro: Record<string, unknown> }> = [
+      { label: 'Todos', filtro: {} },
+      { label: 'A pagar', filtro: { aPagar: true } },
+      { label: 'Pago', filtro: { pago: true } },
+      { label: 'Aguardando Pagamento', filtro: { emProcessamento: true } },
+      { label: 'Pendência Paga', filtro: { pendenciaPaga: true } },
+    ];
+
+    it.each(casosPorDiaUnico)('$label: usa DATE(op."dataOrdem") como dataReferencia (por dia, não por janela)', async ({ filtro }) => {
+      await repository.findConsolidado({
+        dataInicio: new Date('2026-10-16'),
+        dataFim: new Date('2026-10-16'),
+        userIds: [10],
+        stucGratuidade: true,
+        ...filtro,
+      } as any);
+
+      const sql = (mockQueryRunner.query as jest.Mock).mock.calls[0][0];
+      expect(sql).toContain('DATE(op."dataOrdem") AS "dataReferencia"');
+    });
+
+    it('Pendência de Pagamento (Estorno/Rejeitado): usa da."dataVencimento" como dataReferencia via a consulta ciente de retentativa (dia único)', async () => {
+      await repository.findConsolidado({
+        dataInicio: new Date('2026-10-16'),
+        dataFim: new Date('2026-10-16'),
+        userIds: [10],
+        stucGratuidade: true,
+        erro: true,
+      } as any);
+
+      const sql = (mockQueryRunner.query as jest.Mock).mock.calls[0][0];
+      expect(sql).toContain('da."dataVencimento" AS "dataReferencia"');
+      expect(sql).not.toContain('op_pai."dataPagamento" AS "dataReferencia"');
+      expect(sql).not.toContain('opa."dataPagamento" AS "dataReferencia"');
     });
   });
 });
