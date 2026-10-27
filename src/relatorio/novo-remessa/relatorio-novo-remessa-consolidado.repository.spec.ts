@@ -473,6 +473,28 @@ describe('RelatorioNovoRemessaConsolidadoRepository', () => {
       const allNomes = [...page1.data, ...page2.data].map((r: any) => r.nomefavorecido).sort();
       expect(allNomes).toEqual(['Ana', 'Bruno', 'Carla']);
     });
+
+    it('orders rows by nome and, within the same nome, by dataPagamento (ascending)', async () => {
+      (mockQueryRunner.query as jest.Mock).mockResolvedValue([
+        // Zeca tem duas janelas de pagamento distintas: a mais recente (23/10) vem primeiro na
+        // query bruta, mas deve aparecer depois da mais antiga (16/10) uma vez ordenado.
+        { nome: 'Zeca', cpfCnpj: '1', dataReferencia: '20/10/2026', dataPagamento: '23/10/2026', valor: '10' },
+        { nome: 'Zeca', cpfCnpj: '1', dataReferencia: '13/10/2026', dataPagamento: '16/10/2026', valor: '20' },
+        { nome: 'Ana', cpfCnpj: '2', dataReferencia: '13/10/2026', dataPagamento: '16/10/2026', valor: '30' },
+      ]);
+
+      const result = await repository.findConsolidado({
+        dataInicio: new Date('2026-10-13'),
+        dataFim: new Date('2026-10-20'),
+        stucGratuidade: true,
+      } as any);
+
+      expect((result.data as any[]).map((r) => [r.nomefavorecido, r.dataPagamento])).toEqual([
+        ['Ana', '16/10/2026'],
+        ['Zeca', '16/10/2026'],
+        ['Zeca', '23/10/2026'],
+      ]);
+    });
   });
 
   // ADR 0012: STUC - Gratuidade explode cada dia da janela de pagamento em sua própria entrada
