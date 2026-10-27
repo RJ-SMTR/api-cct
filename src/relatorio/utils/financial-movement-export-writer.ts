@@ -37,8 +37,6 @@ type Column = {
 // Mesmas colunas usadas pelo CSV original (Permissionário e Guardador). Compartilhada entre
 // os três formatos para os três não divergirem silenciosamente entre si. pdfWeight é o peso
 // relativo da coluna na largura da tabela do PDF (ver financial-movement-pdf.ts).
-// O modelo de colunas "Ord. de Pag. N" (ADR 0012) é exclusivo do Relatório Consolidado - a
-// Movimentação Financeira não ganha colunas extras quando o filtro STUC - Gratuidade está ativo.
 const BASE_COLUMNS: Column[] = [
   { key: 'dataReferencia', label: 'Data Referência', pdfWeight: 10, pdfLabel: 'Dt Refer.' },
   { key: 'dataPagamento', label: 'Data Pagamento', pdfWeight: 10, pdfLabel: 'Dt Pagto.' },
@@ -53,12 +51,26 @@ const BASE_COLUMNS: Column[] = [
   { key: 'descricaoErro', label: 'Erro', pdfWeight: 16 },
 ];
 
-const VALOR_KEYS = new Set<string>(['valor']);
+// STUC - Gratuidade: mesmas colunas e rótulos da tela (StucGratuidadeTable.js,
+// StucGratuidadeHeaderCells/BodyRows com showDataPagamento) - Nome, CPF, Data Ordem, Valor
+// Ordem, Valor Lançamento, Data de Pagamento. Sem Email/Banco/Nome Banco/Consórcio/Status/Erro,
+// que a tela não mostra nesse filtro. `valor` aqui é o valor do dia (streamFinancialMovementRows
+// o sobrescreve por linha); `valorLancamento` é o total da janela, preservado à parte.
+const STUC_COLUMNS: Column[] = [
+  { key: 'nomes', label: 'Nome', pdfWeight: 20 },
+  { key: 'cpfCnpj', label: 'CPF', pdfWeight: 14 },
+  { key: 'dataReferencia', label: 'Data Ordem', pdfWeight: 12, pdfLabel: 'Data Ordem' },
+  { key: 'valor', label: 'Valor Ordem', pdfWeight: 12, pdfAlign: 'right', pdfLabel: 'Valor Ordem' },
+  { key: 'valorLancamento', label: 'Valor Lançamento', pdfWeight: 14, pdfAlign: 'right' },
+  { key: 'dataPagamento', label: 'Data de Pagamento', pdfWeight: 12, pdfLabel: 'Dt Pagto.' },
+];
+
+const VALOR_KEYS = new Set<string>(['valor', 'valorLancamento']);
 
 const csvEscape = (value: unknown): string => `"${String(value ?? '').replace(/"/g, '""')}"`;
 
-async function writeCsv(prefix: string, streamRows: StreamRows): Promise<FinancialMovementExportResult> {
-  const columns = BASE_COLUMNS;
+async function writeCsv(prefix: string, streamRows: StreamRows, stuc: boolean): Promise<FinancialMovementExportResult> {
+  const columns = stuc ? STUC_COLUMNS : BASE_COLUMNS;
   const fileName = `${prefix}-${Date.now()}.csv`;
   const filePath = path.join(os.tmpdir(), fileName);
   const ws = fs.createWriteStream(filePath, { encoding: 'utf8' });
@@ -79,8 +91,8 @@ async function writeCsv(prefix: string, streamRows: StreamRows): Promise<Financi
   return { filePath, fileName, filename: fileName, contentType: 'text/csv; charset=utf-8' };
 }
 
-async function writeXlsx(prefix: string, streamRows: StreamRows): Promise<FinancialMovementExportResult> {
-  const columns = BASE_COLUMNS;
+async function writeXlsx(prefix: string, streamRows: StreamRows, stuc: boolean): Promise<FinancialMovementExportResult> {
+  const columns = stuc ? STUC_COLUMNS : BASE_COLUMNS;
   const fileName = `${prefix}-${Date.now()}.xlsx`;
   const filePath = path.join(os.tmpdir(), fileName);
   const rows: Array<Array<string | number>> = [columns.map((c) => c.label)];
@@ -102,8 +114,8 @@ async function writeXlsx(prefix: string, streamRows: StreamRows): Promise<Financ
 // Mesmo layout do PDF do Consolidado (app-cct, ConsolidatedReportPage.js/exportPDF): logo,
 // cabeçalho com período/status, grade de tabela de verdade e rodapé com paginação + valor
 // total - ver financial-movement-pdf.ts.
-async function writePdf(prefix: string, streamRows: StreamRows, meta: FinancialMovementExportMeta = {}): Promise<FinancialMovementExportResult> {
-  const columns = BASE_COLUMNS;
+async function writePdf(prefix: string, streamRows: StreamRows, meta: FinancialMovementExportMeta = {}, stuc = false): Promise<FinancialMovementExportResult> {
+  const columns = stuc ? STUC_COLUMNS : BASE_COLUMNS;
   const fileName = `${prefix}-${Date.now()}.pdf`;
   const filePath = path.join(os.tmpdir(), fileName);
 
@@ -128,17 +140,14 @@ async function writePdf(prefix: string, streamRows: StreamRows, meta: FinancialM
   return { filePath, fileName, filename: fileName, contentType: 'application/pdf' };
 }
 
-// `stuc` é mantido na assinatura por compatibilidade com o chamador (service) e com os specs,
-// mas não afeta mais as colunas geradas - ver comentário acima de BASE_COLUMNS.
 export async function writeFinancialMovementExport(
   format: FinancialMovementExportFormatValue,
   fileNamePrefix: string,
   streamRows: StreamRows,
   meta?: FinancialMovementExportMeta,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   stuc = false,
 ): Promise<FinancialMovementExportResult> {
-  if (format === 'xlsx') return writeXlsx(fileNamePrefix, streamRows);
-  if (format === 'pdf') return writePdf(fileNamePrefix, streamRows, meta);
-  return writeCsv(fileNamePrefix, streamRows);
+  if (format === 'xlsx') return writeXlsx(fileNamePrefix, streamRows, stuc);
+  if (format === 'pdf') return writePdf(fileNamePrefix, streamRows, meta, stuc);
+  return writeCsv(fileNamePrefix, streamRows, stuc);
 }
