@@ -29,6 +29,8 @@ Registro único do que foi adiado de propósito, por quê e por quem. Serve para
 | [TD-12](#td-12) | `cron-jobs-pendentes.spec` quebrado na `main` bloqueia o pre-commit | aberto | Matthew | 2026-10-09 |
 | [TD-13](#td-13) | Hook de pre-commit não funciona no Windows (`spawnSync` do `.bin/tsc`) e o ratchet fica vazio | aberto | William | 2026-10-04 |
 | [TD-14](#td-14) | `SELECT DISTINCT` sem `op.id` em `buildPendenciaPagaTemplate`/`buildPendenciaPagamentoTemplate` pode subcontar como no ADR 0007 | reaberto (pagamento anterior usava diagnóstico errado — ADR 0011) | Rayanne | 2026-10-20 |
+| [TD-15](#td-15) | Cadeia de migrations fora de ordem impede montar schema do zero | aberto | Rayanne | 2026-10-27 |
+| [TD-16](#td-16) | `getQueryApagar` concatena `consorcioNome` sem aspas por item num ramo do filtro `favorecidoNome='Todos'` | aberto | Rayanne | 2026-10-27 |
 
 ## Entradas
 
@@ -172,3 +174,21 @@ Registro único do que foi adiado de propósito, por quê e por quem. Serve para
 - **Critério de pagamento anterior (revertido):** `DISTINCT` removido de `buildPendenciaPagaTemplate` e `buildPendenciaPagamentoTemplate`, com teste de regressão em `novo-remessa-query-builder.spec.ts` (`describe('... sem DISTINCT (ADR 0007 / TD-14)')`) cobrindo as duas funções. Validado então: tela e banco batiam em R$ 2.951,15 para o caso real acima.
 - **Por que foi reaberto:** o diagnóstico estava errado. As "3 ordens de pagamento distintas de R$12,38 cada" de `opa.id=253902` são, na verdade, **1 único lançamento** (`da.id=21536`) com 3 ordens de pagamento filhas do mesmo agrupamento — confirmado direto no banco (`op.id` 34723/35787/36572, todas com o mesmo `oph.id=255318` e `da.id=21536`). O valor real do grupo é R$ 12,38, não R$ 37,14: remover o `DISTINCT` introduziu uma sobrecontagem 3x nesse caso específico, em vez de corrigir uma subcontagem. O mesmo mecanismo apareceu de forma muito mais visível em 2026-09-10 (Permissionário, Pago, via `buildBaseQuery`/`buildGroupedQuery`): R$ 281.131,68 exibidos contra R$ 59.212,56 reais. Ver ADR 0011 para a causa raiz completa.
 - **Critério de pagamento (novo):** as três funções (`buildGroupedQuery`, `buildPendenciaPagaTemplate`, `buildPendenciaPagamentoTemplate`) restringem a fonte `AGRUPAMENTO_NORMAL` a uma única `ordem_pagamento` representante por agrupamento, eliminando o fan-out antes da soma — `AGRUPAMENTO_GRATUIDADE` (STUC) continua sem essa restrição, sem regressão no que o ADR 0007 corrigiu. Testes de regressão (positivos e negativos) em `novo-remessa-query-builder.spec.ts` (`describe('... uma ordem por agrupamento (ADR 0011...)')`). Validado após o fix: `opa.id=253902` passa a somar R$ 12,38 (não R$ 37,14); o caso de 2026-09-10 passa a somar R$ 59.212,56 (igual ao Consolidado e ao banco).
+
+## TD-15
+**Cadeia de migrations fora de ordem impede montar schema do zero**
+
+- **Status:** aberto
+- **Registrado por:** Rayanne · **Detectado por:** agente · **Data:** 2026-10-27
+- **Contexto:** achado incidentalmente na branch `refactor/relatorio-parametrizar-queries` (T2), ao tentar montar um Postgres isolado (schema do zero, via migrations) para escrever specs de integração sem depender do container compartilhado. A migration `CreateUserRelatonshipAndOrdemPagamentoGruadador1784579152936` dropa uma coluna de uma tabela que só é criada por uma migration posterior — rodar `migration:run` do zero falha nessa cadeia. Não investigado a fundo (fora do escopo do refactor); o workaround usado foi trabalhar sobre o container `api-cct-postgres-1` já existente, recriando manualmente só as tabelas faltantes (`transacao_view`) em vez de migrar do zero.
+- **Impacto/risco:** qualquer ambiente novo (CI, onboarding, banco de teste isolado) que tente `npm run migration:run` contra um Postgres vazio falha nessa migration; hoje só funciona porque os ambientes existentes já têm o schema aplicado fora de ordem (ou aplicado antes do bug existir).
+- **Critério de pagamento:** `npm run migration:run` (ou equivalente) aplica a cadeia completa de migrations do zero, sem erro, contra um Postgres vazio; a migration que dropa a coluna é reordenada ou corrigida para não depender de uma tabela criada depois dela.
+
+## TD-16
+**`getQueryApagar` concatena `consorcioNome` sem aspas por item num ramo do filtro `favorecidoNome='Todos'`**
+
+- **Status:** aberto
+- **Registrado por:** Rayanne · **Detectado por:** agente · **Data:** 2026-10-27
+- **Contexto:** achado em `src/relatorio/sintetico/relatorio-sintetico.repository.ts`, `RelatorioSinteticoRepository.getQueryApagar` (T3 do refactor `refactor/relatorio-parametrizar-queries`). Quando `favorecidoNome` inclui o sentinela `'Todos'` e `consorcioNome` também está definido, o código monta `tv."nomeConsorcio" in('STPC','STPL',${args.consorcioNome?.join("','")})` — os itens de `args.consorcioNome` entram concatenados sem aspas em volta de cada um, diferente dos outros itens fixos da lista (`'STPC'`, `'STPL'`). Preservado como estava (comentado no código) por estar fora do escopo do refactor de parametrização (mudar regra de negócio pré-existente exige confirmação separada).
+- **Impacto/risco:** qualquer `consorcioNome` com mais de uma palavra ou que não seja um identificador solto gera erro de sintaxe SQL nesse ramo específico (`favorecidoNome=['Todos']` + `consorcioNome` definido, em `findSintetico` com `aPagar=true`); se algum nome de consórcio tiver caractere especial, é também um vetor de SQL injection residual, já que esse trecho não foi parametrizado.
+- **Critério de pagamento:** o item do array `args.consorcioNome` passa a entrar citado (`'${item}'` ou, melhor, via parâmetro bind) na lista `IN`, com teste de integração cobrindo esse ramo (`favorecidoNome=['Todos']` + `consorcioNome` definido) antes e depois do fix.
