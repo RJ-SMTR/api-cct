@@ -868,7 +868,13 @@ export class RelatorioNovoRemessaConsolidadoRepository {
       pivoted = pivoted.filter((row) => row.valor <= valorMax);
     }
 
-    pivoted = [...pivoted].sort((a, b) => a.nome.localeCompare(b.nome));
+    pivoted = [...pivoted].sort((a, b) => {
+      const porNome = a.nome.localeCompare(b.nome);
+      if (porNome !== 0) return porNome;
+      const dataA = a.dataPagamento ? a.dataPagamento.getTime() : 0;
+      const dataB = b.dataPagamento ? b.dataPagamento.getTime() : 0;
+      return dataA - dataB;
+    });
 
     const hasPagination = filter.page !== undefined && filter.pageSize !== undefined;
     const totalCount = pivoted.length;
