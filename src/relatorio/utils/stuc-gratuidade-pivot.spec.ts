@@ -16,13 +16,17 @@ const quarta = new Date(2026, 9, 28);
 const quinta = new Date(2026, 9, 29);
 
 describe('pivotStucGratuidadeRows', () => {
-  it('com uma única linha, preenche só a primeira posição e mantém o valor', () => {
+  it('com uma única linha, preenche a 1ª posição com o valor e as demais da janela com 0 na data real do dia', () => {
     const [resultado] = pivotStucGratuidadeRows([row(sexta, 100)], porFavorecido);
 
     expect(resultado.dataOrdemPagamento1).toEqual(sexta);
     expect(resultado.valorOrdemPagamento1).toBe(100);
-    expect(resultado.dataOrdemPagamento2).toBeNull();
-    expect(resultado.valorOrdemPagamento2).toBeNull();
+    expect(resultado.dataOrdemPagamento2).toEqual(sabado);
+    expect(resultado.valorOrdemPagamento2).toBe(0);
+    expect(resultado.dataOrdemPagamento3).toEqual(domingo);
+    expect(resultado.valorOrdemPagamento3).toBe(0);
+    expect(resultado.dataOrdemPagamento4).toEqual(segunda);
+    expect(resultado.valorOrdemPagamento4).toBe(0);
     expect(resultado.valor).toBe(100);
   });
 
@@ -41,7 +45,7 @@ describe('pivotStucGratuidadeRows', () => {
     expect(resultado.valor).toBe(100);
   });
 
-  it('com os 3 dias de uma janela de terça-quinta, deixa a 4ª posição vazia', () => {
+  it('com os 3 dias de uma janela de terça-quinta, deixa a 4ª posição vazia (ela não existe nessa janela)', () => {
     const rows = [row(terca, 1), row(quarta, 2), row(quinta, 3)];
     const [resultado] = pivotStucGratuidadeRows(rows, porFavorecido);
 
@@ -50,6 +54,28 @@ describe('pivotStucGratuidadeRows', () => {
     expect(resultado.dataOrdemPagamento4).toBeNull();
     expect(resultado.valorOrdemPagamento4).toBeNull();
     expect(resultado.valor).toBe(6);
+  });
+
+  it('preenche com 0 e a data real o dia sem lançamento no meio de uma janela de terça-quinta, sem criar a 4ª posição', () => {
+    const rows = [row(terca, 1), row(quinta, 3)];
+    const [resultado] = pivotStucGratuidadeRows(rows, porFavorecido);
+
+    expect(resultado.dataOrdemPagamento1).toEqual(terca);
+    expect(resultado.valorOrdemPagamento1).toBe(1);
+    expect(resultado.dataOrdemPagamento2).toEqual(quarta);
+    expect(resultado.valorOrdemPagamento2).toBe(0);
+    expect(resultado.dataOrdemPagamento3).toEqual(quinta);
+    expect(resultado.valorOrdemPagamento3).toBe(3);
+    expect(resultado.dataOrdemPagamento4).toBeNull();
+    expect(resultado.valorOrdemPagamento4).toBeNull();
+    expect(resultado.valor).toBe(4);
+  });
+
+  it('repete os demais campos do firstRow do grupo na posição backfilled, não só nas com lançamento', () => {
+    const rows = [row(sexta, 10, 'Fulano')];
+    const [resultado] = pivotStucGratuidadeRows(rows, porFavorecido);
+
+    expect(resultado.favorecido).toBe('Fulano');
   });
 
   it('soma duas linhas do mesmo dia na mesma posição, em vez de duplicar', () => {
