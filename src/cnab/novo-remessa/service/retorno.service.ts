@@ -105,6 +105,11 @@ export class RetornoService {
         }
     }
 
+    private ocorrenciaOk(ocorrencia: string) {
+        const valor = (ocorrencia ?? '').trim();
+        return valor === 'BD' || valor === '00';
+    }
+
     private async atualizarStatusRemessaHistorico(
         cnabLote: CnabLote104Pgto, registro: CnabRegistros104Pgto, detalheA: DetalheA) {
         const historicos = await this.ordemPagamentoAgrupadoService.getHistorico(detalheA.id);
@@ -150,6 +155,20 @@ export class RetornoService {
                             StatusRemessaEnum.NaoEfetivado,
                         );
                     }
+                } else if (historico.statusRemessa === StatusRemessaEnum.NaoEfetivado && !historico.motivoStatusRemessa
+                    && this.ocorrenciaOk(cnabLote.headerLote.ocorrencias.value)
+                    && this.ocorrenciaOk(registro.detalheA.ocorrencias.value)) {
+                    // Rejeição do arquivo inteiro (ocorrência do lote em branco) marca tudo como NaoEfetivado SEM motivo. Se o
+                    // banco aceitou o reenvio, "BD" volta o pagamento para Aguardando e "00" o efetiva. Com motivo preenchido
+                    // (erro real do pagamento) o histórico continua NaoEfetivado.
+                    const ocorrenciaDetalhe = registro.detalheA.ocorrencias.value.trim();
+                    historico.motivoStatusRemessa = ocorrenciaDetalhe;
+                    await this.ordemPagamentoAgrupadoService.saveStatusHistorico(
+                        historico,
+                        ocorrenciaDetalhe === 'BD'
+                            ? StatusRemessaEnum.AguardandoPagamento
+                            : (historicos.length > 1 ? StatusRemessaEnum.PendenciaPaga : StatusRemessaEnum.Efetivado),
+                    );
                 } else if (historico.statusRemessa === StatusRemessaEnum.AguardandoPagamento) {
                     historico.motivoStatusRemessa = registro.detalheA.ocorrencias.value.trim();
                     //SE O HEADER LOTE ESTIVER COM ERRO TODOS OS DETALHES FICAM COMO NÃO EFETIVADOS    

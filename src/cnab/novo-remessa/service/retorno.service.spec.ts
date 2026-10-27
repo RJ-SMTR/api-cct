@@ -133,11 +133,46 @@ describe('RetornoService', () => {
     it('historico ja finalizado (Efetivado/NaoEfetivado/PendenciaPaga) => nao altera', async () => {
       opaService.getHistorico.mockResolvedValue([
         makeHistorico(10, StatusRemessaEnum.Efetivado),
-        makeHistorico(11, StatusRemessaEnum.NaoEfetivado),
+        { ...makeHistorico(11, StatusRemessaEnum.NaoEfetivado), motivoStatusRemessa: '02' },
         makeHistorico(12, StatusRemessaEnum.PendenciaPaga),
       ]);
       await atualizar(makeLote('00'), makeRegistro('00'), { id: 1 });
       expect(opaService.saveStatusHistorico).not.toHaveBeenCalled();
+    });
+
+    describe('reenvio apos rejeicao do arquivo inteiro (NaoEfetivado sem motivo)', () => {
+      const rejeitado = (motivo?: string) => ({ ...makeHistorico(20, StatusRemessaEnum.NaoEfetivado), motivoStatusRemessa: motivo });
+
+      it('"BD" do reenvio => AguardandoPagamento', async () => {
+        opaService.getHistorico.mockResolvedValue([rejeitado('')]);
+        await atualizar(makeLote('00'), makeRegistro('BD'), { id: 1 });
+        expect(opaService.saveStatusHistorico).toHaveBeenCalledWith(expect.anything(), StatusRemessaEnum.AguardandoPagamento);
+      });
+
+      it('"00" do reenvio => Efetivado', async () => {
+        opaService.getHistorico.mockResolvedValue([rejeitado(undefined)]);
+        await atualizar(makeLote('00'), makeRegistro('00'), { id: 1 });
+        expect(opaService.saveStatusHistorico).toHaveBeenCalledWith(expect.anything(), StatusRemessaEnum.Efetivado);
+      });
+
+      it('"00" com pai/filhas => PendenciaPaga', async () => {
+        opaService.getHistorico.mockResolvedValue([rejeitado(''), makeHistorico(21, StatusRemessaEnum.AguardandoPagamento)]);
+        await atualizar(makeLote('00'), makeRegistro('00'), { id: 1 });
+        expect(opaService.saveStatusHistorico).toHaveBeenCalledWith(expect.objectContaining({ id: 20 }), StatusRemessaEnum.PendenciaPaga);
+      });
+
+      it('NaoEfetivado COM motivo (erro real do pagamento) nao reabre', async () => {
+        opaService.getHistorico.mockResolvedValue([rejeitado('AI')]);
+        await atualizar(makeLote('00'), makeRegistro('00'), { id: 1 });
+        expect(opaService.saveStatusHistorico).not.toHaveBeenCalled();
+      });
+
+      it('retorno com erro (header em branco ou detalhe com erro) nao reabre', async () => {
+        opaService.getHistorico.mockResolvedValue([rejeitado('')]);
+        await atualizar(makeLote(''), makeRegistro('00'), { id: 1 });
+        await atualizar(makeLote('00'), makeRegistro('AH'), { id: 1 });
+        expect(opaService.saveStatusHistorico).not.toHaveBeenCalled();
+      });
     });
   });
 
