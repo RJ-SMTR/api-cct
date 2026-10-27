@@ -366,12 +366,13 @@ export class RelatorioNovoRemessaFinancialMovementService {
     const summary = this.buildStucGratuidadeSummary(pivotedRows);
     const start = (currentPage - 1) * pageSize;
     const data = pivotedRows.slice(start, start + pageSize);
+    const hasNext = start + pageSize < pivotedRows.length;
     return new RelatorioFinancialMovementNovoRemessaPageDto({
       ...summary,
       currentPage,
       pageSize,
       data,
-      nextCursor: null,
+      nextCursor: hasNext ? String(currentPage + 1) : null,
     });
   }
 

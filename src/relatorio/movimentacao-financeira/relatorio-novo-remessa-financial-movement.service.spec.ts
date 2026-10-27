@@ -628,6 +628,11 @@ describe('RelatorioNovoRemessaFinancialMovementService', () => {
       expect(page2.data).toHaveLength(1);
       const allCpfCnpj = [...(page1.data as any[]), ...(page2.data as any[])].map((r) => r.cpfCnpj).sort();
       expect(allCpfCnpj).toEqual(['1', '2', '3']);
+
+      // Regressão: nextCursor fixo em null deixava a seta de "próxima página" sempre
+      // desabilitada no front, mesmo havendo mais linhas além da página atual.
+      expect(page1.nextCursor).toBeTruthy();
+      expect(page2.nextCursor).toBeNull();
     });
 
     it('orders rows by nomes and, within the same nomes, by dataPagamento (ascending)', async () => {
