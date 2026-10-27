@@ -418,6 +418,48 @@ describe('RelatorioNovoRemessaFinancialMovementService', () => {
       expect(dataQuery).toContain('op."ordemPagamentoAgrupadoGratuidadeId" = opa.id');
     });
 
+    // Bug (achado testando contra produção, 2026-10-27): "dataReferencia" aqui é
+    // DATE(op."dataOrdem") (ver AGRUPAMENTO_GRATUIDADE), uma coluna "date" pura, sem hora - girar
+    // essa meia-noite por AT TIME ZONE 'America/Sao_Paulo' empurra pro dia anterior. Favorecido
+    // ABDON ALVIM DE QUEIROZ: janela 13-15/10/2026 aparecia como 12-14/10 só na Movimentação
+    // Financeira; o Consolidado (que não converte) mostrava a data correta.
+    it('does not convert "dataReferencia" through AT TIME ZONE (it is a plain date, DATE(op."dataOrdem"), not a timestamp)', async () => {
+      dataSource.query.mockResolvedValueOnce([]);
+      await service.findFinancialMovementSummary({
+        dataInicio: new Date('2026-10-16'),
+        dataFim: new Date('2026-10-16'),
+        stucGratuidade: true,
+        pago: true,
+      } as any);
+
+      const [dataQuery] = dataSource.query.mock.calls[0];
+      expect(dataQuery).toContain(`to_char(g."dataReferencia",'DD/MM/YYYY') AS "dataReferencia"`);
+      expect(dataQuery).not.toMatch(/"dataReferencia"\s+AT TIME ZONE/);
+      // dataPagamento continua vindo de um TIMESTAMP real (ordem_pagamento_agrupado) - a
+      // conversão nele permanece intocada.
+      expect(dataQuery).toContain(`to_char(g."dataPagamento" AT TIME ZONE 'America/Sao_Paulo','DD/MM/YYYY') AS "dataPagamento"`);
+    });
+
+    // O fluxo normal usa detalhe_a."dataVencimento" (um TIMESTAMP real) como "dataReferencia" -
+    // a conversão de timezone aqui é intencional e não deve regredir com o fix acima.
+    it('keeps converting "dataReferencia" through AT TIME ZONE for the non-STUC flow (a real TIMESTAMP, detalhe_a."dataVencimento")', async () => {
+      dataSource.query
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([{ count: '0' }])
+        .mockResolvedValueOnce([{}]);
+
+      await service.findFinancialMovementPage({
+        dataInicio: new Date('2026-10-16'),
+        dataFim: new Date('2026-10-16'),
+        page: 1,
+        pageSize: 50,
+        pago: true,
+      } as any);
+
+      const [dataQuery] = dataSource.query.mock.calls[0];
+      expect(dataQuery).toContain(`to_char(g."dataReferencia" AT TIME ZONE 'America/Sao_Paulo','DD/MM/YYYY') AS "dataReferencia"`);
+    });
+
     it('never includes the Pendentes/OPs atrasadas query, even without a restrictive status filter', async () => {
       dataSource.query.mockResolvedValueOnce([]);
       await service.findFinancialMovementSummary({
@@ -586,6 +628,30 @@ describe('RelatorioNovoRemessaFinancialMovementService', () => {
       expect(page2.data).toHaveLength(1);
       const allCpfCnpj = [...(page1.data as any[]), ...(page2.data as any[])].map((r) => r.cpfCnpj).sort();
       expect(allCpfCnpj).toEqual(['1', '2', '3']);
+    });
+
+    it('orders rows by nomes and, within the same nomes, by dataPagamento (ascending)', async () => {
+      dataSource.query.mockResolvedValueOnce([
+        // Zeca tem duas janelas de pagamento distintas: a mais recente (23/10) vem primeiro na
+        // query bruta, mas deve aparecer depois da mais antiga (16/10) uma vez ordenado.
+        { ...DAY_ROW, nomes: 'Zeca', cpfCnpj: '1', dataReferencia: '20/10/2026', dataPagamento: '23/10/2026', dataPagamentoCursor: '2026-10-23T00:00:00', valor: 10 },
+        { ...DAY_ROW, nomes: 'Zeca', cpfCnpj: '1', dataReferencia: '13/10/2026', dataPagamento: '16/10/2026', dataPagamentoCursor: '2026-10-16T00:00:00', valor: 20 },
+        { ...DAY_ROW, nomes: 'Ana', cpfCnpj: '2', dataReferencia: '13/10/2026', dataPagamento: '16/10/2026', dataPagamentoCursor: '2026-10-16T00:00:00', valor: 30 },
+      ]);
+
+      const page = await service.findFinancialMovementPage({
+        dataInicio: new Date('2026-10-13'),
+        dataFim: new Date('2026-10-20'),
+        stucGratuidade: true,
+        page: 1,
+        pageSize: 50,
+      } as any);
+
+      expect((page.data as any[]).map((r) => [r.nomes, r.dataPagamento])).toEqual([
+        ['Ana', '16/10/2026'],
+        ['Zeca', '16/10/2026'],
+        ['Zeca', '23/10/2026'],
+      ]);
     });
 
     it('explodes each day of the window into its own exported row, like the screen and the Consolidado export do', async () => {

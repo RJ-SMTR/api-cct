@@ -280,9 +280,19 @@ export class RelatorioNovoRemessaFinancialMovementService {
     const params = [...innerParams, filter.valorMin?? null, filter.valorMax?? null];
     const finalBaseQuery = this.buildFinalBaseQuery(filter, statuses);
     const groupedCte = this.buildGroupedCte(finalBaseQuery);
+    // STUC - Gratuidade usa DATE(op."dataOrdem") como dataReferencia (ver AGRUPAMENTO_GRATUIDADE
+    // em novo-remessa-query-builder.ts) - uma coluna "date" pura, sem hora nem timezone. Girar
+    // essa meia-noite por AT TIME ZONE 'America/Sao_Paulo' a empurra para o dia anterior (achado
+    // testando contra produção: favorecido ABDON ALVIM DE QUEIROZ, janela 13-15/10/2026 aparecia
+    // como 12-14/10 só na Movimentação Financeira - o Consolidado, que não faz essa conversão,
+    // mostrava a data correta). O fluxo normal usa detalhe_a."dataVencimento" (um TIMESTAMP real),
+    // onde a conversão de fato se aplica.
+    const dataReferenciaSelect = filter.stucGratuidade
+      ? `to_char(g."dataReferencia",'DD/MM/YYYY') AS "dataReferencia"`
+      : `to_char(g."dataReferencia" AT TIME ZONE 'America/Sao_Paulo','DD/MM/YYYY') AS "dataReferencia"`;
     return {
       params,
-      query: `${groupedCte} SELECT to_char(g."dataReferencia" AT TIME ZONE 'America/Sao_Paulo','DD/MM/YYYY') AS "dataReferencia", to_char(g."dataPagamento" AT TIME ZONE 'America/Sao_Paulo','DD/MM/YYYY') AS "dataPagamento", g.nomes, g.email, g."codBanco", g."nomeBanco", g."cpfCnpj", g."nomeConsorcio" AS consorcio, g.valor, g.status, g."codigoErro", to_char(g."dataPagamento", 'YYYY-MM-DD"T"HH24:MI:SS') AS "dataPagamentoCursor" FROM grouped g WHERE 1=1 AND ($6::numeric IS NULL OR g.valor >= $6::numeric) AND ($7::numeric IS NULL OR g.valor <= $7::numeric)`,
+      query: `${groupedCte} SELECT ${dataReferenciaSelect}, to_char(g."dataPagamento" AT TIME ZONE 'America/Sao_Paulo','DD/MM/YYYY') AS "dataPagamento", g.nomes, g.email, g."codBanco", g."nomeBanco", g."cpfCnpj", g."nomeConsorcio" AS consorcio, g.valor, g.status, g."codigoErro", to_char(g."dataPagamento", 'YYYY-MM-DD"T"HH24:MI:SS') AS "dataPagamentoCursor" FROM grouped g WHERE 1=1 AND ($6::numeric IS NULL OR g.valor >= $6::numeric) AND ($7::numeric IS NULL OR g.valor <= $7::numeric)`,
     };
   }
 
@@ -311,6 +321,11 @@ export class RelatorioNovoRemessaFinancialMovementService {
     } else if (valorMax !== undefined) {
       pivoted = pivoted.filter((row) => row.valor <= valorMax);
     }
+    pivoted = [...pivoted].sort((a: any, b: any) => {
+      const porNome = String(a.nomes ?? '').localeCompare(String(b.nomes ?? ''));
+      if (porNome !== 0) return porNome;
+      return String(a.dataPagamentoCursor ?? '').localeCompare(String(b.dataPagamentoCursor ?? ''));
+    });
     return pivoted.map(
       (row) =>
         new RelatorioFinancialMovementNovoRemessaData({
