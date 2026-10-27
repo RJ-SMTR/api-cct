@@ -654,7 +654,7 @@ describe('RelatorioNovoRemessaFinancialMovementService', () => {
       ]);
     });
 
-    it('explodes each day of the window into its own exported row, like the screen and the Consolidado export do', async () => {
+    it('explodes each day of the window into its own exported row, including days without a lançamento (value 0, real date)', async () => {
       dataSource.query.mockResolvedValueOnce([
         { ...DAY_ROW, dataReferencia: '23/10/2026', valor: 10 },
         { ...DAY_ROW, dataReferencia: '24/10/2026', valor: 20 },
@@ -666,18 +666,46 @@ describe('RelatorioNovoRemessaFinancialMovementService', () => {
         (row) => { rows.push(row); },
       );
 
-      expect(rows).toHaveLength(2);
+      // Janela de 4 dias (sexta 23/10 a segunda 26/10, paga em 27/10, DAY_ROW.dataPagamento):
+      // os 2 dias sem lançamento (25/10, 26/10) ganham sua própria linha, valor 0, em vez de
+      // serem omitidos - omiti-los fazia a janela parecer ter datas erradas/faltantes.
+      expect(rows).toHaveLength(4);
       // "Data Referência"/"Valor" exportados são os do dia; "Data Pagamento" (a janela) se repete.
       expect(rows[0].dataReferencia).toBe('23/10/2026');
       expect(rows[0].valor).toBe(10);
       expect(rows[1].dataReferencia).toBe('24/10/2026');
       expect(rows[1].valor).toBe(20);
-      expect(rows[0].dataPagamento).toBe(rows[1].dataPagamento);
-      // "valorLancamento" preserva o total da janela (10+20=30) nas duas linhas, igual à tela -
-      // sem ele, o export STUC (financial-movement-export-writer.ts) perderia a coluna "Valor
-      // Lançamento" ao sobrescrever "valor" acima com o valor do dia.
+      expect(rows[2].dataReferencia).toBe('25/10/2026');
+      expect(rows[2].valor).toBe(0);
+      expect(rows[3].dataReferencia).toBe('26/10/2026');
+      expect(rows[3].valor).toBe(0);
+      expect(rows[0].dataPagamento).toBe(rows[3].dataPagamento);
+      // "valorLancamento" preserva o total da janela (10+20+0+0=30) em todas as linhas, igual
+      // à tela - sem ele, o export STUC (financial-movement-export-writer.ts) perderia a coluna
+      // "Valor Lançamento" ao sobrescrever "valor" acima com o valor do dia.
       expect(rows[0].valorLancamento).toBe(30);
-      expect(rows[1].valorLancamento).toBe(30);
+      expect(rows[3].valorLancamento).toBe(30);
+    });
+
+    it('does not create a 4th exported row for a 3-day (Tue-Thu) window', async () => {
+      dataSource.query.mockResolvedValueOnce([
+        { ...DAY_ROW, dataPagamento: '30/10/2026', dataReferencia: '27/10/2026', valor: 1 },
+        { ...DAY_ROW, dataPagamento: '30/10/2026', dataReferencia: '29/10/2026', valor: 3 },
+      ]);
+
+      const rows: any[] = [];
+      await service.streamFinancialMovementRows(
+        { dataInicio: new Date('2026-10-27'), dataFim: new Date('2026-10-29'), stucGratuidade: true } as any,
+        (row) => { rows.push(row); },
+      );
+
+      // Terça (27/10), quarta (28/10, sem lançamento -> 0) e quinta (29/10): 3 linhas, nunca 4.
+      expect(rows).toHaveLength(3);
+      expect(rows.map((r) => [r.dataReferencia, r.valor])).toEqual([
+        ['27/10/2026', 1],
+        ['28/10/2026', 0],
+        ['29/10/2026', 3],
+      ]);
     });
 
     it('filters by Valor Lançamento (the pivoted window total), not by a single day value', async () => {
