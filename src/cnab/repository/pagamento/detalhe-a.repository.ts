@@ -195,7 +195,10 @@ export class DetalheARepository {
       inner join ordem_pagamento_agrupado_historico oph on oph.id = da."ordemPagamentoAgrupadoHistoricoId"
       inner join ordem_pagamento_agrupado opa on opa.id = oph."ordemPagamentoAgrupadoId"
       ${joins}
-      where oph."statusRemessa" in (1, 2)
+      where (oph."statusRemessa" in (1, 2)
+        -- rejeição do arquivo inteiro (ocorrência do lote em branco) deixa o histórico NaoEfetivado sem motivo; o retorno
+        -- BD/00 do reenvio precisa reencontrá-lo para reabrir (remessa Bilhetagem 23/10/2026: 1.832 pagamentos presos em 4)
+        or (oph."statusRemessa" = 4 and coalesce(oph."motivoStatusRemessa"::text, '') = ''))
         and ${cpfCnpj} ilike '%' || $1
         and da."valorLancamento" = $2
         and da."dataVencimento"::date = $3::date
