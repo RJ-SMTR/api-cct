@@ -41,7 +41,6 @@
     "src/relatorio/novo-remessa/queries/novo-remessa-query-builder.spec.ts",
     "src/relatorio/novo-remessa/relatorio-novo-remessa-consolidado.repository.spec.ts",
     "src/relatorio/novo-remessa/relatorio-novo-remessa-movimentacao.repository.spec.ts",
-    "src/relatorio/novo-remessa/relatorio-novo-remessa.controller.spec.ts",
     "src/relatorio/novo-remessa/relatorio-novo-remessa.service.spec.ts",
     "src/relatorio/utils/financial-movement-export-writer.spec.ts",
     "src/relatorio/utils/stuc-gratuidade-pivot.spec.ts",
@@ -54,8 +53,7 @@
     "src/utils/all-exteptions-filter/filters/all-exceptions.filter.spec.ts",
     "src/utils/date-utils.spec.ts",
     "src/utils/file-type/pipes/file-type-validation.pipe.spec.ts",
-    "src/utils/payment-date-utils.spec.ts",
-    "src/utils/worker-thread/run-with-worker-timeout.spec.ts"
+    "src/utils/payment-date-utils.spec.ts"
   ],
   "eslintErrors": {
     "src/agentes/agentes-bigquery.repository.ts": 1,

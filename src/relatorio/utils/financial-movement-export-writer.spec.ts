@@ -29,29 +29,57 @@ const streamOneRow = async (onRow: (row: RelatorioFinancialMovementNovoRemessaDa
 };
 
 // O modelo de colunas "Ord. de Pag. N" (ADR 0012) é exclusivo do Relatório Consolidado - a
-// Movimentação Financeira nunca ganha colunas extras para o filtro STUC - Gratuidade, mesmo
-// quando o campo `stuc` é passado como true (mantido por compatibilidade de assinatura).
-describe('writeFinancialMovementExport - sem colunas extras de STUC (Movimentação Financeira)', () => {
+// Movimentação Financeira nunca ganha essas colunas extras, mesmo com STUC - Gratuidade. O
+// `stuc` flag troca o conjunto de colunas (STUC_COLUMNS), não adiciona colunas ao conjunto base.
+describe('writeFinancialMovementExport - sem colunas "Ord. de Pag. N" (Movimentação Financeira)', () => {
   it('never includes the STUC payment window fields in the CSV header, regardless of the stuc flag', async () => {
     const withoutStuc = await writeFinancialMovementExport('csv', 'test', streamOneRow, undefined, false);
     const withStuc = await writeFinancialMovementExport('csv', 'test', streamOneRow, undefined, true);
     for (const { filePath } of [withoutStuc, withStuc]) {
       const [header] = fs.readFileSync(filePath, 'utf8').trim().split('\n');
       expect(header).not.toContain('dataOrdemPagamento1');
-      expect(header).toContain('valor');
       fs.unlinkSync(filePath);
     }
   });
+});
 
-  it('writes a valid XLSX regardless of the stuc flag', async () => {
-    const { filePath } = await writeFinancialMovementExport('xlsx', 'test', streamOneRow, undefined, true);
+// STUC - Gratuidade: mesmas colunas da tela (StucGratuidadeTable.js) - Nome, CPF, Data Ordem,
+// Valor Ordem, Valor Lançamento, Data de Pagamento - no lugar das colunas genéricas (Email,
+// Banco, Nome Banco, Consórcio, Status, Erro) que essa tela não mostra para esse filtro.
+describe('writeFinancialMovementExport - colunas do filtro STUC - Gratuidade', () => {
+  const STUC_ROW: RelatorioFinancialMovementNovoRemessaData = {
+    ...ROW,
+    valor: 10, // valor do dia (streamFinancialMovementRows sobrescreve "valor" por linha)
+    valorLancamento: 60, // total da janela, preservado à parte
+  };
+  const streamOneStucRow = async (onRow: (row: RelatorioFinancialMovementNovoRemessaData) => Promise<void> | void) => {
+    await onRow(STUC_ROW);
+  };
+
+  it('CSV header uses the STUC columns, with both "valor" (dia) and "valorLancamento" (janela)', async () => {
+    const { filePath } = await writeFinancialMovementExport('csv', 'test', streamOneStucRow, undefined, true);
+    const [header, row] = fs.readFileSync(filePath, 'utf8').trim().split('\n');
+    expect(header).toBe('nomes;cpfCnpj;dataReferencia;valor;valorLancamento;dataPagamento');
+    expect(row).toBe('"FULANO";12345678900;23/10/2026;10;60;27/10/2026');
+    fs.unlinkSync(filePath);
+  });
+
+  it('CSV header for the non-STUC flow is unaffected (Email/Banco/Consórcio/Status/Erro, no valorLancamento)', async () => {
+    const { filePath } = await writeFinancialMovementExport('csv', 'test', streamOneRow, undefined, false);
+    const [header] = fs.readFileSync(filePath, 'utf8').trim().split('\n');
+    expect(header).toBe('dataReferencia;dataPagamento;nomes;email;codBanco;nomeBanco;cpfCnpj;consorcio;valor;status;descricaoErro');
+    fs.unlinkSync(filePath);
+  });
+
+  it('writes a valid XLSX with the STUC columns', async () => {
+    const { filePath } = await writeFinancialMovementExport('xlsx', 'test', streamOneStucRow, undefined, true);
     expect(fs.existsSync(filePath)).toBe(true);
     expect(fs.statSync(filePath).size).toBeGreaterThan(0);
     fs.unlinkSync(filePath);
   });
 
-  it('writes a valid PDF regardless of the stuc flag', async () => {
-    const { filePath } = await writeFinancialMovementExport('pdf', 'test', streamOneRow, undefined, true);
+  it('writes a valid PDF with the STUC columns', async () => {
+    const { filePath } = await writeFinancialMovementExport('pdf', 'test', streamOneStucRow, undefined, true);
     expect(fs.existsSync(filePath)).toBe(true);
     expect(fs.statSync(filePath).size).toBeGreaterThan(0);
     fs.unlinkSync(filePath);

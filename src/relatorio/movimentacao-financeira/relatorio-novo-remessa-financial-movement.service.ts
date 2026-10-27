@@ -197,7 +197,9 @@ export class RelatorioNovoRemessaFinancialMovementService {
       // do Consolidado), mas cada dia da janela ainda precisa virar sua própria linha no export -
       // igual já acontece na tela (StucGratuidadeTable.js, explodeStucGratuidadeRows) e no export
       // do Consolidado. "Data Referência"/"Valor" passam a ser os do dia; "Data Pagamento" continua
-      // sendo o da janela (repetido a cada linha).
+      // sendo o da janela (repetido a cada linha). "valorLancamento" preserva o total da janela
+      // (windowRow.valor, perdido ao sobrescrever "valor" abaixo com o valor do dia) - o export
+      // STUC (financial-movement-export-writer.ts) usa os dois, igual à tela.
       const windows = await this.findStucGratuidadePivotedRows(safeFilter);
       for (const windowRow of windows) {
         for (const n of [1, 2, 3, 4] as const) {
@@ -208,7 +210,7 @@ export class RelatorioNovoRemessaFinancialMovementService {
           // "descricaoErro" calculado a partir de codigoErro (que não sobrevive na instância) -
           // reconstruir via `new RelatorioFinancialMovementNovoRemessaData({...})` recalcularia
           // sem o código original e trocaria a descrição real por "Motivo não informado".
-          await onRow({ ...windowRow, dataReferencia: dataOrdem, valor: valorOrdem });
+          await onRow({ ...windowRow, dataReferencia: dataOrdem, valor: valorOrdem, valorLancamento: windowRow.valor });
         }
       }
       return;
