@@ -84,7 +84,7 @@ describe('RelatorioGuardadorFinancialMovementRepository', () => {
       expect(result.valorRejeitado).toBe(500.50);
     });
 
-    it('builds a query that only matches the association itself when todosConsorcios is set', async () => {
+    it('builds a query that matches every guardador with an association when todosConsorcios is set', async () => {
       (mockQueryRunner.query as jest.Mock)
         .mockResolvedValueOnce([{ count: '0' }])
         .mockResolvedValueOnce([{}]);
@@ -96,7 +96,8 @@ describe('RelatorioGuardadorFinancialMovementRepository', () => {
       });
 
       const [countQuery] = (mockQueryRunner.query as jest.Mock).mock.calls[0];
-      expect(countQuery).toContain('pu."permitCode" IS NULL');
+      expect(countQuery).toContain('assoc."nomesUpper" IS NOT NULL');
+      expect(countQuery).toContain('pu."roleId" = 6');
       expect(countQuery).not.toContain('&& $5::text[]');
     });
   });
