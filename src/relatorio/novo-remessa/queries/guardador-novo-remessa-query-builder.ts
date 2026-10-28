@@ -70,15 +70,17 @@ const GUARDADOR_OPA_WITHOUT_CHILDREN = `opa.id NOT IN (
 // A guardador can be linked to more than one association. Joining user_relationships
 // directly would yield one row (and repeat the value) per association, so they are
 // aggregated once per user (GROUP BY user_id) and joined on that key: one row per payment.
-// "fullName" lists all of them for display (the front shortens each name). The CTE is
-// MATERIALIZED so it is computed exactly once whatever plan is chosen: a per-row LATERAL
-// scanned user_relationships once per payment, and a plain aggregated join was re-run per
-// row when a filter made the planner underestimate.
+// "fullName" lists all of them for display (the front shortens each name); "nomesUpper" is
+// what the consorcio filter matches against (array overlap, since a guardador can belong to
+// more than one association). The CTE is MATERIALIZED so it is computed exactly once
+// whatever plan is chosen: a per-row LATERAL scanned user_relationships once per payment,
+// and a plain aggregated join was re-run per row when a filter made the planner underestimate.
 // Each builder returns a parenthesized select so it stays valid inside UNION ALL and CTEs.
 const GUARDADOR_ASSOCIACAO_CTE = `WITH assoc AS MATERIALIZED (
       SELECT
         ur.user_id,
-        STRING_AGG(a."fullName", ' / ' ORDER BY a."fullName") AS "fullName"
+        STRING_AGG(a."fullName", ' / ' ORDER BY a."fullName") AS "fullName",
+        ARRAY_AGG(UPPER(TRIM(a."fullName"))) AS "nomesUpper"
       FROM user_relationships ur
       INNER JOIN public."user" a
         ON a.id = ur.related_user_id
@@ -89,27 +91,24 @@ const GUARDADOR_ASSOCIACAO_CTE = `WITH assoc AS MATERIALIZED (
 const GUARDADOR_ASSOCIACAO_JOIN = `LEFT JOIN assoc
       ON assoc.user_id = pu.id`;
 
-// Associations (SINGAERJ, ANGLAE) are payees in ordem_pagamento_guardador too, with their
-// own "user" row: roleId 1 (not GUARDADOR_ROLE_ID) and no permitCode (every guardador has
-// one). The default view (no consorcio selected) keeps to actual guardadores, so it still
-// requires the guardador role. Selecting a consorcio switches to that association's own
-// payment instead — its roleId does not matter, only that it is the association itself
-// (permitCode IS NULL) with a matching name, so the guardador-role check does not apply
-// there. todosConsorcios shows every association's own payment the same way, regardless
-// of name, and also without requiring the guardador role.
+// Selecting an association must show the guardadores linked to it (matched by array overlap
+// against every association each guardador belongs to), never the association's own payment
+// row — SINGAERJ/ANGLAE have their own "user" row (roleId 1, no permitCode) and a payment of
+// their own in ordem_pagamento_guardador, but they are not guardadores, so the guardador role
+// is required in every case, filtered or not (confirmed with the user 2026-10-28: the filter
+// must bring the guardadores of the association, not the association's own payment).
+// todosConsorcios ("Todas as Associações") shows every guardador linked to at least one
+// association, regardless of which.
 const buildConsorcioFilter = (consorcioParam: string, todosConsorcios?: boolean) => {
   if (todosConsorcios) {
     // $6/$7 are bound further down, so Postgres still expects a type for $5 even though it
     // is not a real filter here — reference it as a no-op (always true) so it can infer
     // ::text[]. Dropping it entirely raises "could not determine data type of parameter $5"
     // and fails the whole query.
-    return `(${consorcioParam}::text[] IS NULL OR ${consorcioParam}::text[] IS NOT NULL) AND pu."permitCode" IS NULL`;
+    return `(${consorcioParam}::text[] IS NULL OR ${consorcioParam}::text[] IS NOT NULL) AND pu."roleId" = ${GUARDADOR_ROLE_ID} AND assoc."nomesUpper" IS NOT NULL`;
   }
 
-  return `(
-    (${consorcioParam}::text[] IS NULL AND pu."roleId" = ${GUARDADOR_ROLE_ID})
-    OR (${consorcioParam}::text[] IS NOT NULL AND pu."permitCode" IS NULL AND UPPER(TRIM(pu."fullName")) = ANY(${consorcioParam}::text[]))
-  )`;
+  return `pu."roleId" = ${GUARDADOR_ROLE_ID} AND (${consorcioParam}::text[] IS NULL OR assoc."nomesUpper" && ${consorcioParam}::text[])`;
 };
 
 export const buildGuardadorBaseQuery = (params: GuardadorBaseQueryParams = {}) => {
@@ -372,6 +371,52 @@ export const buildGuardadorPendenciaPagamentoSingleDateQuery = (params: Guardado
       AND ${parentStatusCase} IN (${requestedStatusSql})
       AND ${buildConsorcioFilter(consorcioParam, params.todosConsorcios)}
       AND (oph_pai."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph_pai."motivoStatusRemessa" IS NULL)
+      ${params.desativados ? 'AND pu.bloqueado = true' : ''}
+
+    UNION ALL
+
+    -- Estorno/Rejeitado sem pai (nunca tiveram uma tentativa anterior/retentativa): a família
+    -- acima exige opa."ordemPagamentoAgrupadoId" via INNER JOIN com op_pai, então um registro
+    -- de primeiro nível ficava de fora do filtro de dia único, aparecendo só no filtro de
+    -- intervalo (ADR 0008, mesma causa já corrigida para o permissionário em
+    -- novo-remessa-query-builder.ts). Aqui usamos a própria data/status do registro.
+    -- Sem DISTINCT (mesmo motivo do ADR 0007): a lista de colunas não inclui opg."userId"
+    -- isolado, só opa.id, e duas ordens do mesmo agrupamento podem coincidir nas demais
+    -- colunas - DISTINCT as colapsaria em uma só, subcontando o total.
+    SELECT
+      opa."dataPagamento" AS "dataReferencia",
+      opa.id,
+      pu."fullName" AS nomes,
+      COALESCE(pu.email, '') AS email,
+      pu."bankCode" AS "codBanco",
+      COALESCE(bc.name, '') AS "nomeBanco",
+      pu."cpfCnpj" AS "cpfCnpj",
+      ${GUARDADOR_CONSORCIO_CASE} AS "nomeConsorcio",
+      da."valorLancamento" AS valor,
+      opa."dataPagamento" AS "dataPagamento",
+      ${GUARDADOR_STATUS_CASE} AS status,
+      ${buildCodigoErroSql(GUARDADOR_STATUS_CASE)} AS "codigoErro"
+    FROM ordem_pagamento_guardador opg
+    INNER JOIN ordem_pagamento_agrupado opa
+      ON opg."ordemPagamentoAgrupadoId" = opa.id
+    INNER JOIN ordem_pagamento_agrupado_historico oph
+      ON oph."ordemPagamentoAgrupadoId" = opa.id
+    INNER JOIN detalhe_a da
+      ON da."ordemPagamentoAgrupadoHistoricoId" = oph.id
+    INNER JOIN public."user" pu
+      ON pu.id = opg."userId"
+    LEFT JOIN bank bc
+      ON bc.code = pu."bankCode"
+    ${GUARDADOR_ASSOCIACAO_JOIN}
+    WHERE
+      opa."ordemPagamentoAgrupadoId" IS NULL
+      AND opa."dataPagamento"::date BETWEEN $1::date AND $2::date
+      AND ($3::integer[] IS NULL OR pu.id = ANY($3))
+      AND ($4::text[] IS NULL OR TRUE)
+      AND ${GUARDADOR_STATUS_CASE} IN (${requestedStatusSql})
+      AND ${buildConsorcioFilter(consorcioParam, params.todosConsorcios)}
+      AND ${GUARDADOR_OPA_WITHOUT_CHILDREN}
+      AND (oph."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph."motivoStatusRemessa" IS NULL)
       ${params.desativados ? 'AND pu.bloqueado = true' : ''}
   )`.trim();
 };
