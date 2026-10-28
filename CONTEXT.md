@@ -225,6 +225,11 @@ Não são impostos: acesso direto ao banco (`InjectRepository`, `DataSource`, `c
 - **Trabalho refeito sobre a `main`** (2026-09-30): uma primeira versão foi feita sobre a `master`, que tem outra estrutura de pastas; foi descartada e refeita a partir da `main`.
 - **Uma única coluna de data bancária** (2026-10-09, Matthew, #1192). Rejeitado: duas colunas (`bankDataCreatedAt` + `bankDataUpdatedAt`). Limitação aceita: quem altera só agência/conta/dígito, sem trocar o banco, continua vendo "Primeiro cadastro realizado em", agora com a data dessa alteração. Backfill: `updatedAt` para quem tem `previousBankCode` e `createdAt` para quem tem dados bancários sem `previousBankCode` (as datas que a tela já mostrava), então a data de quem tinha `previousBankCode` é aproximada.
 
+### Visualização de valores sem agrupamento
+
+- **Ordens nunca agrupadas por falta de cadastro bancário ficam "órfãs" para sempre** (2026-10-28, ADR 0013). `P_AGRUPAR_ORDENS` roda numa janela de tempo fixa (`sincronizarEAgruparOrdensPagamento`, de hora em hora); se o favorecido não tinha dados bancários nesse momento, a captura em `ordem_pagamento` fica com `ordemPagamentoAgrupadoId IS NULL` e nunca é reprocessada (a janela daquela semana não roda de novo). Isso é diferente de uma ordem agrupada que falhou no banco (`statusRemessa = 4`): essa tem `ordemPagamentoAgrupadoId` preenchido e segue pelo caminho normal de `semanal`.
+- **"Valores da semana" sem agrupamento usa uma rota própria** (`GET ordem-pagamento/semanal-sem-agrupamento`, ADR 0013): consulta `ordem_pagamento` direto por `userId` + janela de pagamento (mesmo cálculo de `findOrdensPagamentoAgrupadasByOrdemPagamentoAgrupadoId`), sem o `INNER JOIN` em `ordem_pagamento_agrupado`. Front-end (`Table.js`/`extractSlice`) usa esse caminho quando `ordemPagamentoAgrupadoIds` vem nulo no mês, e mostra um aviso fixo de pendência por cadastro bancário — não tenta adivinhar outros motivos.
+
 ## Perguntas em aberto
 
 - Significado de negócio de guardador, agente e antifraude _(a confirmar)_.
