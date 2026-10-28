@@ -1,4 +1,4 @@
-import { resolveStucPaymentWindow } from './stuc-payment-window.util';
+import { resolveStucPaymentWindow, resolveStucWindowDays } from './stuc-payment-window.util';
 
 describe('resolveStucPaymentWindow', () => {
   // 2026-10-23 é sexta-feira; a janela sexta-segunda dessa semana vai até 2026-10-26.
@@ -63,5 +63,31 @@ describe('resolveStucPaymentWindow', () => {
     const resultadoSegunda = resolveStucPaymentWindow(segundaInicioDeMes);
     expect(resultadoSegunda.dayIndex).toBe(3);
     expect(resultadoSegunda.windowKey).toBe(resultadoSexta.windowKey);
+  });
+});
+
+describe('resolveStucWindowDays', () => {
+  it('devolve as 4 datas sexta-segunda, na ordem do dayIndex, para um pagamento de terça', () => {
+    const terca = new Date(2026, 9, 27);
+    const sexta = new Date(2026, 9, 23);
+    const sabado = new Date(2026, 9, 24);
+    const domingo = new Date(2026, 9, 25);
+    const segunda = new Date(2026, 9, 26);
+
+    expect(resolveStucWindowDays(terca)).toEqual([sexta, sabado, domingo, segunda]);
+  });
+
+  it('devolve as 3 datas terça-quinta, na ordem do dayIndex, para um pagamento de sexta', () => {
+    const sexta = new Date(2026, 9, 30);
+    const terca = new Date(2026, 9, 27);
+    const quarta = new Date(2026, 9, 28);
+    const quinta = new Date(2026, 9, 29);
+
+    expect(resolveStucWindowDays(sexta)).toEqual([terca, quarta, quinta]);
+  });
+
+  it('lança erro para uma data de pagamento que não é terça nem sexta', () => {
+    const quarta = new Date(2026, 9, 28);
+    expect(() => resolveStucWindowDays(quarta)).toThrow();
   });
 });

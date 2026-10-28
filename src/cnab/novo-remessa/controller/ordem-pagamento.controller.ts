@@ -131,6 +131,33 @@ export class OrdemPagamentoController {
     );
   }
 
+  /**
+   * Detalhamento diário de uma semana cujas capturas nunca foram agrupadas em uma ordem
+   * (tipicamente por falta de cadastro bancário no momento do agrupamento — ver ADR 0013).
+   * Mesmo formato de `semanal`, mas sem exigir `ordemPagamentoAgrupadoIds`.
+   */
+  @Get('semanal-sem-agrupamento')
+  @UseGuards(AuthGuard('jwt'))
+  @SerializeOptions({ groups: ['me'] })
+  @ApiBearerAuth()
+  @ApiQuery({ name: 'dataTentativaPagamento', type: String, required: true })
+  @ApiQuery(CommonApiParams.userId)
+  @HttpCode(HttpStatus.OK)
+  async getSemanalSemAgrupamento(
+    @Request() request: IRequest,
+    @Query('dataTentativaPagamento', new ParseDatePipe({ dateOnly: true, optional: false, transform: true })) dataTentativaPagamento: Date,
+    @Query('userId', new ParseNumberPipe({ min: 1, optional: false })) userId: number | null,
+  ): Promise<OrdemPagamentoSemanalDto[]> {
+    this.logger.log(getRequestLog(request));
+
+    const isUserIdNumber = userId !== null && !isNaN(Number(userId));
+    const userIdNum = isUserIdNumber ? Number(userId) : request.user.id;
+
+    canProceed(request, Number(userId));
+
+    return this.ordemPagamentoService.findOrdensPagamentoSemanaSemAgrupamento(userIdNum, dataTentativaPagamento);
+  }
+
 
   /**
    * Sincroniza manualmente as ordens do BigQuery de um intervalo de datas de captura (para recuperar

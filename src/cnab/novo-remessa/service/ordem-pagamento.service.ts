@@ -561,6 +561,11 @@ export class OrdemPagamentoService {
     return await this.ordemPagamentoRepository.findOrdensPagamentoAgrupadasByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoIds, userId, endDateParam);
   }
 
+  /** Semana sem ordem agrupada (favorecido sem cadastro bancário no momento do agrupamento) — ver ADR 0013. */
+  async findOrdensPagamentoSemanaSemAgrupamento(userId: number, dataTentativaPagamento: Date): Promise<OrdemPagamentoSemanalDto[]> {
+    return await this.ordemPagamentoRepository.findOrdensPagamentoSemanaSemAgrupamento(userId, dataTentativaPagamento);
+  }
+
   async findOrdensPagamentosPendentesQueNuncaForamRemetidas(userId?: number | undefined): Promise<OrdemPagamentoPendenteNuncaRemetidasDto[]> {
     return await this.ordemPagamentoRepository.findOrdensPagamentosPendentesQueNuncaForamRemetidas(userId);
   }
