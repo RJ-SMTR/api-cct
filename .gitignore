@@ -54,3 +54,8 @@ env-local-docker
 # personal Claude Code overrides
 /.claude/settings.local.json
 *.tsbuildinfo
+
+# ad-hoc root-level debug scripts (compiled from scratch .ts)
+/tmp-*.js
+/tmp-*.js.map
+/tmp-*.d.ts

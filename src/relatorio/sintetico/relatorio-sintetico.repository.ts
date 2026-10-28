@@ -16,40 +16,47 @@ export class RelatorioSinteticoRepository {
 
               private logger = new CustomLogger(RelatorioSinteticoRepository.name, { timestamp: true });
   
-  private getQuery(args:IFindPublicacaoRelatorio){     
+  private getQuery(args:IFindPublicacaoRelatorio){
     if(args.aPagar === true){
       return this.getQueryApagar(args);
     }else if (args.aPagar === false || args.aPagar === undefined){
       return this.getQueryNaoApagar(args);
     }else{
-      return this.getQueryApagar(args) + ` union all ` +this.getQueryNaoApagar(args); 
+      const apagar = this.getQueryApagar(args);
+      const naoApagar = this.getQueryNaoApagar(args, apagar.params.length);
+      return { query: apagar.query + ` union all ` + naoApagar.query, params: [...apagar.params, ...naoApagar.params] };
     }
-  } 
-  
+  }
+
   public async findSintetico(args: IFindPublicacaoRelatorio): Promise<RelatorioSinteticoDto[]> {
-    const query = this.getQuery(args);
+    const { query, params } = this.getQuery(args);
     this.logger.debug(query);
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
-    const result: any[] = await queryRunner.query(query);
+    const result: any[] = await queryRunner.query(query, params);
     queryRunner.release();
     const sinteticos = result.map((r) => new RelatorioSinteticoDto(r));
     return sinteticos;
-  }   
+  }
 
-  public getQueryApagar(args:IFindPublicacaoRelatorio){
+  public getQueryApagar(args:IFindPublicacaoRelatorio,paramOffset = 0){
+    const params: unknown[] = [];
+    const next = () => `$${paramOffset + params.length}`;
+
     const dataInicio = args.dataInicio.toISOString().slice(0,10)
     const dataFim = args.dataFim.toISOString().slice(0,10)
     let query = `WITH subtotal_data AS ( `;
         query = query + `    SELECT  `;
-        query = query + `    tv."nomeConsorcio", `;        
+        query = query + `    tv."nomeConsorcio", `;
         query = query + `    SUM(tv."valorPago") AS subTotal `;
         query = query + `    FROM transacao_view tv `;
-        query = query + `    WHERE tv."valorPago" > 0 `;       
-        if(dataInicio!==undefined && dataFim!==undefined && 
+        query = query + `    WHERE tv."valorPago" > 0 `;
+        if(dataInicio!==undefined && dataFim!==undefined &&
           (dataFim === dataInicio || new Date(dataFim)>new Date(dataInicio))) {
-          query = query + `  AND tv."datetimeTransacao" BETWEEN '${dataInicio+' 00:00:00'}' and '${dataFim+' 23:59:59'}' `;                 
-        }  
+          params.push(dataInicio+' 00:00:00'); const p1 = next();
+          params.push(dataFim+' 23:59:59'); const p2 = next();
+          query = query + `  AND tv."datetimeTransacao" BETWEEN ${p1} and ${p2} `;
+        }
         query = query + `    AND tv."itemTransacaoAgrupadoId" IS NULL `
         query = query + `    GROUP BY tv."nomeConsorcio" ), `;
         query = query + `total_data AS ( `;
@@ -57,15 +64,18 @@ export class RelatorioSinteticoRepository {
         query = query + `     SUM(tv."valorPago") AS Total `;
         query = query + `     FROM transacao_view tv `;
         query = query + `     WHERE tv."valorPago" > 0 `;
-        if(dataInicio!==undefined && dataFim!==undefined && 
+        if(dataInicio!==undefined && dataFim!==undefined &&
           (dataFim === dataInicio || new Date(dataFim)>new Date(dataInicio))) {
-          query = query + ` AND tv."datetimeTransacao" BETWEEN '${dataInicio+' 00:00:00'}' and '${dataFim+' 23:59:59'}' `;                 
-        } 
-       
+          params.push(dataInicio+' 00:00:00'); const p1 = next();
+          params.push(dataFim+' 23:59:59'); const p2 = next();
+          query = query + ` AND tv."datetimeTransacao" BETWEEN ${p1} and ${p2} `;
+        }
+
         if((args.consorcioNome!==undefined) && !(['Todos'].some(i=>args.consorcioNome?.includes(i)))){
-          query = query +` AND tv."nomeConsorcio" in('${args.consorcioNome?.join("','")}')`; 
-        }else if((['Todos'].some(i=>args.consorcioNome?.includes(i))) 
-           && (['Todos'].some(i=>args.favorecidoNome?.includes(i))) || 
+          params.push(args.consorcioNome);
+          query = query +` AND tv."nomeConsorcio" = ANY(${next()}::text[])`;
+        }else if((['Todos'].some(i=>args.consorcioNome?.includes(i)))
+           && (['Todos'].some(i=>args.favorecidoNome?.includes(i))) ||
            ((args.consorcioNome!==undefined) && (args.favorecidoNome!==undefined))){
             query = query +` AND tv."nomeConsorcio" in ('STPC','STPL','VLT','Santa Cruz',
            'Internorte','Intersul','Transcarioca','MobiRio','MOBI-Rio BUM','TEC') `;
@@ -78,7 +88,7 @@ export class RelatorioSinteticoRepository {
         query = query +`  res.*, `;
         query = query +`  COALESCE(sub.subTotal, 0) AS subTotal,`;
         query = query +`  total_data.Total`;
-        query = query +`  FROM (`;  
+        query = query +`  FROM (`;
 
         let body = ` SELECT DISTINCT
         tv.id,
@@ -111,82 +121,101 @@ export class RelatorioSinteticoRepository {
         body = body + `LEFT JOIN cliente_favorecido cf ON tv."operadoraCpfCnpj" = cf."cpfCnpj" `;
          body = body +`LEFT JOIN public.user uu on uu."cpfCnpj"=tv."operadoraCpfCnpj" `;
         let conditions = `where tv."valorPago" >0 and`;
-        
-        if(dataInicio!==undefined && dataFim!==undefined && 
-          (dataFim === dataInicio || new Date(dataFim)>new Date(dataInicio)))             
-          conditions = conditions + ` tv."datetimeTransacao" between '${dataInicio+' 00:00:00'}' and '${dataFim+' 23:59:59'}' `;
+
+        if(dataInicio!==undefined && dataFim!==undefined &&
+          (dataFim === dataInicio || new Date(dataFim)>new Date(dataInicio))) {
+          params.push(dataInicio+' 00:00:00'); const p1 = next();
+          params.push(dataFim+' 23:59:59'); const p2 = next();
+          conditions = conditions + ` tv."datetimeTransacao" between ${p1} and ${p2} `;
+        }
 
         if((args.consorcioNome!==undefined) && !(['Todos'].some(i=>args.consorcioNome?.includes(i)))){
-          conditions = conditions +` and tv."nomeConsorcio" in('${args.consorcioNome?.join("','")}')`;   
+          params.push(args.consorcioNome);
+          conditions = conditions +` and tv."nomeConsorcio" = ANY(${next()}::text[])`;
         }else if((args.favorecidoNome!==undefined) && !(['Todos'].some(i=>args.favorecidoNome?.includes(i)))){
-          conditions = conditions +` and cf."nome" in('${args.favorecidoNome?.join("','")}')`; 
+          params.push(args.favorecidoNome);
+          conditions = conditions +` and cf."nome" = ANY(${next()}::text[])`;
         }else if((['Todos'].some(i=>args.consorcioNome?.includes(i))) && (['Todos'].some(i=>args.favorecidoNome?.includes(i)))
            || ((args.consorcioNome!==undefined) && (args.favorecidoNome!==undefined))){
-            conditions = conditions +` and tv."nomeConsorcio" 
+            conditions = conditions +` and tv."nomeConsorcio"
           in ('STPC','STPL','VLT','Santa Cruz','Internorte','Intersul','Transcarioca','MobiRio','TEC') `;
         }else if((['Todos'].some(i=>args.favorecidoNome?.includes(i))) && (args.consorcioNome!==undefined)){
+          // Pre-existing bug kept as-is (not in scope of this refactor, see docs/tasks/T3.md):
+          // args.consorcioNome items are concatenated unquoted into the IN list below.
           conditions = conditions +` and tv."nomeConsorcio" in('STPC','STPL',${args.consorcioNome?.join("','")}) `;
         }else if((['Todos'].some(i=>args.favorecidoNome?.includes(i)))){
           conditions = conditions +` and tv."nomeConsorcio" in('STPC','STPL') `;
-        }           
+        }
 
         const footer =  `) AS res
-        LEFT JOIN subtotal_data sub 
-          ON res."consorcio" = sub."nomeConsorcio"          
+        LEFT JOIN subtotal_data sub
+          ON res."consorcio" = sub."nomeConsorcio"
         CROSS JOIN total_data
         ORDER BY res."consorcio", res."favorecido", res."datapagamento"`
 
-    const result = ` select * from ( `+ query + body + conditions + footer +` ) as tt  where (1=1)`;    
-    return result;
+    const result = ` select * from ( `+ query + body + conditions + footer +` ) as tt  where (1=1)`;
+    return { query: result, params };
   }
 
-  public getQueryNaoApagar(args:IFindPublicacaoRelatorio){
+  public getQueryNaoApagar(args:IFindPublicacaoRelatorio,paramOffset = 0){
+    const params: unknown[] = [];
+    const next = () => `$${paramOffset + params.length}`;
+
     const dataInicio = args.dataInicio.toISOString().slice(0,10)
     const dataFim = args.dataFim.toISOString().slice(0,10)
     let query = ` select distinct res.*, `;
     query =  query + `(select sum(ss."valorLancamento")::float  from `;
-    query =  query + `  (select distinct dta.id,dta."valorLancamento"                    
-                          from detalhe_a dta 
+    query =  query + `  (select distinct dta.id,dta."valorLancamento"
+                          from detalhe_a dta
                           inner join item_transacao_agrupado tt on dta."itemTransacaoAgrupadoId"=tt.id
                           inner join transacao_agrupado tta on tta."id"=tt."transacaoAgrupadoId" and tta."statusId"<>'5'
                           left join item_transacao itt on itt."itemTransacaoAgrupadoId" = tt."id"
                           left join arquivo_publicacao app on app."itemTransacaoId"=itt.id
                           WHERE `;
-                          if(dataInicio!==undefined && dataFim!==undefined && 
-                            (dataFim === dataInicio || new Date(dataFim)>new Date(dataInicio)))             
-                            query = query + ` dta."dataVencimento" between '${dataInicio}' and '${dataFim}'`;
+                          if(dataInicio!==undefined && dataFim!==undefined &&
+                            (dataFim === dataInicio || new Date(dataFim)>new Date(dataInicio))) {
+                            params.push(dataInicio); const p1 = next();
+                            params.push(dataFim); const p2 = next();
+                            query = query + ` dta."dataVencimento" between ${p1} and ${p2}`;
+                          }
                           if(args.emProcessamento!==undefined && args.emProcessamento===true ){
                             query = query +` and app."isPago"=false and TRIM(dta."ocorrenciasCnab")='' `
-                          }else  if(args.pago !==undefined){          
-                            query = query +` and app."isPago"=${args.pago} and TRIM(dta."ocorrenciasCnab")<>'' `;
+                          }else  if(args.pago !==undefined){
+                            params.push(args.pago);
+                            query = query +` and app."isPago"=${next()} and TRIM(dta."ocorrenciasCnab")<>'' `;
                           }
                           query = query + ` and tt."nomeConsorcio"=res.consorcio `;
                           query = query + ` )as ss)  as subTotal, `;
 
     query =  query + `(select sum(tt."valorLancamento")::float from
-                      (select distinct dta.id,dta."valorLancamento"            
-                      from detalhe_a dta 
+                      (select distinct dta.id,dta."valorLancamento"
+                      from detalhe_a dta
                       inner join item_transacao_agrupado tt on dta."itemTransacaoAgrupadoId"=tt.id
                       inner join transacao_agrupado tta on tta."id"=tt."transacaoAgrupadoId" and tta."statusId"<>'5'
                       left join item_transacao itt on itt."itemTransacaoAgrupadoId" = tt."id"
                       left join arquivo_publicacao app on app."itemTransacaoId"=itt.id
                       WHERE `;
-                      if(dataInicio!==undefined && dataFim!==undefined && 
-                        (dataFim === dataInicio || new Date(dataFim)>new Date(dataInicio)))             
-                        query = query + `  dta."dataVencimento" between '${dataInicio}' and '${dataFim}'`;
+                      if(dataInicio!==undefined && dataFim!==undefined &&
+                        (dataFim === dataInicio || new Date(dataFim)>new Date(dataInicio))) {
+                        params.push(dataInicio); const p1 = next();
+                        params.push(dataFim); const p2 = next();
+                        query = query + `  dta."dataVencimento" between ${p1} and ${p2}`;
+                      }
                         if(args.emProcessamento!==undefined && args.emProcessamento===true ){
                           query = query +` and app."isPago"=false and TRIM(dta."ocorrenciasCnab")='' `
-                        }else  if(args.pago !==undefined){          
-                          query = query +` and app."isPago"=${args.pago} and TRIM(dta."ocorrenciasCnab")<>'' `;
+                        }else  if(args.pago !==undefined){
+                          params.push(args.pago);
+                          query = query +` and app."isPago"=${next()} and TRIM(dta."ocorrenciasCnab")<>'' `;
                         }
 
                       if((args.consorcioNome!==undefined) && !(['Todos'].some(i=>args.consorcioNome?.includes(i)))){
-                        query = query +` and tt."nomeConsorcio" in('${args.consorcioNome?.join("','")}')`; 
+                        params.push(args.consorcioNome);
+                        query = query +` and tt."nomeConsorcio" = ANY(${next()}::text[])`;
                       }else
                       if((args.favorecidoNome!==undefined) && !(['Todos'].some(i=>args.favorecidoNome?.includes(i))))
                         query = query +` and tt."nomeConsorcio" in(res.consorcio) `;
-                      else if((['Todos'].some(i=>args.consorcioNome?.includes(i))) 
-                         && (['Todos'].some(i=>args.favorecidoNome?.includes(i))) || 
+                      else if((['Todos'].some(i=>args.consorcioNome?.includes(i)))
+                         && (['Todos'].some(i=>args.favorecidoNome?.includes(i))) ||
                          ((args.consorcioNome!==undefined) && (args.favorecidoNome!==undefined))){
                         query = query +` and tt."nomeConsorcio" in ('STPC','STPL','VLT','Santa Cruz',
                          'Internorte','Intersul','Transcarioca','MobiRio','TEC') `;
@@ -232,19 +261,24 @@ export class RelatorioSinteticoRepository {
       inner join transacao_agrupado ta on ta."id"=ita."transacaoAgrupadoId" and ta."statusId"<>'5'
       inner join arquivo_publicacao ap on ap."itemTransacaoId"=it.id
       inner join cliente_favorecido cf on cf.id=it."clienteFavorecidoId"
-      left join ocorrencia oc on oc."detalheAId"=da.id              
+      left join ocorrencia oc on oc."detalheAId"=da.id
       where  `;
-    if(dataInicio!==undefined && dataFim!==undefined && 
-      (dataFim === dataInicio || new Date(dataFim)>new Date(dataInicio)))             
-      query = query + ` da."dataVencimento" between '${dataInicio}' and '${dataFim}'`;
+    if(dataInicio!==undefined && dataFim!==undefined &&
+      (dataFim === dataInicio || new Date(dataFim)>new Date(dataInicio))) {
+      params.push(dataInicio); const p1 = next();
+      params.push(dataFim); const p2 = next();
+      query = query + ` da."dataVencimento" between ${p1} and ${p2}`;
+    }
 
     if((args.consorcioNome!==undefined) && !(['Todos'].some(i=>args.consorcioNome?.includes(i)))){
-      query = query +` and it."nomeConsorcio" in('${args.consorcioNome?.join("','")}')`;   
+      params.push(args.consorcioNome);
+      query = query +` and it."nomeConsorcio" = ANY(${next()}::text[])`;
     }else if((args.favorecidoNome!==undefined) && !(['Todos'].some(i=>args.favorecidoNome?.includes(i)))){
-      query = query +` and cf."nome" in('${args.favorecidoNome?.join("','")}')`;  
+      params.push(args.favorecidoNome);
+      query = query +` and cf."nome" = ANY(${next()}::text[])`;
     }else if( (['Todos'].some(i=>args.consorcioNome?.includes(i))) && (['Todos'].some(i=>args.favorecidoNome?.includes(i)))
       || ((args.consorcioNome!==undefined) && (args.favorecidoNome!==undefined))){
-      query = query +` and it."nomeConsorcio" 
+      query = query +` and it."nomeConsorcio"
       in ('STPC','STPL','VLT','Santa Cruz','Internorte','Intersul','Transcarioca','MobiRio','TEC') `;
     }else if((['Todos'].some(i=>args.favorecidoNome?.includes(i)))){
       query = query +` and it."nomeConsorcio" in('STPC','STPL','TEC') `;
@@ -253,20 +287,25 @@ export class RelatorioSinteticoRepository {
     if(args.emProcessamento!==undefined && args.emProcessamento===true){
       query = query +`  and ap."isPago"=false and TRIM(da."ocorrenciasCnab")='' `
     }else if(args.pago !==undefined){
-      query = query + ` and	ap."isPago"=${args.pago} and TRIM(da."ocorrenciasCnab")<>'' `;
-    } 
-            
-    if(args.valorMin!==undefined)
-      query = query +`  and it."valor">=${args.valorMin}`;
+      params.push(args.pago);
+      query = query + ` and	ap."isPago"=${next()} and TRIM(da."ocorrenciasCnab")<>'' `;
+    }
 
-    if(args.valorMax!==undefined)
-        query = query + ` and it."valor"<=${args.valorMax}`;    
-      
+    if(args.valorMin!==undefined) {
+      params.push(args.valorMin);
+      query = query +`  and it."valor">=${next()}`;
+    }
+
+    if(args.valorMax!==undefined) {
+        params.push(args.valorMax);
+        query = query + ` and it."valor"<=${next()}`;
+    }
+
     query = query + ` ) as res
-            order by  "consorcio", "favorecido","datapagamento" `;   
-  
+            order by  "consorcio", "favorecido","datapagamento" `;
+
     this.logger.debug(query);
-        
-    return query;
+
+    return { query, params };
   }
-} 
+}
