@@ -4,6 +4,7 @@ import { BigqueryModule } from 'src/bigquery/bigquery.module';
 import { MailHistoryModule } from 'src/mail-history/mail-history.module';
 import { SettingsModule } from 'src/settings/settings.module';
 import { User } from 'src/users/entities/user.entity';
+import { PagamentosIndevidosGuardadoresService } from 'src/pagamento_indevido/service/pagamentos-indevidos-guardadores.service';
 import { UsersModule } from 'src/users/users.module';
 import { AgentesController } from './agentes.controller';
 import { AgentesBigqueryRepository } from './agentes-bigquery.repository';
@@ -25,6 +26,7 @@ import { AgentesService } from './agentes.service';
     AgentesRepository,
     AgentesBigqueryRepository,
     AgentesSyncService,
+    PagamentosIndevidosGuardadoresService,
   ],
   exports: [AgentesSyncService],
 })

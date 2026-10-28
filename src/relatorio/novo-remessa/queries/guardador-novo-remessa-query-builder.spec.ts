@@ -12,7 +12,7 @@ const builders = {
 };
 
 describe('guardador-novo-remessa-query-builder', () => {
-  describe.each(Object.entries(builders))('%s query', (_name, build) => {
+  describe.each(Object.entries(builders))('%s query', (name, build) => {
     // A guardador linked to more than one association must yield one row per
     // payment; a plain LEFT JOIN on user_relationships yields one per association.
     it('does not multiply rows through a plain user_relationships join', () => {
@@ -89,7 +89,9 @@ describe('guardador-novo-remessa-query-builder', () => {
       const withConsorcio = build({ consorcioFilterParamIndex: 5 });
       const roleIdOccurrences = withConsorcio.match(/pu\."roleId" = 6/g) ?? [];
 
-      expect(roleIdOccurrences).toHaveLength(1);
+      // Once per branch of the query: the paid-pending one has two (the regular branch and the
+      // PASSO 0 children branch).
+      expect(roleIdOccurrences).toHaveLength(name === 'pendenciaPagaSingleDate' ? 2 : 1);
     });
 
     it('does not require the guardador role when todosConsorcios is set', () => {
@@ -131,11 +133,14 @@ describe('guardador-novo-remessa-query-builder', () => {
   describe.each([
     ['base', buildGuardadorBaseQuery],
     ['pendenciaPagaSingleDate', buildGuardadorPendenciaPagaSingleDateQuery],
-  ])('%s query orders without children', (_name, build) => {
+  ])('%s query orders without children', (name, build) => {
     it('uses an uncorrelated NOT IN instead of a correlated NOT EXISTS', () => {
       const sql = build();
 
-      expect(sql).not.toMatch(/NOT EXISTS/i);
+      // The only NOT EXISTS allowed is the PASSO 0 children anti-join of the paid-pending
+      // query (children with no detalhe_a at all); it is index-driven and runs per candidate.
+      const notExistsOccurrences = sql.match(/NOT EXISTS/gi) ?? [];
+      expect(notExistsOccurrences).toHaveLength(name === 'pendenciaPagaSingleDate' ? 1 : 0);
       expect(sql).toMatch(
         /opa\.id NOT IN \(\s*SELECT filha\."ordemPagamentoAgrupadoId"\s+FROM ordem_pagamento_agrupado filha\s+WHERE filha\."ordemPagamentoAgrupadoId" IS NOT NULL\s*\)/,
       );
