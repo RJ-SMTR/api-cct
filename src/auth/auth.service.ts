@@ -46,6 +46,7 @@ export class AuthService {
       case RoleEnum.agentes:
         return '/agentes/sign-in';
       case RoleEnum.master:
+      case RoleEnum.master_ti:
       case RoleEnum.admin:
         return '/admin/sign-in';
       case RoleEnum.lancador_financeiro:
@@ -66,6 +67,7 @@ export class AuthService {
     const expectedRoles = onlyAdmin
       ? [
         RoleEnum.master,
+        RoleEnum.master_ti,
         RoleEnum.admin,
         RoleEnum.aprovador_financeiro,
         RoleEnum.lancador_financeiro,
