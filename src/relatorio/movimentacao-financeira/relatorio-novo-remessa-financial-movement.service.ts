@@ -12,6 +12,7 @@ import {
   buildPendentesQuery,
   buildPendenciaPagamentoSingleDateQuery,
   buildPendenciaPagaSingleDateQuery,
+  buildPendenciaPagaPasso0Query,
   buildStucGratuidadeQuery,
   buildStucGratuidadePendenciaPagaSingleDateQuery,
   buildStucGratuidadePendenciaPagamentoSingleDateQuery,
@@ -442,7 +443,10 @@ export class RelatorioNovoRemessaFinancialMovementService {
       const q: string[] = [];
       if (filter.eleicao) q.push(this.buildEleicaoQuery(filter));
       if (statuses.includeBase) q.push(this.buildBaseQuery(filter));
-      if (statuses.includePendenciaPaga) q.push(this.buildPendenciaPagaSingleDateQuery(filter));
+      if (statuses.includePendenciaPaga) {
+        q.push(this.buildPendenciaPagaSingleDateQuery(filter));
+        q.push(this.buildPendenciaPagaPasso0Query(filter));
+      }
       if (statuses.parentErrorStatusesSingleDate.length) q.push(this.buildPendenciaPagamentoSingleDateQuery(filter, statuses.parentErrorStatusesSingleDate));
       if (statuses.includePendentes) q.push(this.buildPendentesQuery(filter));
       // Nenhuma consulta selecionada para o filtro: não deve trazer linhas (antes caía em todos os status).
@@ -477,6 +481,9 @@ export class RelatorioNovoRemessaFinancialMovementService {
   }
   private buildPendenciaPagaSingleDateQuery(filter: NormalizedFilter): string {
     return `${buildPendenciaPagaSingleDateQuery({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5 }).trim()} ${filter.desativados? 'AND pu.bloqueado = true' : ''}`;
+  }
+  private buildPendenciaPagaPasso0Query(filter: NormalizedFilter): string {
+    return `${buildPendenciaPagaPasso0Query({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5 }).trim()} ${filter.desativados ? 'AND pu.bloqueado = true' : ''}`;
   }
   private buildPendenciaPagamentoSingleDateQuery(filter: NormalizedFilter, statuses: Array<StatusPagamento.ERRO_ESTORNO | StatusPagamento.ERRO_REJEITADO>): string {
     return `${buildPendenciaPagamentoSingleDateQuery({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5, parentErrorStatuses: statuses }).trim()} ${filter.desativados ? 'AND pu.bloqueado = true' : ''}`;

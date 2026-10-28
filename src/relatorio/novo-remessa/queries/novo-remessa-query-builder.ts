@@ -108,6 +108,12 @@ type AgrupamentoSource = {
    */
   dataReferenciaPendenciaPagamento?: string;
   /**
+   * Uma filha paga pela pai (Pendência Paga) guarda os detalhe_a de todas as tentativas antigas,
+   * e cada linha repetia a filha no relatório (08/06/2026: R$ 4.497,60 a mais que o extrato).
+   * Mantém uma só linha por filha: a de mesmo valor do valorTotal da filha, senão a mais recente.
+   */
+  umaLinhaPorFilhaPaga?: boolean;
+  /**
    * Override de "dataReferencia" para buildGroupedQuery/buildPendenciaPagaTemplate. Por padrão
    * (undefined) é da."dataVencimento" (a data de pagamento do lote, AGRUPAMENTO_NORMAL).
    * AGRUPAMENTO_GRATUIDADE agrupa várias ordens no mesmo lote (mesmo detalhe_a), então
@@ -123,6 +129,7 @@ const AGRUPAMENTO_NORMAL: AgrupamentoSource = {
   agrupamentoJoinColumn: 'ordemPagamentoAgrupadoId',
   valorSelect: 'da."valorLancamento" AS valor',
   umaOrdemPorAgrupamento: true,
+  umaLinhaPorFilhaPaga: true,
 };
 
 const AGRUPAMENTO_GRATUIDADE: AgrupamentoSource = {
@@ -137,6 +144,22 @@ const umaOrdemPorAgrupamentoFilter = (source: AgrupamentoSource) =>
   source.umaOrdemPorAgrupamento
     ? `AND op.id = (
         SELECT MIN(o.id) FROM ordem_pagamento o WHERE o."${source.agrupamentoJoinColumn}" = opa.id
+      )`
+    : '';
+
+const umaLinhaPorFilhaPagaFilter = (source: AgrupamentoSource) =>
+  source.umaLinhaPorFilhaPaga
+    ? `AND da.id = (
+        SELECT da_filha.id
+        FROM ordem_pagamento_agrupado_historico oph_filha
+        INNER JOIN detalhe_a da_filha
+          ON da_filha."ordemPagamentoAgrupadoHistoricoId" = oph_filha.id
+        WHERE oph_filha."ordemPagamentoAgrupadoId" = opa.id
+          AND oph_filha."statusRemessa" = 5
+        ORDER BY
+          (ROUND(da_filha."valorLancamento"::numeric, 2) = ROUND(opa."valorTotal"::numeric, 2)) DESC,
+          da_filha.id DESC
+        LIMIT 1
       )`
     : '';
 
@@ -252,6 +275,7 @@ const buildPendenciaPagaTemplate = (params: NovoRemessaBaseParams, source: Agrup
       )
       AND (oph."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph."motivoStatusRemessa" IS NULL)
       ${umaOrdemPorAgrupamentoFilter(source)}
+      ${umaLinhaPorFilhaPagaFilter(source)}
       ${params.todosVanzeiros ? NOT_CPF_FILTER : ''}
   `;
 };
@@ -444,6 +468,67 @@ export const buildPendentesQuery = (params: NovoRemessaPendentesParams) => {
 
 export const buildPendenciaPagaSingleDateQuery = (params: NovoRemessaBaseParams) =>
   buildPendenciaPagaTemplate(params, AGRUPAMENTO_NORMAL);
+
+// Filhas PASSO 0: pendências pagas (status 5) que nunca foram enviadas em arquivo próprio, então
+// nenhum histórico delas tem detalhe_a e o INNER JOIN de buildPendenciaPagaTemplate as descarta.
+// Valor = valorTotal da OPA da filha (cada filha tem de 1 a N ordem_pagamento que somam esse
+// valor, então só a ordem de menor id representa a filha) e data = dataPagamento da pai.
+// Fica numa consulta separada, e não num UNION ALL dentro do template, porque o service anexa
+// "AND pu.bloqueado = true" ao final do SQL de cada consulta.
+export const buildPendenciaPagaPasso0Query = (params: NovoRemessaBaseParams) => {
+  const consorcioParam = `$${params.consorcioFilterParamIndex}`;
+  return `
+    SELECT
+      oph."dataReferencia" AS "dataReferencia",
+      opa.id,
+      pu."fullName" AS nomes,
+      pu.email,
+      pu."bankCode" AS "codBanco",
+      bc.name AS "nomeBanco",
+      pu."cpfCnpj" AS "cpfCnpj",
+      ${CONSORCIO_CASE} AS "nomeConsorcio",
+      ROUND(opa."valorTotal"::numeric, 2) AS valor,
+      op_pai."dataPagamento" AS "dataPagamento",
+      'Pendencia Paga' AS status,
+      NULL::text AS "codigoErro"
+      FROM ordem_pagamento op
+      INNER JOIN ordem_pagamento_agrupado opa
+        ON op."ordemPagamentoAgrupadoId" = opa.id
+      INNER JOIN ordem_pagamento_agrupado op_pai
+        ON op_pai.id = opa."ordemPagamentoAgrupadoId"
+      INNER JOIN ordem_pagamento_agrupado_historico oph
+        ON oph.id = (
+          SELECT MAX(oph_mais_recente.id)
+          FROM ordem_pagamento_agrupado_historico oph_mais_recente
+          WHERE oph_mais_recente."ordemPagamentoAgrupadoId" = opa.id
+        )
+      INNER JOIN public."user" pu
+        ON pu.id = op."userId"
+      INNER JOIN bank bc
+        ON bc.code = pu."bankCode"
+    WHERE
+      ($3::integer[] IS NULL OR pu.id = ANY($3))
+      AND ($4::text[] IS NULL OR TRUE)
+      AND (${consorcioParam}::text[] IS NULL OR UPPER(TRIM(${CONSORCIO_CASE})) = ANY(${consorcioParam}))
+      AND NOT EXISTS (
+        SELECT 1
+        FROM ordem_pagamento_agrupado filha
+        WHERE filha."ordemPagamentoAgrupadoId" = opa.id
+      )
+      AND oph."statusRemessa" = 5
+      AND op_pai."dataPagamento"::date BETWEEN $1::date AND $2::date
+      AND (oph."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph."motivoStatusRemessa" IS NULL)
+      AND NOT EXISTS (
+        SELECT 1
+        FROM ordem_pagamento_agrupado_historico oph_qualquer
+        INNER JOIN detalhe_a da_qualquer
+          ON da_qualquer."ordemPagamentoAgrupadoHistoricoId" = oph_qualquer.id
+        WHERE oph_qualquer."ordemPagamentoAgrupadoId" = opa.id
+      )
+      ${umaOrdemPorAgrupamentoFilter(AGRUPAMENTO_NORMAL)}
+      ${params.todosVanzeiros ? NOT_CPF_FILTER : ''}
+  `;
+};
 
 export const buildStucGratuidadePendenciaPagaSingleDateQuery = (params: NovoRemessaBaseParams) =>
   buildPendenciaPagaTemplate(params, AGRUPAMENTO_GRATUIDADE);

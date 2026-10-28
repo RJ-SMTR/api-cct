@@ -50,6 +50,11 @@ const REVERSED_PARENT_HISTORY_ID = BASE_ID + 101;
 const REVERSED_CHILD_DETAIL_ID = BASE_ID + 110;
 const REVERSED_PARENT_DETAIL_ID = BASE_ID + 111;
 const REVERSED_CHILD_ORDER_ID = BASE_ID + 120;
+const PASSO0_PARENT_ID = BASE_ID + 14;
+const PASSO0_PAID_CHILD_ONE_ID = BASE_ID + 15;
+const PASSO0_PAID_CHILD_TWO_ID = BASE_ID + 16;
+const PASSO0_UNPAID_CHILD_ID = BASE_ID + 17;
+const PASSO0_AM_CHILD_ID = BASE_ID + 18;
 
 suite('RelatorioGuardadorFinancialMovementRepository (PostgreSQL)', () => {
   let moduleRef: TestingModule;
@@ -102,8 +107,18 @@ suite('RelatorioGuardadorFinancialMovementRepository (PostgreSQL)', () => {
     await dataSource.query(
       `UPDATE ordem_pagamento_agrupado
        SET "ordemPagamentoAgrupadoId" = NULL
-       WHERE id IN ($1, $2, $3, $4, $5)`,
-      [CHILD_ONE_ID, CHILD_TWO_ID, REJECTED_CHILD_ONE_ID, REJECTED_CHILD_TWO_ID, REVERSED_CHILD_ID],
+       WHERE id IN ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+      [
+        CHILD_ONE_ID,
+        CHILD_TWO_ID,
+        REJECTED_CHILD_ONE_ID,
+        REJECTED_CHILD_TWO_ID,
+        REVERSED_CHILD_ID,
+        PASSO0_PAID_CHILD_ONE_ID,
+        PASSO0_PAID_CHILD_TWO_ID,
+        PASSO0_UNPAID_CHILD_ID,
+        PASSO0_AM_CHILD_ID,
+      ],
     );
     await dataSource.query(`DELETE FROM ordem_pagamento_agrupado WHERE id BETWEEN $1 AND $2`, [BASE_ID + 10, BASE_ID + 99]);
     await dataSource.query(`DELETE FROM public."user" WHERE id = $1`, [USER_ID]);
@@ -285,6 +300,95 @@ suite('RelatorioGuardadorFinancialMovementRepository (PostgreSQL)', () => {
       [REVERSED_CHILD_DETAIL_ID, REVERSED_PARENT_DETAIL_ID, REVERSED_CHILD_HISTORY_ID, REVERSED_PARENT_HISTORY_ID],
     );
   }
+
+  // PASSO 0 children: paid pending orders that were never sent in a file of their own, so they
+  // have history rows (status 5) but no detalhe_a at all. Real case: CAER 21/10/2026.
+  async function seedPasso0Family(): Promise<void> {
+    await dataSource.query(
+      `INSERT INTO ordem_pagamento_agrupado (
+        id, "dataPagamento", "valorTotal", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt"
+      ) VALUES
+        ($1, DATE '2099-05-01', 54.60, $5, now(), now()),
+        ($2, DATE '2099-05-01', 179.20, $5, now(), now()),
+        ($3, DATE '2099-05-01', 22.40, $5, now(), now()),
+        ($4, DATE '2099-05-01', 10.00, $5, now(), now()),
+        ($5, DATE '2099-05-10', 266.20, NULL, now(), now())`,
+      [PASSO0_PAID_CHILD_ONE_ID, PASSO0_PAID_CHILD_TWO_ID, PASSO0_UNPAID_CHILD_ID, PASSO0_AM_CHILD_ID, PASSO0_PARENT_ID],
+    );
+    await dataSource.query(
+      `INSERT INTO ordem_pagamento_guardador (
+        id, "userId", "ordemPagamentoAgrupadoId", "dataOrdem", "dataInclusao",
+        "tipoOrdemPagamento", "qtdVerificacaoTotal", "qtdVerificacaoValida",
+        "qtdVerificacaoInvalida", "valorRepasseGuardador", "createdAt", "updatedAt"
+      ) OVERRIDING SYSTEM VALUE VALUES
+        ($1, $5, $6, DATE '2099-05-01', DATE '2099-05-01', 'pendente', 0, 0, 0, 54.60, now(), now()),
+        ($2, $5, $7, DATE '2099-05-01', DATE '2099-05-01', 'pendente', 0, 0, 0, 179.20, now(), now()),
+        ($3, $5, $8, DATE '2099-05-01', DATE '2099-05-01', 'pendente', 0, 0, 0, 22.40, now(), now()),
+        ($4, $5, $9, DATE '2099-05-01', DATE '2099-05-01', 'pendente', 0, 0, 0, 10.00, now(), now())`,
+      [
+        BASE_ID + 43,
+        BASE_ID + 44,
+        BASE_ID + 45,
+        BASE_ID + 46,
+        USER_ID,
+        PASSO0_PAID_CHILD_ONE_ID,
+        PASSO0_PAID_CHILD_TWO_ID,
+        PASSO0_UNPAID_CHILD_ID,
+        PASSO0_AM_CHILD_ID,
+      ],
+    );
+    // Each paid child has two history rows (both status 5), as in production.
+    await dataSource.query(
+      `INSERT INTO ordem_pagamento_agrupado_historico (
+        id, "ordemPagamentoAgrupadoId", "dataReferencia", "userBankCode",
+        "userBankAgency", "userBankAccount", "userBankAccountDigit", "statusRemessa",
+        "motivoStatusRemessa"
+      ) VALUES
+        ($1, $9, DATE '2099-05-02', '104', '0001', '99990001', '1', 5, '00'),
+        ($2, $5, DATE '2099-05-02', '104', '0001', '99990001', '1', 5, NULL),
+        ($3, $5, DATE '2099-05-02', '104', '0001', '99990001', '1', 5, NULL),
+        ($4, $6, DATE '2099-05-02', '104', '0001', '99990001', '1', 5, NULL),
+        ($10, $6, DATE '2099-05-02', '104', '0001', '99990001', '1', 5, NULL),
+        ($11, $7, DATE '2099-05-02', '104', '0001', '99990001', '1', 1, NULL),
+        ($12, $8, DATE '2099-05-02', '104', '0001', '99990001', '1', 5, 'AM')`,
+      [
+        BASE_ID + 24,
+        BASE_ID + 25,
+        BASE_ID + 26,
+        BASE_ID + 27,
+        PASSO0_PAID_CHILD_ONE_ID,
+        PASSO0_PAID_CHILD_TWO_ID,
+        PASSO0_UNPAID_CHILD_ID,
+        PASSO0_AM_CHILD_ID,
+        PASSO0_PARENT_ID,
+        BASE_ID + 28,
+        BASE_ID + 29,
+        BASE_ID + 30,
+      ],
+    );
+  }
+
+  it('includes paid children without any detalhe_a (PASSO 0) with the order value and the parent payment date', async () => {
+    await seedPasso0Family();
+
+    const filter = {
+      dataInicio: new Date('2099-05-10T00:00:00.000Z'),
+      dataFim: new Date('2099-05-10T00:00:00.000Z'),
+      pendenciaPaga: true,
+      page: 1,
+      pageSize: 50,
+    };
+
+    const [page, summary] = await Promise.all([repository.findFinancialMovementPage(filter), repository.findFinancialMovementSummary(filter)]);
+
+    // The report groups rows of the same guardador and date, so the two paid children (54.60 +
+    // 179.20) come back as one row. The unpaid child (status 1) and the AM child stay out, and
+    // the parent itself is not listed.
+    expect(page.data?.map((row) => [row.status, row.valor, row.dataPagamento])).toEqual([['Pendencia Paga', '233.80', '10/05/2099']]);
+    expect(summary.count).toBe(1);
+    expect(summary.valorPendenciaPaga).toBeCloseTo(233.8, 2);
+    expect(summary.valorTotal).toBeCloseTo(233.8, 2);
+  });
 
   it('shows one row per child with child values and the parent effective payment date', async () => {
     const filter = {
