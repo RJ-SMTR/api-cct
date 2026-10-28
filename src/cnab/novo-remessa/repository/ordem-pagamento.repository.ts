@@ -429,23 +429,7 @@ ORDER BY r.data_referencia DESC;`;
     let whereDataGratuidade = '';
 
     if (endDateParam) {
-      const today = new Date(endDateParam);
-      const isAntesDeSetembro2025 = getYear(today) === 2025 && getMonth(today) < 8;
-      let subDaysInt = 0;
-
-      if (isAntesDeSetembro2025) {
-        subDaysInt = 7;
-      } else if (isFriday(today)) {
-        subDaysInt = 3;
-      } else if (isTuesday(today)) {
-        subDaysInt = 4;
-      }
-
-      const dataCalculada = subDays(today, subDaysInt);
-      const dataLimite = new Date('2025-01-01');
-      const dataInicio = format(max([dataCalculada, dataLimite]), 'yyyy-MM-dd');
-
-      const dataFim = format(subDays(today, 1), 'yyyy-MM-dd');
+      const { dataInicio, dataFim } = this.calcularJanelaPagamento(endDateParam);
 
       whereData = `AND o."dataOrdem" BETWEEN $3 AND $4
       GROUP BY o.id,  o."dataOrdem", o."dataCaptura"`;
@@ -490,6 +474,110 @@ ORDER BY r.data_referencia DESC;`;
     let result = await this.ordemPagamentoRepository.query(query, params);
 
     this.logger.log(`${query} - ${params}`)
+
+    result = result.map((row: any) => {
+      const ordemPagamento = new OrdemPagamentoSemanalDto();
+      ordemPagamento.ordemId = row.id;
+      ordemPagamento.dataCaptura = row.dataCaptura;
+      ordemPagamento.valor = row.valor ? parseFloat(row.valor) : 0;
+      ordemPagamento.valorGratuidade = row.valorGratuidade != null ? parseFloat(row.valorGratuidade) : undefined;
+      return ordemPagamento;
+    });
+
+    const resultGrouped: OrdemPagamentoSemanalDto[] = [];
+
+    for (const row of result) {
+      const existing = resultGrouped.find(
+        (item) => item.dataCaptura?.toISOString() === row.dataCaptura.toISOString()
+      );
+      if (existing) {
+        existing.valor += row.valor;
+        if (!existing.ids) {
+          existing.ids = [];
+        }
+        existing.ids.push(row.ordemId);
+        existing.ordemId = undefined;
+      } else {
+        row.ids = [row.ordemId];
+        row.ordemId = undefined;
+        resultGrouped.push(row);
+      }
+    }
+
+    return resultGrouped;
+  }
+
+  /**
+   * Mesma janela de pagamento usada por `findOrdensPagamentoAgrupadasByOrdemPagamentoAgrupadoId`
+   * (ver `calcularPeriodoPagamento`/CONTEXT.md, "Janela de pagamento"), extraída para ser
+   * reaproveitada por `findOrdensPagamentoSemanaSemAgrupamento` (ADR 0013).
+   */
+  private calcularJanelaPagamento(dataReferencia: Date): { dataInicio: string; dataFim: string } {
+    const today = new Date(dataReferencia);
+    const isAntesDeSetembro2025 = getYear(today) === 2025 && getMonth(today) < 8;
+    let subDaysInt = 0;
+
+    if (isAntesDeSetembro2025) {
+      subDaysInt = 7;
+    } else if (isFriday(today)) {
+      subDaysInt = 3;
+    } else if (isTuesday(today)) {
+      subDaysInt = 4;
+    }
+
+    const dataCalculada = subDays(today, subDaysInt);
+    const dataLimite = new Date('2025-01-01');
+    const dataInicio = format(max([dataCalculada, dataLimite]), 'yyyy-MM-dd');
+    const dataFim = format(subDays(today, 1), 'yyyy-MM-dd');
+
+    return { dataInicio, dataFim };
+  }
+
+  /**
+   * Detalhamento diário de uma semana cujas capturas nunca foram agrupadas em uma
+   * `ordem_pagamento_agrupado` (tipicamente por falta de cadastro bancário no momento do
+   * agrupamento — ver CONTEXT.md, "Visualização de valores sem agrupamento", e ADR 0013).
+   * Mesmo formato de retorno de `findOrdensPagamentoAgrupadasByOrdemPagamentoAgrupadoId`, mas
+   * sem o `INNER JOIN` em `ordem_pagamento_agrupado`.
+   */
+  public async findOrdensPagamentoSemanaSemAgrupamento(
+    userId: number,
+    dataTentativaPagamento: Date,
+  ): Promise<OrdemPagamentoSemanalDto[]> {
+    const { dataInicio, dataFim } = this.calcularJanelaPagamento(dataTentativaPagamento);
+    const params: any[] = [userId, dataInicio, dataFim];
+
+    const query = `
+    WITH gratuidade_por_dia AS (
+      SELECT
+        date_trunc('day', o."dataCaptura") AS "dataCaptura",
+        ROUND(SUM(o."valorGratuidade")::numeric, 2) AS "valorGratuidade"
+      FROM ordem_pagamento o
+      WHERE o."userId" = $1
+        AND o."ordemPagamentoAgrupadoGratuidadeId" IS NOT NULL
+        AND o."dataCaptura" IS NOT NULL
+        AND o."dataOrdem" BETWEEN $2 AND $3
+      GROUP BY 1
+    )
+    SELECT
+          o.id,
+           MAX(ROUND(o.valor, 2)) as valor,
+            date_trunc('day', o."dataCaptura") "dataCaptura",
+           o."dataOrdem",
+           MAX(g."valorGratuidade") as "valorGratuidade"
+    FROM ordem_pagamento o
+    LEFT JOIN gratuidade_por_dia g ON g."dataCaptura" = date_trunc('day', o."dataCaptura")
+    WHERE 1 = 1
+      AND o."userId" = $1
+      AND o."dataCaptura" IS NOT NULL
+      AND o."ordemPagamentoAgrupadoId" IS NULL
+      AND o."dataOrdem" BETWEEN $2 AND $3
+    GROUP BY o.id, o."dataOrdem", o."dataCaptura"
+    ORDER BY o."dataCaptura" DESC `;
+
+    let result = await this.ordemPagamentoRepository.query(query, params);
+
+    this.logger.log(`${query} - ${params}`);
 
     result = result.map((row: any) => {
       const ordemPagamento = new OrdemPagamentoSemanalDto();
