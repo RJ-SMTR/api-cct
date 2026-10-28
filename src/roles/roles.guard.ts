@@ -1,5 +1,6 @@
 import { Injectable, CanActivate, ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { RoleEnum } from './roles.enum';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
@@ -10,10 +11,14 @@ export class RolesGuard implements CanActivate {
       context.getClass(),
       context.getHandler(),
     ]);
-    if (!roles.length) {
+    const request = context.switchToHttp().getRequest();
+    // Admin Master TI acessa qualquer rota protegida por role
+    if (request.user?.role?.id === RoleEnum.master_ti) {
       return true;
     }
-    const request = context.switchToHttp().getRequest();
+    if (!roles?.length) {
+      return true;
+    }
 
     return roles.includes(request.user?.role?.id);
   }
