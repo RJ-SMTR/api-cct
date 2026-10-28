@@ -308,11 +308,12 @@ describe('Relatório consolidado (e2e)', () => {
     }, 30000);
   });
 
-  describe('Guardador: todosConsorcios restringe aos pagamentos diretos de associação', () => {
-    // Associações (SINGAERJ, ANGLAE) recebem pagamento direto em ordem_pagamento_guardador
-    // com "permitCode" nulo - não são guardadores comuns. todosConsorcios deve restringir a
-    // elas (ver comentário de buildConsorcioFilter em guardador-novo-remessa-query-builder.ts),
-    // em vez de devolver a mesma lista de guardadores que a busca sem filtro de consórcio.
+  describe('Guardador: todosConsorcios restringe aos guardadores vinculados a alguma associação', () => {
+    // todosConsorcios deve restringir aos guardadores que têm ao menos uma associação
+    // vinculada (ver comentário de buildConsorcioFilter em
+    // guardador-novo-remessa-query-builder.ts), nunca ao pagamento direto da própria
+    // associação (SINGAERJ/ANGLAE, que não são guardadores) - em vez de devolver a mesma
+    // lista de guardadores (incluindo os autônomos) que a busca sem filtro de consórcio.
     it('todosConsorcios=true difere do resultado sem filtro de consórcio', async () => {
       const dataInicio = '2026-09-01';
       const dataFim = '2026-10-10';

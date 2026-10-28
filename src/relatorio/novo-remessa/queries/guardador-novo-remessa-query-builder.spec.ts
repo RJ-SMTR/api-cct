@@ -51,23 +51,22 @@ describe('guardador-novo-remessa-query-builder', () => {
       expect(build()).toContain("' / '");
     });
 
-    // Associations (SINGAERJ, ANGLAE) are payees in ordem_pagamento_guardador too. Selecting
-    // a consorcio must show that association's own payment, not the payments of every
-    // guardador linked to it.
-    it('matches the consorcio filter only against the association itself, not the guardadores linked to it', () => {
+    // Associations (SINGAERJ, ANGLAE) are payees in ordem_pagamento_guardador too, but
+    // selecting a consorcio must show the guardadores linked to it (array overlap against
+    // every association each guardador belongs to), never the association's own payment.
+    it('matches the consorcio filter against the associations of each guardador, not the association itself', () => {
       const sql = build({ consorcioFilterParamIndex: 5 });
 
-      expect(sql).toContain('pu."permitCode" IS NULL');
-      expect(sql).toContain('UPPER(TRIM(pu."fullName")) = ANY($5::text[])');
-      expect(sql).not.toContain('&& $5::text[]');
+      expect(sql).toContain('assoc."nomesUpper" && $5::text[]');
+      expect(sql).not.toContain('UPPER(TRIM(pu."fullName")) = ANY($5::text[])');
     });
 
-    // "Todas as Associações" must show every association's own payment, still excluding
-    // the guardadores linked to them, regardless of which names $5 would hold.
-    it('matches every association and excludes guardadores when todosConsorcios is set', () => {
+    // "Todas as Associações" must show every guardador linked to at least one association,
+    // regardless of which names $5 would hold, and never the association's own payment.
+    it('matches every guardador with at least one association when todosConsorcios is set', () => {
       const sql = build({ consorcioFilterParamIndex: 5, todosConsorcios: true });
 
-      expect(sql).toContain('pu."permitCode" IS NULL');
+      expect(sql).toContain('assoc."nomesUpper" IS NOT NULL');
       expect(sql).not.toContain('= ANY($5::text[])');
     });
 
@@ -83,9 +82,9 @@ describe('guardador-novo-remessa-query-builder', () => {
     });
 
     // The two known associations (SINGAERJ, ANGLAE) are real rows in ordem_pagamento_guardador
-    // with roleId 1, not 6 — requiring roleId = 6 unconditionally would make a selected
-    // consorcio always return zero rows, even though its own payment exists.
-    it('does not require the guardador role for the association itself, only for the default guardador view', () => {
+    // with roleId 1, not 6 — the guardador role must always be required, filtered or not,
+    // otherwise a selected consorcio would also bring back the association's own payment.
+    it('requires the guardador role even when a consorcio is selected', () => {
       const withConsorcio = build({ consorcioFilterParamIndex: 5 });
       const roleIdOccurrences = withConsorcio.match(/pu\."roleId" = 6/g) ?? [];
 
@@ -94,10 +93,10 @@ describe('guardador-novo-remessa-query-builder', () => {
       expect(roleIdOccurrences).toHaveLength(name === 'pendenciaPagaSingleDate' ? 2 : 1);
     });
 
-    it('does not require the guardador role when todosConsorcios is set', () => {
+    it('requires the guardador role when todosConsorcios is set', () => {
       const sql = build({ consorcioFilterParamIndex: 5, todosConsorcios: true });
 
-      expect(sql).not.toContain('pu."roleId" = 6');
+      expect(sql).toContain('pu."roleId" = 6');
     });
 
     // Associations (SINGAERJ, ANGLAE) have rows in ordem_pagamento_guardador but
@@ -182,6 +181,21 @@ describe('guardador-novo-remessa-query-builder', () => {
       expect(sql).toContain('op_pai."dataPagamento" AS "dataReferencia"');
       expect(sql).toContain('TRIM(oph_pai."motivoStatusRemessa")');
       expect(sql).toContain("IN ('Estorno')");
+    });
+
+    // Estorno/Rejeitado without a parent (never had a retry/correction attempt) were silently
+    // dropped from the single-day filter: the family branch above requires
+    // opa."ordemPagamentoAgrupadoId" via INNER JOIN with op_pai, so a first-level order with no
+    // family history never matched it (same cause as ADR 0008, already fixed for the
+    // permissionário in novo-remessa-query-builder.ts, but not for the guardador).
+    it('also selects a single-day rejected/estornado guardador order that has no parent (no retry history)', () => {
+      const sql = buildGuardadorPendenciaPagamentoSingleDateQuery({
+        parentErrorStatuses: ['Estorno'],
+      });
+
+      expect(sql).toMatch(/UNION ALL/);
+      expect(sql).toContain('opa."ordemPagamentoAgrupadoId" IS NULL');
+      expect(sql).toContain('opa."dataPagamento"::date BETWEEN $1::date AND $2::date');
     });
   });
 
