@@ -9,6 +9,10 @@ import { DetalheA } from "src/cnab/entity/pagamento/detalhe-a.entity";
 import { CnabRegistros104Pgto } from "src/cnab/interfaces/cnab-240/104/pagamento/cnab-registros-104-pgto.interface";
 import { CnabLote104Pgto } from "src/cnab/interfaces/cnab-240/104/pagamento/cnab-lote-104-pgto.interface";
 import { SftpBackupFolder } from "src/sftp/enums/sftp-backup-folder.enum";
+import { FavorecidoEmpresaCpfCnpjEnum } from "src/cnab/enums/favorecido-empresa.enum";
+
+/** Acréscimo aplicado ao valorLancamento do detalhe_a do Intersul quando o pagamento é efetivado. */
+export const ACRESCIMO_INTERSUL = 1.05;
 
 @Injectable()
 export class RetornoService {
@@ -110,6 +114,26 @@ export class RetornoService {
         return valor === 'BD' || valor === '00';
     }
 
+    /**
+     * Intersul: quando o retorno efetiva o pagamento (historico passa a Efetivado), o valorLancamento do detalhe_a sobe 5%.
+     * Roda só na transição para Efetivado (os ramos que chamam partem de Aguardando/NaoEfetivado), então um retorno
+     * repetido não soma o acréscimo de novo: o histórico já está Efetivado e deixa de casar com o detalhe_a.
+     */
+    private async aplicarAcrescimoIntersul(registro: CnabRegistros104Pgto, detalheA: DetalheA, historico: { statusRemessa: StatusRemessaEnum }) {
+        if (historico.statusRemessa !== StatusRemessaEnum.Efetivado) {
+            return;
+        }
+        const cpfCnpj = String(registro.detalheB.numeroInscricao.convertedValue ?? '').replace(/D/g, '');
+        if (cpfCnpj !== FavorecidoEmpresaCpfCnpjEnum.Intersul) {
+            return;
+        }
+        const valorAtual = Number(detalheA.valorLancamento);
+        const novoValor = Math.round(valorAtual * ACRESCIMO_INTERSUL * 100) / 100;
+        await this.detalheAService.atualizarValorLancamento(detalheA.id, novoValor);
+        detalheA.valorLancamento = novoValor;
+        this.logger.debug(`detalheA ${detalheA.id} (Intersul): valorLancamento ${valorAtual} -> ${novoValor} (+5%)`);
+    }
+
     private async atualizarStatusRemessaHistorico(
         cnabLote: CnabLote104Pgto, registro: CnabRegistros104Pgto, detalheA: DetalheA) {
         const historicos = await this.ordemPagamentoAgrupadoService.getHistorico(detalheA.id);
@@ -169,6 +193,7 @@ export class RetornoService {
                             ? StatusRemessaEnum.AguardandoPagamento
                             : (historicos.length > 1 ? StatusRemessaEnum.PendenciaPaga : StatusRemessaEnum.Efetivado),
                     );
+                    await this.aplicarAcrescimoIntersul(registro, detalheA, historico);
                 } else if (historico.statusRemessa === StatusRemessaEnum.AguardandoPagamento) {
                     historico.motivoStatusRemessa = registro.detalheA.ocorrencias.value.trim();
                     //SE O HEADER LOTE ESTIVER COM ERRO TODOS OS DETALHES FICAM COMO NÃO EFETIVADOS    
@@ -197,6 +222,7 @@ export class RetornoService {
                             historico,
                             status
                         );
+                        await this.aplicarAcrescimoIntersul(registro, detalheA, historico);
                     } else {
                         await this.ordemPagamentoAgrupadoService.saveStatusHistorico(
                             historico, StatusRemessaEnum.NaoEfetivado);

@@ -45,7 +45,7 @@ describe('RetornoService', () => {
   let service: RetornoService;
   let opaService: jest.Mocked<Pick<OrdemPagamentoAgrupadoService,
     'getHistorico' | 'saveStatusHistorico' | 'propagarPagamentoPaiParaFilhas'>>;
-  let detalheAService: jest.Mocked<Pick<DetalheAService, 'getDetalheARetorno'>>;
+  let detalheAService: jest.Mocked<Pick<DetalheAService, 'getDetalheARetorno' | 'atualizarValorLancamento'>>;
   let sftpService: jest.Mocked<Pick<SftpService, 'moveToBackup' | 'getFirstRetornoPagamento'>>;
 
   beforeEach(() => {
@@ -55,7 +55,7 @@ describe('RetornoService', () => {
       saveStatusHistorico: jest.fn(async (h: any, s: any) => { h.statusRemessa = s; }),
       propagarPagamentoPaiParaFilhas: jest.fn(async () => 0),
     } as any;
-    detalheAService = { getDetalheARetorno: jest.fn() } as any;
+    detalheAService = { getDetalheARetorno: jest.fn(), atualizarValorLancamento: jest.fn(async () => undefined) } as any;
     sftpService = { moveToBackup: jest.fn(async () => undefined), getFirstRetornoPagamento: jest.fn() } as any;
     service = new RetornoService(opaService as any, detalheAService as any, sftpService as any);
   });
@@ -63,6 +63,50 @@ describe('RetornoService', () => {
   /** helper: chama o metodo privado atualizarStatusRemessaHistorico */
   const atualizar = (lote: any, registro: any, detalheA: any) =>
     (service as any).atualizarStatusRemessaHistorico(lote, registro, detalheA);
+
+  describe('acrescimo de 5% do Intersul', () => {
+    const CNPJ_INTERSUL = '12464869000176';
+
+    it('Aguardando + "00" no Intersul => Efetivado e valorLancamento x 1,05', async () => {
+      opaService.getHistorico.mockResolvedValue([makeHistorico(10, StatusRemessaEnum.AguardandoPagamento)]);
+      const detalheA = { id: 7, valorLancamento: 1000 };
+      await atualizar(makeLote('00'), makeRegistro('00', CNPJ_INTERSUL), detalheA);
+      expect(opaService.saveStatusHistorico).toHaveBeenCalledWith(expect.objectContaining({ id: 10 }), StatusRemessaEnum.Efetivado);
+      expect(detalheAService.atualizarValorLancamento).toHaveBeenCalledWith(7, 1050);
+    });
+
+    it('arredonda para 2 casas', async () => {
+      opaService.getHistorico.mockResolvedValue([makeHistorico(10, StatusRemessaEnum.AguardandoPagamento)]);
+      await atualizar(makeLote('00'), makeRegistro('00', CNPJ_INTERSUL), { id: 7, valorLancamento: '123.45' });
+      expect(detalheAService.atualizarValorLancamento).toHaveBeenCalledWith(7, 129.62);
+    });
+
+    it('NaoEfetivado reaberto com "00" no Intersul tambem recebe o acrescimo', async () => {
+      opaService.getHistorico.mockResolvedValue([makeHistorico(10, StatusRemessaEnum.NaoEfetivado)]);
+      await atualizar(makeLote('00'), makeRegistro('00', CNPJ_INTERSUL), { id: 7, valorLancamento: 200 });
+      expect(detalheAService.atualizarValorLancamento).toHaveBeenCalledWith(7, 210);
+    });
+
+    it('outro favorecido nao recebe acrescimo', async () => {
+      opaService.getHistorico.mockResolvedValue([makeHistorico(10, StatusRemessaEnum.AguardandoPagamento)]);
+      await atualizar(makeLote('00'), makeRegistro('00', '12464539000180'), { id: 7, valorLancamento: 1000 });
+      expect(detalheAService.atualizarValorLancamento).not.toHaveBeenCalled();
+    });
+
+    it('BD (Aguardando) e PendenciaPaga (pai/filha) nao recebem acrescimo', async () => {
+      opaService.getHistorico.mockResolvedValue([makeHistorico(10, StatusRemessaEnum.PreparadoParaEnvio)]);
+      await atualizar(makeLote('00'), makeRegistro('BD', CNPJ_INTERSUL), { id: 7, valorLancamento: 1000 });
+      opaService.getHistorico.mockResolvedValue([makeHistorico(11, StatusRemessaEnum.AguardandoPagamento), makeHistorico(12, StatusRemessaEnum.AguardandoPagamento)]);
+      await atualizar(makeLote('00'), makeRegistro('00', CNPJ_INTERSUL), { id: 7, valorLancamento: 1000 });
+      expect(detalheAService.atualizarValorLancamento).not.toHaveBeenCalled();
+    });
+
+    it('historico ja Efetivado (retorno repetido) nao soma de novo', async () => {
+      opaService.getHistorico.mockResolvedValue([makeHistorico(10, StatusRemessaEnum.Efetivado)]);
+      await atualizar(makeLote('00'), makeRegistro('00', CNPJ_INTERSUL), { id: 7, valorLancamento: 1050 });
+      expect(detalheAService.atualizarValorLancamento).not.toHaveBeenCalled();
+    });
+  });
 
   describe('atualizarStatusRemessaHistorico - maquina de estados', () => {
     it('PreparadoParaEnvio + header lote OK + detalheA "00" => AguardandoPagamento', async () => {
