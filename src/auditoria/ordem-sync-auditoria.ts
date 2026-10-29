@@ -1,4 +1,4 @@
-import { DataSource, DeepPartial, Repository } from 'typeorm';
+import { DataSource, DeepPartial, IsNull, Repository } from 'typeorm';
 import { OrdemPagamento } from 'src/cnab/novo-remessa/entity/ordem-pagamento.entity';
 import {
   CAMPOS_COMPARADOS,
@@ -99,6 +99,14 @@ export class OrdemSyncAuditoria {
       });
     }
     return mapa;
+  }
+
+  /** Liga ao usuário uma ordem que entrou órfã; só atua se a ordem continua sem usuário e sem agrupamento. */
+  async vincularUsuario(ordemId: number, userId: number): Promise<void> {
+    await this.ordemRepository.update(
+      { id: ordemId, userId: IsNull(), ordemPagamentoAgrupadoId: IsNull(), ordemPagamentoAgrupadoGratuidadeId: IsNull() } as any,
+      { userId },
+    );
   }
 
   /**

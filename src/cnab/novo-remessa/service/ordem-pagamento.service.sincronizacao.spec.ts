@@ -26,6 +26,7 @@ describe('OrdemPagamentoService - sincronismo por período', () => {
       iniciarExecucao: jest.fn().mockResolvedValue(77),
       finalizarExecucao: jest.fn().mockResolvedValue(undefined),
       buscarPorBqIds: jest.fn().mockResolvedValue(opcoes.existentes ?? new Map()),
+      vincularUsuario: jest.fn().mockResolvedValue(undefined),
       aplicar: jest.fn().mockImplementation(() => resultados.shift() ?? 'nova'),
       contagemDiariaBanco: jest.fn().mockResolvedValue(new Map()),
       salvarReconciliacao: jest.fn().mockResolvedValue(undefined),
@@ -85,6 +86,21 @@ describe('OrdemPagamentoService - sincronismo por período', () => {
 
     expect(r).toMatchObject({ inseridas: 1, identicas: 1, alteradas: 2, contidas: 2, erros: 0 });
     expect(sync.finalizarExecucao).toHaveBeenCalledWith(77, 'concluida', expect.objectContaining({ novas: 1, identicas: 1, alteradas: 2, contidas: 2 }));
+  });
+
+  it('liga ao usuário a ordem órfã ainda livre quando o cadastro foi criado depois', async () => {
+    const existentes = new Map([
+      [1, { id: 10, userId: null, ordemPagamentoAgrupadoId: null, ordemPagamentoAgrupadoGratuidadeId: null }],
+      [2, { id: 11, userId: null, ordemPagamentoAgrupadoId: 5, ordemPagamentoAgrupadoGratuidadeId: null }],
+      [3, { id: 12, userId: 99, ordemPagamentoAgrupadoId: null, ordemPagamentoAgrupadoGratuidadeId: null }],
+    ]);
+    const { service, sync, usersService } = build({ bq: [ordemBq(1), ordemBq(2), ordemBq(3)], antes: 3, existentes, resultados: ['alterada', 'identica', 'identica'] });
+
+    await service.sincronizarOrdensPagamento(d('2026-10-09'), d('2026-10-09'), ['STPL']);
+
+    expect(sync.vincularUsuario).toHaveBeenCalledTimes(1);
+    expect(sync.vincularUsuario).toHaveBeenCalledWith(10, 519);
+    expect(usersService.getOne).toHaveBeenCalledTimes(1);
   });
 
   it('ignora ordem sem CPF/CNPJ e ordem de usuário bloqueado', async () => {
