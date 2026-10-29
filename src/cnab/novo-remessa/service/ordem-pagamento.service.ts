@@ -351,7 +351,9 @@ export class OrdemPagamentoService {
         try {
           const existente = existentes.get(Number(ordem.id));
           let userId: number | undefined = existente?.userId ?? undefined;
-          if (!existente) {
+          // Ordem nova, ou ordem que entrou sem usuário (o cadastro foi criado depois) e ainda não foi agrupada:
+          // o dono é resolvido de novo. Antes só a ordem nova resolvia, e a órfã ficava sem usuário para sempre.
+          if (!existente || (userId === undefined && this.ordemLivreParaVincular(existente))) {
             const dono = await this.resolverUsuarioDaOrdem(ordem);
             if (dono === null) {
               // usuário bloqueado: a ordem não é gravada (regra anterior do sincronismo)
@@ -359,6 +361,10 @@ export class OrdemPagamentoService {
               continue;
             }
             userId = dono;
+            if (existente && dono !== undefined) {
+              await sync.vincularUsuario(existente.id, dono);
+              existente.userId = dono;
+            }
           }
           const resultado = await sync.aplicar(BigQueryToOrdemPagamento.convert(ordem, userId), existente, execucaoId);
           if (resultado === 'nova') contagens.novas += 1;
@@ -401,6 +407,10 @@ export class OrdemPagamentoService {
       ignoradas: contagens.ignoradas,
       erros: contagens.erros,
     };
+  }
+
+  private ordemLivreParaVincular(ordem: OrdemPagamento): boolean {
+    return ordem.ordemPagamentoAgrupadoId == null && ordem.ordemPagamentoAgrupadoGratuidadeId == null;
   }
 
   /**
