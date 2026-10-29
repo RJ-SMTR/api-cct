@@ -439,9 +439,13 @@ export class RelatorioNovoRemessaFinancialMovementService {
         if (!q.length) return `${this.buildStucGratuidadeQuery(filter)} AND FALSE`;
         return q.join('\nUNION ALL\n');
       }
-      if (filter.eleicao &&!this.hasOtherStatusFilters(filter)) return this.buildEleicaoQuery(filter);
+      // Eleição é uma fonte própria (ordem_pagamento_unico), não um corte do fluxo normal: ao
+      // selecioná-la, o relatório deve trazer só o que vem dela, mesmo com status junto no
+      // filtro - nunca misturar com buildBaseQuery/Pendencia Paga/Pendentes (acharam esse
+      // vazamento testando Eleição + Pago: voltava também lançamentos do fluxo normal que não
+      // têm nenhuma relação com a Eleição).
+      if (filter.eleicao) return this.buildEleicaoQuery(filter);
       const q: string[] = [];
-      if (filter.eleicao) q.push(this.buildEleicaoQuery(filter));
       if (statuses.includeBase) q.push(this.buildBaseQuery(filter));
       if (statuses.includePendenciaPaga) {
         q.push(this.buildPendenciaPagaSingleDateQuery(filter));
@@ -489,7 +493,6 @@ export class RelatorioNovoRemessaFinancialMovementService {
     return `${buildPendenciaPagamentoSingleDateQuery({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5, parentErrorStatuses: statuses }).trim()} ${filter.desativados ? 'AND pu.bloqueado = true' : ''}`;
   }
   private isSingleDate(filter: NormalizedFilter): boolean { return this.toQueryDate(filter.dataInicio) === this.toQueryDate(filter.dataFim); }
-  private hasOtherStatusFilters(filter: NormalizedFilter): boolean { return Boolean(filter.pago || filter.aPagar || filter.emProcessamento || filter.erro || filter.pendenciaPaga || filter.pendentes || filter.estorno || filter.rejeitado); }
   private resolvePagination(filter: NormalizedFilter) {
     const cp = Number(filter.page); const ps = Number(filter.pageSize);
     return { currentPage: Number.isInteger(cp) && cp > 0? cp : 1, pageSize: Number.isInteger(ps) && ps > 0? ps : 50 };
