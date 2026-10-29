@@ -37,6 +37,12 @@ type NormalizedFilter = IFindPublicacaoRelatorioNovoFinancialMovement & {
 
 type ResolvedStatuses = {
   baseStatuses: string[] | null;
+  // Seleção original do filtro, sem o corte de Pendentes/Pendencia Paga que baseStatuses
+  // aplica para o fluxo normal (lá esses dois têm sub-queries próprias, unidas separadamente -
+  // ver buildFinalBaseQuery). Eleição não tem essas sub-queries: filtrar Eleição por $4 usando
+  // baseStatuses faz "só Pendentes/Pendencia Paga selecionados" virar $4 vazio -> null, e cair
+  // no ramo "sem status selecionado" (mostra tudo, Pago incluso, mesmo não selecionado).
+  allStatuses: string[] | null;
   includePendentes: boolean;
   includeBase: boolean;
   includePendenciaPaga: boolean;
@@ -110,7 +116,7 @@ export class RelatorioNovoRemessaFinancialMovementService {
       return this.buildStucGratuidadeSummary(pivotedRows);
     }
     const statuses = this.resolveStatuses(safeFilter);
-    const innerParams = this.getInnerQueryParameters(safeFilter, statuses.baseStatuses);
+    const innerParams = this.getInnerQueryParameters(safeFilter, safeFilter.eleicao ? statuses.allStatuses : statuses.baseStatuses);
     const finalBaseQuery = this.buildFinalBaseQuery(safeFilter, statuses);
     const { countQuery, aggregatesQuery } = this.buildSummaryQueries(finalBaseQuery);
     const outerParams = [safeFilter.valorMin?? null, safeFilter.valorMax?? null];
@@ -279,7 +285,7 @@ export class RelatorioNovoRemessaFinancialMovementService {
 
   private buildBaseDataQuery(filter: NormalizedFilter) {
     const statuses = this.resolveStatuses(filter);
-    const innerParams = this.getInnerQueryParameters(filter, statuses.baseStatuses);
+    const innerParams = this.getInnerQueryParameters(filter, filter.eleicao ? statuses.allStatuses : statuses.baseStatuses);
     const params = [...innerParams, filter.valorMin?? null, filter.valorMax?? null];
     const finalBaseQuery = this.buildFinalBaseQuery(filter, statuses);
     const groupedCte = this.buildGroupedCte(finalBaseQuery);
@@ -416,7 +422,7 @@ export class RelatorioNovoRemessaFinancialMovementService {
 
   private resolveStatuses(filter: NormalizedFilter): ResolvedStatuses {
     const all = this.getStatusParaFiltro(filter);
-    if (!all?.length) return { baseStatuses: null, includePendentes: false, includeBase: true, includePendenciaPaga: false, parentErrorStatusesSingleDate: [] };
+    if (!all?.length) return { baseStatuses: null, allStatuses: null, includePendentes: false, includeBase: true, includePendenciaPaga: false, parentErrorStatusesSingleDate: [] };
     const isSingle = this.isSingleDate(filter);
     const includePendentes = all.includes(StatusPagamento.PENDENTES);
     // Pendencia Paga é consultada pela data de pagamento em qualquer intervalo (ADR 0001), não só em dia único.
@@ -428,7 +434,7 @@ export class RelatorioNovoRemessaFinancialMovementService {
     // Pendencia Paga nunca pertence à base por vencimento (ela é identificada pela data de pagamento).
     baseStatuses = baseStatuses.filter((s) => s!== StatusPagamento.PENDENCIA_PAGA);
     baseStatuses = baseStatuses.filter((s) => !parentErrorStatusesSingleDate.includes(s as StatusPagamento.ERRO_ESTORNO | StatusPagamento.ERRO_REJEITADO));
-    return { baseStatuses: baseStatuses.length? baseStatuses : null, includePendentes, includeBase: baseStatuses.length > 0, includePendenciaPaga, parentErrorStatusesSingleDate };
+    return { baseStatuses: baseStatuses.length? baseStatuses : null, allStatuses: all, includePendentes, includeBase: baseStatuses.length > 0, includePendenciaPaga, parentErrorStatusesSingleDate };
   }
 
   private buildFinalBaseQuery(filter: NormalizedFilter, statuses: ResolvedStatuses): string {
