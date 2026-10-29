@@ -708,8 +708,15 @@ export class RelatorioNovoRemessaConsolidadoRepository {
           if (buscarConsorcio) queries.push(temEleicao ? queryEleicaoConsorcio : queryConsorcios);
           if (buscarVanzeiro) queries.push(temEleicao ? queryEleicaoVanzeiro : queryVanzeiros);
         }
-        if (buscarConsorcio) queries.push(queryPendenciaPagaConsorcios);
-        if (buscarVanzeiro) queries.push(queryPendenciaPagaVanzeiros);
+        // Pendência Paga não tem uma variante própria de Eleição (nenhuma getQueryEleicaoPendenciaPaga*
+        // existe, diferente do par queryEleicaoConsorcio/Vanzeiro acima) - sem este guard, Eleição +
+        // Pendência Paga misturava pagamentos do fluxo normal (via op_pai, sem relação com
+        // ordem_pagamento_unico) na resposta, em vez de não trazer nada (achado testando contra
+        // produção/dump 19/10/2026: a consulta final nem continha "ordem_pagamento_unico").
+        if (!temEleicao) {
+          if (buscarConsorcio) queries.push(queryPendenciaPagaConsorcios);
+          if (buscarVanzeiro) queries.push(queryPendenciaPagaVanzeiros);
+        }
       }
     }
 

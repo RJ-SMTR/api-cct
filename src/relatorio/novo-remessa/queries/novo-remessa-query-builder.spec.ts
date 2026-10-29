@@ -153,6 +153,23 @@ describe('novo-remessa-query-builder período (dataVencimento)', () => {
     expect(sql).toContain('da."dataVencimento"::date BETWEEN $1::date AND $2::date');
   });
 
+  // Achado testando contra produção (19/10/2026): 1326 linhas com statusRemessa IN (0,1) -
+  // "A Pagar" no STATUS_CASE normal - caíam no ELSE 'Rejeitado' do ELEICAO_STATUS_CASE, que não
+  // tinha essa faixa. Filtrar Eleição + "A Pagar"/"Pendencia Paga"/"Pendentes" também acionava o
+  // fallback de ELEICAO_STATUS_FILTER (nenhum dos status reconhecidos selecionado) e devolvia
+  // todas as linhas de Eleição sem filtrar por status nenhum.
+  it('eleicao query classifies statusRemessa 0/1 as "A Pagar", not the Rejeitado fallback', () => {
+    const sql = buildEleicaoQuery(params);
+
+    expect(sql).toContain(`WHEN oph."statusRemessa" IN (0,1) THEN 'A Pagar'`);
+  });
+
+  it('eleicao status filter recognizes "A Pagar" and does not fall back to "bring every row"', () => {
+    const sql = buildEleicaoQuery(params);
+
+    expect(sql).toContain(`'A Pagar' = ANY($4)`);
+  });
+
   // op.dataOrdem is a plain `date` column (no time component): it never had this bug and
   // must not get the cast.
   it('pendentes query keeps filtering dataOrdem without a date cast', () => {

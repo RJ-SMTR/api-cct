@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-27",
+  "generatedAt": "2026-10-29",
   "node": "v18.16.0",
   "passingSuites": [
     "scripts/validate/boundaries.spec.ts",
@@ -43,6 +43,7 @@
     "src/relatorio/novo-remessa/relatorio-novo-remessa-movimentacao.repository.spec.ts",
     "src/relatorio/novo-remessa/relatorio-novo-remessa.controller.spec.ts",
     "src/relatorio/novo-remessa/relatorio-novo-remessa.service.spec.ts",
+    "src/relatorio/relatorio.controller.spec.ts",
     "src/relatorio/utils/financial-movement-export-writer.spec.ts",
     "src/relatorio/utils/stuc-gratuidade-pivot.spec.ts",
     "src/relatorio/utils/stuc-payment-window.util.spec.ts",
@@ -54,9 +55,11 @@
     "src/utils/all-exteptions-filter/filters/all-exceptions.filter.spec.ts",
     "src/utils/date-utils.spec.ts",
     "src/utils/file-type/pipes/file-type-validation.pipe.spec.ts",
-    "src/utils/payment-date-utils.spec.ts"
+    "src/utils/payment-date-utils.spec.ts",
+    "src/utils/worker-thread/run-with-worker-timeout.spec.ts"
   ],
   "eslintErrors": {
+    "scripts/debug-consolidado.ts": 3,
     "src/agentes/agentes-bigquery.repository.ts": 1,
     "src/agentes/agentes.repository.ts": 1,
     "src/antifraud/antifraud.service.spec.ts": 5,

@@ -399,6 +399,56 @@ describe('RelatorioNovoRemessaFinancialMovementService', () => {
     });
   });
 
+  describe('Eleição filter', () => {
+    // Único marcador presente nas consultas do fluxo normal (buildBaseQuery/Pendencia Paga/
+    // Pendentes), ausentes em buildEleicaoQuery (que parte de ordem_pagamento_agrupado, sem
+    // juntar ordem_pagamento).
+    const BASE_FLOW_MARKER = 'FROM ordem_pagamento op';
+    // Único marcador da fonte de Eleição (ordem_pagamento_unico).
+    const ELEICAO_MARKER = 'ordem_pagamento_unico';
+
+    // Achado testando contra produção (19/10/2026, Eleição + Pago): o relatório misturava
+    // lançamentos do fluxo normal (buildBaseQuery) - que não têm nenhuma relação com a Eleição -
+    // sempre que algum status também era selecionado. Eleição é uma fonte própria; selecioná-la
+    // deve trazer só o que vem dela, com ou sem status junto no filtro.
+    it('brings only Eleição rows when a status is selected together with Eleição', async () => {
+      await service.findFinancialMovementSummary({
+        dataInicio: new Date('2026-10-19'),
+        dataFim: new Date('2026-10-19'),
+        eleicao: true,
+        pago: true,
+      } as any);
+
+      const [countQuery] = dataSource.query.mock.calls[0];
+      expect(countQuery).toContain(ELEICAO_MARKER);
+      expect(countQuery).not.toContain(BASE_FLOW_MARKER);
+    });
+
+    it('keeps bringing only Eleição rows when no status is selected (no regression)', async () => {
+      await service.findFinancialMovementSummary({
+        dataInicio: new Date('2026-10-19'),
+        dataFim: new Date('2026-10-19'),
+        eleicao: true,
+      } as any);
+
+      const [countQuery] = dataSource.query.mock.calls[0];
+      expect(countQuery).toContain(ELEICAO_MARKER);
+      expect(countQuery).not.toContain(BASE_FLOW_MARKER);
+    });
+
+    it('does not bring Eleição rows when it was not selected', async () => {
+      await service.findFinancialMovementSummary({
+        dataInicio: new Date('2026-10-19'),
+        dataFim: new Date('2026-10-19'),
+        pago: true,
+      } as any);
+
+      const [countQuery] = dataSource.query.mock.calls[0];
+      expect(countQuery).toContain(BASE_FLOW_MARKER);
+      expect(countQuery).not.toContain(ELEICAO_MARKER);
+    });
+  });
+
   describe('STUC - Gratuidade filter', () => {
     const PENDENTES_MARKER = 'op."ordemPagamentoAgrupadoId" IS NULL';
 

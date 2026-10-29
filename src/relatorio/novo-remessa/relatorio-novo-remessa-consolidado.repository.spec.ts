@@ -661,5 +661,22 @@ describe('RelatorioNovoRemessaConsolidadoRepository.findConsolidado — filtros'
       expect(sql).toContain(`op_pai."dataPagamento"::date BETWEEN`);
       expect(parentesesBalanceados(sql)).toBe(true);
     });
+
+    // Achado testando contra o dump de produção (19/10/2026): Pendência Paga não tem uma
+    // variante de Eleição (só A Pagar/histórico têm, via o ternário temEleicao ? queryEleicaoX :
+    // queryX) - sem excluí-la, Eleição + Pendência Paga trazia pagamentos do fluxo normal
+    // (op_pai, sem relação com ordem_pagamento_unico) em vez de nada.
+    it('Eleição + Pendência Paga: não mistura com o fluxo normal (sem variante própria de Eleição, não traz nada)', async () => {
+      const sql = await executar({ eleicao: true, pendenciaPaga: true });
+
+      expect(sql).toBeUndefined();
+    });
+
+    it('Eleição + Pendência Paga + Pago: a parte de Pago usa a fonte de Eleição; Pendência Paga não entra', async () => {
+      const sql = await executar({ eleicao: true, pendenciaPaga: true, pago: true });
+
+      expect(sql).toContain('ordem_pagamento_unico');
+      expect(sql).not.toContain('left join ordem_pagamento_agrupado op_pai');
+    });
   });
 });
