@@ -45,6 +45,7 @@ import { TestModule } from './test/test.module';
 import { TicketRevenuesModule } from './ticket-revenues/ticket-revenues.module';
 import { UsersModule } from './users/users.module';
 import { AuditoriaModule } from './auditoria/auditoria.module';
+import { ControleRemessaErroModule } from './controle-remessa-erro/controle-remessa-erro.module';
 import { TransacaoViewService } from './transacao-view/transacao-view.service';
 import { TransacaoViewModule } from './transacao-view/transacao-view.module';
 import { AppLoggerMiddleware } from './utils/logger-middleware';
@@ -104,6 +105,7 @@ import { AgentesModule } from './agentes/agentes.module';
     }),
     UsersModule,
     AuditoriaModule,
+    ControleRemessaErroModule,
     FilesModule,
     AuthModule,
     AuthFacebookModule,
