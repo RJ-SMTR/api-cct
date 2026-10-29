@@ -420,15 +420,20 @@ export const buildEleicaoQuery = (params: NovoRemessaBaseParams) => {
       ON da."ordemPagamentoAgrupadoHistoricoId" = oph.id
     INNER JOIN ordem_pagamento_unico opu
       ON opu."idOrdemPagamento" = opa.id::VARCHAR
+    -- Por permitCode/idOperadora, não por cpfCnpj: "user"."cpfCnpj" não é único (achado contra
+    -- stag, 19/10/2026 - um favorecido tinha 2 cadastros ativos com o mesmo CPF, nenhum
+    -- deletedAt/bloqueado). Ligar por cpfCnpj faz fan-out - a mesma ordem vira 2 linhas, uma por
+    -- cadastro, dobrando o valor dela no total. "idOperadora" é o permitCode do operador dono
+    -- da ordem (não o CPF dele), então é a chave correta mesmo com CPF duplicado.
     INNER JOIN public."user" pu
-      ON pu."cpfCnpj" = opu."operadoraCpfCnpj"
+      ON pu."permitCode" = opu."idOperadora"
     INNER JOIN bank bc
       ON bc.code = pu."bankCode"
     WHERE
       da."dataVencimento"::date BETWEEN $1::date AND $2::date
       AND ($3::integer[] IS NULL OR pu."id" = ANY($3))
       AND ${ELEICAO_STATUS_FILTER}
-      AND (${consorcioParam}::text[] IS NULL OR TRIM(UPPER(opu."consorcio")) = ANY(${consorcioParam}))      
+      AND (${consorcioParam}::text[] IS NULL OR TRIM(UPPER(opu."consorcio")) = ANY(${consorcioParam}))
       ${params.todosVanzeiros ? NOT_CPF_FILTER : ''}
   `;
 };
