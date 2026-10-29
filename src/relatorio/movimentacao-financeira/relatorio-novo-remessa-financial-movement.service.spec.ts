@@ -449,6 +449,49 @@ describe('RelatorioNovoRemessaFinancialMovementService', () => {
     });
   });
 
+  describe('Favorecido: nenhum selecionado se comporta como Todos (ADR 0014)', () => {
+    // NOT_CPF_FILTER exclui das consultas os 6 CNPJs dos próprios consórcios (favorecidos que
+    // representam o consórcio inteiro, não um vanzeiro individual); só entrava com "Todos"
+    // marcado explicitamente - sem nenhuma seleção (nem userIds, nem "Todos"), esses CNPJs
+    // apareciam misturados com os vanzeiros individuais, resultado diferente de marcar "Todos".
+    const NOT_CPF_FILTER_MARKER = 'cpfCnpj" NOT IN';
+
+    it('applies the same CNPJ exclusion with nothing selected as with "Todos" explicitly marked', async () => {
+      await service.findFinancialMovementSummary({
+        dataInicio: new Date('2026-10-19'),
+        dataFim: new Date('2026-10-19'),
+        pago: true,
+      } as any);
+
+      const [countQuery] = dataSource.query.mock.calls[0];
+      expect(countQuery).toContain(NOT_CPF_FILTER_MARKER);
+    });
+
+    it('keeps applying the exclusion when "Todos" is marked explicitly (no regression)', async () => {
+      await service.findFinancialMovementSummary({
+        dataInicio: new Date('2026-10-19'),
+        dataFim: new Date('2026-10-19'),
+        pago: true,
+        todosVanzeiros: true,
+      } as any);
+
+      const [countQuery] = dataSource.query.mock.calls[0];
+      expect(countQuery).toContain(NOT_CPF_FILTER_MARKER);
+    });
+
+    it('does not apply the exclusion when a specific favorecido is selected', async () => {
+      await service.findFinancialMovementSummary({
+        dataInicio: new Date('2026-10-19'),
+        dataFim: new Date('2026-10-19'),
+        pago: true,
+        userIds: [10],
+      } as any);
+
+      const [countQuery] = dataSource.query.mock.calls[0];
+      expect(countQuery).not.toContain(NOT_CPF_FILTER_MARKER);
+    });
+  });
+
   describe('STUC - Gratuidade filter', () => {
     const PENDENTES_MARKER = 'op."ordemPagamentoAgrupadoId" IS NULL';
 

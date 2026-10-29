@@ -59,7 +59,6 @@
     "src/utils/worker-thread/run-with-worker-timeout.spec.ts"
   ],
   "eslintErrors": {
-    "scripts/debug-consolidado.ts": 3,
     "src/agentes/agentes-bigquery.repository.ts": 1,
     "src/agentes/agentes.repository.ts": 1,
     "src/antifraud/antifraud.service.spec.ts": 5,
