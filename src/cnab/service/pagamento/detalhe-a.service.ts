@@ -88,6 +88,11 @@ export class DetalheAService {
     return await this.detalheARepository.save(dto);
   }
 
+  /** Atualiza só o valorLancamento (o save() valida o DTO completo). */
+  public async atualizarValorLancamento(id: number, valorLancamento: number): Promise<void> {
+    await this.detalheARepository.save({ id, valorLancamento });
+  }
+
   public async getOneRaw(where: IDetalheARawWhere): Promise<DetalheA> {
     return await this.detalheARepository.getOneRaw(where);
   }
