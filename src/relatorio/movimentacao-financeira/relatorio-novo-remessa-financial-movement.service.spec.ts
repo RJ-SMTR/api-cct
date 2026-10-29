@@ -447,6 +447,28 @@ describe('RelatorioNovoRemessaFinancialMovementService', () => {
       expect(countQuery).toContain(BASE_FLOW_MARKER);
       expect(countQuery).not.toContain(ELEICAO_MARKER);
     });
+
+    // Pendentes/Pendencia Paga são selecionáveis na tela junto com Eleição, mas não existem no
+    // vocabulário de ELEICAO_STATUS_CASE (só Aguardando Pagamento/A Pagar/Pago/Estorno/
+    // Rejeitado). resolveStatuses() tira esses dois de baseStatuses para o fluxo normal (eles
+    // têm sub-query própria, unida separadamente) - usar baseStatuses também para o $4 de
+    // Eleição fazia "só Pendencia Paga selecionado" virar $4 vazio -> null, caindo no ramo "sem
+    // status selecionado" e trazendo Eleição sem filtrar por status nenhum (Pago incluso, sem
+    // ter sido selecionado). $4 de Eleição precisa da seleção original, não de baseStatuses.
+    it.each([
+      ['Pendencia Paga', { pendenciaPaga: true }],
+      ['Pendentes', { pendentes: true }],
+    ])('keeps filtering Eleição by status when only "%s" is selected (no other status applies to Eleição)', async (_label, extraFilter) => {
+      await service.findFinancialMovementSummary({
+        dataInicio: new Date('2026-10-19'),
+        dataFim: new Date('2026-10-19'),
+        eleicao: true,
+        ...extraFilter,
+      } as any);
+
+      const [, countParams] = dataSource.query.mock.calls[0];
+      expect(countParams[3]).not.toBeNull();
+    });
   });
 
   describe('Favorecido: nenhum selecionado se comporta como Todos (ADR 0014)', () => {
