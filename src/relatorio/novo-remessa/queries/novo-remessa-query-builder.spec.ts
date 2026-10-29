@@ -170,6 +170,17 @@ describe('novo-remessa-query-builder período (dataVencimento)', () => {
     expect(sql).toContain(`'A Pagar' = ANY($4)`);
   });
 
+  // "user"."cpfCnpj" não é único (achado contra stag, 19/10/2026: um favorecido tinha 2
+  // cadastros ativos com o mesmo CPF, nenhum deletedAt/bloqueado). Um INNER JOIN em cpfCnpj faz
+  // fan-out - a mesma ordem vira 2 linhas, dobrando o valor dela no total. Ligar por
+  // permitCode/idOperadora (chave do operador, não o CPF dele) evita a ambiguidade.
+  it('eleicao query joins "user" by permitCode/idOperadora, not by the (non-unique) cpfCnpj', () => {
+    const sql = buildEleicaoQuery(params);
+
+    expect(sql).not.toContain('ON pu."cpfCnpj" = opu."operadoraCpfCnpj"');
+    expect(sql).toContain('INNER JOIN public."user" pu\n      ON pu."permitCode" = opu."idOperadora"');
+  });
+
   // op.dataOrdem is a plain `date` column (no time component): it never had this bug and
   // must not get the cast.
   it('pendentes query keeps filtering dataOrdem without a date cast', () => {
