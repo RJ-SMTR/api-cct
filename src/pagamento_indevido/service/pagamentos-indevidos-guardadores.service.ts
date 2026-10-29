@@ -124,19 +124,23 @@ export class PagamentosIndevidosGuardadoresService {
     const params: unknown[] = [];
     const where = this.where(filtro, params);
 
-    // Os quadros são fixos: somam todos os registros, sem busca nem situação (o filtro vale só para a lista e o total dela).
-    const [totais] = await this.dataSource.query(
+    // Quantidades dos quadros (registros, devendo, quitados) são fixas: contam todos os registros, sem busca nem situação.
+    const [contagens] = await this.dataSource.query(
       `WITH ${this.cte()}
-       SELECT count(*)::int AS quantidade, count(*) FILTER (WHERE situacao = 'devendo')::int AS devendo,
+       SELECT count(*)::int AS quantidade, count(*) FILTER (WHERE situacao = 'devendo')::int AS devendo FROM calculado`,
+    );
+    // Valores em R$ e o total da lista seguem o filtro.
+    const [filtrado] = await this.dataSource.query(
+      `WITH ${this.cte()}
+       SELECT count(*)::int AS total,
               COALESCE(sum(indevido), 0)::numeric(18,2)::text AS "valorIndevido",
               COALESCE(sum(debitado), 0)::numeric(18,2)::text AS "valorDebitado",
               COALESCE(sum(saldo), 0)::numeric(18,2)::text AS "saldoDevedor"
-         FROM calculado`,
-    );
-    const [{ total }] = await this.dataSource.query(
-      `WITH ${this.cte()} SELECT count(*)::int AS total FROM calculado ${where}`,
+         FROM calculado ${where}`,
       params,
     );
+    const { total, ...valores } = filtrado;
+    const totais = { ...contagens, ...valores };
     const itens = await this.dataSource.query(
       `WITH ${this.cte()}
        SELECT ${this.colunas()} FROM calculado ${where}
