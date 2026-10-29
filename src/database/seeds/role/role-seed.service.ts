@@ -90,5 +90,20 @@ export class RoleSeedService {
         }),
       );
     }
+
+    const countMasterTi = await this.roleRepository.count({
+      where: {
+        id: RoleEnum.master_ti,
+      },
+    });
+
+    if (!countMasterTi) {
+      await this.roleRepository.save(
+        this.roleRepository.create({
+          id: RoleEnum.master_ti,
+          name: 'Admin Master TI',
+        }),
+      );
+    }
   }
 }

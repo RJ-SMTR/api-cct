@@ -17,6 +17,7 @@ import { RoleEnum } from 'src/roles/roles.enum';
 import { IRequest } from 'src/utils/interfaces/request.interface';
 import { ParseNumberPipe } from 'src/utils/pipes/parse-number.pipe';
 import { canProceed } from 'src/utils/request-utils';
+import { PagamentosIndevidosGuardadoresService } from 'src/pagamento_indevido/service/pagamentos-indevidos-guardadores.service';
 import { AgentesService } from './agentes.service';
 
 @ApiTags('Agentes')
@@ -28,7 +29,22 @@ import { AgentesService } from './agentes.service';
   version: '1',
 })
 export class AgentesController {
-  constructor(private readonly agentesService: AgentesService) { }
+  constructor(
+    private readonly agentesService: AgentesService,
+    private readonly pagamentosIndevidosGuardadoresService: PagamentosIndevidosGuardadoresService,
+  ) { }
+
+  /** Valor indevido a pagar do guardador (tabela pagamento_indevido): linhas e totais. O agente só enxerga o próprio. */
+  @Get('pagamento-indevido')
+  @HttpCode(HttpStatus.OK)
+  async getPagamentoIndevido(
+    @Request() request: IRequest,
+    @Query('userId', new ParseNumberPipe({ min: 1, optional: false }))
+    userId: number,
+  ) {
+    canProceed(request, Number(userId));
+    return this.pagamentosIndevidosGuardadoresService.porUsuario(Number(userId));
+  }
 
   @Get('users')
   @HttpCode(HttpStatus.OK)

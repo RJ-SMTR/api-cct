@@ -125,7 +125,7 @@ export class UsersService {
       const isOwnUpdate = requesterId === Number(id);
       const requesterEmail = String(requester?.email || '').trim().toLowerCase();
       const hasAgentExceptionAccess =
-        (Number(requester?.role?.id) === RoleEnum.admin || Number(requester?.role?.id) === RoleEnum.master) &&
+        (Number(requester?.role?.id) === RoleEnum.admin || Number(requester?.role?.id) === RoleEnum.master || Number(requester?.role?.id) === RoleEnum.master_ti) &&
         AGENT_PRIVILEGED_EDITOR_EMAILS.has(requesterEmail);
 
       if (isTargetAgent && !isOwnUpdate && !hasAgentExceptionAccess) {

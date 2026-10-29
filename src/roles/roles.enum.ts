@@ -11,5 +11,7 @@ export enum RoleEnum {
   'aprovador_financeiro' = 4,
   /** Usuário da func. guardadores */
   'agentes' = 6,
+  /** TI: acesso total ao sistema, inclusive áreas restritas (dashboard, pagamentos, auditoria) */
+  'master_ti' = 7,
 
 }
