@@ -140,7 +140,7 @@ export class PagamentosIndevidosGuardadoresService {
     const itens = await this.dataSource.query(
       `WITH ${this.cte()}
        SELECT ${this.colunas()} FROM calculado ${where}
-       ORDER BY saldo DESC, "dataReferencia" DESC NULLS LAST, id DESC
+       ORDER BY guardador, "dataReferencia" DESC NULLS LAST, id DESC
        LIMIT ${pageSize} OFFSET ${(page - 1) * pageSize}`,
       params,
     );
@@ -235,7 +235,7 @@ export class PagamentosIndevidosGuardadoresService {
     const itens = await this.dataSource.query(
       `WITH ${this.cte()}
        SELECT ${this.colunas()} FROM calculado ${where}
-       ORDER BY saldo DESC, guardador, id LIMIT ${LIMITE_EXPORTACAO + 1}`,
+       ORDER BY guardador, id LIMIT ${LIMITE_EXPORTACAO + 1}`,
       params,
     );
     return { limite: LIMITE_EXPORTACAO, itens };
