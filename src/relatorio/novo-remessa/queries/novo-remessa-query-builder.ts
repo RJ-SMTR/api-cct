@@ -43,9 +43,13 @@ const buildStatusCase = (historyAlias: string) => `
   END
 `;
 
+// statusRemessa IN (0,1) precisa da mesma faixa 'A Pagar' do STATUS_CASE normal: sem ela, toda
+// ordem de Eleição ainda não paga caía no ELSE 'Rejeitado' (achado testando contra produção,
+// 19/10/2026: 1326 linhas com statusRemessa=1 - todas "A Pagar" - exibidas como "Rejeitado").
 export const ELEICAO_STATUS_CASE = `
   CASE
     WHEN oph."statusRemessa" = 2 THEN 'Aguardando Pagamento'
+    WHEN oph."statusRemessa" IN (0,1) THEN 'A Pagar'
     WHEN oph."motivoStatusRemessa" IN ('00', 'BD') OR oph."statusRemessa" = 3 THEN 'Pago'
     WHEN oph."motivoStatusRemessa" = '02' THEN 'Estorno'
     ELSE 'Rejeitado'
@@ -58,6 +62,7 @@ export const ELEICAO_STATUS_FILTER = `
     OR ${ELEICAO_STATUS_CASE} = ANY($4)
     OR NOT (
       'Aguardando Pagamento' = ANY($4)
+      OR 'A Pagar' = ANY($4)
       OR 'Pago' = ANY($4)
       OR 'Estorno' = ANY($4)
       OR 'Rejeitado' = ANY($4)
