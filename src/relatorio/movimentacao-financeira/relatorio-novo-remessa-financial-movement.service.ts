@@ -406,7 +406,12 @@ export class RelatorioNovoRemessaFinancialMovementService {
   }
 
   private normalizeFilter(filter: IFindPublicacaoRelatorioNovoFinancialMovement): NormalizedFilter {
-    return {...filter, dataInicio: new Date(filter.dataInicio), dataFim: new Date(filter.dataFim), page: filter.page? Number(filter.page) : undefined, pageSize: filter.pageSize? Number(filter.pageSize) : undefined };
+    // ADR 0014: sem nenhum favorecido selecionado (nem userIds, nem "Todos" marcado), o filtro de
+    // favorecido deve se comportar como "Todos" - caso contrário NOT_CPF_FILTER (abaixo, nas
+    // queries que leem todosVanzeiros) não entra, e os CNPJs dos próprios consórcios aparecem
+    // misturados com os vanzeiros individuais, diferente de marcar "Todos" explicitamente.
+    const todosVanzeiros = filter.todosVanzeiros || !filter.userIds?.length;
+    return {...filter, todosVanzeiros, dataInicio: new Date(filter.dataInicio), dataFim: new Date(filter.dataFim), page: filter.page? Number(filter.page) : undefined, pageSize: filter.pageSize? Number(filter.pageSize) : undefined };
   }
 
   private resolveStatuses(filter: NormalizedFilter): ResolvedStatuses {
