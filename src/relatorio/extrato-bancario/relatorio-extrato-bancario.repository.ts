@@ -58,6 +58,10 @@ export class RelatorioExtratoBancarioRepository {
   }
 
   public async findExtrato(args: any): Promise<RelatorioExtratoBancarioDto[]> {
+    if (new Date(args.dataFim) < new Date(args.dataInicio)) {
+      throw new Error('dataFim não pode ser anterior a dataInicio');
+    }
+
     const { query, params } = this.getQuery(args.dataInicio.toISOString().slice(0,10),
       args.dataFim.toISOString().slice(0,10),args.tipo,args.operacao,args.conta);
 
