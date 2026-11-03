@@ -1,4 +1,5 @@
 import { DataSource } from 'typeorm';
+import { CustomLogger } from 'src/utils/custom-logger';
 import { RelatorioExtratoBancarioRepository } from './relatorio-extrato-bancario.repository';
 
 describe('RelatorioExtratoBancarioRepository', () => {
@@ -7,6 +8,9 @@ describe('RelatorioExtratoBancarioRepository', () => {
   let repository: RelatorioExtratoBancarioRepository;
 
   beforeEach(() => {
+    jest.spyOn(CustomLogger.prototype, 'debug').mockImplementation(() => undefined);
+    jest.spyOn(CustomLogger.prototype, 'error').mockImplementation(() => undefined);
+
     queryRunner = {
       connect: jest.fn().mockResolvedValue(undefined),
       query: jest.fn().mockResolvedValue([]),
