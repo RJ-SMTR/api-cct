@@ -56,17 +56,15 @@ export const ELEICAO_STATUS_CASE = `
   END
 `;
 
+// Sem nenhum status aplicável à Eleição selecionado (ex.: só "Pendentes"/"Pendencia Paga"
+// marcados, que não existem no vocabulário de ELEICAO_STATUS_CASE), a query deve não trazer
+// nenhuma linha - não liberar todos os status. Um fallback "OR NOT (...)" aqui fazia o
+// contrário (achado testando Eleição + Pendencia Paga: vinha também "Pago", que não estava
+// selecionado).
 export const ELEICAO_STATUS_FILTER = `
   (
     $4::text[] IS NULL
     OR ${ELEICAO_STATUS_CASE} = ANY($4)
-    OR NOT (
-      'Aguardando Pagamento' = ANY($4)
-      OR 'A Pagar' = ANY($4)
-      OR 'Pago' = ANY($4)
-      OR 'Estorno' = ANY($4)
-      OR 'Rejeitado' = ANY($4)
-    )
   )
 `;
 

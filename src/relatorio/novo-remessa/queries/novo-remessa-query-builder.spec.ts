@@ -155,19 +155,37 @@ describe('novo-remessa-query-builder período (dataVencimento)', () => {
 
   // Achado testando contra produção (19/10/2026): 1326 linhas com statusRemessa IN (0,1) -
   // "A Pagar" no STATUS_CASE normal - caíam no ELSE 'Rejeitado' do ELEICAO_STATUS_CASE, que não
-  // tinha essa faixa. Filtrar Eleição + "A Pagar"/"Pendencia Paga"/"Pendentes" também acionava o
-  // fallback de ELEICAO_STATUS_FILTER (nenhum dos status reconhecidos selecionado) e devolvia
-  // todas as linhas de Eleição sem filtrar por status nenhum.
+  // tinha essa faixa.
   it('eleicao query classifies statusRemessa 0/1 as "A Pagar", not the Rejeitado fallback', () => {
     const sql = buildEleicaoQuery(params);
 
     expect(sql).toContain(`WHEN oph."statusRemessa" IN (0,1) THEN 'A Pagar'`);
   });
 
-  it('eleicao status filter recognizes "A Pagar" and does not fall back to "bring every row"', () => {
+  // ELEICAO_STATUS_FILTER tinha um fallback "OR NOT (nenhum dos 5 status de Eleição está em
+  // $4)" para não zerar o resultado quando $4 trazia só status que não existem no vocabulário
+  // de Eleição (ex.: "Pendentes"/"Pendencia Paga", selecionáveis junto com Eleição na tela -
+  // ver reportFilterOptions.js). Esse fallback tinha o efeito contrário ao pretendido: em vez
+  // de não filtrar por status nenhum, ele devolvia TODAS as linhas de Eleição sem filtrar -
+  // inclusive "Pago", mesmo esse não estando selecionado (achado testando Eleição + "Pendencia
+  // Paga": voltava "Pago" junto). O filtro correto é "sem status selecionado -> traz tudo;
+  // com status selecionado que não bate com nenhuma linha -> não traz nada".
+  it('eleicao status filter has no "bring every row" fallback for unmatched statuses', () => {
     const sql = buildEleicaoQuery(params);
 
-    expect(sql).toContain(`'A Pagar' = ANY($4)`);
+    expect(sql).not.toMatch(/OR\s+NOT\s*\(/);
+    expect(sql).toContain('$4::text[] IS NULL');
+  });
+
+  // "user"."cpfCnpj" não é único (achado contra stag, 19/10/2026: um favorecido tinha 2
+  // cadastros ativos com o mesmo CPF, nenhum deletedAt/bloqueado). Um INNER JOIN em cpfCnpj faz
+  // fan-out - a mesma ordem vira 2 linhas, dobrando o valor dela no total. Ligar por
+  // permitCode/idOperadora (chave do operador, não o CPF dele) evita a ambiguidade.
+  it('eleicao query joins "user" by permitCode/idOperadora, not by the (non-unique) cpfCnpj', () => {
+    const sql = buildEleicaoQuery(params);
+
+    expect(sql).not.toContain('ON pu."cpfCnpj" = opu."operadoraCpfCnpj"');
+    expect(sql).toContain('INNER JOIN public."user" pu\n      ON pu."permitCode" = opu."idOperadora"');
   });
 
   // "user"."cpfCnpj" não é único (achado contra stag, 19/10/2026: um favorecido tinha 2
