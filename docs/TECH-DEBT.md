@@ -31,6 +31,7 @@ Registro único do que foi adiado de propósito, por quê e por quem. Serve para
 | [TD-14](#td-14) | `SELECT DISTINCT` sem `op.id` em `buildPendenciaPagaTemplate`/`buildPendenciaPagamentoTemplate` pode subcontar como no ADR 0007 | reaberto (pagamento anterior usava diagnóstico errado — ADR 0011) | Rayanne | 2026-10-20 |
 | [TD-15](#td-15) | Cadeia de migrations fora de ordem impede montar schema do zero | aberto | Rayanne | 2026-10-27 |
 | [TD-16](#td-16) | `getQueryApagar` concatena `consorcioNome` sem aspas por item num ramo do filtro `favorecidoNome='Todos'` | aberto | Rayanne | 2026-10-27 |
+| [TD-17](#td-17) | Baseline do gate desatualizado para `remessa.service.debitar-indevido.spec.ts`/`retorno.service.spec.ts` | pago | Rayanne | 2026-11-03 |
 
 ## Entradas
 
@@ -192,3 +193,13 @@ Registro único do que foi adiado de propósito, por quê e por quem. Serve para
 - **Contexto:** achado em `src/relatorio/sintetico/relatorio-sintetico.repository.ts`, `RelatorioSinteticoRepository.getQueryApagar` (T3 do refactor `refactor/relatorio-parametrizar-queries`). Quando `favorecidoNome` inclui o sentinela `'Todos'` e `consorcioNome` também está definido, o código monta `tv."nomeConsorcio" in('STPC','STPL',${args.consorcioNome?.join("','")})` — os itens de `args.consorcioNome` entram concatenados sem aspas em volta de cada um, diferente dos outros itens fixos da lista (`'STPC'`, `'STPL'`). Preservado como estava (comentado no código) por estar fora do escopo do refactor de parametrização (mudar regra de negócio pré-existente exige confirmação separada).
 - **Impacto/risco:** qualquer `consorcioNome` com mais de uma palavra ou que não seja um identificador solto gera erro de sintaxe SQL nesse ramo específico (`favorecidoNome=['Todos']` + `consorcioNome` definido, em `findSintetico` com `aPagar=true`); se algum nome de consórcio tiver caractere especial, é também um vetor de SQL injection residual, já que esse trecho não foi parametrizado.
 - **Critério de pagamento:** o item do array `args.consorcioNome` passa a entrar citado (`'${item}'` ou, melhor, via parâmetro bind) na lista `IN`, com teste de integração cobrindo esse ramo (`favorecidoNome=['Todos']` + `consorcioNome` definido) antes e depois do fix.
+
+## TD-17
+**Baseline do gate desatualizado para `remessa.service.debitar-indevido.spec.ts`/`retorno.service.spec.ts`**
+
+- **Status:** pago
+- **Registrado por:** Rayanne · **Detectado por:** agente · **Data:** 2026-11-03
+- **Pago por:** Rayanne · **Data do pagamento:** 2026-11-03 · **Referência:** commit `420978d5`
+- **Contexto:** achado durante a validação de T1 (correção do Extrato Bancário, issue #1276). `npm run validate` falhou com `src/cnab/novo-remessa/service/remessa.service.debitar-indevido.spec.ts` tendo 1 erro de eslint novo (baseline esperava 0) e `src/cnab/novo-remessa/service/retorno.service.spec.ts` tendo 4 (baseline esperava 3), ambos `@typescript-eslint/require-await` em funções `async` de teste sem `await` dentro. Confirmado via `git stash` de toda a mudança de T1 que os erros existem sem nenhuma alteração desta tarefa — é `scripts/validate/baseline.json` desatualizado em relação ao estado atual desses dois arquivos, não uma regressão introduzida agora. Mesma execução também viu timeout em suítes diferentes em cada rodada (`financial-movement-pdf.spec.ts` numa vez, `run-with-worker-timeout.spec.ts` na outra) — ambas passam isoladas, é flakiness sob carga da suíte completa, não listado aqui como TD por não ser uma contagem fixa do baseline.
+- **Impacto/risco:** `npm run validate` fica vermelho por uma causa não relacionada a mudanças futuras nesses 2 arquivos, dificultando saber se um PR futuro realmente piorou algo ali ou só herdou esse drift; bloqueia `npm run validate:update-baseline` de quem estiver trabalhando perto desses arquivos sem querer "aceitar" esse drift de propósito.
+- **Critério de pagamento:** `npx eslint src/cnab/novo-remessa/service/remessa.service.debitar-indevido.spec.ts src/cnab/novo-remessa/service/retorno.service.spec.ts` sem erros novos em relação ao baseline atual (corrigindo os `async`/`await` ou removendo `async` onde não há espera real), seguido de `npm run validate:update-baseline`.
