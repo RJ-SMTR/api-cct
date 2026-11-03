@@ -52,11 +52,11 @@ describe('RetornoService', () => {
     opaService = {
       getHistorico: jest.fn(),
       // replica o efeito colateral real: muta historico.statusRemessa
-      saveStatusHistorico: jest.fn(async (h: any, s: any) => { h.statusRemessa = s; }),
-      propagarPagamentoPaiParaFilhas: jest.fn(async () => 0),
+      saveStatusHistorico: jest.fn(async (h: any, s: any) => { await Promise.resolve(); h.statusRemessa = s; }),
+      propagarPagamentoPaiParaFilhas: jest.fn(async () => { await Promise.resolve(); return 0; }),
     } as any;
-    detalheAService = { getDetalheARetorno: jest.fn(), atualizarValorLancamento: jest.fn(async () => undefined) } as any;
-    sftpService = { moveToBackup: jest.fn(async () => undefined), getFirstRetornoPagamento: jest.fn() } as any;
+    detalheAService = { getDetalheARetorno: jest.fn(), atualizarValorLancamento: jest.fn(async () => { await Promise.resolve(); return undefined; }) } as any;
+    sftpService = { moveToBackup: jest.fn(async () => { await Promise.resolve(); return undefined; }), getFirstRetornoPagamento: jest.fn() } as any;
     service = new RetornoService(opaService as any, detalheAService as any, sftpService as any);
   });
 

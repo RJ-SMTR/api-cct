@@ -9,7 +9,7 @@ describe('RemessaService.debitarPagamentoIndevido', () => {
 
   beforeEach(() => {
     salvos = [];
-    const pagamentoIndevidoService = { save: jest.fn(async (p: any) => salvos.push({ ...p })) };
+    const pagamentoIndevidoService = { save: jest.fn(async (p: any) => { await Promise.resolve(); salvos.push({ ...p }); }) };
     service = new RemessaService(
       {} as any, {} as any, {} as any, {} as any, {} as any, {} as any, {} as any, {} as any, {} as any,
       pagamentoIndevidoService as any,
