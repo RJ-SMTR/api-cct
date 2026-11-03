@@ -51,6 +51,40 @@ describe('RelatorioGuardadorFinancialMovementRepository', () => {
     });
   });
 
+  describe('resolveStatuses (Pendencia Paga combinada com outro status, ADR 0001)', () => {
+    const resolve = (filter: any) =>
+      (repository as any).resolveStatuses({
+        ...filter,
+        dataInicio: new Date(filter.dataInicio),
+        dataFim: new Date(filter.dataFim),
+      });
+
+    // ADR 0001: Pendencia Paga é consultada pela data de pagamento, em qualquer intervalo - a
+    // query (buildGuardadorPendenciaPagaSingleDateQuery) já filtra por BETWEEN $1 AND $2 desde
+    // sempre, apesar do nome. O Guardador nunca recebeu essa correção (CONTEXT.md já citava
+    // isso como pendente): resolveStatuses só incluía a sub-query quando isSingleDate(filter)
+    // era verdadeiro, mesmo com Pendencia Paga selecionada explicitamente - fazendo-a
+    // desaparecer silenciosamente do resultado combinado num intervalo de mais de um dia.
+    it('includes pendencia paga even when combined with another status over a multi-day range', () => {
+      const statuses = resolve({
+        dataInicio: '2026-10-01',
+        dataFim: '2026-10-31',
+        pago: true,
+        pendenciaPaga: true,
+      });
+
+      expect(statuses.includePendenciaPagaSingleDate).toBe(true);
+      expect(statuses.baseStatuses).toEqual([StatusPagamento.PAGO]);
+    });
+
+    it('keeps including pendencia paga alone over a multi-day range', () => {
+      const statuses = resolve({ dataInicio: '2026-10-01', dataFim: '2026-10-31', pendenciaPaga: true });
+
+      expect(statuses.includePendenciaPagaSingleDate).toBe(true);
+      expect(statuses.baseStatuses).toBeNull();
+    });
+  });
+
   describe('findFinancialMovementSummary', () => {
     it('should query count and aggregates and return RelatorioFinancialMovementNovoRemessaSummaryDto', async () => {
       (mockQueryRunner.query as jest.Mock)

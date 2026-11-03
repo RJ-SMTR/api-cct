@@ -416,8 +416,11 @@ export class RelatorioGuardadorFinancialMovementRepository {
     }
 
     const includeAPagar = allSelectedStatuses.includes(StatusPagamento.A_PAGAR);
-    const includePendenciaPagaSingleDate = this.isSingleDate(filter)
-      && allSelectedStatuses.includes(StatusPagamento.PENDENCIA_PAGA);
+    // Pendencia Paga é consultada pela data de pagamento, em qualquer intervalo (ADR 0001) -
+    // buildGuardadorPendenciaPagaSingleDateQuery já filtra por BETWEEN $1 AND $2, apesar do
+    // nome. Gatear por isSingleDate(filter) aqui fazia Pendencia Paga desaparecer
+    // silenciosamente do resultado combinado num intervalo de mais de um dia.
+    const includePendenciaPagaSingleDate = allSelectedStatuses.includes(StatusPagamento.PENDENCIA_PAGA);
     const parentErrorStatusesSingleDate = this.isSingleDate(filter)
       ? allSelectedStatuses.filter(
         (status): status is StatusPagamento.ERRO_ESTORNO | StatusPagamento.ERRO_REJEITADO =>
