@@ -36,6 +36,70 @@ describe('RelatorioNovoRemessaService.findConsolidadoGuardador', () => {
     expect(blockStatuses(result)).toEqual(['pago']);
   });
 
+  it('returns only the emProcessamento block when only emProcessamento is selected', async () => {
+    const result = await service.findConsolidadoGuardador({ ...baseArgs, emProcessamento: true });
+
+    expect(blockStatuses(result)).toEqual(['emProcessamento']);
+  });
+
+  it('returns only the erros block when only pago is false (regression)', async () => {
+    const result = await service.findConsolidadoGuardador({ ...baseArgs, pago: false });
+
+    expect(blockStatuses(result)).toEqual(['erros']);
+  });
+
+  it('returns only the erros block when only rejeitado is selected', async () => {
+    const result = await service.findConsolidadoGuardador({ ...baseArgs, rejeitado: true });
+
+    expect(blockStatuses(result)).toEqual(['erros']);
+  });
+
+  describe('combining pago with other statuses', () => {
+    it('returns separate pago and emProcessamento blocks, each isolated from the other', async () => {
+      const result = await service.findConsolidadoGuardador({
+        ...baseArgs,
+        pago: true,
+        emProcessamento: true,
+      });
+
+      expect(blockStatuses(result)).toEqual(['pago', 'emProcessamento']);
+      const calls = guardadorConsolidadoRepository.findConsolidado.mock.calls.map(([args]) => args);
+      const pagoCall = calls.find((args) => args.status === 'pago');
+      const emProcessamentoCall = calls.find((args) => args.status === 'emProcessamento');
+      expect(pagoCall.emProcessamento).toBeUndefined();
+      expect(emProcessamentoCall.pago).toBeUndefined();
+    });
+
+    it('returns separate pago and erros blocks when combined with rejeitado/estorno', async () => {
+      const result = await service.findConsolidadoGuardador({
+        ...baseArgs,
+        pago: true,
+        rejeitado: true,
+        estorno: true,
+      });
+
+      expect(blockStatuses(result)).toEqual(['pago', 'erros']);
+      const calls = guardadorConsolidadoRepository.findConsolidado.mock.calls.map(([args]) => args);
+      const pagoCall = calls.find((args) => args.status === 'pago');
+      const errosCall = calls.find((args) => args.status === 'erros');
+      expect(pagoCall.rejeitado).toBeUndefined();
+      expect(pagoCall.estorno).toBeUndefined();
+      expect(errosCall.pago).toBeUndefined();
+      expect(errosCall.rejeitado).toBe(true);
+      expect(errosCall.estorno).toBe(true);
+    });
+
+    it('returns separate aPagar and erros blocks when combined with rejeitado', async () => {
+      const result = await service.findConsolidadoGuardador({
+        ...baseArgs,
+        aPagar: true,
+        rejeitado: true,
+      });
+
+      expect(blockStatuses(result)).toEqual(['aPagar', 'erros']);
+    });
+  });
+
   describe('pendenciaPaga', () => {
     it('returns only the pendenciaPaga block, not pago nor aPagar', async () => {
       const result = await service.findConsolidadoGuardador({ ...baseArgs, pendenciaPaga: true });
