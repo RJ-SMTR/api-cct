@@ -61,24 +61,33 @@ export class RelatorioNovoRemessaService {
     return this.relatorioGuardadorConsolidadoRepository.findConsolidadoNovoRemessa(args);
   }
 
+  // The repository reads the raw flags directly (not just `status`), so each block must
+  // carry only its own flag set to true and every other flag cleared, or it would also
+  // return the rows of the other blocks.
+  private static readonly BLOCK_OWN_FLAGS: Record<string, (keyof IFindPublicacaoRelatorio)[]> = {
+    pago: ['pago'],
+    aPagar: ['aPagar'],
+    emProcessamento: ['emProcessamento'],
+    erros: ['rejeitado', 'estorno'],
+    pendenciaPaga: ['pendenciaPaga'],
+  };
+
   private async instanceDataGuardadorConsolidado(
     args: IFindPublicacaoRelatorio,
     status: string,
   ): Promise<RelatorioConsolidadoResultDto> {
-    // The repository lets specific flags override `status`, so each block must carry
-    // only its own status or it would also return the rows of the other blocks.
-    const { pendenciaPaga, ...argsWithoutPendenciaPaga } = args;
-    const blockArgs = status === 'pendenciaPaga'
-      ? {
-        ...argsWithoutPendenciaPaga,
-        pago: undefined,
-        aPagar: undefined,
-        emProcessamento: undefined,
-        rejeitado: undefined,
-        estorno: undefined,
-        pendenciaPaga: true,
-      }
-      : { ...argsWithoutPendenciaPaga, status };
+    const ownFlags = RelatorioNovoRemessaService.BLOCK_OWN_FLAGS[status] ?? [];
+    const blockArgs: IFindPublicacaoRelatorio = {
+      ...args,
+      status,
+      pago: undefined,
+      aPagar: undefined,
+      emProcessamento: undefined,
+      rejeitado: undefined,
+      estorno: undefined,
+      pendenciaPaga: undefined,
+      ...Object.fromEntries(ownFlags.map((flag) => [flag, true])),
+    };
 
     const data = await this.relatorioGuardadorConsolidadoRepository.findConsolidado(blockArgs as any);
 
@@ -94,20 +103,27 @@ export class RelatorioNovoRemessaService {
     const hasFiltroEspecifico = Boolean(
       args.userIds?.length || args.favorecidoNome?.length || args.consorcioNome?.length || args.todosConsorcios,
     );
+    const hasAnyStatusFlag = Boolean(
+      args.pago !== undefined
+      || args.aPagar !== undefined
+      || args.emProcessamento !== undefined
+      || args.rejeitado === true
+      || args.estorno === true
+      || args.pendenciaPaga === true,
+    );
 
-    const pendenciaPaga = args.pendenciaPaga === true ? ['pendenciaPaga'] : [];
-
-    if (!hasFiltroEspecifico && args.pago === undefined && args.aPagar === undefined && !pendenciaPaga.length) {
+    if (!hasFiltroEspecifico && !hasAnyStatusFlag) {
       return ['todos', 'pago', 'erros', 'aPagar'];
     }
-    if (args.pago === true && args.aPagar === true) {
-      return ['pago', 'aPagar', ...pendenciaPaga];
-    }
-    if (args.pago === true) return ['pago', ...pendenciaPaga];
-    if (args.pago === false) return ['erros', ...pendenciaPaga];
-    if (args.aPagar === true) return ['aPagar', ...pendenciaPaga];
 
-    return pendenciaPaga.length ? pendenciaPaga : ['todos'];
+    const blocks: string[] = [];
+    if (args.pago === true) blocks.push('pago');
+    if (args.aPagar === true) blocks.push('aPagar');
+    if (args.emProcessamento === true) blocks.push('emProcessamento');
+    if (args.pago === false || args.rejeitado === true || args.estorno === true) blocks.push('erros');
+    if (args.pendenciaPaga === true) blocks.push('pendenciaPaga');
+
+    return blocks.length ? blocks : ['todos'];
   }
 
   async findMovimentacaoFinanceira(args: IFindPublicacaoRelatorioNovoRemessa) {
