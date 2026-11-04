@@ -13,13 +13,16 @@ export interface FiltroPeriodoExtrato {
 
 export interface FiltroDetalheExtrato extends FiltroPeriodoExtrato {
   conta: ContaExtrato;
-  tipo?: 'C' | 'D';
+  /** 'C', 'D' ou 'C,D' (os dois equivalem a não filtrar). */
+  tipo?: string;
   /** Descrição do histórico bancário (ex.: PIX RECEBIDO), como devolvida no resumo. */
   descricao?: string;
   /** Um único dia (YYYY-MM-DD), para detalhar um ponto do gráfico diário. */
   dia?: string;
   /** Parte da descrição, do documento ou do CNPJ/CPF do lançamento. */
   busca?: string;
+  /** Parte do nome do favorecido, buscado em `user` pelo CPF/CNPJ do lançamento. */
+  nome?: string;
   page?: number;
   pageSize?: number;
 }
@@ -36,6 +39,7 @@ export interface LinhaDetalheExtrato {
   numeroDocumento: string;
   nsr: number;
   numeroInscricao: string;
+  nomeFavorecido: string | null;
   agencia: string;
   numeroConta: string;
 }
@@ -87,7 +91,17 @@ export class ExtratoDashboardService {
       params.push(valor);
       condicoes.push(sql.replace(/\?/g, `$${params.length}`));
     };
-    if (filtro.tipo === 'C' || filtro.tipo === 'D') adicionar('e."tipoLancamento" = ?', filtro.tipo);
+    const tipos = [...new Set(String(filtro.tipo ?? '').split(',').map((t) => t.trim()))].filter((t) => t === 'C' || t === 'D');
+    if (tipos.length === 1) adicionar('e."tipoLancamento" = ?', tipos[0]);
+    const nome = filtro.nome?.trim();
+    if (nome) {
+      adicionar(
+        `ltrim(e."numeroInscricao", '0') <> '' AND ltrim(e."numeroInscricao", '0') IN (
+           SELECT ltrim(regexp_replace(u."cpfCnpj", '\\D', '', 'g'), '0') FROM "user" u
+            WHERE u."deletedAt" IS NULL AND u."cpfCnpj" IS NOT NULL AND u."fullName" ILIKE ?)`,
+        `%${nome}%`,
+      );
+    }
     adicionar('e."descricaoHistoricoBanco" = ?', filtro.descricao);
     if (filtro.dia && DATA_ISO.test(filtro.dia)) adicionar('e."dataLancamento"::date = ?::date', filtro.dia);
     const busca = filtro.busca?.trim();
@@ -97,11 +111,19 @@ export class ExtratoDashboardService {
     return { where: `WHERE ${condicoes.join(' AND ')}`, params };
   }
 
+  /** Nome do favorecido: usuário cujo CPF/CNPJ (só dígitos, sem zeros à esquerda) é o do lançamento. */
+  private joinFavorecido() {
+    return `LEFT JOIN (
+        SELECT ltrim(regexp_replace(u."cpfCnpj", '\\D', '', 'g'), '0') AS doc, min(u."fullName") AS nome
+          FROM "user" u WHERE u."deletedAt" IS NULL AND u."cpfCnpj" IS NOT NULL AND u."fullName" IS NOT NULL
+         GROUP BY 1) f ON f.doc <> '' AND f.doc = ltrim(e."numeroInscricao", '0')`;
+  }
+
   private colunas() {
     return `e.id, ${sqlContaExtrato()} AS conta, to_char(e."dataLancamento", 'YYYY-MM-DD') AS data, e."tipoLancamento" AS tipo,
             e."valorLancamento"::numeric(18,2)::text AS valor, e."descricaoHistoricoBanco" AS descricao,
             e."codigoHistoricoBanco" AS "codigoHistorico", e."categoriaLancamento" AS categoria, e."numeroDocumento",
-            e.nsr, e."numeroInscricao", e.agencia, e.conta || '-' || e."dvConta" AS "numeroConta"`;
+            e.nsr, e."numeroInscricao", f.nome AS "nomeFavorecido", e.agencia, e.conta || '-' || e."dvConta" AS "numeroConta"`;
   }
 
   async detalhe(filtro: FiltroDetalheExtrato) {
@@ -116,7 +138,7 @@ export class ExtratoDashboardService {
       params,
     );
     const itens: LinhaDetalheExtrato[] = await this.dataSource.query(
-      `SELECT ${this.colunas()} FROM extrato_detalhe_e e ${where}
+      `SELECT ${this.colunas()} FROM extrato_detalhe_e e ${this.joinFavorecido()} ${where}
         ORDER BY e."dataLancamento" DESC, e.id DESC LIMIT ${pageSize} OFFSET ${(page - 1) * pageSize}`,
       params,
     );
@@ -126,7 +148,7 @@ export class ExtratoDashboardService {
   async exportar(filtro: FiltroDetalheExtrato): Promise<{ itens: LinhaDetalheExtrato[] }> {
     const { where, params } = this.condicoes(filtro);
     const itens: LinhaDetalheExtrato[] = await this.dataSource.query(
-      `SELECT ${this.colunas()} FROM extrato_detalhe_e e ${where}
+      `SELECT ${this.colunas()} FROM extrato_detalhe_e e ${this.joinFavorecido()} ${where}
         ORDER BY e."dataLancamento", e.id LIMIT ${LIMITE_EXPORTACAO + 1}`,
       params,
     );
