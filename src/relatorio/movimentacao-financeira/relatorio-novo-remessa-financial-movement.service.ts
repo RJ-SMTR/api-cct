@@ -82,6 +82,14 @@ const CURSOR_TUPLE_COLUMNS = `
 export class RelatorioNovoRemessaFinancialMovementService {
   private readonly logger = new CustomLogger(RelatorioNovoRemessaFinancialMovementService.name, { timestamp: true });
 
+  // Mesma lista usada pelo Consolidado (RelatorioNovoRemessaConsolidadoRepository.CONSORCIOS)
+  // para expandir "Consórcio = Todos" - sem ela, "Todos" aqui equivalia a nenhum filtro de
+  // consórcio ($5 = NULL), e MODAIS_FILTER (pensado só para "Favorecido = Todos" sem Consórcio,
+  // ver novo-remessa-query-builder.ts) acabava restringindo a STPC/STPL/TEC mesmo com Consórcio =
+  // Todos selecionado - a Movimentação Financeira ficava sem VLT e sem os consórcios comuns
+  // (Internorte, Santa Cruz etc.), divergindo do total do Consolidado (achado 2026-11-04).
+  private readonly CONSORCIOS = ['VLT', 'Intersul', 'Transcarioca', 'Internorte', 'MobiRio', 'Santa Cruz', 'MOBI-Rio BUM', 'TUSE', 'STPC', 'STPL', 'TEC', 'GTU'];
+
   constructor(
     @InjectDataSource() private readonly dataSource: DataSource,
     private readonly relatorioGuardadorFinancialMovementRepository: RelatorioGuardadorFinancialMovementRepository,
@@ -476,32 +484,35 @@ export class RelatorioNovoRemessaFinancialMovementService {
      .replace(/\$7(?!\d)/g, '9999999999.99::numeric');
   }
 
+  private hasConsorcioFilter(filter: NormalizedFilter): boolean {
+    return Boolean(filter.consorcioNome?.length) || Boolean(filter.todosConsorcios);
+  }
   private buildBaseQuery(filter: NormalizedFilter): string {
-    return `${buildBaseQuery({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5 }).trim()} ${filter.desativados? 'AND pu.bloqueado = true' : ''}`;
+    return `${buildBaseQuery({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5, hasConsorcioFilter: this.hasConsorcioFilter(filter) }).trim()} ${filter.desativados? 'AND pu.bloqueado = true' : ''}`;
   }
   private buildEleicaoQuery(filter: NormalizedFilter): string {
-    return `${buildEleicaoQuery({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5 }).trim()} ${filter.desativados? 'AND pu.bloqueado = true' : ''}`;
+    return `${buildEleicaoQuery({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5, hasConsorcioFilter: this.hasConsorcioFilter(filter) }).trim()} ${filter.desativados? 'AND pu.bloqueado = true' : ''}`;
   }
   private buildStucGratuidadeQuery(filter: NormalizedFilter): string {
-    return `${buildStucGratuidadeQuery({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5 }).trim()} ${filter.desativados? 'AND pu.bloqueado = true' : ''}`;
+    return `${buildStucGratuidadeQuery({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5, hasConsorcioFilter: this.hasConsorcioFilter(filter) }).trim()} ${filter.desativados? 'AND pu.bloqueado = true' : ''}`;
   }
   private buildStucGratuidadePendenciaPagaSingleDateQuery(filter: NormalizedFilter): string {
-    return `${buildStucGratuidadePendenciaPagaSingleDateQuery({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5 }).trim()} ${filter.desativados? 'AND pu.bloqueado = true' : ''}`;
+    return `${buildStucGratuidadePendenciaPagaSingleDateQuery({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5, hasConsorcioFilter: this.hasConsorcioFilter(filter) }).trim()} ${filter.desativados? 'AND pu.bloqueado = true' : ''}`;
   }
   private buildStucGratuidadePendenciaPagamentoSingleDateQuery(filter: NormalizedFilter, statuses: Array<StatusPagamento.ERRO_ESTORNO | StatusPagamento.ERRO_REJEITADO>): string {
-    return `${buildStucGratuidadePendenciaPagamentoSingleDateQuery({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5, parentErrorStatuses: statuses }).trim()} ${filter.desativados ? 'AND pu.bloqueado = true' : ''}`;
+    return `${buildStucGratuidadePendenciaPagamentoSingleDateQuery({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5, parentErrorStatuses: statuses, hasConsorcioFilter: this.hasConsorcioFilter(filter) }).trim()} ${filter.desativados ? 'AND pu.bloqueado = true' : ''}`;
   }
   private buildPendentesQuery(filter: NormalizedFilter): string {
     return `${buildPendentesQuery({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5 } as any).trim()} ${filter.desativados? 'AND pu.bloqueado = true' : ''}`;
   }
   private buildPendenciaPagaSingleDateQuery(filter: NormalizedFilter): string {
-    return `${buildPendenciaPagaSingleDateQuery({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5 }).trim()} ${filter.desativados? 'AND pu.bloqueado = true' : ''}`;
+    return `${buildPendenciaPagaSingleDateQuery({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5, hasConsorcioFilter: this.hasConsorcioFilter(filter) }).trim()} ${filter.desativados? 'AND pu.bloqueado = true' : ''}`;
   }
   private buildPendenciaPagaPasso0Query(filter: NormalizedFilter): string {
-    return `${buildPendenciaPagaPasso0Query({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5 }).trim()} ${filter.desativados ? 'AND pu.bloqueado = true' : ''}`;
+    return `${buildPendenciaPagaPasso0Query({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5, hasConsorcioFilter: this.hasConsorcioFilter(filter) }).trim()} ${filter.desativados ? 'AND pu.bloqueado = true' : ''}`;
   }
   private buildPendenciaPagamentoSingleDateQuery(filter: NormalizedFilter, statuses: Array<StatusPagamento.ERRO_ESTORNO | StatusPagamento.ERRO_REJEITADO>): string {
-    return `${buildPendenciaPagamentoSingleDateQuery({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5, parentErrorStatuses: statuses }).trim()} ${filter.desativados ? 'AND pu.bloqueado = true' : ''}`;
+    return `${buildPendenciaPagamentoSingleDateQuery({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5, parentErrorStatuses: statuses, hasConsorcioFilter: this.hasConsorcioFilter(filter) }).trim()} ${filter.desativados ? 'AND pu.bloqueado = true' : ''}`;
   }
   private isSingleDate(filter: NormalizedFilter): boolean { return this.toQueryDate(filter.dataInicio) === this.toQueryDate(filter.dataFim); }
   private resolvePagination(filter: NormalizedFilter) {
@@ -529,7 +540,15 @@ export class RelatorioNovoRemessaFinancialMovementService {
     return statuses.length? [...new Set(statuses)] : null;
   }
   private getInnerQueryParameters(filter: NormalizedFilter, selectedStatuses: string[] | null): any[] {
-    const consorcioNome = filter.consorcioNome?.length? filter.consorcioNome.map((n) => n.toUpperCase().trim()) : null;
+    // "Todos" (sem nenhum consorcioNome específico) expande para a mesma lista fixa do
+    // Consolidado (this.CONSORCIOS, com GTU) em vez de ficar NULL (sem filtro nenhum) - NULL
+    // deixava "Consórcio = Todos" indistinguível de "nenhum consórcio selecionado" e sujeito a
+    // MODAIS_FILTER (ver buildTodosVanzeirosFilter em novo-remessa-query-builder.ts).
+    const consorcioNome = filter.consorcioNome?.length
+      ? filter.consorcioNome.map((n) => n.toUpperCase().trim())
+      : filter.todosConsorcios
+      ? this.CONSORCIOS.map((n) => n.toUpperCase().trim())
+      : null;
     return [this.toQueryDate(filter.dataInicio), this.toQueryDate(filter.dataFim), filter.userIds?.length? filter.userIds : null, selectedStatuses, consorcioNome];
   }
   private getQueryParameters(filter: NormalizedFilter, selectedStatuses: string[] | null): any[] { return this.getInnerQueryParameters(filter, selectedStatuses); }

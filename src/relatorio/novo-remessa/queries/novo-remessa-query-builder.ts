@@ -5,6 +5,15 @@ export type NovoRemessaBaseParams = {
   todosVanzeiros?: boolean;
   consorcioFilterParamIndex: number;
   parentErrorStatuses?: Array<'Estorno' | 'Rejeitado'>;
+  /**
+   * Um consórcio (ou "Todos os consórcios") explicitamente selecionado - distinto de
+   * "nenhum consórcio selecionado" (ramo padrão, ver MODAIS_FILTER). Sem essa distinção,
+   * MODAIS_FILTER (pensado só para "Favorecido = Todos" sem Consórcio nenhum) também
+   * restringia a STPC/STPL/TEC uma busca por Consórcio = Todos (ou por um consórcio
+   * específico não-modal, ex. Internorte) - a Movimentação Financeira ficava sem VLT e
+   * sem os consórcios comuns, divergindo do total do Consolidado (achado 2026-11-04).
+   */
+  hasConsorcioFilter?: boolean;
 };
 
 export type NovoRemessaPendentesParams = {
@@ -89,6 +98,18 @@ export const NOT_CPF_FILTER = `
 export const MODAIS_FILTER = `
   AND (pu."permitCode" LIKE '4%' OR pu."permitCode" LIKE '81%' OR pu."permitCode" LIKE '7%')
 `;
+
+// NOT_CPF_FILTER vale sempre que nenhum favorecido específico foi selecionado (independe de
+// Consórcio - exclui os CNPJs institucionais da busca "todos" do jeito que for). MODAIS_FILTER
+// só vale quando, além disso, nenhum Consórcio foi selecionado: ele existe para "Favorecido =
+// Todos" sozinho não trazer favorecido de consórcio comum como linha individual (ver comentário
+// de MODAIS_FILTER acima) - uma vez que o usuário pediu um Consórcio (específico ou "Todos"), é
+// o filtro de consórcio (consorcioParam/CONSORCIO_CASE) que decide quais linhas aparecem, não
+// este.
+const buildTodosVanzeirosFilter = (params: NovoRemessaBaseParams) => {
+  if (!params.todosVanzeiros) return '';
+  return `${NOT_CPF_FILTER}${params.hasConsorcioFilter ? '' : MODAIS_FILTER}`;
+};
 
 /**
  * buildBaseQuery/buildStucGratuidadeQuery (e as duas famílias de dia único abaixo) só
@@ -226,7 +247,7 @@ const buildGroupedQuery = (params: NovoRemessaBaseParams, source: AgrupamentoSou
       )
       AND (oph."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph."motivoStatusRemessa" IS NULL)
       ${umaOrdemPorAgrupamentoFilter(source)}
-      ${params.todosVanzeiros ? `${NOT_CPF_FILTER}${MODAIS_FILTER}` : ''}
+      ${buildTodosVanzeirosFilter(params)}
   `;
 };
 
@@ -290,7 +311,7 @@ const buildPendenciaPagaTemplate = (params: NovoRemessaBaseParams, source: Agrup
       AND (oph."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph."motivoStatusRemessa" IS NULL)
       ${umaOrdemPorAgrupamentoFilter(source)}
       ${umaLinhaPorFilhaPagaFilter(source)}
-      ${params.todosVanzeiros ? `${NOT_CPF_FILTER}${MODAIS_FILTER}` : ''}
+      ${buildTodosVanzeirosFilter(params)}
   `;
 };
 
@@ -350,7 +371,7 @@ const buildPendenciaPagamentoTemplate = (
       AND (${consorcioParam}::text[] IS NULL OR UPPER(TRIM(${CONSORCIO_CASE})) = ANY(${consorcioParam}))
       AND (oph_pai."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph_pai."motivoStatusRemessa" IS NULL)
       ${umaOrdemPorAgrupamentoFilter(source)}
-      ${params.todosVanzeiros ? `${NOT_CPF_FILTER}${MODAIS_FILTER}` : ''}
+      ${buildTodosVanzeirosFilter(params)}
 
     UNION ALL
 
@@ -399,7 +420,7 @@ const buildPendenciaPagamentoTemplate = (
       )
       AND (oph."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph."motivoStatusRemessa" IS NULL)
       ${umaOrdemPorAgrupamentoFilter(source)}
-      ${params.todosVanzeiros ? `${NOT_CPF_FILTER}${MODAIS_FILTER}` : ''}
+      ${buildTodosVanzeirosFilter(params)}
   `;
 };
 
@@ -443,7 +464,7 @@ export const buildEleicaoQuery = (params: NovoRemessaBaseParams) => {
       AND ($3::integer[] IS NULL OR pu."id" = ANY($3))
       AND ${ELEICAO_STATUS_FILTER}
       AND (${consorcioParam}::text[] IS NULL OR TRIM(UPPER(opu."consorcio")) = ANY(${consorcioParam}))
-      ${params.todosVanzeiros ? `${NOT_CPF_FILTER}${MODAIS_FILTER}` : ''}
+      ${buildTodosVanzeirosFilter(params)}
   `;
 };
 
@@ -545,7 +566,7 @@ export const buildPendenciaPagaPasso0Query = (params: NovoRemessaBaseParams) => 
         WHERE oph_qualquer."ordemPagamentoAgrupadoId" = opa.id
       )
       ${umaOrdemPorAgrupamentoFilter(AGRUPAMENTO_NORMAL)}
-      ${params.todosVanzeiros ? `${NOT_CPF_FILTER}${MODAIS_FILTER}` : ''}
+      ${buildTodosVanzeirosFilter(params)}
   `;
 };
 
