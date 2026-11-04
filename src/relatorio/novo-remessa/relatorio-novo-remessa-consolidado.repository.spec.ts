@@ -91,6 +91,42 @@ describe('RelatorioNovoRemessaConsolidadoRepository', () => {
     });
   });
 
+  // ADR 0016: fromQueryPrincipal trazia TODAS as ordem_pagamento internas de um agrupamento (join
+  // sem restrição), multiplicando cada linha de detalhe_a pelo número de ordens internas antes do
+  // SELECT DISTINCT colapsar de volta. Confirmado com dado real: um agrupamento com 55 ordens
+  // internas para 1 lançamento esgotava a memória do Postgres numa janela de 90 dias com "Todos"
+  // os status. Restringe a uma única ordem representante por agrupamento, mesmo padrão do ADR 0011.
+  describe('fromQueryPrincipal - uma ordem por agrupamento (ADR 0016)', () => {
+    it('getQueryConsorcios restricts the op join to one representative order per agrupamento', () => {
+      const sql: string = (repository as any).getQueryConsorcios('2026-01-01', '2026-01-05');
+
+      expect(sql).toContain('op.id = (SELECT MIN(o.id) FROM ordem_pagamento o WHERE o."ordemPagamentoAgrupadoId" = opafi.id)');
+    });
+
+    it('getQueryConsorcios restricts the opp join to one representative order per agrupamento', () => {
+      const sql: string = (repository as any).getQueryConsorcios('2026-01-01', '2026-01-05');
+
+      expect(sql).toContain('opp.id = (SELECT MIN(o.id) FROM ordem_pagamento o WHERE o."ordemPagamentoAgrupadoId" = opai.id)');
+    });
+
+    it.each([
+      ['getQueryVanzeiros', () => (repository as any).getQueryVanzeiros('2026-01-01', '2026-01-05')],
+      ['getQueryPendenciaPagaConsorcios', () => (repository as any).getQueryPendenciaPagaConsorcios('2026-01-01', '2026-01-05')],
+      ['getQueryPendenciaPagaVanzeiros', () => (repository as any).getQueryPendenciaPagaVanzeiros('2026-01-01', '2026-01-05')],
+    ])('%s restricts both the op and opp join to one representative order per agrupamento', (_name, build) => {
+      const sql: string = build();
+
+      expect(sql).toContain('op.id = (SELECT MIN(o.id) FROM ordem_pagamento o WHERE o."ordemPagamentoAgrupadoId" = opafi.id)');
+      expect(sql).toContain('opp.id = (SELECT MIN(o.id) FROM ordem_pagamento o WHERE o."ordemPagamentoAgrupadoId" = opai.id)');
+    });
+
+    it('does not restrict fromQueryApagar (no agrupamento fan-out there) or STUC-Gratuidade sources', () => {
+      const apagar: string = (repository as any).getQueryApagarConsorcios('2026-01-01', '2026-01-05', true);
+
+      expect(apagar).not.toContain('SELECT MIN(o.id)');
+    });
+  });
+
   describe('findConsolidado - valor total não duplica favorecido individual de STPC/STPL/TEC', () => {
     it('keeps both the consorcio and the vanzeiro rows, but sums the vanzeiro amount only once', async () => {
       (mockQueryRunner.query as jest.Mock).mockResolvedValue([
@@ -631,6 +667,39 @@ describe('RelatorioNovoRemessaConsolidadoRepository.findConsolidado — filtros'
   it('cada pagamento tem seu próprio id na consulta, para o DISTINCT não juntar pagamentos só por terem o mesmo valor', async () => {
     const sql = await executar({ pago: true });
     expect(sql).toContain(`da."id" AS "idLinha"`);
+  });
+
+  // ADR 0014 (Movimentação Financeira) exclui da busca "Todos" os 6 CNPJs que representam o
+  // próprio consórcio (não um vanzeiro individual) - achado comparando o total do Consolidado
+  // (R$ 177.766.698,22, Permissionário/Pago/01-10 a 03-11-2026) com o da Movimentação Financeira
+  // pros mesmos filtros (R$ 34.409.856,62): a diferença exata, R$ 143.356.841,60, é a soma dos
+  // pagamentos a esses 6 CNPJs no período (confirmado contra o banco de hml). O Consolidado
+  // nunca aplicava essa exclusão - os dois relatórios precisam convergir pro mesmo total.
+  describe('Todos os consórcios: exclui os CNPJs institucionais dos próprios consórcios (ADR 0014)', () => {
+    const CNPJS_INSTITUCIONAIS = [
+      '18201378000119',
+      '12464869000176',
+      '12464539000180',
+      '12464553000184',
+      '44520687000161',
+      '12464577000133',
+    ];
+
+    it('getQueryConsorcios exclui os 6 CNPJs institucionais quando todosConsorcios', async () => {
+      const sql = await executar({ pago: true });
+      for (const cnpj of CNPJS_INSTITUCIONAIS) expect(sql).toContain(cnpj);
+      expect(sql).toContain('NOT IN');
+    });
+
+    it('getQueryPendenciaPagaConsorcios exclui os 6 CNPJs institucionais quando todosConsorcios', async () => {
+      const sql = await executar({ pendenciaPaga: true });
+      for (const cnpj of CNPJS_INSTITUCIONAIS) expect(sql).toContain(cnpj);
+    });
+
+    it('não exclui os CNPJs quando um consórcio específico é selecionado (mesma regra do ADR 0014: só afeta a busca "Todos")', async () => {
+      const sql = await executar({ pago: true, todosConsorcios: undefined, consorcioNome: ['Intersul'] });
+      for (const cnpj of CNPJS_INSTITUCIONAIS) expect(sql).not.toContain(cnpj);
+    });
   });
 
   describe('Pendência Paga: filtra por data de pagamento, não por vencimento', () => {

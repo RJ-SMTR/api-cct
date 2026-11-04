@@ -132,13 +132,21 @@ export class RelatorioNovoRemessaConsolidadoRepository {
                                         left join ordem_pagamento_agrupado_historico oph on opa."id"= oph."ordemPagamentoAgrupadoId"
                                         left join detalhe_a da on da."ordemPagamentoAgrupadoHistoricoId" = oph.id`;
 
+  // ADR 0016: op/opp sem restrição trazem TODAS as ordem_pagamento internas do agrupamento,
+  // multiplicando cada linha de detalhe_a pelo número de ordens internas antes do SELECT DISTINCT
+  // do header colapsar de volta (mesmo mecanismo do ADR 0011) - confirmado um agrupamento real com
+  // 55 ordens internas para 1 lançamento, esgotando a memória do Postgres numa janela de 90 dias
+  // com "Todos" os status. A restrição vai na cláusula ON (não no WHERE) para o LEFT JOIN continuar
+  // trazendo a linha com op/opp nulos quando o agrupamento não tem nenhuma ordem interna.
   private readonly fromQueryPrincipal = ` from detalhe_a da
                                           left join ordem_pagamento_agrupado_historico oph on oph."id"=da."ordemPagamentoAgrupadoHistoricoId"
                                           left join ordem_pagamento_agrupado opafi on opafi."id"=oph."ordemPagamentoAgrupadoId"
                                           left join ordem_pagamento_agrupado opai on opai."ordemPagamentoAgrupadoId"=oph."ordemPagamentoAgrupadoId"
                                           left join ordem_pagamento op on op."ordemPagamentoAgrupadoId"=opafi.id
+                                            and op.id = (SELECT MIN(o.id) FROM ordem_pagamento o WHERE o."ordemPagamentoAgrupadoId" = opafi.id)
                                           left join public.user pu on pu."id"=op."userId"
                                           left join ordem_pagamento opp on opp."ordemPagamentoAgrupadoId"=opai.id
+                                            and opp.id = (SELECT MIN(o.id) FROM ordem_pagamento o WHERE o."ordemPagamentoAgrupadoId" = opai.id)
                                           left join public.user puu on puu."id"=opp."userId" `;
 
   // Mesmo fromQueryPrincipal, com o join a mais pro agrupamento "pai" (op_pai) que a Pendência
@@ -220,6 +228,21 @@ export class RelatorioNovoRemessaConsolidadoRepository {
   // DISTINCT (nome, nome2, valor, idLinha) e o filtro externo "nome IS NOT NULL" descartavam
   // essas linhas por acidente (o join opafi/opai/opp resulta em nome/nome2 nulos nesses casos),
   // não por design.
+  // ADR 0014 (Movimentação Financeira): sem favorecido/consórcio específico selecionado ("Todos"),
+  // exclui da busca os 6 CNPJs que representam o próprio consórcio (não um vanzeiro individual) -
+  // eles entram em queryConsorcios/queryPendenciaPagaConsorcios via op."nomeConsorcio" (ramo ELSE
+  // de consorcioCaseDuplo) porque pagam direto, sem o permitCode especial de VLT/STPC/STPL/TEC.
+  // Sem esta exclusão o Consolidado soma esses pagamentos institucionais junto com o agregado do
+  // consórcio, mas a Movimentação Financeira (NOT_CPF_FILTER, novo-remessa-query-builder.ts) os
+  // exclui - divergência confirmada contra hml: R$ 143.356.841,60 de diferença exata entre os
+  // dois relatórios pros mesmos filtros (Permissionário/Pago/01-10 a 03-11-2026) é a soma desses
+  // 6 CNPJs no período. Só se aplica à busca "Todos": selecionar um consórcio específico continua
+  // trazendo o CNPJ institucional dele (mesma regra do ADR 0014 pro eixo vanzeiro).
+  private readonly excluiCnpjConsorcioInstitucional = `
+               AND (COALESCE(pu."cpfCnpj", puu."cpfCnpj") IS NULL OR COALESCE(pu."cpfCnpj", puu."cpfCnpj") NOT IN (
+                 '18201378000119', '12464869000176', '12464539000180', '12464553000184', '44520687000161', '12464577000133'
+               ))`;
+
   private readonly excluiAgrupamentoSubstituido = `
                and NOT EXISTS (SELECT 1 FROM ordem_pagamento_agrupado filha WHERE filha."ordemPagamentoAgrupadoId" = opafi.id)
                and (oph."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph."motivoStatusRemessa" IS NULL)`;
@@ -405,11 +428,11 @@ export class RelatorioNovoRemessaConsolidadoRepository {
       } else {
         const consorcioPlaceholders = this.CONSORCIOS.join(`','`);
         queryAPagarConsorcios = anexar(queryAPagarConsorcios, ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') `);
-        queryConsorcios = anexar(queryConsorcios, ` AND (op."nomeConsorcio" IN('${consorcioPlaceholders}') or opp."nomeConsorcio" IN('${consorcioPlaceholders}')) `);
+        queryConsorcios = anexar(queryConsorcios, ` AND (op."nomeConsorcio" IN('${consorcioPlaceholders}') or opp."nomeConsorcio" IN('${consorcioPlaceholders}')) ${this.excluiCnpjConsorcioInstitucional} `);
         queryAPagarEleicaoConsorcio = anexar(queryAPagarEleicaoConsorcio, ` AND op."consorcio" IN('${consorcioPlaceholders}') `);
         queryEleicaoConsorcio = anexar(queryEleicaoConsorcio, ` AND op."consorcio" IN('${consorcioPlaceholders}') `);
         queryPendentesConsorcio = anexar(queryPendentesConsorcio, ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') `);
-        queryPendenciaPagaConsorcios = anexar(queryPendenciaPagaConsorcios, ` AND (op."nomeConsorcio" IN('${consorcioPlaceholders}') or opp."nomeConsorcio" IN('${consorcioPlaceholders}')) `);
+        queryPendenciaPagaConsorcios = anexar(queryPendenciaPagaConsorcios, ` AND (op."nomeConsorcio" IN('${consorcioPlaceholders}') or opp."nomeConsorcio" IN('${consorcioPlaceholders}')) ${this.excluiCnpjConsorcioInstitucional} `);
       }
     }
 
