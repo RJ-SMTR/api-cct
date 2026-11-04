@@ -11,10 +11,11 @@ const filtroDaQuery = (q: Record<string, string>): FiltroDetalheExtrato => ({
   dataInicio: q.dataInicio,
   dataFim: q.dataFim,
   conta: q.conta as ContaExtrato,
-  tipo: q.tipo as 'C' | 'D' | undefined,
+  tipo: q.tipo?.slice(0, 10),
   descricao: q.descricao?.slice(0, 100),
   dia: q.dia,
   busca: q.busca?.slice(0, 100),
+  nome: q.nome?.slice(0, 100),
   page: Number(q.page),
   pageSize: Number(q.pageSize),
 });
