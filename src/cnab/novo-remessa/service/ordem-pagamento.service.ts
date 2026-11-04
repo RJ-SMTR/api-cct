@@ -355,11 +355,6 @@ export class OrdemPagamentoService {
           // o dono é resolvido de novo. Antes só a ordem nova resolvia, e a órfã ficava sem usuário para sempre.
           if (!existente || (userId === undefined && this.ordemLivreParaVincular(existente))) {
             const dono = await this.resolverUsuarioDaOrdem(ordem);
-            if (dono === null) {
-              // usuário bloqueado: a ordem não é gravada (regra anterior do sincronismo)
-              contagens.ignoradas += 1;
-              continue;
-            }
             userId = dono;
             if (existente && dono !== undefined) {
               await sync.vincularUsuario(existente.id, dono);
@@ -415,9 +410,10 @@ export class OrdemPagamentoService {
 
   /**
    * Usuário dono da ordem nova. Modais: pelo CPF/CNPJ; demais: pelo idConsorcio === permitCode.
-   * Devolve `undefined` quando o usuário não existe (a ordem entra sem usuário) e `null` quando está bloqueado.
+   * Devolve `undefined` quando o usuário não existe (a ordem entra sem usuário). Usuário bloqueado também é devolvido:
+   * a ordem é sincronizada igual (o BigQuery e o banco precisam bater); o bloqueio só barra o agrupamento e o pagamento.
    */
-  private async resolverUsuarioDaOrdem(ordem: BigqueryOrdemPagamentoDTO): Promise<number | undefined | null> {
+  private async resolverUsuarioDaOrdem(ordem: BigqueryOrdemPagamentoDTO): Promise<number | undefined> {
     let user: User | undefined;
     try {
       if (ordem.consorcio === 'STPC' || ordem.consorcio === 'STPL' || ordem.consorcio === 'TEC') {
@@ -429,7 +425,6 @@ export class OrdemPagamentoService {
       if (error instanceof HttpException) return undefined;
       throw error;
     }
-    if (user?.bloqueado) return null;
     return user?.id;
   }
 
