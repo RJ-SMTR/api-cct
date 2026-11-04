@@ -557,6 +557,61 @@ describe('RelatorioNovoRemessaFinancialMovementService', () => {
     });
   });
 
+  describe('Consórcio = Todos traz todos os consórcios (regressão do MODAIS_FILTER)', () => {
+    const MODAIS_FILTER_MARKER = `pu."permitCode" LIKE '4%' OR pu."permitCode" LIKE '81%' OR pu."permitCode" LIKE '7%'`;
+
+    it('does not restrict to modais (STPC/STPL/TEC) when todosConsorcios is selected, even with no favorecido chosen', async () => {
+      await service.findFinancialMovementSummary({
+        dataInicio: new Date('2026-10-19'),
+        dataFim: new Date('2026-10-19'),
+        pago: true,
+        todosConsorcios: true,
+      } as any);
+
+      const [countQuery] = dataSource.query.mock.calls[0];
+      expect(countQuery).not.toContain(MODAIS_FILTER_MARKER);
+    });
+
+    it('expands todosConsorcios to the full consórcio list (same as Consolidado), not to a NULL filter', async () => {
+      await service.findFinancialMovementSummary({
+        dataInicio: new Date('2026-10-19'),
+        dataFim: new Date('2026-10-19'),
+        pago: true,
+        todosConsorcios: true,
+      } as any);
+
+      const [, params] = dataSource.query.mock.calls[0];
+      const consorcioParam = params[4];
+      expect(consorcioParam).toEqual(
+        expect.arrayContaining(['VLT', 'INTERNORTE', 'SANTA CRUZ', 'GTU', 'STPC', 'STPL', 'TEC']),
+      );
+    });
+
+    it('does not restrict to modais when a specific non-modal consórcio is selected', async () => {
+      await service.findFinancialMovementSummary({
+        dataInicio: new Date('2026-10-19'),
+        dataFim: new Date('2026-10-19'),
+        pago: true,
+        consorcioNome: ['Internorte'],
+      } as any);
+
+      const [countQuery] = dataSource.query.mock.calls[0];
+      expect(countQuery).not.toContain(MODAIS_FILTER_MARKER);
+    });
+
+    it('still restricts to modais for pure "Favorecido = Todos" with no consórcio filter (no regression)', async () => {
+      await service.findFinancialMovementSummary({
+        dataInicio: new Date('2026-10-19'),
+        dataFim: new Date('2026-10-19'),
+        pago: true,
+        todosVanzeiros: true,
+      } as any);
+
+      const [countQuery] = dataSource.query.mock.calls[0];
+      expect(countQuery).toContain(MODAIS_FILTER_MARKER);
+    });
+  });
+
   describe('STUC - Gratuidade filter', () => {
     const PENDENTES_MARKER = 'op."ordemPagamentoAgrupadoId" IS NULL';
 

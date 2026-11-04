@@ -346,3 +346,35 @@ describe('novo-remessa-query-builder todosVanzeiros restringe aos modais (STPC/S
     expect(sql).not.toContain(MODAIS_FILTER_MARKER);
   });
 });
+
+// hasConsorcioFilter: uma vez que o usuário selecionou um Consórcio (específico ou "Todos"),
+// MODAIS_FILTER não deve restringir a STPC/STPL/TEC - quem decide quais linhas aparecem é o
+// filtro de consórcio (consorcioParam/CONSORCIO_CASE), não o default de "Favorecido = Todos"
+// sem Consórcio nenhum. Sem essa distinção, "Consórcio = Todos" (ou um consórcio comum
+// específico, ex. Internorte) ficava sem VLT e sem os consórcios comuns na Movimentação
+// Financeira, divergindo do total do Consolidado (achado 2026-11-04).
+describe('novo-remessa-query-builder hasConsorcioFilter desliga o MODAIS_FILTER', () => {
+  const params = { consorcioFilterParamIndex: 5, todosVanzeiros: true };
+  const MODAIS_FILTER_MARKER = `pu."permitCode" LIKE '4%' OR pu."permitCode" LIKE '81%' OR pu."permitCode" LIKE '7%'`;
+
+  it.each([
+    ['base', buildBaseQuery({ ...params, hasConsorcioFilter: true })],
+    ['eleicao', buildEleicaoQuery({ ...params, hasConsorcioFilter: true })],
+    ['pendenciaPagaSingleDate', buildPendenciaPagaSingleDateQuery({ ...params, hasConsorcioFilter: true })],
+    ['pendenciaPagamentoSingleDate', buildPendenciaPagamentoSingleDateQuery({ ...params, hasConsorcioFilter: true })],
+    ['pendenciaPagaPasso0', buildPendenciaPagaPasso0Query({ ...params, hasConsorcioFilter: true })],
+    ['stucGratuidade', buildStucGratuidadeQuery({ ...params, hasConsorcioFilter: true })],
+    ['stucGratuidadePendenciaPagaSingleDate', buildStucGratuidadePendenciaPagaSingleDateQuery({ ...params, hasConsorcioFilter: true })],
+    ['stucGratuidadePendenciaPagamentoSingleDate', buildStucGratuidadePendenciaPagamentoSingleDateQuery({ ...params, hasConsorcioFilter: true })],
+  ])('%s query does not restrict to modais when a consórcio filter is active, even with todosVanzeiros', (_name, sql) => {
+    expect(sql).not.toContain(MODAIS_FILTER_MARKER);
+    // NOT_CPF_FILTER (exclusão dos CNPJs institucionais) continua valendo - é independente do
+    // filtro de consórcio.
+    expect(sql).toContain('cpfCnpj" NOT IN');
+  });
+
+  it('keeps restricting to modais when todosVanzeiros is set without any consórcio filter (hasConsorcioFilter not set)', () => {
+    const sql = buildBaseQuery(params);
+    expect(sql).toContain(MODAIS_FILTER_MARKER);
+  });
+});
