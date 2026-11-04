@@ -22,7 +22,7 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
 
   private readonly MODAIS = ['STPC', 'STPL', 'TEC'];
 
-  private readonly CONSORCIOS = ['VLT', 'Intersul', 'Transcarioca', 'Internorte', 'MobiRio', 'Santa Cruz', 'MOBI-Rio BUM', 'TUSE', 'STPC', 'STPL', 'TEC'];
+  private readonly CONSORCIOS = ['VLT', 'Intersul', 'Transcarioca', 'Internorte', 'MobiRio', 'Santa Cruz', 'MOBI-Rio BUM', 'TUSE', 'STPC', 'STPL', 'TEC', 'GTU'];
 
   private readonly headerQueryConsorciosApagar = ` select distinct TO_CHAR( op."dataOrdem"::date, 'DD/MM/YYYY')  AS "dataReferencia",
                                                     op."ordemPagamentoAgrupadoId" AS id,
