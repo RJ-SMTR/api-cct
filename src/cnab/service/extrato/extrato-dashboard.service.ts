@@ -106,7 +106,7 @@ export class ExtratoDashboardService {
 
   async detalhe(filtro: FiltroDetalheExtrato) {
     const page = Math.max(1, Math.floor(Number(filtro.page)) || 1);
-    const pageSize = Math.min(200, Math.max(1, Math.floor(Number(filtro.pageSize)) || 50));
+    const pageSize = Math.min(2000, Math.max(1, Math.floor(Number(filtro.pageSize)) || 100));
     const { where, params } = this.condicoes(filtro);
     const [totais] = await this.dataSource.query(
       `SELECT count(*)::int AS total,
