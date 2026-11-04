@@ -103,14 +103,14 @@ describe('OrdemPagamentoService - sincronismo por período', () => {
     expect(usersService.getOne).toHaveBeenCalledTimes(1);
   });
 
-  it('ignora ordem sem CPF/CNPJ e ordem de usuário bloqueado', async () => {
+  it('ignora ordem sem CPF/CNPJ, mas sincroniza a ordem de usuário bloqueado', async () => {
     const { service, sync } = build({ bq: [ordemBq(1, { operadoraCpfCnpj: null })], antes: 0 });
     expect((await service.sincronizarOrdensPagamento(d('2026-10-09'), d('2026-10-09'), ['STPL'])).ignoradas).toBe(1);
     expect(sync.aplicar).not.toHaveBeenCalled();
 
     const bloqueado = build({ bq: [ordemBq(1)], antes: 0, usuario: { id: 9, bloqueado: true } });
-    expect((await bloqueado.service.sincronizarOrdensPagamento(d('2026-10-09'), d('2026-10-09'), ['STPL'])).ignoradas).toBe(1);
-    expect(bloqueado.sync.aplicar).not.toHaveBeenCalled();
+    expect((await bloqueado.service.sincronizarOrdensPagamento(d('2026-10-09'), d('2026-10-09'), ['STPL'])).ignoradas).toBe(0);
+    expect(bloqueado.sync.aplicar).toHaveBeenCalledTimes(1);
   });
 
   it('erro em uma ordem não derruba a execução e é contado', async () => {
