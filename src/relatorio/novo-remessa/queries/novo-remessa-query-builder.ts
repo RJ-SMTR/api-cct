@@ -79,6 +79,17 @@ export const NOT_CPF_FILTER = `
   )
 `;
 
+// "Favorecido = Todos" só deve trazer favorecidos pagos avulso/individualmente - os modais
+// STPC/STPL/TEC - nunca favorecido de consórcio comum (Internorte, Santa Cruz etc.), que só
+// deveria aparecer agregado via o filtro de Consórcio (CONTEXT.md, "Regras de negócio", achado
+// 2026-11-04). O Consolidado (getQueryVanzeiros) já restringe assim; aqui por pu."permitCode"
+// (não op."nomeConsorcio"/CONSORCIO_CASE) porque buildEleicaoQuery não tem a tabela "op"
+// principal joinada, só "pu" - mesmas faixas usadas em CONSORCIO_CASE para STPC/STPL/TEC
+// (VLT, permitCode='8', fica de fora: é pago por consórcio, não avulso).
+export const MODAIS_FILTER = `
+  AND (pu."permitCode" LIKE '4%' OR pu."permitCode" LIKE '81%' OR pu."permitCode" LIKE '7%')
+`;
+
 /**
  * buildBaseQuery/buildStucGratuidadeQuery (e as duas famílias de dia único abaixo) só
  * diferem na origem do agrupamento (normal vs gratuidade) e na coluna de valor - os
@@ -215,7 +226,7 @@ const buildGroupedQuery = (params: NovoRemessaBaseParams, source: AgrupamentoSou
       )
       AND (oph."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph."motivoStatusRemessa" IS NULL)
       ${umaOrdemPorAgrupamentoFilter(source)}
-      ${params.todosVanzeiros ? NOT_CPF_FILTER : ''}
+      ${params.todosVanzeiros ? `${NOT_CPF_FILTER}${MODAIS_FILTER}` : ''}
   `;
 };
 
@@ -279,7 +290,7 @@ const buildPendenciaPagaTemplate = (params: NovoRemessaBaseParams, source: Agrup
       AND (oph."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph."motivoStatusRemessa" IS NULL)
       ${umaOrdemPorAgrupamentoFilter(source)}
       ${umaLinhaPorFilhaPagaFilter(source)}
-      ${params.todosVanzeiros ? NOT_CPF_FILTER : ''}
+      ${params.todosVanzeiros ? `${NOT_CPF_FILTER}${MODAIS_FILTER}` : ''}
   `;
 };
 
@@ -339,7 +350,7 @@ const buildPendenciaPagamentoTemplate = (
       AND (${consorcioParam}::text[] IS NULL OR UPPER(TRIM(${CONSORCIO_CASE})) = ANY(${consorcioParam}))
       AND (oph_pai."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph_pai."motivoStatusRemessa" IS NULL)
       ${umaOrdemPorAgrupamentoFilter(source)}
-      ${params.todosVanzeiros ? NOT_CPF_FILTER : ''}
+      ${params.todosVanzeiros ? `${NOT_CPF_FILTER}${MODAIS_FILTER}` : ''}
 
     UNION ALL
 
@@ -388,7 +399,7 @@ const buildPendenciaPagamentoTemplate = (
       )
       AND (oph."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph."motivoStatusRemessa" IS NULL)
       ${umaOrdemPorAgrupamentoFilter(source)}
-      ${params.todosVanzeiros ? NOT_CPF_FILTER : ''}
+      ${params.todosVanzeiros ? `${NOT_CPF_FILTER}${MODAIS_FILTER}` : ''}
   `;
 };
 
@@ -432,7 +443,7 @@ export const buildEleicaoQuery = (params: NovoRemessaBaseParams) => {
       AND ($3::integer[] IS NULL OR pu."id" = ANY($3))
       AND ${ELEICAO_STATUS_FILTER}
       AND (${consorcioParam}::text[] IS NULL OR TRIM(UPPER(opu."consorcio")) = ANY(${consorcioParam}))
-      ${params.todosVanzeiros ? NOT_CPF_FILTER : ''}
+      ${params.todosVanzeiros ? `${NOT_CPF_FILTER}${MODAIS_FILTER}` : ''}
   `;
 };
 
@@ -534,7 +545,7 @@ export const buildPendenciaPagaPasso0Query = (params: NovoRemessaBaseParams) => 
         WHERE oph_qualquer."ordemPagamentoAgrupadoId" = opa.id
       )
       ${umaOrdemPorAgrupamentoFilter(AGRUPAMENTO_NORMAL)}
-      ${params.todosVanzeiros ? NOT_CPF_FILTER : ''}
+      ${params.todosVanzeiros ? `${NOT_CPF_FILTER}${MODAIS_FILTER}` : ''}
   `;
 };
 

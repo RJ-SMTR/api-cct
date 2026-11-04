@@ -4,6 +4,7 @@ import {
   buildPendentesQuery,
   buildPendenciaPagamentoSingleDateQuery,
   buildPendenciaPagaSingleDateQuery,
+  buildPendenciaPagaPasso0Query,
   buildStucGratuidadeQuery,
   buildStucGratuidadePendenciaPagaSingleDateQuery,
   buildStucGratuidadePendenciaPagamentoSingleDateQuery,
@@ -284,5 +285,64 @@ describe('novo-remessa-query-builder uma ordem por agrupamento (ADR 0011, corrig
     ['pendenciaPagaSingleDate', buildPendenciaPagaSingleDateQuery(params)],
   ])('%s query (AGRUPAMENTO_NORMAL) keeps the lote\'s dataVencimento as dataReferencia', (_name, sql) => {
     expect(sql).toContain('da."dataVencimento" AS "dataReferencia"');
+  });
+});
+
+// "Favorecido = Todos" deve trazer só favorecidos pagos avulso/individualmente (modais
+// STPC/STPL/TEC), nunca favorecido de consórcio comum (Internorte, Santa Cruz etc.), que só
+// deveria aparecer agregado via o filtro de Consórcio (CONTEXT.md, achado 2026-11-04). O
+// Consolidado (getQueryVanzeiros) já restringia assim; aqui ainda faltava - confirmado contra
+// hml (~R$2,99M de diferença no mesmo filtro, Permissionário/Pago/01-09 a 01-10-2026).
+describe('novo-remessa-query-builder todosVanzeiros restringe aos modais (STPC/STPL/TEC)', () => {
+  const params = { consorcioFilterParamIndex: 5 };
+  const MODAIS_FILTER_MARKER = `pu."permitCode" LIKE '4%' OR pu."permitCode" LIKE '81%' OR pu."permitCode" LIKE '7%'`;
+
+  it.each([
+    ['base', buildBaseQuery({ ...params, todosVanzeiros: true })],
+    ['eleicao', buildEleicaoQuery({ ...params, todosVanzeiros: true })],
+    ['pendenciaPagaSingleDate', buildPendenciaPagaSingleDateQuery({ ...params, todosVanzeiros: true })],
+    ['pendenciaPagamentoSingleDate', buildPendenciaPagamentoSingleDateQuery({ ...params, todosVanzeiros: true })],
+    ['pendenciaPagaPasso0', buildPendenciaPagaPasso0Query({ ...params, todosVanzeiros: true })],
+    ['stucGratuidade', buildStucGratuidadeQuery({ ...params, todosVanzeiros: true })],
+    ['stucGratuidadePendenciaPagaSingleDate', buildStucGratuidadePendenciaPagaSingleDateQuery({ ...params, todosVanzeiros: true })],
+    ['stucGratuidadePendenciaPagamentoSingleDate', buildStucGratuidadePendenciaPagamentoSingleDateQuery({ ...params, todosVanzeiros: true })],
+  ])('%s query restricts todosVanzeiros to STPC/STPL/TEC when marked explicitly', (_name, sql) => {
+    expect(sql).toContain(MODAIS_FILTER_MARKER);
+    expect(sql).toContain('cpfCnpj" NOT IN');
+  });
+
+  it.each([
+    ['base', buildBaseQuery(params)],
+    ['eleicao', buildEleicaoQuery(params)],
+    ['pendenciaPagaSingleDate', buildPendenciaPagaSingleDateQuery(params)],
+    ['pendenciaPagamentoSingleDate', buildPendenciaPagamentoSingleDateQuery(params)],
+    ['pendenciaPagaPasso0', buildPendenciaPagaPasso0Query(params)],
+    ['stucGratuidade', buildStucGratuidadeQuery(params)],
+  ])('%s query does not restrict to modais when a specific favorecido is selected (todosVanzeiros not set)', (_name, sql) => {
+    expect(sql).not.toContain(MODAIS_FILTER_MARKER);
+    expect(sql).not.toContain('cpfCnpj" NOT IN');
+  });
+
+  it('pendenciaPagamentoSingleDate query restricts to modais in both UNION ALL branches', () => {
+    const sql = buildPendenciaPagamentoSingleDateQuery({ ...params, todosVanzeiros: true });
+
+    const matches = sql.match(/pu\."permitCode" LIKE '4%' OR pu\."permitCode" LIKE '81%' OR pu\."permitCode" LIKE '7%'/g) ?? [];
+    expect(matches).toHaveLength(2);
+  });
+
+  // VLT (permitCode='8') é pago por consórcio, não avulso - o filtro de "Todos" favorecidos
+  // restringe só a STPC ('4%')/STPL ('81%')/TEC ('7%'), sem checar permitCode='8' (VLT).
+  it('modais filter excludes VLT (permitCode=8), only STPC/STPL/TEC', () => {
+    expect(MODAIS_FILTER_MARKER).not.toContain(`permitCode" = '8'`);
+  });
+
+  // buildPendentesQuery já restringia aos modais por um mecanismo diferente (default do bind
+  // de consórcio para ARRAY['STPC','STPL','TEC'] quando nenhum é passado) - não precisa do
+  // MODAIS_FILTER novo, e não lê todosVanzeiros/NOT_CPF_FILTER de forma alguma.
+  it('pendentes query already restricts to modais by default (different mechanism), untouched by this fix', () => {
+    const sql = buildPendentesQuery({ todosVanzeiros: true });
+
+    expect(sql).toContain(`ARRAY['STPC','STPL','TEC']`);
+    expect(sql).not.toContain(MODAIS_FILTER_MARKER);
   });
 });
