@@ -105,13 +105,14 @@ describe('RelatorioNovoRemessaConsolidadoRepository', () => {
     it('getQueryConsorcios restricts the op join to one representative order per agrupamento', () => {
       const sql: string = (repository as any).getQueryConsorcios('2026-01-01', '2026-01-05');
 
-      expect(sql).toContain('op.id = (SELECT MIN(o.id) FROM ordem_pagamento o WHERE o."ordemPagamentoAgrupadoId" = opafi.id)');
+      expect(sql).toMatch(/left join lateral \(\s*select o\."userId"[^)]*order by o\.id\s*limit 1\s*\) op on true/);
     });
 
     it('getQueryConsorcios restricts the opp join to one representative order per agrupamento', () => {
       const sql: string = (repository as any).getQueryConsorcios('2026-01-01', '2026-01-05');
 
-      expect(sql).toContain('opp.id = (SELECT MIN(o.id) FROM ordem_pagamento o WHERE o."ordemPagamentoAgrupadoId" = opai.id)');
+      expect(sql).toMatch(/select distinct on \(f\."ordemPagamentoAgrupadoId"\)[\s\S]*order by f\."ordemPagamentoAgrupadoId", o\.id\s*\) opp on opp\.pai_id = opafi\.id/);
+      expect(sql).not.toContain('left join ordem_pagamento opp');
     });
 
     it.each([
@@ -121,8 +122,9 @@ describe('RelatorioNovoRemessaConsolidadoRepository', () => {
     ])('%s restricts both the op and opp join to one representative order per agrupamento', (_name, build) => {
       const sql: string = build();
 
-      expect(sql).toContain('op.id = (SELECT MIN(o.id) FROM ordem_pagamento o WHERE o."ordemPagamentoAgrupadoId" = opafi.id)');
-      expect(sql).toContain('opp.id = (SELECT MIN(o.id) FROM ordem_pagamento o WHERE o."ordemPagamentoAgrupadoId" = opai.id)');
+      expect(sql).toMatch(/left join lateral \(\s*select o\."userId"[^)]*order by o\.id\s*limit 1\s*\) op on true/);
+      expect(sql).toMatch(/select distinct on \(f\."ordemPagamentoAgrupadoId"\)[\s\S]*order by f\."ordemPagamentoAgrupadoId", o\.id\s*\) opp on opp\.pai_id = opafi\.id/);
+      expect(sql).not.toContain('left join ordem_pagamento opp');
     });
 
     it('does not restrict fromQueryApagar (no agrupamento fan-out there) or STUC-Gratuidade sources', () => {

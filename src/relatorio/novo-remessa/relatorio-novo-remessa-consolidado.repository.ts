@@ -133,21 +133,34 @@ export class RelatorioNovoRemessaConsolidadoRepository {
                                         left join ordem_pagamento_agrupado_historico oph on opa."id"= oph."ordemPagamentoAgrupadoId"
                                         left join detalhe_a da on da."ordemPagamentoAgrupadoHistoricoId" = oph.id`;
 
-  // ADR 0016: op/opp sem restrição trazem TODAS as ordem_pagamento internas do agrupamento,
-  // multiplicando cada linha de detalhe_a pelo número de ordens internas antes do SELECT DISTINCT
-  // do header colapsar de volta (mesmo mecanismo do ADR 0011) - confirmado um agrupamento real com
-  // 55 ordens internas para 1 lançamento, esgotando a memória do Postgres numa janela de 90 dias
-  // com "Todos" os status. A restrição vai na cláusula ON (não no WHERE) para o LEFT JOIN continuar
-  // trazendo a linha com op/opp nulos quando o agrupamento não tem nenhuma ordem interna.
+  // ADR 0016: trazer TODAS as ordem_pagamento internas do agrupamento multiplicava cada linha de detalhe_a pelo número
+  // de ordens (agrupamento real com 55 ordens para 1 lançamento esgotou a memória do Postgres em 90 dias com "Todos").
+  // Só interessa uma ordem representante (a de menor id) para achar favorecido e consórcio:
+  //  - op: representante do próprio agrupamento, por LATERAL (índice em ordem_pagamento."ordemPagamentoAgrupadoId",
+  //    para na primeira ordem);
+  //  - opp: representante das filhas do agrupamento (quando ele é pai), pré-calculado uma vez por consulta em vez de
+  //    um join por linha com a tabela inteira de ordem_pagamento (1 milhão de linhas, duas vezes) - com isso o
+  //    histórico passou de mais de 150 s para cerca de 2 s no banco de teste, com o mesmo resultado.
+  // O LEFT JOIN continua trazendo a linha com op/opp nulos quando não há ordem.
   private readonly fromQueryPrincipal = ` from detalhe_a da
                                           left join ordem_pagamento_agrupado_historico oph on oph."id"=da."ordemPagamentoAgrupadoHistoricoId"
                                           left join ordem_pagamento_agrupado opafi on opafi."id"=oph."ordemPagamentoAgrupadoId"
-                                          left join ordem_pagamento_agrupado opai on opai."ordemPagamentoAgrupadoId"=oph."ordemPagamentoAgrupadoId"
-                                          left join ordem_pagamento op on op."ordemPagamentoAgrupadoId"=opafi.id
-                                            and op.id = (SELECT MIN(o.id) FROM ordem_pagamento o WHERE o."ordemPagamentoAgrupadoId" = opafi.id)
+                                          left join lateral (
+                                            select o."userId", o."nomeConsorcio", o."operadoraCpfCnpj"
+                                              from ordem_pagamento o
+                                             where o."ordemPagamentoAgrupadoId" = opafi.id
+                                             order by o.id
+                                             limit 1
+                                          ) op on true
                                           left join public.user pu on pu."id"=op."userId"
-                                          left join ordem_pagamento opp on opp."ordemPagamentoAgrupadoId"=opai.id
-                                            and opp.id = (SELECT MIN(o.id) FROM ordem_pagamento o WHERE o."ordemPagamentoAgrupadoId" = opai.id)
+                                          left join (
+                                            select distinct on (f."ordemPagamentoAgrupadoId")
+                                                   f."ordemPagamentoAgrupadoId" as pai_id, o."userId", o."nomeConsorcio", o."operadoraCpfCnpj"
+                                              from ordem_pagamento_agrupado f
+                                              join ordem_pagamento o on o."ordemPagamentoAgrupadoId" = f.id
+                                             where f."ordemPagamentoAgrupadoId" is not null
+                                             order by f."ordemPagamentoAgrupadoId", o.id
+                                          ) opp on opp.pai_id = opafi.id
                                           left join public.user puu on puu."id"=opp."userId" `;
 
   // Mesmo fromQueryPrincipal, com o join a mais pro agrupamento "pai" (op_pai) que a Pendência
