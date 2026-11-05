@@ -16,6 +16,7 @@ import {
   buildGuardadorAPagarQuery,
   buildGuardadorPendenciaPagaSingleDateQuery,
   buildGuardadorPendenciaPagamentoSingleDateQuery,
+  buildGuardadorPendenteNaoEnviadoQuery,
 } from '../novo-remessa/queries/guardador-novo-remessa-query-builder';
 
 type NormalizedFilter = IFindPublicacaoRelatorioNovoFinancialMovement & {
@@ -31,6 +32,8 @@ type ResolvedStatuses = {
   includeBase: boolean;
   includePendenciaPagaSingleDate: boolean;
   parentErrorStatusesSingleDate: Array<StatusPagamento.ERRO_ESTORNO | StatusPagamento.ERRO_REJEITADO>;
+  /** Agrupamentos nunca enviados e ordens soltas que a procedure de pendentes também paga (status 'Pendentes'). */
+  includePendentes: boolean;
 };
 
 type CursorValues = {
@@ -403,6 +406,7 @@ export class RelatorioGuardadorFinancialMovementRepository {
           includeBase: true,
           includePendenciaPagaSingleDate: true,
           parentErrorStatusesSingleDate: [],
+          includePendentes: false,
         };
       }
 
@@ -412,6 +416,7 @@ export class RelatorioGuardadorFinancialMovementRepository {
         includeBase: true,
         includePendenciaPagaSingleDate: false,
         parentErrorStatusesSingleDate: [],
+        includePendentes: false,
       };
     }
 
@@ -427,9 +432,13 @@ export class RelatorioGuardadorFinancialMovementRepository {
           status === StatusPagamento.ERRO_ESTORNO || status === StatusPagamento.ERRO_REJEITADO,
       )
       : [];
+    // 'Pendentes' = o que a procedure de pendentes paga e não é rejeição do banco (agrupamento nunca enviado e ordem
+    // solta): vem de consulta própria, para a Pendência de Pagamento bater com o remessa gerado.
+    const includePendentes = allSelectedStatuses.includes(StatusPagamento.PENDENTES);
     const baseStatuses = allSelectedStatuses.filter(
       (status) =>
-        (!includePendenciaPagaSingleDate || status !== StatusPagamento.PENDENCIA_PAGA)
+        status !== StatusPagamento.PENDENTES
+        && (!includePendenciaPagaSingleDate || status !== StatusPagamento.PENDENCIA_PAGA)
         && !parentErrorStatusesSingleDate.includes(
           status as StatusPagamento.ERRO_ESTORNO | StatusPagamento.ERRO_REJEITADO,
         ),
@@ -441,6 +450,7 @@ export class RelatorioGuardadorFinancialMovementRepository {
       includeBase: baseStatuses.length > 0,
       includePendenciaPagaSingleDate,
       parentErrorStatusesSingleDate,
+      includePendentes,
     };
   }
 
@@ -462,8 +472,12 @@ export class RelatorioGuardadorFinancialMovementRepository {
       queries.push(this.buildPendenciaPagamentoSingleDateQuery(filter, statuses.parentErrorStatusesSingleDate));
     }
 
+    if (statuses.includePendentes) {
+      queries.push(this.buildPendenteNaoEnviadoQuery(filter));
+    }
+
     if (statuses.includeAPagar) {
-      queries.push(this.buildAPagarQuery(filter));
+      queries.push(this.buildAPagarQuery(filter, statuses.includePendentes));
     }
 
     if (!queries.length) {
@@ -480,8 +494,16 @@ export class RelatorioGuardadorFinancialMovementRepository {
     });
   }
 
-  private buildAPagarQuery(filter: NormalizedFilter): string {
+  private buildAPagarQuery(filter: NormalizedFilter, excluirPendentes = false): string {
     return buildGuardadorAPagarQuery({
+      desativados: filter.desativados,
+      todosConsorcios: filter.todosConsorcios,
+      excluirPendentes,
+    });
+  }
+
+  private buildPendenteNaoEnviadoQuery(filter: NormalizedFilter): string {
+    return buildGuardadorPendenteNaoEnviadoQuery({
       desativados: filter.desativados,
       todosConsorcios: filter.todosConsorcios,
     });

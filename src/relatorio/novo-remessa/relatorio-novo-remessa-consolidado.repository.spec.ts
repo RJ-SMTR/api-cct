@@ -613,20 +613,40 @@ describe('RelatorioNovoRemessaConsolidadoRepository.findConsolidado — filtros'
 
   it('só Estorno: filtra pelo motivo 02 e gera SQL com parênteses balanceados', async () => {
     const sql = await executar({ estorno: true });
-    expect(sql).toContain(`oph."motivoStatusRemessa" IN ('02')`);
+    expect(sql).toContain(`oph."motivoStatusRemessa" = '02')`);
+    expect(sql).toContain(`public.fn_ordem_pagamento_ja_paga_ou_em_andamento(x_reg.id)`);
     expect(parentesesBalanceados(sql)).toBe(true);
   });
 
-  it('só Rejeitado: filtra por statusRemessa=4 com motivo != 02 (não uma lista fixa de motivos) e gera SQL com parênteses balanceados', async () => {
+  it('só Rejeitado: motivo != 02 dentro das regras da procedure de pendentes (não uma lista fixa de motivos) e gera SQL com parênteses balanceados', async () => {
     const sql = await executar({ rejeitado: true });
-    expect(sql).toContain(`(oph."statusRemessa" = 4 AND (oph."motivoStatusRemessa" IS NULL OR oph."motivoStatusRemessa" <> '02'))`);
+    expect(sql).toContain(`oph."motivoStatusRemessa" <> '02')`);
+    expect(sql).toContain(`oph."motivoStatusRemessa" NOT IN ('AM', '00', 'BD')`);
     expect(parentesesBalanceados(sql)).toBe(true);
   });
 
   it('Estorno + Pago: motivo e status se somam com OR dentro do mesmo grupo', async () => {
     const sql = await executar({ estorno: true, pago: true });
-    expect(sql).toContain(`AND (oph."motivoStatusRemessa" IN ('02') OR oph."statusRemessa" IN (3))`);
+    expect(sql).toContain(`oph."motivoStatusRemessa" = '02')`);
+    expect(sql).toContain(`OR oph."statusRemessa" IN (3))`);
     expect(parentesesBalanceados(sql)).toBe(true);
+  });
+
+  it('Estorno (motivo 02) segue as regras da procedure: sem histórico pago, sem pai em andamento, sem valor zero e uma tentativa por agrupamento', async () => {
+    const sql = await executar({ estorno: true });
+    expect(sql).toContain(`hp_reg."statusRemessa" IN (1, 2, 3, 5)`);
+    expect(sql).toContain(`hp_reg."ordemPagamentoAgrupadoId" = opafi."ordemPagamentoAgrupadoId" AND hp_reg."statusRemessa" IN (0, 1, 2, 3, 5)`);
+    expect(sql).toContain(`da."valorLancamento" <> '0.00'`);
+    expect(sql).toContain(`SELECT MAX(d_reg.id)`);
+    expect(sql).toContain(`"bloqueado" IS NOT TRUE`);
+    expect(parentesesBalanceados(sql)).toBe(true);
+  });
+
+  it('atrasadas (ordens sem agrupamento) seguem o PASSO 0 da procedure: 10 dias, dados bancários completos e valor diferente de zero', async () => {
+    const sql = await executar({ pendentes: true });
+    expect(sql).toContain(`<= (CURRENT_DATE - INTERVAL '10 days')`);
+    expect(sql).toContain(`pu."bankAccountDigit" IS NOT NULL`);
+    expect(sql).toContain(`op.valor <> 0`);
   });
 
   it('só Aguardando pagamento: filtra só statusRemessa=2 (1 é "A Pagar", outro bucket), sem pedaços soltos no UNION', async () => {
@@ -646,9 +666,9 @@ describe('RelatorioNovoRemessaConsolidadoRepository.findConsolidado — filtros'
 
   it('Pendência de pagamento (Todos): inclui status 4, o motivo de Estorno, o Rejeitado (status 4 != 02) e as atrasadas', async () => {
     const sql = await executar({ erro: true, pendentes: true });
-    expect(sql).toContain(`oph."statusRemessa" IN (4)`);
-    expect(sql).toContain(`oph."motivoStatusRemessa" IN ('02')`);
-    expect(sql).toContain(`(oph."statusRemessa" = 4 AND (oph."motivoStatusRemessa" IS NULL OR oph."motivoStatusRemessa" <> '02'))`);
+    expect(sql).toContain(`oph."statusRemessa" = 4`);
+    expect(sql).toContain(`oph."motivoStatusRemessa" = '02')`);
+    expect(sql).toContain(`oph."motivoStatusRemessa" <> '02')`);
     expect(parentesesBalanceados(sql)).toBe(true);
   });
 

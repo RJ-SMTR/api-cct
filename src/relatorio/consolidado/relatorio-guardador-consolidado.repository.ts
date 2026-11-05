@@ -15,6 +15,7 @@ import {
   buildGuardadorBaseQuery,
   buildGuardadorAPagarQuery,
   buildGuardadorPendenciaPagaSingleDateQuery,
+  buildGuardadorPendenteNaoEnviadoQuery,
 } from '../novo-remessa/queries/guardador-novo-remessa-query-builder';
 
 type ResolvedStatuses = {
@@ -22,6 +23,8 @@ type ResolvedStatuses = {
   includeAPagar: boolean;
   includeBase: boolean;
   includePendenciaPagaSingleDate: boolean;
+  /** Agrupamentos nunca enviados e ordens soltas que a procedure de pendentes também paga (status 'Pendentes'). */
+  includePendentes: boolean;
 };
 
 @Injectable()
@@ -211,14 +214,19 @@ export class RelatorioGuardadorConsolidadoRepository {
         includeAPagar: true,
         includeBase: true,
         includePendenciaPagaSingleDate: false,
+        includePendentes: false,
       };
     }
 
     const includeAPagar = selectedStatuses.includes(StatusPagamento.A_PAGAR);
     const includePendenciaPagaSingleDate = isSingleDate
       && selectedStatuses.includes(StatusPagamento.PENDENCIA_PAGA);
+    // Pendência de Pagamento (Estorno + Rejeitado) inclui também o que a procedure paga e não é rejeição do banco.
+    const includePendentes = (
+      selectedStatuses.includes(StatusPagamento.ERRO_ESTORNO) && selectedStatuses.includes(StatusPagamento.ERRO_REJEITADO)
+    ) || selectedStatuses.includes(StatusPagamento.PENDENTES);
     const baseStatuses = selectedStatuses.filter((status) =>
-      !includePendenciaPagaSingleDate || status !== StatusPagamento.PENDENCIA_PAGA,
+      (!includePendenciaPagaSingleDate || status !== StatusPagamento.PENDENCIA_PAGA) && status !== StatusPagamento.PENDENTES,
     );
 
     return {
@@ -226,6 +234,7 @@ export class RelatorioGuardadorConsolidadoRepository {
       includeAPagar,
       includeBase: baseStatuses.length > 0,
       includePendenciaPagaSingleDate,
+      includePendentes,
     };
   }
 
@@ -248,11 +257,20 @@ export class RelatorioGuardadorConsolidadoRepository {
       }));
     }
 
+    if (statuses.includePendentes) {
+      queries.push(buildGuardadorPendenteNaoEnviadoQuery({
+        consorcioFilterParamIndex: 5,
+        favorecidoFilterParamIndex: 8,
+        todosConsorcios,
+      }));
+    }
+
     if (statuses.includeAPagar) {
       queries.push(buildGuardadorAPagarQuery({
         consorcioFilterParamIndex: 5,
         favorecidoFilterParamIndex: 8,
         todosConsorcios,
+        excluirPendentes: statuses.includePendentes,
       }));
     }
 

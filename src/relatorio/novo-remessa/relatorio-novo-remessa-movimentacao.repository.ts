@@ -7,6 +7,7 @@ import { RelatorioFinancialMovementNovoRemessaData, RelatorioFinancialMovementNo
 import { IFindPublicacaoRelatorioNovoFinancialMovement } from '../interfaces/filter-publicacao-relatorio-novo-financial-movement.interface';
 import { buildCodigoErroSql } from './queries/descricao-erro';
 import { STATUS_CASE } from './queries/novo-remessa-query-builder';
+import { pendenciaOrdemSoltaPermissionario, pendenciaRejeitadaPermissionario } from './queries/regras-pendencia';
 
 
 type NormalizedFilter = IFindPublicacaoRelatorioNovoFinancialMovement & {
@@ -311,8 +312,10 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
         dataMinima.setDate(dataMinima.getDate() - 2);
         dataFim = dataMinima.toISOString();
       }
+      // Mesmas regras do PASSO 0 da procedure de pendentes (queries/regras-pendencia.ts).
       where += ` where (op."ordemPagamentoAgrupadoId" is null) and (pu."bloqueado" is null OR pu."bloqueado" = false)
-               and op."dataCaptura" >= '${dataInicio}'::date AND op."dataCaptura" < '${dataFim}'::date + interval '1 day'`;
+               and op."dataCaptura" >= '${dataInicio}'::date AND op."dataCaptura" < '${dataFim}'::date + interval '1 day'
+               ${pendenciaOrdemSoltaPermissionario('op', 'pu')}`;
 
     }
     return where;
@@ -485,10 +488,25 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
     if (filter.estorno) statusPredicates.push(`oph."motivoStatusRemessa" IN ('02')`);
     if (filter.rejeitado) statusPredicates.push(`oph."motivoStatusRemessa" NOT IN ('00','0BD','02')`);
 
+    // Pendência de Pagamento (Todos), Rejeitado e Estorno seguem as MESMAS regras da procedure de pendentes
+    // (queries/regras-pendencia.ts): só aparece o que seria pago de novo. Estorno (motivo 02) e Rejeitado (demais
+    // motivos) são subconjuntos dessa regra; Aguardando, Pago e Pendência Paga continuam filtrando só por status.
+    const pendenciaElegivel = pendenciaRejeitadaPermissionario({ oph: 'oph', da: 'da', opa: 'opafi', users: ['pu', 'puu'] });
+    const statusPredicatesPendencia: string[] = [];
+    if (filter.emProcessamento) statusPredicatesPendencia.push(`oph."statusRemessa" IN (1,2)`);
+    if (filter.pago) statusPredicatesPendencia.push(`oph."statusRemessa" = 3`);
+    if (filter.pendenciaPaga) statusPredicatesPendencia.push(`oph."statusRemessa" = 5`);
+    if (filter.estorno || filter.erro) statusPredicatesPendencia.push(`(${pendenciaElegivel} AND oph."motivoStatusRemessa" = '02')`);
+    if (filter.rejeitado || filter.erro) statusPredicatesPendencia.push(`(${pendenciaElegivel} AND oph."motivoStatusRemessa" <> '02')`);
+
+    if (statusPredicatesPendencia.length > 0) {
+      const statusFilterPendencia = ` AND (${statusPredicatesPendencia.join(' OR ')}) `;
+      queryConsorcios += statusFilterPendencia;
+      queryVanzeiros += statusFilterPendencia;
+    }
     if (statusPredicates.length > 0) {
+      // Eleição (ordem_pagamento_unico) tem outro modelo de dados: mantém o filtro por status/motivo.
       const statusFilter = ` AND (${statusPredicates.join(' OR ')}) `;
-      queryConsorcios += statusFilter;
-      queryVanzeiros += statusFilter;
       queryEleicaoConsorcio += statusFilter;
       queryEleicaoVanzeiro += statusFilter;
     }
