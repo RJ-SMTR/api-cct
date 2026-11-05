@@ -244,15 +244,15 @@ describe('novo-remessa-query-builder uma ordem por agrupamento (ADR 0011, corrig
     ['base', buildBaseQuery(params)],
     ['pendenciaPagaSingleDate', buildPendenciaPagaSingleDateQuery(params)],
   ])('%s query (AGRUPAMENTO_NORMAL) restricts to one ordem_pagamento per agrupamento', (_name, sql) => {
-    expect(sql).toContain('op.id = (');
-    expect(sql).toContain('SELECT MIN(o.id)');
-    expect(sql).toContain('o."ordemPagamentoAgrupadoId" = opa.id');
+    // A ordem representante (menor id) vem de uma LATERAL que para na primeira ordem do agrupamento.
+    expect(sql).toMatch(/INNER JOIN LATERAL \(\s*SELECT o\.\* FROM ordem_pagamento o\s+WHERE o\."ordemPagamentoAgrupadoId" = opa\.id\s+ORDER BY o\.id\s+LIMIT 1\s*\) op ON true/);
+    expect(sql).not.toContain('SELECT MIN(o.id)');
   });
 
   it('pendenciaPagamentoSingleDate query (AGRUPAMENTO_NORMAL) restricts to one ordem_pagamento per agrupamento in both UNION ALL branches', () => {
     const sql = buildPendenciaPagamentoSingleDateQuery(params);
 
-    const matches = sql.match(/SELECT MIN\(o\.id\) FROM ordem_pagamento o WHERE o\."ordemPagamentoAgrupadoId" = opa\.id/g) ?? [];
+    const matches = sql.match(/ORDER BY o\.id\s+LIMIT 1\s*\) op ON true/g) ?? [];
     expect(matches).toHaveLength(2);
   });
 

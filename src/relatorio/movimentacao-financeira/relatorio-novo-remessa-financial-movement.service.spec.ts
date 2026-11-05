@@ -403,7 +403,7 @@ describe('RelatorioNovoRemessaFinancialMovementService', () => {
     // Único marcador presente nas consultas do fluxo normal (buildBaseQuery/Pendencia Paga/
     // Pendentes), ausentes em buildEleicaoQuery (que parte de ordem_pagamento_agrupado, sem
     // juntar ordem_pagamento).
-    const BASE_FLOW_MARKER = 'FROM ordem_pagamento op';
+    const BASE_FLOW_MARKER = 'INNER JOIN LATERAL (';
     // Único marcador da fonte de Eleição (ordem_pagamento_unico).
     const ELEICAO_MARKER = 'ordem_pagamento_unico';
 
