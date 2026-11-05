@@ -649,6 +649,14 @@ describe('RelatorioNovoRemessaConsolidadoRepository.findConsolidado — filtros'
     expect(sql).toContain(`op.valor <> 0`);
   });
 
+  it('pagamento de pendentes em andamento (pai com status 0/1/2) aparece e as filhas rejeitadas que ele cobre saem, sem contar duas vezes', async () => {
+    const sql = await executar({ emProcessamento: true });
+    expect(sql).toContain('OR oph."statusRemessa" IN (0, 1, 2))');
+    expect(sql).toContain('hp_pai."statusRemessa" IN (0, 1, 2)');
+    expect(sql).toContain('oph."statusRemessa" = 4 AND EXISTS');
+    expect(parentesesBalanceados(sql)).toBe(true);
+  });
+
   it('só Aguardando pagamento: filtra só statusRemessa=2 (1 é "A Pagar", outro bucket), sem pedaços soltos no UNION', async () => {
     const sql = await executar({ emProcessamento: true });
     expect(sql).toContain(`oph."statusRemessa" IN (2)`);
