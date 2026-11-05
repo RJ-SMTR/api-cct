@@ -3,6 +3,7 @@ import {
   buildGuardadorBaseQuery,
   buildGuardadorPendenciaPagamentoSingleDateQuery,
   buildGuardadorPendenciaPagaSingleDateQuery,
+  buildGuardadorPendenteNaoEnviadoQuery,
 } from './guardador-novo-remessa-query-builder';
 
 const builders = {
@@ -136,10 +137,11 @@ describe('guardador-novo-remessa-query-builder', () => {
     it('uses an uncorrelated NOT IN instead of a correlated NOT EXISTS', () => {
       const sql = build();
 
-      // The only NOT EXISTS allowed is the PASSO 0 children anti-join of the paid-pending
-      // query (children with no detalhe_a at all); it is index-driven and runs per candidate.
+      // Allowed NOT EXISTS: the PASSO 0 children anti-join of the paid-pending query (children with no
+      // detalhe_a at all) and the two checks of the pending rules for Estorno/Rejeitado rows in the base
+      // query (regras-pendencia.ts: no paid history, no order of today/already paid); all run per candidate.
       const notExistsOccurrences = sql.match(/NOT EXISTS/gi) ?? [];
-      expect(notExistsOccurrences).toHaveLength(name === 'pendenciaPagaSingleDate' ? 1 : 0);
+      expect(notExistsOccurrences).toHaveLength(name === 'pendenciaPagaSingleDate' ? 1 : 2);
       expect(sql).toMatch(
         /opa\.id NOT IN \(\s*SELECT filha\."ordemPagamentoAgrupadoId"\s+FROM ordem_pagamento_agrupado filha\s+WHERE filha\."ordemPagamentoAgrupadoId" IS NOT NULL\s*\)/,
       );
@@ -240,5 +242,39 @@ describe('guardador-novo-remessa-query-builder', () => {
         }
       },
     );
+  });
+  // Pendência de Pagamento dos guardadores segue as MESMAS regras da procedure P_AGRUPAR_ORDENS_GUARDADOR_PENDENTE
+  // (regras-pendencia.ts), para o relatório bater com o remessa gerado.
+  describe('regras da procedure de pendentes de guardadores', () => {
+    it('Estorno/Rejeitado só contam o que a procedure pagaria de novo', () => {
+      const sql = buildGuardadorBaseQuery();
+      expect(sql).toContain(`NOT IN ('Estorno', 'Rejeitado') OR`);
+      expect(sql).toContain('hp_reg."statusRemessa" IN (1, 2, 3, 5)');
+      expect(sql).toContain('public.fn_ordem_guardador_ja_paga_ou_em_andamento(x_reg.id)');
+      expect(sql).toContain('da."valorLancamento" <> '0.00'');
+      expect(sql).toContain('SELECT MAX(d_reg.id)');
+      expect(sql).toContain('pu."bloqueado" IS NOT TRUE');
+    });
+
+    it('Desativados não aplica as regras de pendência (usuário bloqueado é o objetivo do relatório)', () => {
+      expect(buildGuardadorBaseQuery({ desativados: true })).not.toContain('hp_reg');
+    });
+
+    it('pendentes não enviados: agrupamento nunca enviado e ordem solta, com status Pendentes', () => {
+      const sql = buildGuardadorPendenteNaoEnviadoQuery();
+      expect(sql).toContain("'Pendentes' AS status");
+      expect(sql).toContain('"valorTotal"');
+      expect(sql).toContain('h_nunca."statusRemessa" <> 0');
+      expect(sql).toContain('da_nunca."ordemPagamentoAgrupadoHistoricoId"');
+      expect(sql).toContain('pu."bankAccountDigit" IS NOT NULL');
+      expect(sql).toContain('opg."valorRepasseGuardador" <> 0');
+      expect(sql).toContain('opg."dataOrdem" BETWEEN $1 AND $2');
+      expect(sql).toContain('public.fn_ordem_guardador_ja_paga_ou_em_andamento(opg.id)');
+    });
+
+    it('A Pagar deixa de listar as ordens soltas que já entram como pendência quando pedido', () => {
+      expect(buildGuardadorAPagarQuery({ excluirPendentes: true })).toContain('AND NOT (opg."ordemPagamentoAgrupadoId" IS NULL');
+      expect(buildGuardadorAPagarQuery()).not.toContain('AND NOT (opg."ordemPagamentoAgrupadoId" IS NULL');
+    });
   });
 });
