@@ -11,6 +11,7 @@ import {
   RelatorioConsolidadoNovoRemessaDto,
 } from '../dtos/relatorio-consolidado-novo-remessa.dto';
 import { pivotStucGratuidadeRows } from '../utils/stuc-gratuidade-pivot';
+import { pendenciaOrdemSoltaPermissionario, pendenciaRejeitadaPermissionario } from './queries/regras-pendencia';
 
 
 @Injectable()
@@ -204,8 +205,10 @@ export class RelatorioNovoRemessaConsolidadoRepository {
           dataFim = corte.toISOString();
         }
       }
+      // Mesmas regras do PASSO 0 da procedure de pendentes (queries/regras-pendencia.ts).
       where += ` where (op."ordemPagamentoAgrupadoId" is null) and (pu."bloqueado" is null OR pu."bloqueado" = false)
-               and op."dataCaptura" >= '${dataInicio}'::date AND op."dataCaptura" < '${dataFim}'::date + interval '1 day'`;
+               and op."dataCaptura" >= '${dataInicio}'::date AND op."dataCaptura" < '${dataFim}'::date + interval '1 day'
+               ${pendenciaOrdemSoltaPermissionario('op', 'pu')}`;
 
     }
     return where;
@@ -243,8 +246,17 @@ export class RelatorioNovoRemessaConsolidadoRepository {
                  '18201378000119', '12464869000176', '12464539000180', '12464553000184', '44520687000161', '12464577000133'
                ))`;
 
+  // Pagamento de pendentes: o "pai" agrupa as filhas rejeitadas e é o que vai ao banco. Enquanto está em andamento
+  // (criado, enviado ou aguardando retorno: status 0/1/2) ele aparece no relatório - é o valor do remessa - e as filhas
+  // rejeitadas que ele cobre saem da lista, para o mesmo valor não contar duas vezes. Depois do retorno (pago/rejeitado)
+  // vale a regra de sempre: o pai fica oculto e as filhas aparecem como Pendência Paga (ou Rejeitado).
   private readonly excluiAgrupamentoSubstituido = `
-               and NOT EXISTS (SELECT 1 FROM ordem_pagamento_agrupado filha WHERE filha."ordemPagamentoAgrupadoId" = opafi.id)
+               and (NOT EXISTS (SELECT 1 FROM ordem_pagamento_agrupado filha WHERE filha."ordemPagamentoAgrupadoId" = opafi.id)
+                    OR oph."statusRemessa" IN (0, 1, 2))
+               and NOT (oph."statusRemessa" = 4 AND EXISTS (
+                    SELECT 1 FROM ordem_pagamento_agrupado_historico hp_pai
+                     WHERE hp_pai."ordemPagamentoAgrupadoId" = opafi."ordemPagamentoAgrupadoId"
+                       AND hp_pai."statusRemessa" IN (0, 1, 2)))
                and (oph."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph."motivoStatusRemessa" IS NULL)`;
 
   private getQueryConsorcios(dataInicio: string, dataFim: string): string {
@@ -477,17 +489,41 @@ export class RelatorioNovoRemessaConsolidadoRepository {
 
     const condicoesStatus: string[] = [];
     if (subErroStatus.length > 0) {
-      condicoesStatus.push(`oph."motivoStatusRemessa" IN (${subErroStatus.map((s) => `'${s}'`).join(',')})`);
+      // O motivo (ex.: '02') fica gravado no histórico mesmo depois que o agrupamento é quitado como pendência (status 3/5).
+      // Só conta o que ainda não foi pago: o próprio histórico não pode estar pago e o agrupamento (ou o seu pai) não pode
+      // ter outro histórico pago. Mesma regra da procedure de pendentes; sem isso o relatório inflava a Pendência de Pagamento.
+      condicoesStatus.push(
+        `(oph."motivoStatusRemessa" IN (${subErroStatus.map((s) => `'${s}'`).join(',')})` +
+          ` AND oph."statusRemessa" NOT IN (3,5)` +
+          ` AND NOT EXISTS (SELECT 1 FROM ordem_pagamento_agrupado_historico hp_pago` +
+          ` WHERE hp_pago."statusRemessa" IN (3,5)` +
+          ` AND (hp_pago."ordemPagamentoAgrupadoId" = oph."ordemPagamentoAgrupadoId"` +
+          ` OR hp_pago."ordemPagamentoAgrupadoId" = (SELECT ag_pai."ordemPagamentoAgrupadoId" FROM ordem_pagamento_agrupado ag_pai WHERE ag_pai."id" = oph."ordemPagamentoAgrupadoId"))))`,
+      );
     }
     if (status.length > 0) {
       condicoesStatus.push(`oph."statusRemessa" IN (${status.join(',')})`);
     }
     if (condicaoRejeitado) condicoesStatus.push(condicaoRejeitado);
 
+    // Pendência de Pagamento (Todos), Rejeitado e Estorno seguem as MESMAS regras da procedure de pendentes
+    // (queries/regras-pendencia.ts): só aparece o que seria pago de novo. O motivo 02 (Estorno) e os demais (Rejeitado)
+    // são subconjuntos dessa mesma regra. Pago/Aguardando continuam filtrando só por status.
+    const pendenciaElegivel = pendenciaRejeitadaPermissionario({ oph: 'oph', da: 'da', opa: 'opafi', users: ['pu', 'puu'] });
+    const condicoesStatusPendencia: string[] = [];
+    if (filter.estorno || filter.erro) condicoesStatusPendencia.push(`(${pendenciaElegivel} AND oph."motivoStatusRemessa" = '02')`);
+    if (filter.rejeitado || filter.erro) condicoesStatusPendencia.push(`(${pendenciaElegivel} AND oph."motivoStatusRemessa" <> '02')`);
+    const statusSemErro = status.filter((st) => st !== 4);
+    if (statusSemErro.length > 0) condicoesStatusPendencia.push(`oph."statusRemessa" IN (${statusSemErro.join(',')})`);
+
+    if (condicoesStatusPendencia.length > 0) {
+      const filtroStatusPendencia = ` AND (${condicoesStatusPendencia.join(' OR ')}) `;
+      queryConsorcios = anexar(queryConsorcios, filtroStatusPendencia);
+      queryVanzeiros = anexar(queryVanzeiros, filtroStatusPendencia);
+    }
     if (condicoesStatus.length > 0) {
+      // Eleição (ordem_pagamento_unico) tem outro modelo de dados: mantém o filtro por status/motivo.
       const filtroStatus = ` AND (${condicoesStatus.join(' OR ')}) `;
-      queryConsorcios = anexar(queryConsorcios, filtroStatus);
-      queryVanzeiros = anexar(queryVanzeiros, filtroStatus);
       queryEleicaoConsorcio = anexar(queryEleicaoConsorcio, filtroStatus);
       queryEleicaoVanzeiro = anexar(queryEleicaoVanzeiro, filtroStatus);
     }

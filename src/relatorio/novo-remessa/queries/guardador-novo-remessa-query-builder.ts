@@ -1,4 +1,9 @@
 import { buildCodigoErroSql } from './descricao-erro';
+import {
+  pendenciaAgrupamentoNuncaEnviadoGuardador,
+  pendenciaOrdemSoltaGuardador,
+  pendenciaRejeitadaGuardador,
+} from './regras-pendencia';
 
 export type GuardadorBaseQueryParams = {
   desativados?: boolean;
@@ -6,7 +11,14 @@ export type GuardadorBaseQueryParams = {
   favorecidoFilterParamIndex?: number;
   todosConsorcios?: boolean;
   parentErrorStatuses?: Array<'Estorno' | 'Rejeitado'>;
+  /** A Pagar sem as ordens soltas que já entram como pendência (evita contar duas vezes quando os dois são pedidos). */
+  excluirPendentes?: boolean;
 };
+
+// Estorno/Rejeitado só contam como pendência de pagamento o que a procedure de pendentes de guardadores pagaria de novo
+// (queries/regras-pendencia.ts). Os demais status não são afetados.
+const guardaPendenciaRejeitada = (statusCase: string, aliases: { oph: string; da: string; opa: string; pu: string }) => `
+      AND (${statusCase} NOT IN ('Estorno', 'Rejeitado') OR ${pendenciaRejeitadaGuardador(aliases)})`;
 
 export const GUARDADOR_STATUS_CASE = `
   CASE
@@ -162,7 +174,7 @@ export const buildGuardadorBaseQuery = (params: GuardadorBaseQueryParams = {}) =
         AND ($7::numeric IS NULL OR da."valorLancamento" <= $7::numeric)
       )
       ${favorecidoClause}
-      ${params.desativados ? 'AND pu.bloqueado = true' : ''}
+      ${params.desativados ? 'AND pu.bloqueado = true' : guardaPendenciaRejeitada(GUARDADOR_STATUS_CASE, { oph: 'oph', da: 'da', opa: 'opa', pu: 'pu' })}
   )`.trim();
 };
 
@@ -204,6 +216,7 @@ export const buildGuardadorAPagarQuery = (params: GuardadorBaseQueryParams = {})
       )
       ${favorecidoClause}
       ${params.desativados ? 'AND pu.bloqueado = true' : ''}
+      ${params.excluirPendentes ? `AND NOT (${pendenciaOrdemSoltaGuardador('opg', 'pu')})` : ''}
   )`.trim();
 };
 
@@ -417,6 +430,68 @@ export const buildGuardadorPendenciaPagamentoSingleDateQuery = (params: Guardado
       AND ${buildConsorcioFilter(consorcioParam, params.todosConsorcios)}
       AND ${GUARDADOR_OPA_WITHOUT_CHILDREN}
       AND (oph."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph."motivoStatusRemessa" IS NULL)
-      ${params.desativados ? 'AND pu.bloqueado = true' : ''}
+      ${params.desativados ? 'AND pu.bloqueado = true' : guardaPendenciaRejeitada(GUARDADOR_STATUS_CASE, { oph: 'oph', da: 'da', opa: 'opa', pu: 'pu' })}
+  )`.trim();
+};
+
+/**
+ * Pendentes que a procedure de guardadores agrupa e que NÃO são rejeição do banco, para o relatório bater com o remessa:
+ *  - agrupamento criado e nunca enviado (só histórico "Criado", sem detalhe_a);
+ *  - ordem solta (sem agrupamento) dentro do período, de antes de hoje, com dados bancários completos.
+ * Aparecem com o status 'Pendentes'.
+ */
+export const buildGuardadorPendenteNaoEnviadoQuery = (params: GuardadorBaseQueryParams = {}) => {
+  const consorcioParam = `$${params.consorcioFilterParamIndex ?? 5}`;
+  const favorecidoClause = params.favorecidoFilterParamIndex
+    ? `AND ($${params.favorecidoFilterParamIndex}::text[] IS NULL OR UPPER(TRIM(pu."fullName")) = ANY($${params.favorecidoFilterParamIndex}))`
+    : '';
+  const colunas = (valor: string, id: string, data: string) => `
+      ${data} AS "dataReferencia",
+      ${id} AS id,
+      pu."fullName" AS nomes,
+      COALESCE(pu.email, '') AS email,
+      pu."bankCode" AS "codBanco",
+      COALESCE(bc.name, '') AS "nomeBanco",
+      pu."cpfCnpj" AS "cpfCnpj",
+      ${GUARDADOR_CONSORCIO_CASE} AS "nomeConsorcio",
+      ${valor} AS valor,
+      ${data} AS "dataPagamento",
+      'Pendentes' AS status,
+      NULL::text AS "codigoErro"`;
+  const filtrosComuns = (valor: string) => `
+      AND ($3::integer[] IS NULL OR pu.id = ANY($3))
+      AND ($4::text[] IS NULL OR TRUE)
+      AND ${buildConsorcioFilter(consorcioParam, params.todosConsorcios)}
+      AND (
+        ($6::numeric IS NULL OR ${valor} >= $6::numeric)
+        AND ($7::numeric IS NULL OR ${valor} <= $7::numeric)
+      )
+      ${favorecidoClause}`;
+
+  return `(${GUARDADOR_ASSOCIACAO_CTE}
+    SELECT DISTINCT${colunas('opa."valorTotal"', 'opa.id', 'opa."dataPagamento"')}
+    FROM ordem_pagamento_guardador opg
+    INNER JOIN ordem_pagamento_agrupado opa
+      ON opg."ordemPagamentoAgrupadoId" = opa.id
+    INNER JOIN public."user" pu
+      ON pu.id = opg."userId"
+    LEFT JOIN bank bc
+      ON bc.code = pu."bankCode"
+    ${GUARDADOR_ASSOCIACAO_JOIN}
+    WHERE
+      ${pendenciaAgrupamentoNuncaEnviadoGuardador('opa', 'pu')}${filtrosComuns('opa."valorTotal"')}
+
+    UNION ALL
+
+    SELECT DISTINCT${colunas('ROUND(opg."valorRepasseGuardador"::numeric, 2)', 'NULL::integer', 'opg."dataOrdem"')}
+    FROM ordem_pagamento_guardador opg
+    INNER JOIN public."user" pu
+      ON pu.id = opg."userId"
+    LEFT JOIN bank bc
+      ON bc.code = pu."bankCode"
+    ${GUARDADOR_ASSOCIACAO_JOIN}
+    WHERE
+      opg."dataOrdem" BETWEEN $1 AND $2
+      AND ${pendenciaOrdemSoltaGuardador('opg', 'pu')}${filtrosComuns('opg."valorRepasseGuardador"')}
   )`.trim();
 };

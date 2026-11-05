@@ -121,7 +121,11 @@ describe('RelatorioNovoRemessaMovimentacaoRepository — consorcio grouping', ()
       const { aggQuery, dataQuery } = await runAndCaptureQueries(undefined, true, { erro: true });
 
       for (const query of [aggQuery, dataQuery]) {
-        expect(query).toContain(`AND (${PAGO} OR ${ERRO})`);
+        // Pendência de Pagamento segue as regras da procedure de pendentes (queries/regras-pendencia.ts).
+        expect(query).toContain(PAGO);
+        expect(query).toContain(`oph."motivoStatusRemessa" = '02')`);
+        expect(query).toContain(`oph."motivoStatusRemessa" <> '02')`);
+        expect(query).toContain(`public.fn_ordem_pagamento_ja_paga_ou_em_andamento(x_reg.id)`);
         expect(query).not.toMatch(/AND \(oph\."motivoStatusRemessa" NOT IN \('00','0BD'\)\)/);
       }
     });
@@ -129,7 +133,10 @@ describe('RelatorioNovoRemessaMovimentacaoRepository — consorcio grouping', ()
     it('ORs pago and estorno instead of restricting Pago rows to motivo 02', async () => {
       const { aggQuery } = await runAndCaptureQueries(undefined, true, { estorno: true });
 
-      expect(aggQuery).toContain(`AND (${PAGO} OR oph."motivoStatusRemessa" IN ('02'))`);
+      expect(aggQuery).toContain(PAGO);
+      expect(aggQuery).toContain(`oph."motivoStatusRemessa" = '02')`);
+      expect(aggQuery).toContain(`oph."statusRemessa" = 4`);
+      expect(aggQuery).not.toContain(`oph."motivoStatusRemessa" <> '02')`);
     });
 
     it('keeps estorno when estorno and rejeitado are selected together', async () => {
@@ -139,9 +146,9 @@ describe('RelatorioNovoRemessaMovimentacaoRepository — consorcio grouping', ()
         rejeitado: true,
       });
 
-      expect(aggQuery).toContain(
-        `AND (oph."motivoStatusRemessa" IN ('02') OR oph."motivoStatusRemessa" NOT IN ('00','0BD','02'))`,
-      );
+      expect(aggQuery).toContain(`oph."motivoStatusRemessa" = '02')`);
+      expect(aggQuery).toContain(`oph."motivoStatusRemessa" <> '02')`);
+      expect(aggQuery).toContain(`hp_reg."statusRemessa" IN (1, 2, 3, 5)`);
     });
 
     it('filters only by the selected status when a single one is chosen', async () => {

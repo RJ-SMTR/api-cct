@@ -46,6 +46,7 @@ describe('RelatorioGuardadorConsolidadoRepository', () => {
         includeAPagar: true,
         includeBase: true,
         includePendenciaPagaSingleDate: false,
+        includePendentes: false,
       });
     });
 
@@ -63,6 +64,7 @@ describe('RelatorioGuardadorConsolidadoRepository', () => {
         includeAPagar: false,
         includeBase: true,
         includePendenciaPagaSingleDate: false,
+        includePendentes: false,
       });
     });
 
@@ -80,6 +82,7 @@ describe('RelatorioGuardadorConsolidadoRepository', () => {
         includeAPagar: true,
         includeBase: true,
         includePendenciaPagaSingleDate: false,
+        includePendentes: false,
       });
     });
 
@@ -97,6 +100,7 @@ describe('RelatorioGuardadorConsolidadoRepository', () => {
         includeAPagar: false,
         includeBase: true,
         includePendenciaPagaSingleDate: false,
+        includePendentes: true,
       });
     });
 
@@ -114,6 +118,7 @@ describe('RelatorioGuardadorConsolidadoRepository', () => {
         includeAPagar: false,
         includeBase: true,
         includePendenciaPagaSingleDate: false,
+        includePendentes: false,
       });
     });
 
@@ -131,6 +136,7 @@ describe('RelatorioGuardadorConsolidadoRepository', () => {
         includeAPagar: false,
         includeBase: false,
         includePendenciaPagaSingleDate: true,
+        includePendentes: false,
       });
     });
 
@@ -148,6 +154,7 @@ describe('RelatorioGuardadorConsolidadoRepository', () => {
         includeAPagar: false,
         includeBase: true,
         includePendenciaPagaSingleDate: false,
+        includePendentes: false,
       });
     });
   });
