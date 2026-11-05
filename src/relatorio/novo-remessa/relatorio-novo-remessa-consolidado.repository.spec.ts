@@ -64,9 +64,13 @@ describe('RelatorioNovoRemessaConsolidadoRepository', () => {
     ])('%s excludes agrupamentos that have a child agrupamento (filha)', (_name, build) => {
       const sql: string = build();
 
-      expect(sql).toContain('NOT EXISTS');
-      expect(sql).toContain('ordem_pagamento_agrupado filha');
-      expect(sql).toContain('filha."ordemPagamentoAgrupadoId" = opafi.id');
+      // NOT IN sem correlação (SubPlan em hash, lido uma vez): o NOT EXISTS correlacionado lia a tabela inteira de
+      // ordem_pagamento_agrupado por linha e a consulta passava de 150 s. O IS NOT NULL é obrigatório: um NULL
+      // no NOT IN descartaria todas as linhas.
+      expect(sql).toContain('opafi.id NOT IN (');
+      expect(sql).toContain('FROM ordem_pagamento_agrupado filha');
+      expect(sql).toContain('WHERE filha."ordemPagamentoAgrupadoId" IS NOT NULL');
+      expect(sql).not.toContain('filha."ordemPagamentoAgrupadoId" = opafi.id');
     });
 
     it.each([
@@ -86,7 +90,8 @@ describe('RelatorioNovoRemessaConsolidadoRepository', () => {
     ])('%s keeps its existing guards unchanged', (_name, build) => {
       const sql: string = build();
 
-      expect(sql).toContain('NOT EXISTS');
+      expect(sql).toContain('opafi.id NOT IN (');
+      expect(sql).toContain('WHERE filha."ordemPagamentoAgrupadoId" IS NOT NULL');
       expect(sql).toContain(`motivoStatusRemessa" NOT IN ('AM', 'AE')`);
     });
   });
@@ -119,13 +124,14 @@ describe('RelatorioNovoRemessaConsolidadoRepository', () => {
     it('getQueryConsorcios restricts the op join to one representative order per agrupamento', () => {
       const sql: string = (repository as any).getQueryConsorcios('2026-01-01', '2026-01-05');
 
-      expect(sql).toContain('op.id = (SELECT MIN(o.id) FROM ordem_pagamento o WHERE o."ordemPagamentoAgrupadoId" = opafi.id)');
+      expect(sql).toMatch(/left join lateral \(\s*select o\."userId"[^)]*order by o\.id\s*limit 1\s*\) op on true/);
     });
 
     it('getQueryConsorcios restricts the opp join to one representative order per agrupamento', () => {
       const sql: string = (repository as any).getQueryConsorcios('2026-01-01', '2026-01-05');
 
-      expect(sql).toContain('opp.id = (SELECT MIN(o.id) FROM ordem_pagamento o WHERE o."ordemPagamentoAgrupadoId" = opai.id)');
+      expect(sql).toContain('left join pai_representante opp on opp.pai_id = opafi.id');
+      expect(sql).not.toContain('left join ordem_pagamento opp');
     });
 
     it.each([
@@ -135,14 +141,31 @@ describe('RelatorioNovoRemessaConsolidadoRepository', () => {
     ])('%s restricts both the op and opp join to one representative order per agrupamento', (_name, build) => {
       const sql: string = build();
 
-      expect(sql).toContain('op.id = (SELECT MIN(o.id) FROM ordem_pagamento o WHERE o."ordemPagamentoAgrupadoId" = opafi.id)');
-      expect(sql).toContain('opp.id = (SELECT MIN(o.id) FROM ordem_pagamento o WHERE o."ordemPagamentoAgrupadoId" = opai.id)');
+      expect(sql).toMatch(/left join lateral \(\s*select o\."userId"[^)]*order by o\.id\s*limit 1\s*\) op on true/);
+      expect(sql).toContain('left join pai_representante opp on opp.pai_id = opafi.id');
+      expect(sql).not.toContain('left join ordem_pagamento opp');
     });
 
     it('does not restrict fromQueryApagar (no agrupamento fan-out there) or STUC-Gratuidade sources', () => {
       const apagar: string = (repository as any).getQueryApagarConsorcios('2026-01-01', '2026-01-05', true);
 
       expect(apagar).not.toContain('SELECT MIN(o.id)');
+    });
+
+    // Como subselect no JOIN o planner reavaliava o representante das filhas por linha (Pendência Paga sozinha:
+    // 0,6 s -> 28 s no banco de teste). MATERIALIZED garante uma só avaliação.
+    it('findConsolidado calcula o representante das filhas uma só vez, num CTE MATERIALIZED', async () => {
+      (mockQueryRunner.query as jest.Mock).mockResolvedValue([]);
+      await repository.findConsolidado({
+        dataInicio: new Date('2026-01-01'),
+        dataFim: new Date('2026-01-05'),
+        todosConsorcios: true,
+        pendenciaPaga: true,
+      } as any);
+
+      const sql: string = (mockQueryRunner.query as jest.Mock).mock.calls[0][0];
+      expect(sql).toContain('WITH pai_representante AS MATERIALIZED (');
+      expect(sql).toContain('left join pai_representante opp on opp.pai_id = opafi.id');
     });
   });
 
@@ -769,7 +792,8 @@ describe('RelatorioNovoRemessaConsolidadoRepository.findConsolidado — filtros'
       const sql = await executar({ pendenciaPaga: true });
 
       expect(sql).toContain(`oph."motivoStatusRemessa" NOT IN ('AM', 'AE')`);
-      expect(sql).toContain(`NOT EXISTS (SELECT 1 FROM ordem_pagamento_agrupado filha WHERE filha."ordemPagamentoAgrupadoId" = opafi.id)`);
+      expect(sql).toContain('opafi.id NOT IN (');
+      expect(sql).toContain('WHERE filha."ordemPagamentoAgrupadoId" IS NOT NULL');
     });
 
     it('Pendência Paga + Pago: mantém a consulta por dataVencimento para Pago, e soma Pendência Paga à parte por dataPagamento', async () => {
