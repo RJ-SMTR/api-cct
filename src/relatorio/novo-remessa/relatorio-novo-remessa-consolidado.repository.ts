@@ -11,6 +11,7 @@ import {
   RelatorioConsolidadoNovoRemessaDto,
 } from '../dtos/relatorio-consolidado-novo-remessa.dto';
 import { pivotStucGratuidadeRows } from '../utils/stuc-gratuidade-pivot';
+import { pendenciaOrdemSoltaPermissionario, pendenciaRejeitadaPermissionario } from './queries/regras-pendencia';
 
 
 @Injectable()
@@ -204,8 +205,10 @@ export class RelatorioNovoRemessaConsolidadoRepository {
           dataFim = corte.toISOString();
         }
       }
+      // Mesmas regras do PASSO 0 da procedure de pendentes (queries/regras-pendencia.ts).
       where += ` where (op."ordemPagamentoAgrupadoId" is null) and (pu."bloqueado" is null OR pu."bloqueado" = false)
-               and op."dataCaptura" >= '${dataInicio}'::date AND op."dataCaptura" < '${dataFim}'::date + interval '1 day'`;
+               and op."dataCaptura" >= '${dataInicio}'::date AND op."dataCaptura" < '${dataFim}'::date + interval '1 day'
+               ${pendenciaOrdemSoltaPermissionario('op', 'pu')}`;
 
     }
     return where;
@@ -494,10 +497,24 @@ export class RelatorioNovoRemessaConsolidadoRepository {
     }
     if (condicaoRejeitado) condicoesStatus.push(condicaoRejeitado);
 
+    // Pendência de Pagamento (Todos), Rejeitado e Estorno seguem as MESMAS regras da procedure de pendentes
+    // (queries/regras-pendencia.ts): só aparece o que seria pago de novo. O motivo 02 (Estorno) e os demais (Rejeitado)
+    // são subconjuntos dessa mesma regra. Pago/Aguardando continuam filtrando só por status.
+    const pendenciaElegivel = pendenciaRejeitadaPermissionario({ oph: 'oph', da: 'da', opa: 'opafi', users: ['pu', 'puu'] });
+    const condicoesStatusPendencia: string[] = [];
+    if (filter.estorno || filter.erro) condicoesStatusPendencia.push(`(${pendenciaElegivel} AND oph."motivoStatusRemessa" = '02')`);
+    if (filter.rejeitado || filter.erro) condicoesStatusPendencia.push(`(${pendenciaElegivel} AND oph."motivoStatusRemessa" <> '02')`);
+    const statusSemErro = status.filter((st) => st !== 4);
+    if (statusSemErro.length > 0) condicoesStatusPendencia.push(`oph."statusRemessa" IN (${statusSemErro.join(',')})`);
+
+    if (condicoesStatusPendencia.length > 0) {
+      const filtroStatusPendencia = ` AND (${condicoesStatusPendencia.join(' OR ')}) `;
+      queryConsorcios = anexar(queryConsorcios, filtroStatusPendencia);
+      queryVanzeiros = anexar(queryVanzeiros, filtroStatusPendencia);
+    }
     if (condicoesStatus.length > 0) {
+      // Eleição (ordem_pagamento_unico) tem outro modelo de dados: mantém o filtro por status/motivo.
       const filtroStatus = ` AND (${condicoesStatus.join(' OR ')}) `;
-      queryConsorcios = anexar(queryConsorcios, filtroStatus);
-      queryVanzeiros = anexar(queryVanzeiros, filtroStatus);
       queryEleicaoConsorcio = anexar(queryEleicaoConsorcio, filtroStatus);
       queryEleicaoVanzeiro = anexar(queryEleicaoVanzeiro, filtroStatus);
     }
