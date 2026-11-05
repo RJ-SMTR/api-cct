@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-04",
+  "generatedAt": "2026-11-05",
   "node": "v18.16.0",
   "passingSuites": [
     "scripts/validate/boundaries.spec.ts",
@@ -59,7 +59,8 @@
     "src/utils/all-exteptions-filter/filters/all-exceptions.filter.spec.ts",
     "src/utils/date-utils.spec.ts",
     "src/utils/file-type/pipes/file-type-validation.pipe.spec.ts",
-    "src/utils/payment-date-utils.spec.ts"
+    "src/utils/payment-date-utils.spec.ts",
+    "src/utils/worker-thread/run-with-worker-timeout.spec.ts"
   ],
   "eslintErrors": {
     "src/agentes/agentes-bigquery.repository.ts": 1,
@@ -119,6 +120,8 @@
     "src/relatorio/dtos/relatorio-sintetico-novo-remessa.dto.ts": 2,
     "src/relatorio/dtos/relatorio.dto.ts": 1,
     "src/relatorio/extrato-bancario/relatorio-extrato-bancario.repository.ts": 1,
+    "src/relatorio/novo-remessa/queries/guardador-novo-remessa-query-builder.spec.ts": 1,
+    "src/relatorio/novo-remessa/relatorio-novo-remessa-movimentacao.repository.spec.ts": 1,
     "src/relatorio/novo-remessa/relatorio-novo-remessa-movimentacao.repository.ts": 1,
     "src/relatorio/novo-remessa/relatorio-novo-remessa.controller.ts": 13,
     "src/relatorio/sintetico/relatorio-sintetico.repository.ts": 1,

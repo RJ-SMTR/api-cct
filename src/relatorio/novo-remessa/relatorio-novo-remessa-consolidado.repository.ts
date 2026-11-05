@@ -263,6 +263,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
     return `   ${this.headerQueryConsorcios}
                ${this.fromQueryPrincipal}
                where da."dataVencimento" >= '${dataInicio}'::date AND da."dataVencimento" < '${dataFim}'::date + interval '1 day'
+               and (pu."bloqueado" is null OR pu."bloqueado" = false)
                ${this.excluiAgrupamentoSubstituido} `;
   }
 
@@ -270,6 +271,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
     return `  ${this.headerQueryVanzeiros}
               ${this.fromQueryPrincipal}
               where da."dataVencimento" >= '${dataInicio}'::date AND da."dataVencimento" < '${dataFim}'::date + interval '1 day'
+              and (pu."bloqueado" is null OR pu."bloqueado" = false)
               ${this.excluiAgrupamentoSubstituido} `;
   }
 
@@ -288,6 +290,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
                where oph."statusRemessa" = 5
                  and (oph."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph."motivoStatusRemessa" IS NULL)
                  and NOT EXISTS (SELECT 1 FROM ordem_pagamento_agrupado filha WHERE filha."ordemPagamentoAgrupadoId" = opafi.id)
+                 and (pu."bloqueado" is null OR pu."bloqueado" = false)
                  and (
                    (opafi."ordemPagamentoAgrupadoId" is not null and op_pai."dataPagamento"::date BETWEEN '${dataInicio}'::date AND '${dataFim}'::date)
                    or
@@ -301,6 +304,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
               where oph."statusRemessa" = 5
                 and (oph."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph."motivoStatusRemessa" IS NULL)
                 and NOT EXISTS (SELECT 1 FROM ordem_pagamento_agrupado filha WHERE filha."ordemPagamentoAgrupadoId" = opafi.id)
+                and (pu."bloqueado" is null OR pu."bloqueado" = false)
                 and (
                   (opafi."ordemPagamentoAgrupadoId" is not null and op_pai."dataPagamento"::date BETWEEN '${dataInicio}'::date AND '${dataFim}'::date)
                   or

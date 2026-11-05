@@ -91,6 +91,25 @@ describe('RelatorioNovoRemessaConsolidadoRepository', () => {
     });
   });
 
+  // Bug: getQueryConsorcios/getQueryVanzeiros (histórico: Pago, Pendência de Pagamento, Rejeitado,
+  // Estorno) e getQueryPendenciaPagaConsorcios/Vanzeiros não excluíam favorecido bloqueado, ao
+  // contrário de getWhereApagar (A Pagar/Atrasadas) no mesmo arquivo e do relatório equivalente de
+  // Movimentação Financeira (relatorio-novo-remessa-movimentacao.repository.ts), que aplica esse
+  // filtro em todas as consultas do fluxo normal. Resultado: um favorecido bloqueado aparecia no
+  // Consolidado em todo status, exceto A Pagar/Atrasadas.
+  describe('getQueryConsorcios/getQueryVanzeiros/getQueryPendenciaPagaConsorcios/Vanzeiros - exclui favorecido bloqueado', () => {
+    it.each([
+      ['getQueryConsorcios', () => (repository as any).getQueryConsorcios('2026-01-01', '2026-01-05')],
+      ['getQueryVanzeiros', () => (repository as any).getQueryVanzeiros('2026-01-01', '2026-01-05')],
+      ['getQueryPendenciaPagaConsorcios', () => (repository as any).getQueryPendenciaPagaConsorcios('2026-01-01', '2026-01-05')],
+      ['getQueryPendenciaPagaVanzeiros', () => (repository as any).getQueryPendenciaPagaVanzeiros('2026-01-01', '2026-01-05')],
+    ])('%s excludes pu.bloqueado, same guard as getWhereApagar and Movimentação Financeira', (_name, build) => {
+      const sql: string = build();
+
+      expect(sql).toContain(`pu."bloqueado" is null OR pu."bloqueado" = false`);
+    });
+  });
+
   // ADR 0016: fromQueryPrincipal trazia TODAS as ordem_pagamento internas de um agrupamento (join
   // sem restrição), multiplicando cada linha de detalhe_a pelo número de ordens internas antes do
   // SELECT DISTINCT colapsar de volta. Confirmado com dado real: um agrupamento com 55 ordens
@@ -661,7 +680,10 @@ describe('RelatorioNovoRemessaConsolidadoRepository.findConsolidado — filtros'
     const sql = await executar({ emProcessamento: true });
     expect(sql).toContain(`oph."statusRemessa" IN (2)`);
     expect(semTrechoSolto(sql)).toBe(true);
-    expect(sql).not.toContain('is null');
+    // A Pagar/Atrasadas não devem vazar pro SQL final deste filtro - "is null" só pode vir do
+    // próprio filtro de bloqueado da query de histórico (ver bug corrigido acima), não de
+    // `op."ordemPagamentoAgrupadoId" is null`, exclusivo das queries de A Pagar/Atrasadas.
+    expect(sql).not.toContain('op."ordemPagamentoAgrupadoId" is null');
   });
 
   it('OPs atrasadas (pendentes): consulta só as ordens atrasadas, não o histórico', async () => {
