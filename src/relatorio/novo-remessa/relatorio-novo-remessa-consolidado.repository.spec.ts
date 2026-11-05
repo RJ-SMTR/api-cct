@@ -64,9 +64,13 @@ describe('RelatorioNovoRemessaConsolidadoRepository', () => {
     ])('%s excludes agrupamentos that have a child agrupamento (filha)', (_name, build) => {
       const sql: string = build();
 
-      expect(sql).toContain('NOT EXISTS');
-      expect(sql).toContain('ordem_pagamento_agrupado filha');
-      expect(sql).toContain('filha."ordemPagamentoAgrupadoId" = opafi.id');
+      // NOT IN sem correlação (SubPlan em hash, lido uma vez): o NOT EXISTS correlacionado lia a tabela inteira de
+      // ordem_pagamento_agrupado por linha e a consulta passava de 150 s. O IS NOT NULL é obrigatório: um NULL
+      // no NOT IN descartaria todas as linhas.
+      expect(sql).toContain('opafi.id NOT IN (');
+      expect(sql).toContain('FROM ordem_pagamento_agrupado filha');
+      expect(sql).toContain('WHERE filha."ordemPagamentoAgrupadoId" IS NOT NULL');
+      expect(sql).not.toContain('filha."ordemPagamentoAgrupadoId" = opafi.id');
     });
 
     it.each([
@@ -86,7 +90,8 @@ describe('RelatorioNovoRemessaConsolidadoRepository', () => {
     ])('%s keeps its existing guards unchanged', (_name, build) => {
       const sql: string = build();
 
-      expect(sql).toContain('NOT EXISTS');
+      expect(sql).toContain('opafi.id NOT IN (');
+      expect(sql).toContain('WHERE filha."ordemPagamentoAgrupadoId" IS NOT NULL');
       expect(sql).toContain(`motivoStatusRemessa" NOT IN ('AM', 'AE')`);
     });
   });
@@ -747,7 +752,8 @@ describe('RelatorioNovoRemessaConsolidadoRepository.findConsolidado — filtros'
       const sql = await executar({ pendenciaPaga: true });
 
       expect(sql).toContain(`oph."motivoStatusRemessa" NOT IN ('AM', 'AE')`);
-      expect(sql).toContain(`NOT EXISTS (SELECT 1 FROM ordem_pagamento_agrupado filha WHERE filha."ordemPagamentoAgrupadoId" = opafi.id)`);
+      expect(sql).toContain('opafi.id NOT IN (');
+      expect(sql).toContain('WHERE filha."ordemPagamentoAgrupadoId" IS NOT NULL');
     });
 
     it('Pendência Paga + Pago: mantém a consulta por dataVencimento para Pago, e soma Pendência Paga à parte por dataPagamento', async () => {

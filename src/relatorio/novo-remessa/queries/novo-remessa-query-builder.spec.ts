@@ -378,3 +378,21 @@ describe('novo-remessa-query-builder hasConsorcioFilter desliga o MODAIS_FILTER'
     expect(sql).toContain(MODAIS_FILTER_MARKER);
   });
 });
+
+// A checagem "agrupamento não é pai" tem que ser um NOT IN sem correlação: o NOT EXISTS correlacionado deixava o
+// planner ler ordem_pagamento_agrupado inteira por linha (Movimentação Financeira: mais de 110 s para 2 dias, contra
+// 3 s com o NOT IN, mesmo resultado). Sem o IS NOT NULL no subselect, um único NULL descartaria todas as linhas.
+describe('novo-remessa-query-builder - agrupamento sem filhas', () => {
+  const params = { consorcioFilterParamIndex: 5 };
+
+  it.each([
+    ['base', buildBaseQuery(params)],
+    ['pendenciaPagaSingleDate', buildPendenciaPagaSingleDateQuery(params)],
+    ['pendenciaPagaPasso0', buildPendenciaPagaPasso0Query(params)],
+    ['pendenciaPagamentoSingleDate', buildPendenciaPagamentoSingleDateQuery(params)],
+  ])('%s query usa NOT IN sem correlação e ignora NULL', (_name, sql) => {
+    expect(sql).toContain('opa.id NOT IN (');
+    expect(sql).toContain('WHERE filha."ordemPagamentoAgrupadoId" IS NOT NULL');
+    expect(sql).not.toMatch(/ordem_pagamento_agrupado filha\s+WHERE filha\."ordemPagamentoAgrupadoId" = opa\.id/);
+  });
+});

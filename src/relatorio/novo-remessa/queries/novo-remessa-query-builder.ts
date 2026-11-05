@@ -20,6 +20,21 @@ export type NovoRemessaPendentesParams = {
   todosVanzeiros?: boolean;
 };
 
+/**
+ * Agrupamento que NÃO é pai (não tem filha): pai e filhas somariam o mesmo pagamento duas vezes.
+ *
+ * O NOT IN sem correlação é avaliado uma vez só (SubPlan em hash). O NOT EXISTS correlacionado deixava o planner
+ * escolher um nested loop anti join que lê as ~340 mil linhas de ordem_pagamento_agrupado (sem índice em
+ * "ordemPagamentoAgrupadoId") uma vez por linha de resultado: a Movimentação Financeira levava mais de 110 s para 2 dias
+ * (3 s com o NOT IN, mesmo resultado linha a linha). O IS NOT NULL dentro do subselect é obrigatório: um NULL no NOT IN
+ * descartaria todas as linhas. Mesma solução do builder de guardadores (GUARDADOR_OPA_WITHOUT_CHILDREN).
+ */
+export const agrupamentoSemFilhas = (alias: string) => `${alias}.id NOT IN (
+        SELECT filha."ordemPagamentoAgrupadoId"
+        FROM ordem_pagamento_agrupado filha
+        WHERE filha."ordemPagamentoAgrupadoId" IS NOT NULL
+      )`;
+
 export const CONSORCIO_CASE = `
   CASE
     WHEN pu."permitCode" = '8' THEN 'VLT'
@@ -240,11 +255,7 @@ const buildGroupedQuery = (params: NovoRemessaBaseParams, source: AgrupamentoSou
       AND ($3::integer[] IS NULL OR pu.id = ANY($3))
       AND ($4::text[] IS NULL OR ${STATUS_CASE} = ANY($4))
       AND (${consorcioParam}::text[] IS NULL OR UPPER(TRIM(${CONSORCIO_CASE})) = ANY(${consorcioParam}))
-      AND NOT EXISTS (
-        SELECT 1
-        FROM ordem_pagamento_agrupado filha
-        WHERE filha."ordemPagamentoAgrupadoId" = opa.id
-      )
+      AND ${agrupamentoSemFilhas('opa')}
       AND (oph."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph."motivoStatusRemessa" IS NULL)
       ${umaOrdemPorAgrupamentoFilter(source)}
       ${buildTodosVanzeirosFilter(params)}
@@ -292,11 +303,7 @@ const buildPendenciaPagaTemplate = (params: NovoRemessaBaseParams, source: Agrup
       ${source.extraWhere ? `${source.extraWhere}\n      AND ` : ''}($3::integer[] IS NULL OR pu.id = ANY($3))
       AND ($4::text[] IS NULL OR TRUE)
       AND (${consorcioParam}::text[] IS NULL OR UPPER(TRIM(${CONSORCIO_CASE})) = ANY(${consorcioParam}))
-      AND NOT EXISTS (
-        SELECT 1
-        FROM ordem_pagamento_agrupado filha
-        WHERE filha."ordemPagamentoAgrupadoId" = opa.id
-      )
+      AND ${agrupamentoSemFilhas('opa')}
       AND oph."statusRemessa" = 5
       AND (
         (
@@ -413,11 +420,7 @@ const buildPendenciaPagamentoTemplate = (
       AND ($4::text[] IS NULL OR TRUE)
       AND ${STATUS_CASE} IN (${requestedStatusSql})
       AND (${consorcioParam}::text[] IS NULL OR UPPER(TRIM(${CONSORCIO_CASE})) = ANY(${consorcioParam}))
-      AND NOT EXISTS (
-        SELECT 1
-        FROM ordem_pagamento_agrupado filha
-        WHERE filha."ordemPagamentoAgrupadoId" = opa.id
-      )
+      AND ${agrupamentoSemFilhas('opa')}
       AND (oph."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph."motivoStatusRemessa" IS NULL)
       ${umaOrdemPorAgrupamentoFilter(source)}
       ${buildTodosVanzeirosFilter(params)}
@@ -550,11 +553,7 @@ export const buildPendenciaPagaPasso0Query = (params: NovoRemessaBaseParams) => 
       ($3::integer[] IS NULL OR pu.id = ANY($3))
       AND ($4::text[] IS NULL OR TRUE)
       AND (${consorcioParam}::text[] IS NULL OR UPPER(TRIM(${CONSORCIO_CASE})) = ANY(${consorcioParam}))
-      AND NOT EXISTS (
-        SELECT 1
-        FROM ordem_pagamento_agrupado filha
-        WHERE filha."ordemPagamentoAgrupadoId" = opa.id
-      )
+      AND ${agrupamentoSemFilhas('opa')}
       AND oph."statusRemessa" = 5
       AND op_pai."dataPagamento"::date BETWEEN $1::date AND $2::date
       AND (oph."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph."motivoStatusRemessa" IS NULL)

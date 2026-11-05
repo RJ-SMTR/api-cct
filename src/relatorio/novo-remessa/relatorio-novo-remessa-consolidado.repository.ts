@@ -4,7 +4,7 @@ import { DataSource } from 'typeorm';
 
 import { format, parse } from 'date-fns';
 import { CustomLogger } from 'src/utils/custom-logger';
-import { buildStucGratuidadeQuery, buildStucGratuidadePendenciaPagaSingleDateQuery, buildStucGratuidadePendenciaPagamentoSingleDateQuery } from './queries/novo-remessa-query-builder';
+import { agrupamentoSemFilhas, buildStucGratuidadeQuery, buildStucGratuidadePendenciaPagaSingleDateQuery, buildStucGratuidadePendenciaPagamentoSingleDateQuery } from './queries/novo-remessa-query-builder';
 import { IFindPublicacaoRelatorioNovoRemessa } from '../interfaces/find-publicacao-relatorio-novo-remessa.interface';
 import {
   RelatorioConsolidadoNovoRemessaData,
@@ -251,7 +251,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
   // rejeitadas que ele cobre saem da lista, para o mesmo valor não contar duas vezes. Depois do retorno (pago/rejeitado)
   // vale a regra de sempre: o pai fica oculto e as filhas aparecem como Pendência Paga (ou Rejeitado).
   private readonly excluiAgrupamentoSubstituido = `
-               and (NOT EXISTS (SELECT 1 FROM ordem_pagamento_agrupado filha WHERE filha."ordemPagamentoAgrupadoId" = opafi.id)
+               and (${agrupamentoSemFilhas('opafi')}
                     OR oph."statusRemessa" IN (0, 1, 2))
                and NOT (oph."statusRemessa" = 4 AND EXISTS (
                     SELECT 1 FROM ordem_pagamento_agrupado_historico hp_pai
@@ -287,7 +287,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
                ${this.fromQueryPrincipalComPai}
                where oph."statusRemessa" = 5
                  and (oph."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph."motivoStatusRemessa" IS NULL)
-                 and NOT EXISTS (SELECT 1 FROM ordem_pagamento_agrupado filha WHERE filha."ordemPagamentoAgrupadoId" = opafi.id)
+                 and ${agrupamentoSemFilhas('opafi')}
                  and (
                    (opafi."ordemPagamentoAgrupadoId" is not null and op_pai."dataPagamento"::date BETWEEN '${dataInicio}'::date AND '${dataFim}'::date)
                    or
@@ -300,7 +300,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
               ${this.fromQueryPrincipalComPai}
               where oph."statusRemessa" = 5
                 and (oph."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph."motivoStatusRemessa" IS NULL)
-                and NOT EXISTS (SELECT 1 FROM ordem_pagamento_agrupado filha WHERE filha."ordemPagamentoAgrupadoId" = opafi.id)
+                and ${agrupamentoSemFilhas('opafi')}
                 and (
                   (opafi."ordemPagamentoAgrupadoId" is not null and op_pai."dataPagamento"::date BETWEEN '${dataInicio}'::date AND '${dataFim}'::date)
                   or
