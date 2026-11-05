@@ -246,8 +246,17 @@ export class RelatorioNovoRemessaConsolidadoRepository {
                  '18201378000119', '12464869000176', '12464539000180', '12464553000184', '44520687000161', '12464577000133'
                ))`;
 
+  // Pagamento de pendentes: o "pai" agrupa as filhas rejeitadas e é o que vai ao banco. Enquanto está em andamento
+  // (criado, enviado ou aguardando retorno: status 0/1/2) ele aparece no relatório - é o valor do remessa - e as filhas
+  // rejeitadas que ele cobre saem da lista, para o mesmo valor não contar duas vezes. Depois do retorno (pago/rejeitado)
+  // vale a regra de sempre: o pai fica oculto e as filhas aparecem como Pendência Paga (ou Rejeitado).
   private readonly excluiAgrupamentoSubstituido = `
-               and NOT EXISTS (SELECT 1 FROM ordem_pagamento_agrupado filha WHERE filha."ordemPagamentoAgrupadoId" = opafi.id)
+               and (NOT EXISTS (SELECT 1 FROM ordem_pagamento_agrupado filha WHERE filha."ordemPagamentoAgrupadoId" = opafi.id)
+                    OR oph."statusRemessa" IN (0, 1, 2))
+               and NOT (oph."statusRemessa" = 4 AND EXISTS (
+                    SELECT 1 FROM ordem_pagamento_agrupado_historico hp_pai
+                     WHERE hp_pai."ordemPagamentoAgrupadoId" = opafi."ordemPagamentoAgrupadoId"
+                       AND hp_pai."statusRemessa" IN (0, 1, 2)))
                and (oph."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph."motivoStatusRemessa" IS NULL)`;
 
   private getQueryConsorcios(dataInicio: string, dataFim: string): string {

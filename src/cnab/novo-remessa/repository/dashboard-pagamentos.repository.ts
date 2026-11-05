@@ -183,6 +183,10 @@ export class DashboardPagamentosRepository {
         SELECT g."ordemPagamentoAgrupadoId" FROM ordem_pagamento_guardador g
         WHERE g."userId" IN (${usuarios}) AND g."ordemPagamentoAgrupadoId" IS NOT NULL
         UNION
+        SELECT f."ordemPagamentoAgrupadoId" FROM ordem_pagamento_agrupado f
+        WHERE f."ordemPagamentoAgrupadoId" IS NOT NULL
+          AND f.id IN (SELECT g."ordemPagamentoAgrupadoId" FROM ordem_pagamento_guardador g WHERE g."userId" IN (${usuarios}))
+        UNION
         SELECT op."ordemPagamentoAgrupadoGratuidadeId" FROM ordem_pagamento op
         WHERE op."userId" IN (${usuarios}) AND op."ordemPagamentoAgrupadoGratuidadeId" IS NOT NULL
         UNION
@@ -264,10 +268,17 @@ export class DashboardPagamentosRepository {
   private joinFavorecido(): string {
     return `LEFT JOIN "user" u ON u.id = (
          CASE p.pagador_id
-           WHEN ${PAGADOR_ID_POR_CONTA.bilhetagem} THEN (
-             SELECT op."userId" FROM ordem_pagamento op WHERE op."ordemPagamentoAgrupadoId" = p.agrupado_id AND op."userId" IS NOT NULL LIMIT 1)
-           WHEN ${PAGADOR_ID_POR_CONTA.rotativo} THEN (
-             SELECT g."userId" FROM ordem_pagamento_guardador g WHERE g."ordemPagamentoAgrupadoId" = p.agrupado_id LIMIT 1)
+           WHEN ${PAGADOR_ID_POR_CONTA.bilhetagem} THEN COALESCE(
+             (SELECT op."userId" FROM ordem_pagamento op WHERE op."ordemPagamentoAgrupadoId" = p.agrupado_id AND op."userId" IS NOT NULL LIMIT 1),
+             -- Pagamento de pendentes: o agrupado é o "pai" e as ordens ficam nas filhas.
+             (SELECT op."userId" FROM ordem_pagamento_agrupado f
+                JOIN ordem_pagamento op ON op."ordemPagamentoAgrupadoId" = f.id
+               WHERE f."ordemPagamentoAgrupadoId" = p.agrupado_id AND op."userId" IS NOT NULL LIMIT 1))
+           WHEN ${PAGADOR_ID_POR_CONTA.rotativo} THEN COALESCE(
+             (SELECT g."userId" FROM ordem_pagamento_guardador g WHERE g."ordemPagamentoAgrupadoId" = p.agrupado_id LIMIT 1),
+             (SELECT g."userId" FROM ordem_pagamento_agrupado f
+                JOIN ordem_pagamento_guardador g ON g."ordemPagamentoAgrupadoId" = f.id
+               WHERE f."ordemPagamentoAgrupadoId" = p.agrupado_id LIMIT 1))
            WHEN ${PAGADOR_ID_POR_CONTA.cett} THEN COALESCE(
              (SELECT op."userId" FROM ordem_pagamento op WHERE op."ordemPagamentoAgrupadoGratuidadeId" = p.agrupado_id AND op."userId" IS NOT NULL LIMIT 1),
              (SELECT u2.id FROM "user" u2 WHERE u2."cpfCnpj" = (SELECT x."operadoraCpfCnpj" FROM ordem_pagamento_unico x WHERE x."idOrdemPagamento" = p.agrupado_id::text LIMIT 1) LIMIT 1))
@@ -324,7 +335,10 @@ export class DashboardPagamentosRepository {
          UNION ALL
          SELECT g."dataOrdem"::date, g."valorRepasseGuardador"
            FROM ordem_pagamento_guardador g
-          WHERE p.pagador_id = ${rotativo} AND g."ordemPagamentoAgrupadoId" = p.agrupado_id
+          WHERE p.pagador_id = ${rotativo}
+            AND (g."ordemPagamentoAgrupadoId" = p.agrupado_id
+                 OR g."ordemPagamentoAgrupadoId" IN (
+                      SELECT f.id FROM ordem_pagamento_agrupado f WHERE f."ordemPagamentoAgrupadoId" = p.agrupado_id))
          UNION ALL
          SELECT op."dataOrdem"::date, op."valorGratuidade"
            FROM ordem_pagamento op
