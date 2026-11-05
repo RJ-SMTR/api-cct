@@ -213,13 +213,32 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
                                         left join detalhe_a da on da."ordemPagamentoAgrupadoHistoricoId" = oph.id
                                         left join bank bc on bc.code = pu."bankCode" `;
 
+  // Favorecido e consórcio vêm de uma ordem representante (a de menor id), não de todas as ordens do agrupamento:
+  //  - op: LATERAL que para na primeira ordem do próprio agrupamento;
+  //  - opp: representante das filhas (quando o agrupamento é pai), do CTE pai_representante (cteFilhasRepresentantes),
+  //    calculado uma vez. Antes, op/opp juntavam ordem_pagamento inteira (1 milhão de linhas) e multiplicavam cada
+  //    lançamento pelo número de ordens, o que o SELECT DISTINCT do header desfazia depois.
+  private readonly cteFilhasRepresentantes = `pai_representante AS MATERIALIZED (
+    select distinct on (f."ordemPagamentoAgrupadoId")
+           f."ordemPagamentoAgrupadoId" as pai_id, o."userId", o."nomeConsorcio", o."operadoraCpfCnpj"
+      from ordem_pagamento_agrupado f
+      join ordem_pagamento o on o."ordemPagamentoAgrupadoId" = f.id
+     where f."ordemPagamentoAgrupadoId" is not null
+     order by f."ordemPagamentoAgrupadoId", o.id
+  )`;
+
   private readonly fromQueryPrincipal = ` from detalhe_a da
-                                          left join ordem_pagamento_agrupado_historico oph on oph."id"=da."ordemPagamentoAgrupadoHistoricoId"		 
+                                          left join ordem_pagamento_agrupado_historico oph on oph."id"=da."ordemPagamentoAgrupadoHistoricoId"
                                           left join ordem_pagamento_agrupado opafi on opafi."id"=oph."ordemPagamentoAgrupadoId"
-                                          left join ordem_pagamento_agrupado opai on opai."ordemPagamentoAgrupadoId"=oph."ordemPagamentoAgrupadoId"
-                                          left join ordem_pagamento op on op."ordemPagamentoAgrupadoId"=opafi.id
+                                          left join lateral (
+                                            select o."userId", o."nomeConsorcio", o."operadoraCpfCnpj"
+                                              from ordem_pagamento o
+                                             where o."ordemPagamentoAgrupadoId" = opafi.id
+                                             order by o.id
+                                             limit 1
+                                          ) op on true
                                           left join public.user pu on pu."id"=op."userId"
-                                          left join ordem_pagamento opp on opp."ordemPagamentoAgrupadoId"=opai.id
+                                          left join pai_representante opp on opp.pai_id = opafi.id
                                           left join public.user puu on puu."id"=opp."userId"
                                           left join bank bc on bc.code = pu."bankCode"
                                           left join bank bbc on bbc.code = puu."bankCode" `;
@@ -651,7 +670,7 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
         : `COUNT(*)`;
 
       const aggQuery = `
-        WITH r AS (${baseUnion + whereValor})
+        WITH ${this.cteFilhasRepresentantes}, r AS (${baseUnion + whereValor})
         SELECT
           ${totalExpression} AS total,
           COALESCE(SUM(valor), 0) AS "valorTotal",
@@ -686,7 +705,7 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
       // somando o valor de todo mundo daquele consorcio, em vez de uma linha por vanzeiro.
       const dataQuery = isGroupedConsorcioSelection
         ? `
-          WITH r AS (${baseUnion + whereValor})
+          WITH ${this.cteFilhasRepresentantes}, r AS (${baseUnion + whereValor})
           SELECT
             "dataReferencia",
             consorcio AS nomes,
@@ -704,7 +723,7 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
           ORDER BY "dataReferencia", consorcio ASC
           LIMIT ${pageSize} OFFSET ${offset}
         `
-        : `${baseUnion + whereValor} ORDER BY "dataReferencia","nomes" ASC LIMIT ${pageSize} OFFSET ${offset}`;
+        : `WITH ${this.cteFilhasRepresentantes} ${baseUnion + whereValor} ORDER BY "dataReferencia","nomes" ASC LIMIT ${pageSize} OFFSET ${offset}`;
 
       this.logger.debug(`Executing query: ${dataQuery} with params: ${params.join(', ')}`);
 

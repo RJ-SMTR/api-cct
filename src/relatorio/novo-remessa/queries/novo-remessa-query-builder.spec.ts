@@ -244,15 +244,15 @@ describe('novo-remessa-query-builder uma ordem por agrupamento (ADR 0011, corrig
     ['base', buildBaseQuery(params)],
     ['pendenciaPagaSingleDate', buildPendenciaPagaSingleDateQuery(params)],
   ])('%s query (AGRUPAMENTO_NORMAL) restricts to one ordem_pagamento per agrupamento', (_name, sql) => {
-    expect(sql).toContain('op.id = (');
-    expect(sql).toContain('SELECT MIN(o.id)');
-    expect(sql).toContain('o."ordemPagamentoAgrupadoId" = opa.id');
+    // A ordem representante (menor id) vem de uma LATERAL que para na primeira ordem do agrupamento.
+    expect(sql).toMatch(/INNER JOIN LATERAL \(\s*SELECT o\.\* FROM ordem_pagamento o\s+WHERE o\."ordemPagamentoAgrupadoId" = opa\.id\s+ORDER BY o\.id\s+LIMIT 1\s*\) op ON true/);
+    expect(sql).not.toContain('SELECT MIN(o.id)');
   });
 
   it('pendenciaPagamentoSingleDate query (AGRUPAMENTO_NORMAL) restricts to one ordem_pagamento per agrupamento in both UNION ALL branches', () => {
     const sql = buildPendenciaPagamentoSingleDateQuery(params);
 
-    const matches = sql.match(/SELECT MIN\(o\.id\) FROM ordem_pagamento o WHERE o\."ordemPagamentoAgrupadoId" = opa\.id/g) ?? [];
+    const matches = sql.match(/ORDER BY o\.id\s+LIMIT 1\s*\) op ON true/g) ?? [];
     expect(matches).toHaveLength(2);
   });
 
@@ -376,5 +376,23 @@ describe('novo-remessa-query-builder hasConsorcioFilter desliga o MODAIS_FILTER'
   it('keeps restricting to modais when todosVanzeiros is set without any consórcio filter (hasConsorcioFilter not set)', () => {
     const sql = buildBaseQuery(params);
     expect(sql).toContain(MODAIS_FILTER_MARKER);
+  });
+});
+
+// A checagem "agrupamento não é pai" tem que ser um NOT IN sem correlação: o NOT EXISTS correlacionado deixava o
+// planner ler ordem_pagamento_agrupado inteira por linha (Movimentação Financeira: mais de 110 s para 2 dias, contra
+// 3 s com o NOT IN, mesmo resultado). Sem o IS NOT NULL no subselect, um único NULL descartaria todas as linhas.
+describe('novo-remessa-query-builder - agrupamento sem filhas', () => {
+  const params = { consorcioFilterParamIndex: 5 };
+
+  it.each([
+    ['base', buildBaseQuery(params)],
+    ['pendenciaPagaSingleDate', buildPendenciaPagaSingleDateQuery(params)],
+    ['pendenciaPagaPasso0', buildPendenciaPagaPasso0Query(params)],
+    ['pendenciaPagamentoSingleDate', buildPendenciaPagamentoSingleDateQuery(params)],
+  ])('%s query usa NOT IN sem correlação e ignora NULL', (_name, sql) => {
+    expect(sql).toContain('opa.id NOT IN (');
+    expect(sql).toContain('WHERE filha."ordemPagamentoAgrupadoId" IS NOT NULL');
+    expect(sql).not.toMatch(/ordem_pagamento_agrupado filha\s+WHERE filha\."ordemPagamentoAgrupadoId" = opa\.id/);
   });
 });

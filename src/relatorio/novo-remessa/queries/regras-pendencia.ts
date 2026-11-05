@@ -11,6 +11,19 @@ import { PagadorContaEnum } from 'src/cnab/enums/pagamento/pagador.enum';
 /** "Hoje" no horário de Brasília: ordens do dia corrente nunca são pendência. */
 export const SQL_HOJE_BRASILIA = `(now() AT TIME ZONE 'America/Sao_Paulo')::date`;
 
+/**
+ * Condição sobre as ordens de guardador de um agrupamento, que só avalia `condicao` nas ordens daquele agrupamento.
+ *
+ * ordem_pagamento_guardador não tem índice em "ordemPagamentoAgrupadoId", então o planner faz seq scan e aplica o
+ * filtro em todas as linhas ANTES de comparar o agrupamento. Com `fn_ordem_guardador_ja_paga_ou_em_andamento` (uma
+ * consulta por chamada) dentro da condição, eram ~16 mil chamadas por consulta: o ramo de pendentes do consolidado de
+ * guardadores levava 17 s, e o ramo base 4,6 s. O CASE obriga a comparar o agrupamento primeiro e deixa a função só para
+ * as poucas ordens do agrupamento (0,4 s nos dois, mesmo resultado linha a linha). Semântica igual a
+ * `ordem."ordemPagamentoAgrupadoId" = agrupamento.id AND (condicao)`.
+ */
+const ORDEM_DO_AGRUPAMENTO_E = (ordem: string, agrupamento: string, condicao: string) =>
+  `CASE WHEN ${ordem}."ordemPagamentoAgrupadoId" = ${agrupamento}.id THEN (${condicao}) ELSE FALSE END`;
+
 /** Motivos de retorno que NÃO são rejeição (aceito/agendado/pago). */
 export const MOTIVOS_NAO_REJEICAO = ['AM', '00', 'BD'];
 
@@ -104,9 +117,8 @@ export function pendenciaRejeitadaGuardador({ oph, da, opa, pu }: AliasesPendenc
             OR (hp_reg."ordemPagamentoAgrupadoId" = ${opa}."ordemPagamentoAgrupadoId" AND hp_reg."statusRemessa" IN (0, 1, 2, 3, 5)))
       AND NOT EXISTS (
         SELECT 1 FROM ordem_pagamento_guardador x_reg
-         WHERE x_reg."ordemPagamentoAgrupadoId" = ${opa}.id
-           AND (date_trunc('day', x_reg."dataOrdem") >= ${SQL_HOJE_BRASILIA}
-                OR public.fn_ordem_guardador_ja_paga_ou_em_andamento(x_reg.id)))
+         WHERE ${ORDEM_DO_AGRUPAMENTO_E('x_reg', opa, `date_trunc('day', x_reg."dataOrdem") >= ${SQL_HOJE_BRASILIA}
+                OR public.fn_ordem_guardador_ja_paga_ou_em_andamento(x_reg.id)`)})
       AND ${da}.id = (
         SELECT MAX(d_reg.id)
           FROM detalhe_a d_reg
@@ -156,7 +168,6 @@ export function pendenciaAgrupamentoNuncaEnviadoGuardador(opa: string, pu: strin
          WHERE h_nunca2."ordemPagamentoAgrupadoId" = ${opa}.id)
       AND NOT EXISTS (
         SELECT 1 FROM ordem_pagamento_guardador x_nunca
-         WHERE x_nunca."ordemPagamentoAgrupadoId" = ${opa}.id
-           AND (date_trunc('day', x_nunca."dataOrdem") >= ${SQL_HOJE_BRASILIA}
-                OR public.fn_ordem_guardador_ja_paga_ou_em_andamento(x_nunca.id)))`;
+         WHERE ${ORDEM_DO_AGRUPAMENTO_E('x_nunca', opa, `date_trunc('day', x_nunca."dataOrdem") >= ${SQL_HOJE_BRASILIA}
+                OR public.fn_ordem_guardador_ja_paga_ou_em_andamento(x_nunca.id)`)})`;
 }
