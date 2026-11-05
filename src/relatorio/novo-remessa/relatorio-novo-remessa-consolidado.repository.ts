@@ -477,7 +477,17 @@ export class RelatorioNovoRemessaConsolidadoRepository {
 
     const condicoesStatus: string[] = [];
     if (subErroStatus.length > 0) {
-      condicoesStatus.push(`oph."motivoStatusRemessa" IN (${subErroStatus.map((s) => `'${s}'`).join(',')})`);
+      // O motivo (ex.: '02') fica gravado no histórico mesmo depois que o agrupamento é quitado como pendência (status 3/5).
+      // Só conta o que ainda não foi pago: o próprio histórico não pode estar pago e o agrupamento (ou o seu pai) não pode
+      // ter outro histórico pago. Mesma regra da procedure de pendentes; sem isso o relatório inflava a Pendência de Pagamento.
+      condicoesStatus.push(
+        `(oph."motivoStatusRemessa" IN (${subErroStatus.map((s) => `'${s}'`).join(',')})` +
+          ` AND oph."statusRemessa" NOT IN (3,5)` +
+          ` AND NOT EXISTS (SELECT 1 FROM ordem_pagamento_agrupado_historico hp_pago` +
+          ` WHERE hp_pago."statusRemessa" IN (3,5)` +
+          ` AND (hp_pago."ordemPagamentoAgrupadoId" = oph."ordemPagamentoAgrupadoId"` +
+          ` OR hp_pago."ordemPagamentoAgrupadoId" = (SELECT ag_pai."ordemPagamentoAgrupadoId" FROM ordem_pagamento_agrupado ag_pai WHERE ag_pai."id" = oph."ordemPagamentoAgrupadoId"))))`,
+      );
     }
     if (status.length > 0) {
       condicoesStatus.push(`oph."statusRemessa" IN (${status.join(',')})`);

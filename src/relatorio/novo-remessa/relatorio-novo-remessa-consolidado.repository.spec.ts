@@ -625,7 +625,17 @@ describe('RelatorioNovoRemessaConsolidadoRepository.findConsolidado — filtros'
 
   it('Estorno + Pago: motivo e status se somam com OR dentro do mesmo grupo', async () => {
     const sql = await executar({ estorno: true, pago: true });
-    expect(sql).toContain(`AND (oph."motivoStatusRemessa" IN ('02') OR oph."statusRemessa" IN (3))`);
+    expect(sql).toContain(`AND ((oph."motivoStatusRemessa" IN ('02') AND oph."statusRemessa" NOT IN (3,5) AND NOT EXISTS (`);
+    expect(sql).toContain(`) OR oph."statusRemessa" IN (3))`);
+    expect(parentesesBalanceados(sql)).toBe(true);
+  });
+
+  it('Estorno (motivo 02) ignora histórico já pago e agrupamento (ou pai) com outro histórico pago', async () => {
+    const sql = await executar({ estorno: true });
+    expect(sql).toContain(`oph."statusRemessa" NOT IN (3,5)`);
+    expect(sql).toContain(`hp_pago."statusRemessa" IN (3,5)`);
+    expect(sql).toContain(`hp_pago."ordemPagamentoAgrupadoId" = oph."ordemPagamentoAgrupadoId"`);
+    expect(sql).toContain(`ag_pai."id" = oph."ordemPagamentoAgrupadoId"`);
     expect(parentesesBalanceados(sql)).toBe(true);
   });
 
