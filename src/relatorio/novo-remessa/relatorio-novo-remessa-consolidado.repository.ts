@@ -138,10 +138,21 @@ export class RelatorioNovoRemessaConsolidadoRepository {
   // Só interessa uma ordem representante (a de menor id) para achar favorecido e consórcio:
   //  - op: representante do próprio agrupamento, por LATERAL (índice em ordem_pagamento."ordemPagamentoAgrupadoId",
   //    para na primeira ordem);
-  //  - opp: representante das filhas do agrupamento (quando ele é pai), pré-calculado uma vez por consulta em vez de
-  //    um join por linha com a tabela inteira de ordem_pagamento (1 milhão de linhas, duas vezes) - com isso o
-  //    histórico passou de mais de 150 s para cerca de 2 s no banco de teste, com o mesmo resultado.
+  //  - opp: representante das filhas do agrupamento (quando ele é pai), vindo do CTE pai_representante
+  //    (cteFilhasRepresentantes), calculado uma vez por consulta em vez de um join por linha com a tabela inteira de
+  //    ordem_pagamento (1 milhão de linhas, duas vezes) - com isso o histórico passou de mais de 150 s para cerca de 2 s
+  //    no banco de teste, com o mesmo resultado. O CTE é MATERIALIZED de propósito: como subselect no JOIN o planner,
+  //    achando que sobrava 1 linha, o reavaliava por linha (Pendência Paga sozinha foi de 0,6 s para 28 s).
   // O LEFT JOIN continua trazendo a linha com op/opp nulos quando não há ordem.
+  private readonly cteFilhasRepresentantes = `WITH pai_representante AS MATERIALIZED (
+    select distinct on (f."ordemPagamentoAgrupadoId")
+           f."ordemPagamentoAgrupadoId" as pai_id, o."userId", o."nomeConsorcio", o."operadoraCpfCnpj"
+      from ordem_pagamento_agrupado f
+      join ordem_pagamento o on o."ordemPagamentoAgrupadoId" = f.id
+     where f."ordemPagamentoAgrupadoId" is not null
+     order by f."ordemPagamentoAgrupadoId", o.id
+  ) `;
+
   private readonly fromQueryPrincipal = ` from detalhe_a da
                                           left join ordem_pagamento_agrupado_historico oph on oph."id"=da."ordemPagamentoAgrupadoHistoricoId"
                                           left join ordem_pagamento_agrupado opafi on opafi."id"=oph."ordemPagamentoAgrupadoId"
@@ -153,14 +164,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
                                              limit 1
                                           ) op on true
                                           left join public.user pu on pu."id"=op."userId"
-                                          left join (
-                                            select distinct on (f."ordemPagamentoAgrupadoId")
-                                                   f."ordemPagamentoAgrupadoId" as pai_id, o."userId", o."nomeConsorcio", o."operadoraCpfCnpj"
-                                              from ordem_pagamento_agrupado f
-                                              join ordem_pagamento o on o."ordemPagamentoAgrupadoId" = f.id
-                                             where f."ordemPagamentoAgrupadoId" is not null
-                                             order by f."ordemPagamentoAgrupadoId", o.id
-                                          ) opp on opp.pai_id = opafi.id
+                                          left join pai_representante opp on opp.pai_id = opafi.id
                                           left join public.user puu on puu."id"=opp."userId" `;
 
   // Mesmo fromQueryPrincipal, com o join a mais pro agrupamento "pai" (op_pai) que a Pendência
@@ -813,7 +817,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
       return this.findConsolidadoStucGratuidade(parts, filter);
     }
 
-    query = `SELECT "nome", SUM("valor") AS "valor" FROM (${parts.join(' UNION ALL ')}) AS R WHERE  (R."nome" is not null AND R."nome2" is not null)  `;
+    query = `${this.cteFilhasRepresentantes}SELECT "nome", SUM("valor") AS "valor" FROM (${parts.join(' UNION ALL ')}) AS R WHERE  (R."nome" is not null AND R."nome2" is not null)  `;
 
     query += ` GROUP BY "nome" `;
 

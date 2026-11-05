@@ -111,7 +111,7 @@ describe('RelatorioNovoRemessaConsolidadoRepository', () => {
     it('getQueryConsorcios restricts the opp join to one representative order per agrupamento', () => {
       const sql: string = (repository as any).getQueryConsorcios('2026-01-01', '2026-01-05');
 
-      expect(sql).toMatch(/select distinct on \(f\."ordemPagamentoAgrupadoId"\)[\s\S]*order by f\."ordemPagamentoAgrupadoId", o\.id\s*\) opp on opp\.pai_id = opafi\.id/);
+      expect(sql).toContain('left join pai_representante opp on opp.pai_id = opafi.id');
       expect(sql).not.toContain('left join ordem_pagamento opp');
     });
 
@@ -123,7 +123,7 @@ describe('RelatorioNovoRemessaConsolidadoRepository', () => {
       const sql: string = build();
 
       expect(sql).toMatch(/left join lateral \(\s*select o\."userId"[^)]*order by o\.id\s*limit 1\s*\) op on true/);
-      expect(sql).toMatch(/select distinct on \(f\."ordemPagamentoAgrupadoId"\)[\s\S]*order by f\."ordemPagamentoAgrupadoId", o\.id\s*\) opp on opp\.pai_id = opafi\.id/);
+      expect(sql).toContain('left join pai_representante opp on opp.pai_id = opafi.id');
       expect(sql).not.toContain('left join ordem_pagamento opp');
     });
 
@@ -131,6 +131,22 @@ describe('RelatorioNovoRemessaConsolidadoRepository', () => {
       const apagar: string = (repository as any).getQueryApagarConsorcios('2026-01-01', '2026-01-05', true);
 
       expect(apagar).not.toContain('SELECT MIN(o.id)');
+    });
+
+    // Como subselect no JOIN o planner reavaliava o representante das filhas por linha (Pendência Paga sozinha:
+    // 0,6 s -> 28 s no banco de teste). MATERIALIZED garante uma só avaliação.
+    it('findConsolidado calcula o representante das filhas uma só vez, num CTE MATERIALIZED', async () => {
+      (mockQueryRunner.query as jest.Mock).mockResolvedValue([]);
+      await repository.findConsolidado({
+        dataInicio: new Date('2026-01-01'),
+        dataFim: new Date('2026-01-05'),
+        todosConsorcios: true,
+        pendenciaPaga: true,
+      } as any);
+
+      const sql: string = (mockQueryRunner.query as jest.Mock).mock.calls[0][0];
+      expect(sql).toContain('WITH pai_representante AS MATERIALIZED (');
+      expect(sql).toContain('left join pai_representante opp on opp.pai_id = opafi.id');
     });
   });
 
