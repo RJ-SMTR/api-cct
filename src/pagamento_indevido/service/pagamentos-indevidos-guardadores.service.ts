@@ -53,6 +53,18 @@ export interface IndevidoDoGuardador {
   lancamentos: LancamentoIndevido[];
   /** Datas (AAAA-MM-DD) dos pagamentos em duplicidade: da segunda vez em diante que a mesma ordem foi paga. */
   datasDuplicidade: string[];
+  /** Qual ordem foi paga em duplicidade: a ordem (dia e valor), a primeira vez que foi paga e as vezes seguintes (AAAA-MM-DD). */
+  duplicidades: DuplicidadeOrdem[];
+}
+
+export interface DuplicidadeOrdem {
+  /** Dia da ordem (AAAA-MM-DD). */
+  dataOrdem: string;
+  valor: string;
+  /** Data do pagamento devido (a primeira vez que a ordem foi paga). */
+  pagoEm: string;
+  /** Datas dos pagamentos repetidos, em ordem. */
+  repetidoEm: string[];
 }
 
 const LIMITE_EXPORTACAO = 5000;
@@ -166,7 +178,7 @@ export class PagamentosIndevidosGuardadoresService {
     // Sem pagamento indevido não há abatimento a mostrar: poupa as consultas abaixo. Com o débito quitado os lançamentos continuam
     // saindo, porque a tela marca como "Abatimento por duplicidade" os pagamentos que foram abatidos.
     if (!(Number(totais?.quantidade) > 0)) {
-      return { totais, lancamentos: [], datasDuplicidade: [] };
+      return { totais, lancamentos: [], datasDuplicidade: [], duplicidades: [] };
     }
 
     // Pagamentos em que o guardador recebeu menos que o devido. O pagamento pode estar no agrupamento da ordem ou no PAI dele
@@ -207,7 +219,34 @@ export class PagamentosIndevidosGuardadoresService {
       params,
     );
 
-    return { totais, lancamentos, datasDuplicidade: PagamentosIndevidosGuardadoresService.datasDeDuplicidade(ordens) };
+    return {
+      totais,
+      lancamentos,
+      datasDuplicidade: PagamentosIndevidosGuardadoresService.datasDeDuplicidade(ordens),
+      duplicidades: PagamentosIndevidosGuardadoresService.duplicidadesDeOrdens(ordens),
+    };
+  }
+
+  /**
+   * Quais ordens foram pagas em duplicidade (mesmo dia e valor pagos mais de uma vez): a data do pagamento devido (a primeira)
+   * e as datas dos repetidos. Mesma regra de `datasDeDuplicidade`, mas diz de qual ordem é cada repetição.
+   */
+  static duplicidadesDeOrdens(ordens: { dia: string; valor: string; pagoEm: string | null }[]): DuplicidadeOrdem[] {
+    const porOrdem = new Map<string, { dataOrdem: string; valor: string; datas: string[] }>();
+    for (const o of ordens) {
+      if (!o.pagoEm) continue;
+      const chave = `${o.dia}|${o.valor}`;
+      const atual = porOrdem.get(chave) ?? { dataOrdem: o.dia, valor: o.valor, datas: [] };
+      atual.datas.push(o.pagoEm);
+      porOrdem.set(chave, atual);
+    }
+    const resultado: DuplicidadeOrdem[] = [];
+    for (const { dataOrdem, valor, datas } of porOrdem.values()) {
+      if (datas.length < 2) continue;
+      const [pagoEm, ...repetidos] = [...datas].sort();
+      resultado.push({ dataOrdem, valor, pagoEm, repetidoEm: [...new Set(repetidos)] });
+    }
+    return resultado.sort((a, b) => a.dataOrdem.localeCompare(b.dataOrdem) || a.valor.localeCompare(b.valor));
   }
 
   /**
