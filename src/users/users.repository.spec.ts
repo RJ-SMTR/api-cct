@@ -15,13 +15,15 @@ jest.mock('src/utils/validation-utils', () => ({
 
 describe('UsersRepository', () => {
   let usersRepository: UsersRepository;
-  let typeormRepository: Pick<Repository<User>, 'createQueryBuilder' | 'update' | 'findOne'>;
+  let typeormRepository: Pick<Repository<User>, 'createQueryBuilder' | 'update' | 'findOne' | 'find'>;
   let mailHistoryService: Pick<MailHistoryService, 'find'>;
   let banksService: Pick<BanksService, 'findMany'>;
   let queryBuilder: {
     leftJoinAndSelect: jest.Mock;
     where: jest.Mock;
+    andWhere: jest.Mock;
     orderBy: jest.Mock;
+    addOrderBy: jest.Mock;
     getMany: jest.Mock;
   };
 
@@ -29,13 +31,16 @@ describe('UsersRepository', () => {
     queryBuilder = {
       leftJoinAndSelect: jest.fn().mockReturnThis(),
       where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
       orderBy: jest.fn().mockReturnThis(),
+      addOrderBy: jest.fn().mockReturnThis(),
       getMany: jest.fn().mockResolvedValue([]),
     };
     typeormRepository = {
       createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
       update: jest.fn(),
       findOne: jest.fn(),
+      find: jest.fn().mockResolvedValue([]),
     };
     mailHistoryService = {
       find: jest.fn().mockResolvedValue([]),
@@ -54,6 +59,25 @@ describe('UsersRepository', () => {
     jest.spyOn(usersRepository, 'loadLazyRelations').mockImplementation(async (users) => {
       await usersRepository['loadLazyAux_bank'](users);
       await usersRepository['loadLazyAux_invite'](users);
+    });
+  });
+
+  describe('findManyWithPagination: deterministic order (#1198)', () => {
+    it('should order the id query by fullName ASC with id ASC as tie-breaker', async () => {
+      await usersRepository.findManyWithPagination({ page: 1, limit: 50 });
+
+      expect(queryBuilder.orderBy).toHaveBeenCalledWith('"user"."fullName"', 'ASC');
+      expect(queryBuilder.addOrderBy).toHaveBeenCalledWith('"user"."id"', 'ASC');
+    });
+
+    it('should apply the same order when reloading the users by id', async () => {
+      queryBuilder.getMany.mockResolvedValue([{ id: 3 }, { id: 1 }, { id: 2 }]);
+
+      await usersRepository.findManyWithPagination({ page: 1, limit: 50 });
+
+      expect(typeormRepository.find).toHaveBeenCalledWith(
+        expect.objectContaining({ order: { fullName: 'ASC', id: 'ASC' } }),
+      );
     });
   });
 
