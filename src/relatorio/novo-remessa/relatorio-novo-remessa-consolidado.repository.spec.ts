@@ -121,6 +121,22 @@ describe('RelatorioNovoRemessaConsolidadoRepository', () => {
     });
   });
 
+  // Eleição era a única variante do Consolidado Permissionário sem nenhum guard de bloqueado -
+  // as 4 funções (A Pagar e histórico, Consórcio e Vanzeiro) não filtravam pu."bloqueado" (achado
+  // 2026-11-06, auditoria após o fix do ADR 0017).
+  describe('getQueryApagarEleicaoConsorcio/Vanzeiro/getQueryEleicaoConsorcio/Vanzeiro - exclui favorecido bloqueado', () => {
+    it.each([
+      ['getQueryApagarEleicaoConsorcio', () => (repository as any).getQueryApagarEleicaoConsorcio('2026-01-01', '2026-01-05')],
+      ['getQueryApagarEleicaoVanzeiro', () => (repository as any).getQueryApagarEleicaoVanzeiro('2026-01-01', '2026-01-05')],
+      ['getQueryEleicaoConsorcio', () => (repository as any).getQueryEleicaoConsorcio('2026-01-01', '2026-01-05')],
+      ['getQueryEleicaoVanzeiro', () => (repository as any).getQueryEleicaoVanzeiro('2026-01-01', '2026-01-05')],
+    ])('%s excludes pu.bloqueado', (_name, build) => {
+      const sql: string = build();
+
+      expect(sql).toContain(`pu."bloqueado" is null OR pu."bloqueado" = false`);
+    });
+  });
+
   // ADR 0016: fromQueryPrincipal trazia TODAS as ordem_pagamento internas de um agrupamento (join
   // sem restrição), multiplicando cada linha de detalhe_a pelo número de ordens internas antes do
   // SELECT DISTINCT colapsar de volta. Confirmado com dado real: um agrupamento com 55 ordens
