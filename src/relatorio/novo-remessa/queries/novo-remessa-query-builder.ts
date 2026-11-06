@@ -114,16 +114,16 @@ export const MODAIS_FILTER = `
   AND (pu."permitCode" LIKE '4%' OR pu."permitCode" LIKE '81%' OR pu."permitCode" LIKE '7%')
 `;
 
-// NOT_CPF_FILTER vale sempre que nenhum favorecido específico foi selecionado (independe de
-// Consórcio - exclui os CNPJs institucionais da busca "todos" do jeito que for). MODAIS_FILTER
-// só vale quando, além disso, nenhum Consórcio foi selecionado: ele existe para "Favorecido =
-// Todos" sozinho não trazer favorecido de consórcio comum como linha individual (ver comentário
-// de MODAIS_FILTER acima) - uma vez que o usuário pediu um Consórcio (específico ou "Todos"), é
-// o filtro de consórcio (consorcioParam/CONSORCIO_CASE) que decide quais linhas aparecem, não
-// este.
+// NOT_CPF_FILTER e MODAIS_FILTER só valem quando, além de nenhum favorecido específico ter sido
+// selecionado, nenhum Consórcio foi selecionado (ADR 0018): o pagamento de um consórcio (VLT,
+// Internorte, Santa Cruz etc.) é lançado no CNPJ institucional dele - excluí-lo mesmo com o
+// consórcio escolhido fazia a Movimentação Financeira mostrar R$ 0,00 onde o Consolidado mostra
+// o valor certo (achado 2026-11-06). Uma vez que o usuário pediu um Consórcio (específico ou
+// "Todos"), é o filtro de consórcio (consorcioParam/CONSORCIO_CASE) que decide quais linhas
+// aparecem, não estes dois.
 const buildTodosVanzeirosFilter = (params: NovoRemessaBaseParams) => {
-  if (!params.todosVanzeiros) return '';
-  return `${NOT_CPF_FILTER}${params.hasConsorcioFilter ? '' : MODAIS_FILTER}`;
+  if (!params.todosVanzeiros || params.hasConsorcioFilter) return '';
+  return `${NOT_CPF_FILTER}${MODAIS_FILTER}`;
 };
 
 /**
@@ -468,8 +468,21 @@ export const buildEleicaoQuery = (params: NovoRemessaBaseParams) => {
     -- deletedAt/bloqueado). Ligar por cpfCnpj faz fan-out - a mesma ordem vira 2 linhas, uma por
     -- cadastro, dobrando o valor dela no total. "idOperadora" é o permitCode do operador dono
     -- da ordem (não o CPF dele), então é a chave correta mesmo com CPF duplicado.
-    INNER JOIN public."user" pu
-      ON pu."permitCode" = opu."idOperadora"
+    -- Fallback por operadoraCpfCnpj (ADR 0019) só quando nenhum usuário tem esse permitCode -
+    -- ordens antigas (ex. nov/2024) têm "idOperadora" NULL, campo ainda não preenchido na época,
+    -- então o join acima não encontra ninguém e a ordem desaparecia do relatório (achado
+    -- 2026-11-06). Verificado contra o banco: essa população não tem CPF duplicado, então o
+    -- fallback não reintroduz o fan-out que motivou a troca para permitCode.
+    INNER JOIN LATERAL (
+      SELECT u.* FROM public."user" u
+      WHERE u."permitCode" = opu."idOperadora"
+      UNION ALL
+      SELECT u.* FROM public."user" u
+      WHERE NOT EXISTS (
+        SELECT 1 FROM public."user" u2 WHERE u2."permitCode" = opu."idOperadora"
+      )
+      AND u."cpfCnpj" = opu."operadoraCpfCnpj"
+    ) pu ON true
     INNER JOIN bank bc
       ON bc.code = pu."bankCode"
     WHERE

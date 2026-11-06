@@ -47,9 +47,15 @@ type ResolvedStatuses = {
   includePendentes: boolean;
   includeBase: boolean;
   includePendenciaPaga: boolean;
+  // STUC-Gratuidade continua restrito a dia único (ver resolveStatuses) - comportamento anterior
+  // preservado de propósito, fora do escopo do ADR 0020.
   parentErrorStatusesSingleDate: Array<StatusPagamento.ERRO_ESTORNO | StatusPagamento.ERRO_REJEITADO>;
-  // ADR 0017: "A Pagar" significa ordens nunca agrupadas/enviadas (buildAPagarNuncaEnviadoQuery),
-  // não mais statusRemessa IN (0,1) do fluxo normal (buildBaseQuery) - ver resolveStatuses.
+  // ADR 0020: mesma lista, mas sem a restrição de dia único - usada pelo fluxo normal
+  // (não-STUC) em qualquer intervalo.
+  parentErrorStatusesAlways: Array<StatusPagamento.ERRO_ESTORNO | StatusPagamento.ERRO_REJEITADO>;
+  // ADR 0017: "A Pagar" é a união de ordens nunca agrupadas/enviadas (buildAPagarNuncaEnviadoQuery)
+  // com statusRemessa IN (0,1) do fluxo normal (buildBaseQuery, que continua trazendo esse status
+  // normalmente) - ver resolveStatuses.
   includeAPagarNuncaEnviado: boolean;
 };
 
@@ -443,27 +449,37 @@ export class RelatorioNovoRemessaFinancialMovementService {
       // "Todos": sem filtro de status, buildBaseQuery continua sem filtro algum (mostra
       // statusRemessa IN (0,1) como antes) E a nova consulta "nunca enviada" entra também -
       // nenhuma das duas populações deve ficar de fora da visão sem filtro (ADR 0017).
-      return { baseStatuses: null, allStatuses: null, includePendentes: false, includeBase: true, includePendenciaPaga: false, parentErrorStatusesSingleDate: [], includeAPagarNuncaEnviado: true };
+      return { baseStatuses: null, allStatuses: null, includePendentes: false, includeBase: true, includePendenciaPaga: false, parentErrorStatusesSingleDate: [], parentErrorStatusesAlways: [], includeAPagarNuncaEnviado: true };
     }
     const isSingle = this.isSingleDate(filter);
     const includePendentes = all.includes(StatusPagamento.PENDENTES);
     // Pendencia Paga é consultada pela data de pagamento em qualquer intervalo (ADR 0001), não só em dia único.
     const includePendenciaPaga = all.includes(StatusPagamento.PENDENCIA_PAGA);
+    // ADR 0008 só cobriu dia único (gap específico: Estorno/Rejeitado de primeiro nível somem
+    // no JOIN com o pai) - STUC-Gratuidade (buildStucGratuidadePendenciaPagamentoSingleDateQuery,
+    // ver buildFinalBaseQuery/filter.stucGratuidade abaixo) continua restrito a isSingle,
+    // comportamento anterior preservado de propósito (fora do escopo do ADR 0020).
     const parentErrorStatusesSingleDate = isSingle
       ? all.filter((status): status is StatusPagamento.ERRO_ESTORNO | StatusPagamento.ERRO_REJEITADO => status === StatusPagamento.ERRO_ESTORNO || status === StatusPagamento.ERRO_REJEITADO)
       : [];
-    // ADR 0017: "A Pagar" não é mais servido por buildBaseQuery (statusRemessa IN (0,1)) - só pela
-    // nova consulta "nunca enviada" (buildAPagarNuncaEnviadoQuery). Removê-lo de baseStatuses
-    // antes de decidir includeBase: se "A Pagar" era o único status pedido, baseStatuses fica
-    // vazio e includeBase precisa virar false (nunca passar $4 vazio/nulo para buildBaseQuery,
-    // que faria STATUS_CASE = ANY($4) voltar a casar com tudo).
+    // ADR 0020: Erro/Rejeitado/Estorno no fluxo normal (não-STUC) segue a mesma regra do
+    // Consolidado - só mostra o que ainda seria pago de novo (pendenciaRejeitadaPermissionario,
+    // via buildPendenciaPagamentoSingleDateQuery/buildPendenciaPagamentoTemplate, cujo WHERE já é
+    // por BETWEEN $1 AND $2, não por um dia só) - em qualquer intervalo, não só dia único. Sem
+    // isso, buildBaseQuery (STATUS_CASE puro) mostrava toda rejeição histórica, mesmo a já
+    // substituída por um pagamento de sucesso posterior, divergindo do Consolidado para o mesmo
+    // filtro (achado 2026-11-06).
+    const parentErrorStatusesAlways = all.filter((status): status is StatusPagamento.ERRO_ESTORNO | StatusPagamento.ERRO_REJEITADO => status === StatusPagamento.ERRO_ESTORNO || status === StatusPagamento.ERRO_REJEITADO);
+    // ADR 0017: "A Pagar" é a união de duas populações - statusRemessa IN (0,1), já servido por
+    // buildBaseQuery (STATUS_CASE), permanece em baseStatuses (não é removido); a nova consulta
+    // "nunca enviada" (buildAPagarNuncaEnviadoQuery) soma a outra metade. Pedir só "A Pagar" não
+    // zera includeBase: baseStatuses carrega ['A Pagar'] e STATUS_CASE = ANY($4) filtra certo.
     const includeAPagarNuncaEnviado = all.includes(StatusPagamento.A_PAGAR);
     let baseStatuses = all.filter((s) => s!== StatusPagamento.PENDENTES);
     // Pendencia Paga nunca pertence à base por vencimento (ela é identificada pela data de pagamento).
     baseStatuses = baseStatuses.filter((s) => s!== StatusPagamento.PENDENCIA_PAGA);
-    baseStatuses = baseStatuses.filter((s) => !parentErrorStatusesSingleDate.includes(s as StatusPagamento.ERRO_ESTORNO | StatusPagamento.ERRO_REJEITADO));
-    baseStatuses = baseStatuses.filter((s) => s !== StatusPagamento.A_PAGAR);
-    return { baseStatuses: baseStatuses.length? baseStatuses : null, allStatuses: all, includePendentes, includeBase: baseStatuses.length > 0, includePendenciaPaga, parentErrorStatusesSingleDate, includeAPagarNuncaEnviado };
+    baseStatuses = baseStatuses.filter((s) => !parentErrorStatusesAlways.includes(s as StatusPagamento.ERRO_ESTORNO | StatusPagamento.ERRO_REJEITADO));
+    return { baseStatuses: baseStatuses.length? baseStatuses : null, allStatuses: all, includePendentes, includeBase: baseStatuses.length > 0, includePendenciaPaga, parentErrorStatusesSingleDate, parentErrorStatusesAlways, includeAPagarNuncaEnviado };
   }
 
   private buildFinalBaseQuery(filter: NormalizedFilter, statuses: ResolvedStatuses): string {
@@ -492,7 +508,9 @@ export class RelatorioNovoRemessaFinancialMovementService {
         q.push(this.buildPendenciaPagaSingleDateQuery(filter));
         q.push(this.buildPendenciaPagaPasso0Query(filter));
       }
-      if (statuses.parentErrorStatusesSingleDate.length) q.push(this.buildPendenciaPagamentoSingleDateQuery(filter, statuses.parentErrorStatusesSingleDate));
+      // ADR 0020: qualquer intervalo, não só dia único (parentErrorStatusesSingleDate é só para
+      // STUC-Gratuidade - ver comentário no tipo ResolvedStatuses).
+      if (statuses.parentErrorStatusesAlways.length) q.push(this.buildPendenciaPagamentoSingleDateQuery(filter, statuses.parentErrorStatusesAlways));
       if (statuses.includePendentes) q.push(this.buildPendentesQuery(filter));
       // Nenhuma consulta selecionada para o filtro: não deve trazer linhas (antes caía em todos os status).
       if (!q.length) return `${this.buildBaseQuery(filter)} AND FALSE`;

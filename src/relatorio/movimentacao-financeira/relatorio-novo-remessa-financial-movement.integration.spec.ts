@@ -198,7 +198,11 @@ suite('RelatorioNovoRemessaFinancialMovementService (PostgreSQL)', () => {
     );
   }
 
-  it('"A Pagar" selects only the order never grouped/sent, not the ones already sent (statusRemessa 0/1)', async () => {
+  // ADR 0017 (revisado): "A Pagar" explicitamente selecionado traz a UNIÃO das duas populações -
+  // nunca agrupada/enviada e já enviada aguardando retorno do banco (statusRemessa 0/1) - não só
+  // a primeira. Mesmo resultado do filtro "Todos" abaixo, já que neste fixture não há nenhuma
+  // outra família de status seedada.
+  it('"A Pagar" selects the union of never-grouped and already-sent orders (statusRemessa 0/1)', async () => {
     await seedAPagarFamily();
 
     const filter = {
@@ -214,10 +218,13 @@ suite('RelatorioNovoRemessaFinancialMovementService (PostgreSQL)', () => {
 
     const [page, summary] = await Promise.all([service.findFinancialMovementPage(filter), service.findFinancialMovementSummary(filter)]);
 
-    expect(page.data?.map((row) => [row.valor, row.status])).toEqual([['321.00', 'A Pagar']]);
-    expect(summary.count).toBe(1);
-    expect(summary.valorAPagar).toBe(321);
-    expect(summary.valorTotal).toBe(321);
+    // The two already-sent orders share the same date/favorecido/consórcio/status tuple, so the
+    // grouped CTE (buildGroupedCte) sums them into one row (150 + 175 = 325). The never-grouped
+    // order (own status "A Pagar") stays its own row.
+    expect(page.data?.map((row) => row.valor).sort()).toEqual(['321.00', '325.00']);
+    expect(summary.count).toBe(2);
+    expect(summary.valorAPagar).toBe(646);
+    expect(summary.valorTotal).toBe(646);
   });
 
   it('"Todos" (no status filter) shows the never-grouped order together with the already-sent ones', async () => {
