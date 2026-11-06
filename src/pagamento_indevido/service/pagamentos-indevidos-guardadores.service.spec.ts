@@ -5,12 +5,12 @@ describe('PagamentosIndevidosGuardadoresService.porUsuario', () => {
   const totaisSemSaldo = { quantidade: 1, devendo: 0, valorIndevido: '56.00', valorDebitado: '56.00', saldoDevedor: '0.00' };
   const lancamentos = [{ data: '2026-10-16', valorDevido: '238.00', valorPago: '0.00', diferenca: '-238.00', statusRemessa: 3 }];
   const ordens = [
-    { dia: '2026-07-28', valor: '114.80', pagoEm: '2026-08-12' },
-    { dia: '2026-07-28', valor: '114.80', pagoEm: '2026-09-03' },
-    { dia: '2026-07-28', valor: '114.80', pagoEm: '2026-09-23' },
-    { dia: '2026-07-31', valor: '177.80', pagoEm: '2026-08-12' },
-    { dia: '2026-07-31', valor: '177.80', pagoEm: '2026-09-03' },
-    { dia: '2026-10-20', valor: '18.20', pagoEm: '2026-10-21' },
+    { dia: '2026-07-28', valor: '114.80', pagamentos: ['2026-08-12'] },
+    { dia: '2026-07-28', valor: '114.80', pagamentos: ['2026-09-03'] },
+    { dia: '2026-07-28', valor: '114.80', pagamentos: ['2026-09-23'] },
+    { dia: '2026-07-31', valor: '177.80', pagamentos: ['2026-08-12'] },
+    { dia: '2026-07-31', valor: '177.80', pagamentos: ['2026-09-03'] },
+    { dia: '2026-10-20', valor: '18.20', pagamentos: ['2026-10-21'] },
   ];
 
   const duplicidades = [
@@ -76,60 +76,55 @@ describe('PagamentosIndevidosGuardadoresService.porUsuario', () => {
   });
 });
 
-describe('PagamentosIndevidosGuardadoresService.datasDeDuplicidade', () => {
+describe('PagamentosIndevidosGuardadoresService.duplicidadesDeOrdens / datasDeDuplicidade', () => {
+  const duplicidades = PagamentosIndevidosGuardadoresService.duplicidadesDeOrdens;
   const datas = PagamentosIndevidosGuardadoresService.datasDeDuplicidade;
 
   it('a primeira vez que a ordem foi paga é a devida; as seguintes são a duplicidade', () => {
-    expect(
-      datas([
-        { dia: '2026-10-09', valor: '50.00', pagoEm: '2026-10-13' },
-        { dia: '2026-10-09', valor: '50.00', pagoEm: '2026-10-10' },
-      ]),
-    ).toEqual(['2026-10-13']);
+    const ordens = [
+      { dia: '2026-10-09', valor: '50.00', pagamentos: ['2026-10-13'] },
+      { dia: '2026-10-09', valor: '50.00', pagamentos: ['2026-10-10'] },
+    ];
+    expect(duplicidades(ordens)).toEqual([{ dataOrdem: '2026-10-09', valor: '50.00', pagoEm: '2026-10-10', repetidoEm: ['2026-10-13'] }]);
+    expect(datas(ordens)).toEqual(['2026-10-13']);
   });
 
-  it('ordem sem pagamento não conta e ordens diferentes não se misturam', () => {
-    expect(
-      datas([
-        { dia: '2026-10-09', valor: '50.00', pagoEm: null },
-        { dia: '2026-10-09', valor: '50.00', pagoEm: '2026-10-10' },
-        { dia: '2026-10-09', valor: '60.00', pagoEm: '2026-10-11' },
-      ]),
-    ).toEqual([]);
+  it('conta todos os pagamentos: a ordem paga em 23/09 e de novo em 01/10 repete as duas datas (caso do guardador 2550)', () => {
+    const ordens = [
+      { dia: '2026-08-14', valor: '204.40', pagamentos: ['2026-09-23', '2026-10-01'] },
+      { dia: '2026-08-14', valor: '204.40', pagamentos: ['2026-09-03'] },
+    ];
+    expect(duplicidades(ordens)).toEqual([
+      { dataOrdem: '2026-08-14', valor: '204.40', pagoEm: '2026-09-03', repetidoEm: ['2026-09-23', '2026-10-01'] },
+    ]);
+    expect(datas(ordens)).toEqual(['2026-09-23', '2026-10-01']);
+  });
+
+  it('uma ordem sozinha paga duas vezes também é duplicidade', () => {
+    expect(duplicidades([{ dia: '2026-09-15', valor: '361.20', pagamentos: ['2026-09-23', '2026-10-01'] }])).toEqual([
+      { dataOrdem: '2026-09-15', valor: '361.20', pagoEm: '2026-09-23', repetidoEm: ['2026-10-01'] },
+    ]);
+  });
+
+  it('ordem sem pagamento, paga uma vez ou de valor diferente não é duplicidade', () => {
+    const ordens = [
+      { dia: '2026-10-09', valor: '50.00', pagamentos: [] },
+      { dia: '2026-10-09', valor: '50.00', pagamentos: ['2026-10-10'] },
+      { dia: '2026-10-09', valor: '60.00', pagamentos: ['2026-10-11'] },
+    ];
+    expect(duplicidades(ordens)).toEqual([]);
+    expect(datas(ordens)).toEqual([]);
   });
 
   it('junta e ordena as datas de todas as ordens duplicadas, sem repetir', () => {
     expect(
       datas([
-        { dia: '2026-07-28', valor: '10.00', pagoEm: '2026-08-12' },
-        { dia: '2026-07-28', valor: '10.00', pagoEm: '2026-09-23' },
-        { dia: '2026-07-31', valor: '20.00', pagoEm: '2026-08-12' },
-        { dia: '2026-07-31', valor: '20.00', pagoEm: '2026-09-23' },
-        { dia: '2026-07-31', valor: '20.00', pagoEm: '2026-09-03' },
+        { dia: '2026-07-28', valor: '10.00', pagamentos: ['2026-08-12'] },
+        { dia: '2026-07-28', valor: '10.00', pagamentos: ['2026-09-23'] },
+        { dia: '2026-07-31', valor: '20.00', pagamentos: ['2026-08-12'] },
+        { dia: '2026-07-31', valor: '20.00', pagamentos: ['2026-09-23'] },
+        { dia: '2026-07-31', valor: '20.00', pagamentos: ['2026-09-03'] },
       ]),
     ).toEqual(['2026-09-03', '2026-09-23']);
-  });
-});
-
-describe('PagamentosIndevidosGuardadoresService.duplicidadesDeOrdens', () => {
-  const duplicidades = PagamentosIndevidosGuardadoresService.duplicidadesDeOrdens;
-
-  it('diz qual ordem foi duplicada: a data do pagamento devido e as datas dos repetidos', () => {
-    expect(
-      duplicidades([
-        { dia: '2026-08-14', valor: '204.40', pagoEm: '2026-09-23' },
-        { dia: '2026-08-14', valor: '204.40', pagoEm: '2026-09-03' },
-      ]),
-    ).toEqual([{ dataOrdem: '2026-08-14', valor: '204.40', pagoEm: '2026-09-03', repetidoEm: ['2026-09-23'] }]);
-  });
-
-  it('ordem paga uma vez, sem pagamento ou de valor diferente não é duplicidade', () => {
-    expect(
-      duplicidades([
-        { dia: '2026-10-09', valor: '50.00', pagoEm: null },
-        { dia: '2026-10-09', valor: '50.00', pagoEm: '2026-10-10' },
-        { dia: '2026-10-09', valor: '60.00', pagoEm: '2026-10-11' },
-      ]),
-    ).toEqual([]);
   });
 });
