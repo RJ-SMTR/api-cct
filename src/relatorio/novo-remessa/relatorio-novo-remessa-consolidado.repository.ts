@@ -234,13 +234,15 @@ export class RelatorioNovoRemessaConsolidadoRepository {
   private getQueryApagarEleicaoConsorcio(dataInicio: string, dataFim: string): string {
     return ` ${this.headerQueryEleicaoConsorcioApagar}
              ${this.fromQueryEleicaoAPagar}
-             where op."dataOrdem" BETWEEN '${dataInicio}' AND '${dataFim}' AND op."idOrdemPagamento" is null`;
+             where op."dataOrdem" BETWEEN '${dataInicio}' AND '${dataFim}' AND op."idOrdemPagamento" is null
+               and (pu."bloqueado" is null OR pu."bloqueado" = false)`;
   }
 
   private getQueryApagarEleicaoVanzeiro(dataInicio: string, dataFim: string): string {
     return ` ${this.headerQueryEleicaoVanzereiroApagar}
              ${this.fromQueryEleicaoAPagar}
-             where op."dataOrdem" BETWEEN '${dataInicio}' AND '${dataFim}' AND op."idOrdemPagamento" is null`;
+             where op."dataOrdem" BETWEEN '${dataInicio}' AND '${dataFim}' AND op."idOrdemPagamento" is null
+               and (pu."bloqueado" is null OR pu."bloqueado" = false)`;
   }
 
   // NOT EXISTS/motivoStatusRemessa: mesmos guards de getQueryPendenciaPagaConsorcios/Vanzeiros
@@ -425,13 +427,15 @@ export class RelatorioNovoRemessaConsolidadoRepository {
   private getQueryEleicaoConsorcio(dataInicio: string, dataFim: string): string {
     return `  ${this.headerQueryEleicaoConsorcio}
               ${this.fromQueryEleicao}
-              where da."dataVencimento" >= '${dataInicio}'::date AND da."dataVencimento" < '${dataFim}'::date + interval '1 day' `;
+              where da."dataVencimento" >= '${dataInicio}'::date AND da."dataVencimento" < '${dataFim}'::date + interval '1 day'
+                and (pu."bloqueado" is null OR pu."bloqueado" = false) `;
   }
 
   private getQueryEleicaoVanzeiro(dataInicio: string, dataFim: string): string {
     return `  ${this.headerQueryEleicaoVanzeiro}
               ${this.fromQueryEleicao}
-              where da."dataVencimento" >= '${dataInicio}'::date AND da."dataVencimento" < '${dataFim}'::date + interval '1 day' `;
+              where da."dataVencimento" >= '${dataInicio}'::date AND da."dataVencimento" < '${dataFim}'::date + interval '1 day'
+                and (pu."bloqueado" is null OR pu."bloqueado" = false) `;
   }
 
   public async findConsolidado(filter: IFindPublicacaoRelatorioNovoRemessa): Promise<RelatorioConsolidadoNovoRemessaDto> {
