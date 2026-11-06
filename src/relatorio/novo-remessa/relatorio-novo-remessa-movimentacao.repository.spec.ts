@@ -111,6 +111,19 @@ describe('RelatorioNovoRemessaMovimentacaoRepository — consorcio grouping', ()
     expect(aggQuery).toContain('COUNT(*) AS total');
     expect(dataQuery).not.toContain('GROUP BY "dataReferencia", consorcio, status');
   });
+
+  // fromQueryPrincipal also brings puu (the "filho" agrupamento's user via opp), used by the
+  // header's coalesce(pu."fullName", puu."fullName") fallback when the row's own agrupamento has
+  // no order (pu is null). The bloqueado guard must cover both, or a blocked favorecido leaks
+  // through that fallback path (same gap as relatorio-novo-remessa-consolidado.repository.ts).
+  it('excludes both pu.bloqueado and puu.bloqueado from the normal-flow queries', async () => {
+    const { aggQuery, dataQuery } = await runAndCaptureQueries(undefined, true);
+
+    for (const query of [aggQuery, dataQuery]) {
+      expect(query).toContain(`pu."bloqueado" is null OR pu."bloqueado" = false`);
+      expect(query).toContain(`puu."bloqueado" is null OR puu."bloqueado" = false`);
+    }
+  });
   // Each selected status widens the result set: they must be OR-ed together. AND-ing them
   // (e.g. the erro "motivo NOT IN 00/0BD" on top of pago) wiped out every Pago row.
   describe('status combination', () => {

@@ -358,14 +358,16 @@ export class RelatorioNovoRemessaMovimentacaoRepository {
     return `   ${this.headerQueryConsorcios}
                ${this.fromQueryPrincipal}
                where da."dataVencimento" >= '${dataInicio}'::date AND da."dataVencimento" < '${dataFim}'::date + interval '1 day'
-               and (pu."bloqueado" is null OR pu."bloqueado" = false) `;
+               and (pu."bloqueado" is null OR pu."bloqueado" = false)
+               and (puu."bloqueado" is null OR puu."bloqueado" = false) `;
   }
 
   private getQueryVanzeiros(dataInicio: string, dataFim: string): string {
     return `  ${this.headerQueryVanzeiros}
               ${this.fromQueryPrincipal}
               where da."dataVencimento" >= '${dataInicio}'::date AND da."dataVencimento" < '${dataFim}'::date + interval '1 day'
-               and (pu."bloqueado" is null OR pu."bloqueado" = false) `;
+               and (pu."bloqueado" is null OR pu."bloqueado" = false)
+               and (puu."bloqueado" is null OR puu."bloqueado" = false) `;
   }
 
   private getQueryEleicaoConsorcio(dataInicio: string, dataFim: string): string {
