@@ -978,4 +978,73 @@ describe('RelatorioNovoRemessaFinancialMovementService', () => {
       expect((page.data as any[]).map((r) => r.cpfCnpj)).toEqual(['2']);
     });
   });
+
+  // ADR 0017 only covered the "nunca enviada" sub-query (which already filtered bloqueado);
+  // every other status bucket here never excluded a blocked favorecido outside "Desativados"
+  // mode (found 2026-11-06, auditing the report right after the ADR 0017 fix).
+  describe('Favorecido bloqueado não aparece fora do modo Desativados', () => {
+    const BLOQUEADO_FALSE_MARKER = 'AND (pu.bloqueado IS NULL OR pu.bloqueado = false)';
+    const BLOQUEADO_TRUE_MARKER = 'AND pu.bloqueado = true';
+
+    it.each([
+      ['Pago', { pago: true }],
+      ['A Pagar', { aPagar: true }],
+      ['Rejeitado', { rejeitado: true }],
+      ['Pendência Paga', { pendenciaPaga: true }],
+      ['Pendentes', { pendentes: true }],
+      ['Eleição', { eleicao: true, aPagar: true }],
+    ])('excludes bloqueado favorecidos for status %s', async (_name, statusFilter) => {
+      await service.findFinancialMovementSummary({
+        dataInicio: new Date('2026-11-05'),
+        dataFim: new Date('2026-11-05'),
+        ...statusFilter,
+      } as any);
+
+      const [countQuery] = dataSource.query.mock.calls[0];
+      expect(countQuery).toContain(BLOQUEADO_FALSE_MARKER);
+      expect(countQuery).not.toContain(BLOQUEADO_TRUE_MARKER);
+    });
+
+    it('excludes bloqueado favorecidos for STUC-Gratuidade', async () => {
+      dataSource.query.mockResolvedValueOnce([]);
+      await service.findFinancialMovementSummary({
+        dataInicio: new Date('2026-11-05'),
+        dataFim: new Date('2026-11-05'),
+        stucGratuidade: true,
+        pago: true,
+      } as any);
+
+      const [dataQuery] = dataSource.query.mock.calls[0];
+      expect(dataQuery).toContain(BLOQUEADO_FALSE_MARKER);
+      expect(dataQuery).not.toContain(BLOQUEADO_TRUE_MARKER);
+    });
+
+    it('shows only bloqueado favorecidos when desativados is set', async () => {
+      await service.findFinancialMovementSummary({
+        dataInicio: new Date('2026-11-05'),
+        dataFim: new Date('2026-11-05'),
+        pago: true,
+        desativados: true,
+      } as any);
+
+      const [countQuery] = dataSource.query.mock.calls[0];
+      expect(countQuery).toContain(BLOQUEADO_TRUE_MARKER);
+      expect(countQuery).not.toContain(BLOQUEADO_FALSE_MARKER);
+    });
+
+    // buildPendenciaPagamentoTemplate has an internal UNION ALL of two SELECTs (rejected/estornado
+    // with a parent attempt vs. first-level, never retried) - appending the filter once after
+    // .trim() only reaches the second SELECT. Both must carry it.
+    it('excludes bloqueado favorecidos in both branches of the Rejeitado/Estorno UNION ALL', async () => {
+      await service.findFinancialMovementSummary({
+        dataInicio: new Date('2026-11-05'),
+        dataFim: new Date('2026-11-05'),
+        rejeitado: true,
+      } as any);
+
+      const [countQuery] = dataSource.query.mock.calls[0];
+      const occurrences = countQuery.split(BLOQUEADO_FALSE_MARKER).length - 1;
+      expect(occurrences).toBe(2);
+    });
+  });
 });

@@ -14,6 +14,13 @@ export type NovoRemessaBaseParams = {
    * sem os consórcios comuns, divergindo do total do Consolidado (achado 2026-11-04).
    */
   hasConsorcioFilter?: boolean;
+  /**
+   * "Desativados" (favorecido bloqueado). Só usado por buildPendenciaPagamentoTemplate: o UNION
+   * ALL interno tem dois SELECTs, e o padrão do resto do arquivo (o service anexa
+   * "AND pu.bloqueado = ..." ao final do SQL) só alcançaria o segundo - precisa ir no WHERE de
+   * cada ramo (achado 2026-11-06, auditoria de bloqueado pós-ADR 0017).
+   */
+  desativados?: boolean;
 };
 
 export type NovoRemessaPendentesParams = {
@@ -352,6 +359,9 @@ const buildPendenciaPagamentoTemplate = (
     ? params.parentErrorStatuses
     : ['Estorno', 'Rejeitado'];
   const requestedStatusSql = requestedStatuses.map((status) => `'${status}'`).join(', ');
+  const bloqueadoFilter = params.desativados
+    ? 'AND pu.bloqueado = true'
+    : 'AND (pu.bloqueado IS NULL OR pu.bloqueado = false)';
 
   return `
     SELECT
@@ -391,6 +401,7 @@ const buildPendenciaPagamentoTemplate = (
       AND ${parentStatusCase} IN (${requestedStatusSql})
       AND (${consorcioParam}::text[] IS NULL OR UPPER(TRIM(${CONSORCIO_CASE})) = ANY(${consorcioParam}))
       AND (oph_pai."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph_pai."motivoStatusRemessa" IS NULL)
+      ${bloqueadoFilter}
       ${buildTodosVanzeirosFilter(params)}
 
     UNION ALL
@@ -433,6 +444,7 @@ const buildPendenciaPagamentoTemplate = (
       AND (${consorcioParam}::text[] IS NULL OR UPPER(TRIM(${CONSORCIO_CASE})) = ANY(${consorcioParam}))
       AND ${agrupamentoSemFilhas('opa')}
       AND (oph."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph."motivoStatusRemessa" IS NULL)
+      ${bloqueadoFilter}
       ${buildTodosVanzeirosFilter(params)}
   `;
 };

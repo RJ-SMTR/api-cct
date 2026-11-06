@@ -613,32 +613,38 @@ export class RelatorioNovoRemessaFinancialMovementService {
       return data;
     }
   }
+  // ADR 0017 cobriu só a sub-query "nunca enviada" (buildAPagarNuncaEnviadoQuery, que já filtra
+  // pu."bloqueado"); as demais aqui nunca excluíam favorecido bloqueado fora do modo
+  // "Desativados" - bloqueado aparecia em Pago, Aguardando, A Pagar (metade statusRemessa 0/1),
+  // Rejeitado/Estorno, Pendência Paga, STUC-Gratuidade, Eleição e Pendentes (achado 2026-11-06,
+  // auditoria após o fix do ADR 0017). Mesmo padrão já usado pelo modo "Desativados": o
+  // service anexa a condição de bloqueado ao final do SQL de cada consulta.
   private buildBaseQuery(filter: NormalizedFilter): string {
-    return `${buildBaseQuery({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5, hasConsorcioFilter: this.hasConsorcioFilter(filter) }).trim()} ${filter.desativados? 'AND pu.bloqueado = true' : ''}`;
+    return `${buildBaseQuery({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5, hasConsorcioFilter: this.hasConsorcioFilter(filter) }).trim()} ${filter.desativados ? 'AND pu.bloqueado = true' : 'AND (pu.bloqueado IS NULL OR pu.bloqueado = false)'}`;
   }
   private buildEleicaoQuery(filter: NormalizedFilter): string {
-    return `${buildEleicaoQuery({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5, hasConsorcioFilter: this.hasConsorcioFilter(filter) }).trim()} ${filter.desativados? 'AND pu.bloqueado = true' : ''}`;
+    return `${buildEleicaoQuery({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5, hasConsorcioFilter: this.hasConsorcioFilter(filter) }).trim()} ${filter.desativados ? 'AND pu.bloqueado = true' : 'AND (pu.bloqueado IS NULL OR pu.bloqueado = false)'}`;
   }
   private buildStucGratuidadeQuery(filter: NormalizedFilter): string {
-    return `${buildStucGratuidadeQuery({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5, hasConsorcioFilter: this.hasConsorcioFilter(filter) }).trim()} ${filter.desativados? 'AND pu.bloqueado = true' : ''}`;
+    return `${buildStucGratuidadeQuery({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5, hasConsorcioFilter: this.hasConsorcioFilter(filter) }).trim()} ${filter.desativados ? 'AND pu.bloqueado = true' : 'AND (pu.bloqueado IS NULL OR pu.bloqueado = false)'}`;
   }
   private buildStucGratuidadePendenciaPagaSingleDateQuery(filter: NormalizedFilter): string {
-    return `${buildStucGratuidadePendenciaPagaSingleDateQuery({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5, hasConsorcioFilter: this.hasConsorcioFilter(filter) }).trim()} ${filter.desativados? 'AND pu.bloqueado = true' : ''}`;
+    return `${buildStucGratuidadePendenciaPagaSingleDateQuery({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5, hasConsorcioFilter: this.hasConsorcioFilter(filter) }).trim()} ${filter.desativados ? 'AND pu.bloqueado = true' : 'AND (pu.bloqueado IS NULL OR pu.bloqueado = false)'}`;
   }
   private buildStucGratuidadePendenciaPagamentoSingleDateQuery(filter: NormalizedFilter, statuses: Array<StatusPagamento.ERRO_ESTORNO | StatusPagamento.ERRO_REJEITADO>): string {
-    return `${buildStucGratuidadePendenciaPagamentoSingleDateQuery({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5, parentErrorStatuses: statuses, hasConsorcioFilter: this.hasConsorcioFilter(filter) }).trim()} ${filter.desativados ? 'AND pu.bloqueado = true' : ''}`;
+    return `${buildStucGratuidadePendenciaPagamentoSingleDateQuery({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5, parentErrorStatuses: statuses, hasConsorcioFilter: this.hasConsorcioFilter(filter), desativados: filter.desativados }).trim()}`;
   }
   private buildPendentesQuery(filter: NormalizedFilter): string {
-    return `${buildPendentesQuery({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5 } as any).trim()} ${filter.desativados? 'AND pu.bloqueado = true' : ''}`;
+    return `${buildPendentesQuery({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5 } as any).trim()} ${filter.desativados ? 'AND pu.bloqueado = true' : 'AND (pu.bloqueado IS NULL OR pu.bloqueado = false)'}`;
   }
   private buildPendenciaPagaSingleDateQuery(filter: NormalizedFilter): string {
-    return `${buildPendenciaPagaSingleDateQuery({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5, hasConsorcioFilter: this.hasConsorcioFilter(filter) }).trim()} ${filter.desativados? 'AND pu.bloqueado = true' : ''}`;
+    return `${buildPendenciaPagaSingleDateQuery({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5, hasConsorcioFilter: this.hasConsorcioFilter(filter) }).trim()} ${filter.desativados ? 'AND pu.bloqueado = true' : 'AND (pu.bloqueado IS NULL OR pu.bloqueado = false)'}`;
   }
   private buildPendenciaPagaPasso0Query(filter: NormalizedFilter): string {
-    return `${buildPendenciaPagaPasso0Query({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5, hasConsorcioFilter: this.hasConsorcioFilter(filter) }).trim()} ${filter.desativados ? 'AND pu.bloqueado = true' : ''}`;
+    return `${buildPendenciaPagaPasso0Query({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5, hasConsorcioFilter: this.hasConsorcioFilter(filter) }).trim()} ${filter.desativados ? 'AND pu.bloqueado = true' : 'AND (pu.bloqueado IS NULL OR pu.bloqueado = false)'}`;
   }
   private buildPendenciaPagamentoSingleDateQuery(filter: NormalizedFilter, statuses: Array<StatusPagamento.ERRO_ESTORNO | StatusPagamento.ERRO_REJEITADO>): string {
-    return `${buildPendenciaPagamentoSingleDateQuery({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5, parentErrorStatuses: statuses, hasConsorcioFilter: this.hasConsorcioFilter(filter) }).trim()} ${filter.desativados ? 'AND pu.bloqueado = true' : ''}`;
+    return `${buildPendenciaPagamentoSingleDateQuery({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5, parentErrorStatuses: statuses, hasConsorcioFilter: this.hasConsorcioFilter(filter), desativados: filter.desativados }).trim()}`;
   }
   private isSingleDate(filter: NormalizedFilter): boolean { return this.toQueryDate(filter.dataInicio) === this.toQueryDate(filter.dataFim); }
   private resolvePagination(filter: NormalizedFilter) {
