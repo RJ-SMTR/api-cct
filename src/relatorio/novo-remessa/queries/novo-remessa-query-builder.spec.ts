@@ -179,25 +179,25 @@ describe('novo-remessa-query-builder período (dataVencimento)', () => {
   });
 
   // "user"."cpfCnpj" não é único (achado contra stag, 19/10/2026: um favorecido tinha 2
-  // cadastros ativos com o mesmo CPF, nenhum deletedAt/bloqueado). Um INNER JOIN em cpfCnpj faz
-  // fan-out - a mesma ordem vira 2 linhas, dobrando o valor dela no total. Ligar por
-  // permitCode/idOperadora (chave do operador, não o CPF dele) evita a ambiguidade.
-  it('eleicao query joins "user" by permitCode/idOperadora, not by the (non-unique) cpfCnpj', () => {
+  // cadastros ativos com o mesmo CPF, nenhum deletedAt/bloqueado). Ligar por cpfCnpj sem
+  // nenhuma condição faria fan-out - a mesma ordem viraria 2 linhas, dobrando o valor dela no
+  // total. permitCode/idOperadora (chave do operador, não o CPF dele) é a ligação principal.
+  it('eleicao query joins "user" by permitCode/idOperadora as the primary match', () => {
     const sql = buildEleicaoQuery(params);
 
-    expect(sql).not.toContain('ON pu."cpfCnpj" = opu."operadoraCpfCnpj"');
-    expect(sql).toContain('INNER JOIN public."user" pu\n      ON pu."permitCode" = opu."idOperadora"');
+    expect(sql).toContain('WHERE u."permitCode" = opu."idOperadora"');
   });
 
-  // "user"."cpfCnpj" não é único (achado contra stag, 19/10/2026: um favorecido tinha 2
-  // cadastros ativos com o mesmo CPF, nenhum deletedAt/bloqueado). Um INNER JOIN em cpfCnpj faz
-  // fan-out - a mesma ordem vira 2 linhas, dobrando o valor dela no total. Ligar por
-  // permitCode/idOperadora (chave do operador, não o CPF dele) evita a ambiguidade.
-  it('eleicao query joins "user" by permitCode/idOperadora, not by the (non-unique) cpfCnpj', () => {
+  // ADR 0019: ordens antigas (ex. nov/2024) têm "idOperadora" NULL - o campo ainda não existia
+  // preenchido na época -, então o join por permitCode não encontra ninguém e a ordem some do
+  // relatório. Verificado contra o banco que essa população não tem CPF duplicado, então o
+  // fallback por operadoraCpfCnpj, usado só quando não há usuário com aquele permitCode, não
+  // reintroduz o fan-out que motivou a troca para permitCode.
+  it('eleicao query falls back to operadoraCpfCnpj only when no user matches permitCode', () => {
     const sql = buildEleicaoQuery(params);
 
-    expect(sql).not.toContain('ON pu."cpfCnpj" = opu."operadoraCpfCnpj"');
-    expect(sql).toContain('INNER JOIN public."user" pu\n      ON pu."permitCode" = opu."idOperadora"');
+    expect(sql).toContain('AND u."cpfCnpj" = opu."operadoraCpfCnpj"');
+    expect(sql).toContain('NOT EXISTS (\n        SELECT 1 FROM public."user" u2 WHERE u2."permitCode" = opu."idOperadora"\n      )');
   });
 
   // op.dataOrdem is a plain `date` column (no time component): it never had this bug and
@@ -368,9 +368,11 @@ describe('novo-remessa-query-builder hasConsorcioFilter desliga o MODAIS_FILTER'
     ['stucGratuidadePendenciaPagamentoSingleDate', buildStucGratuidadePendenciaPagamentoSingleDateQuery({ ...params, hasConsorcioFilter: true })],
   ])('%s query does not restrict to modais when a consórcio filter is active, even with todosVanzeiros', (_name, sql) => {
     expect(sql).not.toContain(MODAIS_FILTER_MARKER);
-    // NOT_CPF_FILTER (exclusão dos CNPJs institucionais) continua valendo - é independente do
-    // filtro de consórcio.
-    expect(sql).toContain('cpfCnpj" NOT IN');
+    // NOT_CPF_FILTER (exclusão dos CNPJs institucionais) também desliga com consórcio escolhido
+    // (ADR 0018): o pagamento do consórcio é lançado no CNPJ institucional dele, excluí-lo fazia
+    // a Movimentação Financeira mostrar R$ 0,00 para VLT/Internorte/Santa Cruz etc. mesmo com o
+    // consórcio explicitamente selecionado, divergindo do Consolidado (achado 2026-11-06).
+    expect(sql).not.toContain('cpfCnpj" NOT IN');
   });
 
   it('keeps restricting to modais when todosVanzeiros is set without any consórcio filter (hasConsorcioFilter not set)', () => {

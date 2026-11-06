@@ -280,6 +280,8 @@ export class RelatorioNovoRemessaConsolidadoRepository {
     return `   ${this.headerQueryConsorcios}
                ${this.fromQueryPrincipal}
                where da."dataVencimento" >= '${dataInicio}'::date AND da."dataVencimento" < '${dataFim}'::date + interval '1 day'
+               and (pu."bloqueado" is null OR pu."bloqueado" = false)
+               and (puu."bloqueado" is null OR puu."bloqueado" = false)
                ${this.excluiAgrupamentoSubstituido} `;
   }
 
@@ -287,6 +289,8 @@ export class RelatorioNovoRemessaConsolidadoRepository {
     return `  ${this.headerQueryVanzeiros}
               ${this.fromQueryPrincipal}
               where da."dataVencimento" >= '${dataInicio}'::date AND da."dataVencimento" < '${dataFim}'::date + interval '1 day'
+              and (pu."bloqueado" is null OR pu."bloqueado" = false)
+              and (puu."bloqueado" is null OR puu."bloqueado" = false)
               ${this.excluiAgrupamentoSubstituido} `;
   }
 
@@ -299,17 +303,40 @@ export class RelatorioNovoRemessaConsolidadoRepository {
   // exatamente as do query-builder compartilhado. Sem elas, um agrupamento que passou por mais de
   // um histórico com statusRemessa=5 (ex.: reenvio) conta o mesmo pagamento 2x - foi assim que o
   // total do Consolidado saiu em dobro na primeira tentativa desta correção.
+  // umaLinhaPorFilhaPaga: a filha pode ter mais de uma linha em detalhe_a (ex.: reenvio dentro do
+  // mesmo agrupamento, sem trocar de pai) - sem restringir a uma só, cada detalhe_a extra soma o
+  // mesmo pagamento de novo. Mesma lógica de umaLinhaPorFilhaPagaFilter (query-builder
+  // compartilhado): prioriza a linha cujo valor bate com o valorTotal do agrupamento; sem
+  // nenhuma batendo, a mais recente (achado 2026-11-06, testando contra produção - excesso de
+  // R$ 16,53/11.210,06/4.497,60 em mar/mai/jun bate exatamente com a filha em dobro).
+  private readonly umaLinhaPorFilhaPaga = `
+                 and da.id = (
+                   SELECT da_filha.id
+                   FROM ordem_pagamento_agrupado_historico oph_filha
+                   INNER JOIN detalhe_a da_filha
+                     ON da_filha."ordemPagamentoAgrupadoHistoricoId" = oph_filha.id
+                   WHERE oph_filha."ordemPagamentoAgrupadoId" = opafi.id
+                     AND oph_filha."statusRemessa" = 5
+                   ORDER BY
+                     (ROUND(da_filha."valorLancamento"::numeric, 2) = ROUND(opafi."valorTotal"::numeric, 2)) DESC,
+                     da_filha.id DESC
+                   LIMIT 1
+                 ) `;
+
   private getQueryPendenciaPagaConsorcios(dataInicio: string, dataFim: string): string {
     return `   ${this.headerQueryConsorcios}
                ${this.fromQueryPrincipalComPai}
                where oph."statusRemessa" = 5
                  and (oph."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph."motivoStatusRemessa" IS NULL)
                  and ${agrupamentoSemFilhas('opafi')}
+                 and (pu."bloqueado" is null OR pu."bloqueado" = false)
+                 and (puu."bloqueado" is null OR puu."bloqueado" = false)
                  and (
                    (opafi."ordemPagamentoAgrupadoId" is not null and op_pai."dataPagamento"::date BETWEEN '${dataInicio}'::date AND '${dataFim}'::date)
                    or
                    (opafi."ordemPagamentoAgrupadoId" is null and opafi."dataPagamento"::date BETWEEN '${dataInicio}'::date AND '${dataFim}'::date)
-                 ) `;
+                 )
+                 ${this.umaLinhaPorFilhaPaga} `;
   }
 
   private getQueryPendenciaPagaVanzeiros(dataInicio: string, dataFim: string): string {
@@ -318,11 +345,81 @@ export class RelatorioNovoRemessaConsolidadoRepository {
               where oph."statusRemessa" = 5
                 and (oph."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph."motivoStatusRemessa" IS NULL)
                 and ${agrupamentoSemFilhas('opafi')}
+                and (pu."bloqueado" is null OR pu."bloqueado" = false)
+                and (puu."bloqueado" is null OR puu."bloqueado" = false)
                 and (
                   (opafi."ordemPagamentoAgrupadoId" is not null and op_pai."dataPagamento"::date BETWEEN '${dataInicio}'::date AND '${dataFim}'::date)
                   or
                   (opafi."ordemPagamentoAgrupadoId" is null and opafi."dataPagamento"::date BETWEEN '${dataInicio}'::date AND '${dataFim}'::date)
-                ) `;
+                )
+                ${this.umaLinhaPorFilhaPaga} `;
+  }
+
+  // PASSO 0: filhas pagas (status 5) que nunca foram enviadas em arquivo próprio - nenhum
+  // histórico delas tem detalhe_a, então getQueryPendenciaPagaConsorcios/Vanzeiros (que partem de
+  // "from detalhe_a da") nunca as encontra. Mesma lógica de buildPendenciaPagaPasso0Query
+  // (query-builder compartilhado, já usado pela Movimentação Financeira/Guardador) - valor é o
+  // valorTotal da OPA da filha, data é a dataPagamento do pai (achado 2026-11-06, testando contra
+  // produção: R$ 14.614,50 de diferença em 08/10/2026 batia exatamente com essas filhas).
+  private getQueryPendenciaPagaPasso0Consorcios(dataInicio: string, dataFim: string): string {
+    return ` select distinct CASE
+               WHEN pu."permitCode" = '8' THEN 'VLT'
+               WHEN pu."permitCode" LIKE '4%' THEN 'STPC'
+               WHEN pu."permitCode" LIKE '81%' THEN 'STPL'
+               WHEN pu."permitCode" LIKE '7%' THEN 'TEC'
+               ELSE op."nomeConsorcio"
+             END AS "nome",
+             pu."fullName" AS "nome2",
+             opafi."valorTotal" AS valor, opafi."id" AS "idLinha"
+             ${this.fromQueryPendenciaPagaPasso0}
+             ${this.whereQueryPendenciaPagaPasso0(dataInicio, dataFim)} `;
+  }
+
+  private getQueryPendenciaPagaPasso0Vanzeiros(dataInicio: string, dataFim: string): string {
+    return ` select distinct pu."fullName" AS "nome",
+             CASE
+               WHEN pu."permitCode" = '8' THEN 'VLT'
+               WHEN pu."permitCode" LIKE '4%' THEN 'STPC'
+               WHEN pu."permitCode" LIKE '81%' THEN 'STPL'
+               WHEN pu."permitCode" LIKE '7%' THEN 'TEC'
+               ELSE op."nomeConsorcio"
+             END AS "nome2",
+             opafi."valorTotal" AS valor, opafi."id" AS "idLinha"
+             ${this.fromQueryPendenciaPagaPasso0}
+             ${this.whereQueryPendenciaPagaPasso0(dataInicio, dataFim)} `;
+  }
+
+  private readonly fromQueryPendenciaPagaPasso0 = ` from ordem_pagamento_agrupado opafi
+             inner join ordem_pagamento_agrupado op_pai on op_pai."id" = opafi."ordemPagamentoAgrupadoId"
+             left join lateral (
+               select o."userId", o."nomeConsorcio", o."operadoraCpfCnpj"
+                 from ordem_pagamento o
+                where o."ordemPagamentoAgrupadoId" = opafi.id
+                order by o.id
+                limit 1
+             ) op on true
+             left join public."user" pu on pu."id" = op."userId" `;
+
+  private whereQueryPendenciaPagaPasso0(dataInicio: string, dataFim: string): string {
+    return ` where ${agrupamentoSemFilhas('opafi')}
+               and (pu."bloqueado" is null OR pu."bloqueado" = false)
+               and op_pai."dataPagamento"::date BETWEEN '${dataInicio}'::date AND '${dataFim}'::date
+               and EXISTS (
+                 SELECT 1 FROM ordem_pagamento_agrupado_historico oph_recente
+                  WHERE oph_recente."ordemPagamentoAgrupadoId" = opafi.id
+                    AND oph_recente.id = (
+                      SELECT MAX(oph_mais_recente.id) FROM ordem_pagamento_agrupado_historico oph_mais_recente
+                       WHERE oph_mais_recente."ordemPagamentoAgrupadoId" = opafi.id
+                    )
+                    AND oph_recente."statusRemessa" = 5
+                    AND (oph_recente."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph_recente."motivoStatusRemessa" IS NULL)
+               )
+               and NOT EXISTS (
+                 SELECT 1 FROM ordem_pagamento_agrupado_historico oph_qualquer
+                 INNER JOIN detalhe_a da_qualquer
+                   ON da_qualquer."ordemPagamentoAgrupadoHistoricoId" = oph_qualquer.id
+                 WHERE oph_qualquer."ordemPagamentoAgrupadoId" = opafi.id
+               ) `;
   }
 
   private getQueryEleicaoConsorcio(dataInicio: string, dataFim: string): string {
@@ -376,6 +473,13 @@ export class RelatorioNovoRemessaConsolidadoRepository {
 
     let queryPendenciaPagaVanzeiros = ``;
 
+    // PASSO 0 (ver getQueryPendenciaPagaPasso0Consorcios/Vanzeiros): filhas pagas nunca enviadas
+    // em arquivo próprio, invisíveis para queryPendenciaPagaConsorcios/Vanzeiros (que exigem
+    // detalhe_a da própria filha).
+    let queryPendenciaPagaPasso0Consorcios = ``;
+
+    let queryPendenciaPagaPasso0Vanzeiros = ``;
+
     // ---- Quais grupos de consulta o filtro de status pede ----
     // aPagar:    ordens da janela atual ainda sem pagamento.
     // atrasadas: "OPs atrasadas" (ordens antigas sem agrupamento). Não existem na modalidade Eleição.
@@ -387,8 +491,10 @@ export class RelatorioNovoRemessaConsolidadoRepository {
     const temEleicao = !!filter.eleicao;
     const querAPagar = semFiltroStatus || !!filter.aPagar;
     const querAtrasadas = !temEleicao && (semFiltroStatus || !!filter.pendentes || !!filter.erro);
+    // ADR 0017 (revisado): "A Pagar" também precisa do histórico (statusRemessa IN (0,1)), não só
+    // da consulta de ordens nunca agrupadas acima - é a união das duas populações.
     const querHistorico = semFiltroStatus || !!(
-      filter.pago || filter.emProcessamento || filter.pendenciaPaga || filter.rejeitado || filter.estorno || filter.erro
+      filter.pago || filter.emProcessamento || filter.pendenciaPaga || filter.rejeitado || filter.estorno || filter.erro || filter.aPagar
     );
 
     if (querAPagar) {
@@ -410,6 +516,8 @@ export class RelatorioNovoRemessaConsolidadoRepository {
     if (filter.pendenciaPaga) {
       queryPendenciaPagaConsorcios = this.getQueryPendenciaPagaConsorcios(dataInicio, dataFim);
       queryPendenciaPagaVanzeiros = this.getQueryPendenciaPagaVanzeiros(dataInicio, dataFim);
+      queryPendenciaPagaPasso0Consorcios = this.getQueryPendenciaPagaPasso0Consorcios(dataInicio, dataFim);
+      queryPendenciaPagaPasso0Vanzeiros = this.getQueryPendenciaPagaPasso0Vanzeiros(dataInicio, dataFim);
     }
 
     // Só acrescenta um trecho a uma consulta que existe (evita sobrar "AND ..." solto no UNION).
@@ -428,6 +536,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
         queryPendentesVanzeiro = anexar(queryPendentesVanzeiro, usersVanzeiros);
         queryEleicaoVanzeiro = anexar(queryEleicaoVanzeiro, usersVanzeiros);
         queryPendenciaPagaVanzeiros = anexar(queryPendenciaPagaVanzeiros, usersVanzeiros);
+        queryPendenciaPagaPasso0Vanzeiros = anexar(queryPendenciaPagaPasso0Vanzeiros, usersVanzeiros);
       } else {
         const consorcioPlaceholders = this.MODAIS.join(`','`);
         queryPendentesVanzeiro = anexar(queryPendentesVanzeiro, ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') AND length(op."operadoraCpfCnpj")<=11`);
@@ -438,6 +547,8 @@ export class RelatorioNovoRemessaConsolidadoRepository {
         queryAPagarEleicaoVanzeiro = anexar(queryAPagarEleicaoVanzeiro, ` AND op."consorcio" IN('${consorcioPlaceholders}') AND length(op."operadoraCpfCnpj")<=11 `);
         queryPendenciaPagaVanzeiros = anexar(queryPendenciaPagaVanzeiros, ` AND (op."nomeConsorcio" IN('${consorcioPlaceholders}') or opp."nomeConsorcio" IN('${consorcioPlaceholders}'))
                             AND (length(op."operadoraCpfCnpj")<=11  or length(opp."operadoraCpfCnpj")<=11) `);
+        // PASSO 0 não tem "opp" (a filha, por definição, não tem filhas próprias - agrupamentoSemFilhas).
+        queryPendenciaPagaPasso0Vanzeiros = anexar(queryPendenciaPagaPasso0Vanzeiros, ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') AND length(op."operadoraCpfCnpj")<=11`);
       }
     }
 
@@ -454,6 +565,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
         queryEleicaoConsorcio = anexar(queryEleicaoConsorcio, ` AND UPPER(TRIM(${this.consorcioCaseEleicao})) IN('${consorcioPlaceholders}') `);
         queryPendentesConsorcio = anexar(queryPendentesConsorcio, ` AND UPPER(TRIM(${this.consorcioCaseSimples})) IN('${consorcioPlaceholders}') `);
         queryPendenciaPagaConsorcios = anexar(queryPendenciaPagaConsorcios, ` AND UPPER(TRIM(${this.consorcioCaseDuplo})) IN('${consorcioPlaceholders}') `);
+        queryPendenciaPagaPasso0Consorcios = anexar(queryPendenciaPagaPasso0Consorcios, ` AND UPPER(TRIM(${this.consorcioCaseSimples})) IN('${consorcioPlaceholders}') `);
       } else {
         const consorcioPlaceholders = this.CONSORCIOS.join(`','`);
         queryAPagarConsorcios = anexar(queryAPagarConsorcios, ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') `);
@@ -462,6 +574,8 @@ export class RelatorioNovoRemessaConsolidadoRepository {
         queryEleicaoConsorcio = anexar(queryEleicaoConsorcio, ` AND op."consorcio" IN('${consorcioPlaceholders}') `);
         queryPendentesConsorcio = anexar(queryPendentesConsorcio, ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') `);
         queryPendenciaPagaConsorcios = anexar(queryPendenciaPagaConsorcios, ` AND (op."nomeConsorcio" IN('${consorcioPlaceholders}') or opp."nomeConsorcio" IN('${consorcioPlaceholders}')) ${this.excluiCnpjConsorcioInstitucional} `);
+        // PASSO 0 não tem "opp" (ver comentário acima).
+        queryPendenciaPagaPasso0Consorcios = anexar(queryPendenciaPagaPasso0Consorcios, ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') `);
       }
     }
 
@@ -484,14 +598,16 @@ export class RelatorioNovoRemessaConsolidadoRepository {
     // (queryPendenciaPagaConsorcios/Vanzeiros) em vez do filtro de dataVencimento usado abaixo.
     // "Todos" da pendência de pagamento inclui sempre o que Rejeitado e Estorno trazem.
     if (filter.estorno || filter.erro) subErroStatus.push('02');
+    // ADR 0017 (revisado): "A Pagar" é a união de ordens nunca agrupadas (consulta própria,
+    // queryApagarConsorcios/Vanzeiros, controlada por querAPagar) com o bucket cru "A Pagar" do
+    // STATUS_CASE (statusRemessa IN (0,1), já enviado aguardando retorno do banco) - mesma
+    // definição usada pela Movimentação Financeira e por STUC-Gratuidade (que só tem este
+    // bucket, por nascer já agrupada - ADR 0004). Entra aqui para alimentar queryConsorcios/
+    // Vanzeiros e queryEleicaoConsorcio/Vanzeiro via condicoesStatus/condicoesStatusPendencia
+    // abaixo.
+    if (filter.aPagar) status.push(0, 1);
 
-    // "A pagar" para STUC - Gratuidade: diferente do fluxo normal (que usa uma consulta separada
-    // de ordens ainda sem agrupamento, queryApagarConsorcios/Vanzeiros), a gratuidade já nasce
-    // agrupada (ADR 0004) - não existe um estado "sem agrupamento" equivalente. "A pagar" mapeia
-    // então para o bucket cru "A Pagar" do STATUS_CASE (statusRemessa 0/1), igual à Movimentação
-    // Financeira. Cópia à parte de "status": sem isso, "A pagar" (filter.aPagar) passaria a
-    // filtrar também queryConsorcios/Vanzeiros do fluxo normal, que não usa esse bucket hoje.
-    const statusStuc = filter.aPagar ? [...status, 0, 1] : status;
+    const statusStuc = status;
 
     // Rejeitado: no mundo real o motivo não é uma lista fixa (AL/HO/ANHO/AM/AJ/AR/... -
     // confirmado em produção), e o STATUS_CASE classifica como Rejeitado qualquer motivo != '02'
@@ -597,13 +713,20 @@ export class RelatorioNovoRemessaConsolidadoRepository {
         if (subErroStatus.length > 0 && !condicoesStucRejeitadoSingleDate) condicoesStuc.push(`oph."motivoStatusRemessa" IN (${subErroStatus.map((s) => `'${s}'`).join(',')})`);
         if (statusStucSemRejeitado.length > 0) condicoesStuc.push(`oph."statusRemessa" IN (${statusStucSemRejeitado.join(',')})`);
         if (condicaoRejeitado && !condicoesStucRejeitadoSingleDate) condicoesStuc.push(condicaoRejeitado);
-        const tinhaFiltroDeStatus = subErroStatus.length > 0 || statusStuc.length > 0 || !!condicaoRejeitado;
+        // filter.pendenciaPaga (status 5) nunca entra em statusStuc/subErroStatus/condicaoRejeitado
+        // (tem consulta própria por data de pagamento, queryStucPendenciaPagaVanzeiro/Consorcio,
+        // igual ao fluxo normal) - mas é, ainda assim, um status pedido. Sem contar com ele aqui,
+        // "Pendência Paga" sozinha (STUC não tem agrupamento "sem pai" para esse status, então
+        // nenhuma linha realmente corresponde) caía no mesmo buraco do comentário abaixo: nenhuma
+        // condição de status aplicada, devolvendo TODOS os status desta consulta (achado
+        // 2026-11-06, testando contra produção: Pendência Paga devolvia o mesmo total de "Todos").
+        const tinhaFiltroDeStatus = subErroStatus.length > 0 || statusStuc.length > 0 || !!condicaoRejeitado || !!filter.pendenciaPaga;
         if (condicoesStuc.length > 0) {
           literal += ` AND (${condicoesStuc.join(' OR ')}) `;
         } else if (tinhaFiltroDeStatus) {
-          // Único status pedido era Estorno/Rejeitado e migrou inteiro para a consulta de dia
-          // único (abaixo, ciente de retentativa) - sem isto, a ausência de condição aqui faria
-          // esta consulta devolver TODOS os status, não nada.
+          // Único status pedido era Estorno/Rejeitado (migrou inteiro para a consulta de dia
+          // único, ciente de retentativa) ou Pendência Paga (tem consulta própria, ver acima) -
+          // sem isto, a ausência de condição aqui faria esta consulta devolver TODOS os status.
           literal += ` AND FALSE `;
         }
         return literal;
@@ -735,6 +858,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
       || queryPendentesConsorcio !== `` || queryPendentesVanzeiro !== ``
       || queryStucPendenciaPagamentoVanzeiro !== `` || queryStucPendenciaPagamentoConsorcio !== ``
       || queryPendenciaPagaConsorcios !== `` || queryPendenciaPagaVanzeiros !== ``
+      || queryPendenciaPagaPasso0Consorcios !== `` || queryPendenciaPagaPasso0Vanzeiros !== ``
       || queryStucGratuidadeVanzeiro !== `` || queryStucGratuidadeConsorcio !== ``
       || queryStucPendenciaPagaVanzeiro !== `` || queryStucPendenciaPagaConsorcio !== ``;
     if (!hasQuery) {
@@ -792,6 +916,10 @@ export class RelatorioNovoRemessaConsolidadoRepository {
         if (!temEleicao) {
           if (buscarConsorcio) queries.push(queryPendenciaPagaConsorcios);
           if (buscarVanzeiro) queries.push(queryPendenciaPagaVanzeiros);
+          // PASSO 0 segue a mesma Eleição-guard: sem a Eleição selecionada, sempre que a
+          // Pendência Paga normal entra.
+          if (buscarConsorcio) queries.push(queryPendenciaPagaPasso0Consorcios);
+          if (buscarVanzeiro) queries.push(queryPendenciaPagaPasso0Vanzeiros);
         }
       }
     }
@@ -845,13 +973,22 @@ export class RelatorioNovoRemessaConsolidadoRepository {
     // STUC - Gratuidade não tem uma linha agregada por consórcio (queryStucGratuidadeConsorcio
     // também rotula "nome" com o nome do vanzeiro, não do consórcio - ver buildStucGratuidadeLiteral
     // acima), então a dedup abaixo não se aplica: sem ela, todo valor é descartado como duplicado.
-    const vanzeiroJaIncluidoNoConsorcio = !!filter.todosVanzeiros && consorcioCobreModais && !filter.stucGratuidade;
+    const podeTerDuplicidade = !!filter.todosVanzeiros && consorcioCobreModais && !filter.stucGratuidade;
 
-    const somarValorSemDuplicidade = (rows: { nome: string; valor: any }[]) =>
-      rows.reduce((acc: number, curr: { nome: string; valor: any }) => {
-        const eDuplicidadeVanzeiroModal = vanzeiroJaIncluidoNoConsorcio && !consorciosLabels.has(curr.nome);
+    // Com filtro de valor (HAVING SUM(valor) acima), a suposição "a linha do consórcio sempre
+    // está presente junto com a da vanzeiro" quebra: o HAVING filtra cada grupo ("nome")
+    // independentemente, então um consórcio pode ficar de fora do resultado enquanto a vanzeiro
+    // que ele cobre passa (ou vice-versa). Descontar a vanzeiro sem o consórcio correspondente
+    // realmente presente em "rows" zerava o total mesmo com linhas reais (achado 2026-11-06: com
+    // valor máximo ou faixa, nenhum consórcio - cuja soma do período é sempre grande - sobrevive
+    // ao filtro, só vanzeiros pequenos sobram, e a dedup os descontava do total mesmo assim).
+    const somarValorSemDuplicidade = (rows: { nome: string; valor: any }[]) => {
+      const algumConsorcioPresente = podeTerDuplicidade && rows.some((r) => consorciosLabels.has(r.nome));
+      return rows.reduce((acc: number, curr: { nome: string; valor: any }) => {
+        const eDuplicidadeVanzeiroModal = algumConsorcioPresente && !consorciosLabels.has(curr.nome);
         return eDuplicidadeVanzeiroModal ? acc : acc + parseFloat(String(curr.valor));
       }, 0);
+    };
 
     const hasPagination = filter.page !== undefined && filter.pageSize !== undefined;
     const baseParams = [...params];

@@ -96,6 +96,31 @@ describe('RelatorioNovoRemessaConsolidadoRepository', () => {
     });
   });
 
+  // Bug: getQueryConsorcios/getQueryVanzeiros (histórico: Pago, Pendência de Pagamento, Rejeitado,
+  // Estorno) e getQueryPendenciaPagaConsorcios/Vanzeiros não excluíam favorecido bloqueado, ao
+  // contrário de getWhereApagar (A Pagar/Atrasadas) no mesmo arquivo e do relatório equivalente de
+  // Movimentação Financeira (relatorio-novo-remessa-movimentacao.repository.ts), que aplica esse
+  // filtro em todas as consultas do fluxo normal. Resultado: um favorecido bloqueado aparecia no
+  // Consolidado em todo status, exceto A Pagar/Atrasadas.
+  //
+  // Bug 2: o guard adicionado só checava pu."bloqueado". fromQueryPrincipal também traz puu (o
+  // usuário do agrupamento "filho" via opp), usado pelo fallback coalesce(pu."fullName",
+  // puu."fullName") no header quando o agrupamento não tem ordem própria (pu é null). Sem checar
+  // puu também, um favorecido bloqueado continuava aparecendo nesse caminho de fallback.
+  describe('getQueryConsorcios/getQueryVanzeiros/getQueryPendenciaPagaConsorcios/Vanzeiros - exclui favorecido bloqueado', () => {
+    it.each([
+      ['getQueryConsorcios', () => (repository as any).getQueryConsorcios('2026-01-01', '2026-01-05')],
+      ['getQueryVanzeiros', () => (repository as any).getQueryVanzeiros('2026-01-01', '2026-01-05')],
+      ['getQueryPendenciaPagaConsorcios', () => (repository as any).getQueryPendenciaPagaConsorcios('2026-01-01', '2026-01-05')],
+      ['getQueryPendenciaPagaVanzeiros', () => (repository as any).getQueryPendenciaPagaVanzeiros('2026-01-01', '2026-01-05')],
+    ])('%s excludes pu.bloqueado and puu.bloqueado, same guard as getWhereApagar and Movimentação Financeira', (_name, build) => {
+      const sql: string = build();
+
+      expect(sql).toContain(`pu."bloqueado" is null OR pu."bloqueado" = false`);
+      expect(sql).toContain(`puu."bloqueado" is null OR puu."bloqueado" = false`);
+    });
+  });
+
   // ADR 0016: fromQueryPrincipal trazia TODAS as ordem_pagamento internas de um agrupamento (join
   // sem restrição), multiplicando cada linha de detalhe_a pelo número de ordens internas antes do
   // SELECT DISTINCT colapsar de volta. Confirmado com dado real: um agrupamento com 55 ordens
@@ -181,6 +206,47 @@ describe('RelatorioNovoRemessaConsolidadoRepository', () => {
 
       expect(result.data).toHaveLength(2);
       expect(result.valor).toBe(140);
+    });
+
+    // Achado 2026-11-06, testando contra o banco: com valor máximo/faixa, a HAVING SUM(valor)
+    // filtra cada grupo ("nome") independentemente - nenhum consórcio (soma do período sempre
+    // grande) sobrevive, só vanzeiros pequenos sobram. A dedup antiga assumia "o consórcio
+    // sempre está presente junto" e descontava essas vanzeiros do total mesmo sem nenhum
+    // consórcio em "rows", zerando o total apesar de haver linhas reais.
+    it('does not zero the total when a value filter leaves only vanzeiro rows (no consorcio row survived the filter)', async () => {
+      (mockQueryRunner.query as jest.Mock).mockResolvedValue([
+        { nome: 'João Vanzeiro', valor: '40.00' },
+        { nome: 'Maria Vanzeiro', valor: '60.00' },
+      ]);
+
+      const result = await repository.findConsolidado({
+        dataInicio: new Date('2026-01-01'),
+        dataFim: new Date('2026-01-05'),
+        todosConsorcios: true,
+        todosVanzeiros: true,
+        valorMax: 100,
+      } as any);
+
+      expect(result.data).toHaveLength(2);
+      expect(result.valor).toBe(100);
+    });
+
+    it('keeps deduping the vanzeiro row when its consorcio row also survives the value filter', async () => {
+      (mockQueryRunner.query as jest.Mock).mockResolvedValue([
+        { nome: 'STPC', valor: '100.00' },
+        { nome: 'João Vanzeiro', valor: '40.00' },
+      ]);
+
+      const result = await repository.findConsolidado({
+        dataInicio: new Date('2026-01-01'),
+        dataFim: new Date('2026-01-05'),
+        todosConsorcios: true,
+        todosVanzeiros: true,
+        valorMin: 1,
+      } as any);
+
+      expect(result.data).toHaveLength(2);
+      expect(result.valor).toBe(100);
     });
   });
 
@@ -333,6 +399,24 @@ describe('RelatorioNovoRemessaConsolidadoRepository', () => {
       expect(sql).toContain(`op_pai."dataPagamento"::date BETWEEN '2026-01-01'::date AND '2026-01-05'::date`);
       expect(sql).toContain(`pu."id" IN('10')`);
       expect(sql).not.toMatch(/\$[1-5]\b/);
+    });
+
+    // Achado 2026-11-06, testando contra produção: "Pendência Paga" sozinha não aparece em
+    // statusStuc/subErroStatus/condicaoRejeitado (status 5 tem consulta própria, acima) - sem
+    // marcar tinhaFiltroDeStatus, a consulta principal (buildStucGratuidadeLiteral) ficava sem
+    // nenhuma condição de status e devolvia TODOS os status, o mesmo total de "Todos" (a
+    // Gratuidade não tem Pendência Paga de verdade, o certo é essa consulta não contribuir nada).
+    it('"Pendência Paga" sozinha não traz todos os status pela consulta principal (AND FALSE)', async () => {
+      await repository.findConsolidado({
+        dataInicio: new Date('2026-01-01'),
+        dataFim: new Date('2026-01-05'),
+        userIds: [10],
+        stucGratuidade: true,
+        pendenciaPaga: true,
+      } as any);
+
+      const sql = (mockQueryRunner.query as jest.Mock).mock.calls[0][0];
+      expect(sql).toContain('AND FALSE');
     });
 
     it('"Pendência Paga" + "Todos vanzeiros": filtra por MODAIS/CPF igual ao ramo normal do STUC', async () => {
@@ -680,11 +764,22 @@ describe('RelatorioNovoRemessaConsolidadoRepository.findConsolidado — filtros'
     expect(parentesesBalanceados(sql)).toBe(true);
   });
 
+  it('"A Pagar" soma a consulta de ordens nunca agrupadas com o histórico statusRemessa IN (0,1) (ADR 0017)', async () => {
+    const sql = await executar({ aPagar: true });
+    expect(sql).toContain('where ((op."ordemPagamentoAgrupadoId" is null) OR (da.id is null))');
+    expect(sql).toContain('oph."statusRemessa" IN (0,1)');
+    expect(semTrechoSolto(sql)).toBe(true);
+    expect(parentesesBalanceados(sql)).toBe(true);
+  });
+
   it('só Aguardando pagamento: filtra só statusRemessa=2 (1 é "A Pagar", outro bucket), sem pedaços soltos no UNION', async () => {
     const sql = await executar({ emProcessamento: true });
     expect(sql).toContain(`oph."statusRemessa" IN (2)`);
     expect(semTrechoSolto(sql)).toBe(true);
-    expect(sql).not.toContain('is null');
+    // A Pagar/Atrasadas não devem vazar pro SQL final deste filtro - "is null" só pode vir do
+    // próprio filtro de bloqueado da query de histórico (ver bug corrigido acima), não de
+    // `op."ordemPagamentoAgrupadoId" is null`, exclusivo das queries de A Pagar/Atrasadas.
+    expect(sql).not.toContain('op."ordemPagamentoAgrupadoId" is null');
   });
 
   it('OPs atrasadas (pendentes): consulta só as ordens atrasadas, não o histórico', async () => {
@@ -708,6 +803,13 @@ describe('RelatorioNovoRemessaConsolidadoRepository.findConsolidado — filtros'
     expect(sql).toContain(`op."consorcio" IN`);
     expect(sql).not.toContain(`op."nomeConsorcio"`);
     expect(semTrechoSolto(sql)).toBe(true);
+  });
+
+  it('Eleição "A Pagar" também soma o histórico statusRemessa IN (0,1), não só as ordens nunca enviadas (ADR 0017)', async () => {
+    const sql = await executar({ eleicao: true, aPagar: true, userIds: [7], todosConsorcios: undefined, todosVanzeiros: undefined });
+    expect(sql).toContain('ordem_pagamento_agrupado_historico');
+    expect(sql).toContain('oph."statusRemessa" IN (0,1)');
+    expect(parentesesBalanceados(sql)).toBe(true);
   });
 
   it('favorecido específico: considera também a ordem do agrupado pai (pendência paga)', async () => {
@@ -772,6 +874,34 @@ describe('RelatorioNovoRemessaConsolidadoRepository.findConsolidado — filtros'
       expect(sql).toContain(`oph."motivoStatusRemessa" NOT IN ('AM', 'AE')`);
       expect(sql).toContain('opafi.id NOT IN (');
       expect(sql).toContain('WHERE filha."ordemPagamentoAgrupadoId" IS NOT NULL');
+    });
+
+    // Achado 2026-11-06, testando contra produção: uma filha com mais de uma linha em detalhe_a
+    // (reenvio sem troca de pai) contava o mesmo pagamento 2x, sem nenhuma guard clause restringir
+    // a uma única linha representante - mesma lógica de umaLinhaPorFilhaPagaFilter (query-builder
+    // compartilhado, já usada pela Movimentação Financeira/Guardador).
+    it('restringe a uma única linha por filha paga (umaLinhaPorFilhaPaga), evitando contar o mesmo pagamento 2x', async () => {
+      const sql = await executar({ pendenciaPaga: true });
+
+      expect(sql).toContain('and da.id = (');
+      expect(sql).toContain('WHERE oph_filha."ordemPagamentoAgrupadoId" = opafi.id');
+      expect(sql).toContain('AND oph_filha."statusRemessa" = 5');
+      expect(sql).toContain('ROUND(da_filha."valorLancamento"::numeric, 2) = ROUND(opafi."valorTotal"::numeric, 2)');
+      expect(parentesesBalanceados(sql)).toBe(true);
+    });
+
+    // Achado 2026-11-06, testando contra produção (08/10/2026, R$ 14.614,50 de diferença):
+    // getQueryPendenciaPagaConsorcios/Vanzeiros partem de "from detalhe_a da", então uma filha
+    // paga que nunca foi enviada em arquivo próprio (PASSO 0 da procedure de pendentes, sem
+    // nenhum detalhe_a) nunca aparecia - mesma lógica de buildPendenciaPagaPasso0Query
+    // (query-builder compartilhado).
+    it('inclui o PASSO 0 (filhas pagas nunca enviadas em arquivo próprio, sem detalhe_a)', async () => {
+      const sql = await executar({ pendenciaPaga: true });
+
+      expect(sql).toContain('from ordem_pagamento_agrupado opafi');
+      expect(sql).toContain('inner join ordem_pagamento_agrupado op_pai on op_pai."id" = opafi."ordemPagamentoAgrupadoId"');
+      expect(sql).toContain('NOT EXISTS (\n                 SELECT 1 FROM ordem_pagamento_agrupado_historico oph_qualquer');
+      expect(parentesesBalanceados(sql)).toBe(true);
     });
 
     it('Pendência Paga + Pago: mantém a consulta por dataVencimento para Pago, e soma Pendência Paga à parte por dataPagamento', async () => {

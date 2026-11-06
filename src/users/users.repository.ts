@@ -244,11 +244,15 @@ export class UsersRepository {
         }),
       )
       .andWhere(andWhere)
+      // Sem ORDER BY a lista vinha na ordem física do Postgres e mudava após updates em massa/vacuum (#1198).
+      .orderBy('"user"."fullName"', 'ASC')
+      .addOrderBy('"user"."id"', 'ASC')
       .getMany();
     users = await this.usersRepository.find({
       where: {
         id: In(users.map((i) => i.id)),
       },
+      order: { fullName: 'ASC', id: 'ASC' },
     });
     await this.loadLazyRelations(users);
 

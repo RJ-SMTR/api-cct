@@ -382,7 +382,11 @@ describe('RelatorioNovoRemessaFinancialMovementService', () => {
       expect(countQuery).not.toContain(PENDENCIA_PAGA_MARKER);
     });
 
-    it('still requires a single day for Estorno/Rejeitado while Pendencia Paga uses the full range', async () => {
+    // ADR 0020: Estorno/Rejeitado passou a usar a consulta ciente de retentativa
+    // (buildPendenciaPagamentoSingleDateQuery) em qualquer intervalo, não só dia único - mesma
+    // regra do Consolidado (só mostra o que ainda seria pago de novo). Pendencia Paga continua
+    // usando a consulta pela data de pagamento própria, sem relação com essa mudança.
+    it('uses the retry-aware query for Estorno/Rejeitado over a multi-day range too, same as Pendencia Paga uses the full range', async () => {
       // Alias exclusivo de buildPendenciaPagamentoSingleDateQuery (join com o histórico mais recente da "pai").
       const PENDENCIA_PAGAMENTO_MARKER = 'oph_pai';
 
@@ -395,15 +399,15 @@ describe('RelatorioNovoRemessaFinancialMovementService', () => {
 
       const [countQuery] = dataSource.query.mock.calls[0];
       expect(countQuery).toContain(PENDENCIA_PAGA_MARKER);
-      expect(countQuery).not.toContain(PENDENCIA_PAGAMENTO_MARKER);
+      expect(countQuery).toContain(PENDENCIA_PAGAMENTO_MARKER);
     });
   });
 
   describe('Eleição filter', () => {
-    // Único marcador presente nas consultas do fluxo normal (buildBaseQuery/Pendencia Paga/
-    // Pendentes), ausentes em buildEleicaoQuery (que parte de ordem_pagamento_agrupado, sem
-    // juntar ordem_pagamento).
-    const BASE_FLOW_MARKER = 'INNER JOIN LATERAL (';
+    // Marcador do LATERAL de buildBaseQuery/Pendencia Paga/Pendentes (ADR 0011, representante do
+    // agrupamento) - não só "INNER JOIN LATERAL (" sozinho, que desde o ADR 0019 também aparece
+    // em buildEleicaoQuery (fallback por cpfCnpj quando idOperadora não bate com nenhum usuário).
+    const BASE_FLOW_MARKER = 'SELECT o.* FROM ordem_pagamento o';
     // Único marcador da fonte de Eleição (ordem_pagamento_unico).
     const ELEICAO_MARKER = 'ordem_pagamento_unico';
 
