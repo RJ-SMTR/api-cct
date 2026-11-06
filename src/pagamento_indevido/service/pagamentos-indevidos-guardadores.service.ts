@@ -53,6 +53,25 @@ export interface IndevidoDoGuardador {
   lancamentos: LancamentoIndevido[];
   /** Datas (AAAA-MM-DD) dos pagamentos em duplicidade: da segunda vez em diante que a mesma ordem foi paga. */
   datasDuplicidade: string[];
+  /** Qual ordem foi paga em duplicidade: a ordem (dia e valor), a primeira vez que foi paga e as vezes seguintes (AAAA-MM-DD). */
+  duplicidades: DuplicidadeOrdem[];
+}
+
+/** Uma ordem do guardador (dia e valor) com as datas em que foi paga (AAAA-MM-DD). */
+export interface OrdemComPagamentos {
+  dia: string;
+  valor: string;
+  pagamentos: string[];
+}
+
+export interface DuplicidadeOrdem {
+  /** Dia da ordem (AAAA-MM-DD). */
+  dataOrdem: string;
+  valor: string;
+  /** Data do pagamento devido (a primeira vez que a ordem foi paga). */
+  pagoEm: string;
+  /** Datas dos pagamentos repetidos, em ordem. */
+  repetidoEm: string[];
 }
 
 const LIMITE_EXPORTACAO = 5000;
@@ -166,7 +185,7 @@ export class PagamentosIndevidosGuardadoresService {
     // Sem pagamento indevido não há abatimento a mostrar: poupa as consultas abaixo. Com o débito quitado os lançamentos continuam
     // saindo, porque a tela marca como "Abatimento por duplicidade" os pagamentos que foram abatidos.
     if (!(Number(totais?.quantidade) > 0)) {
-      return { totais, lancamentos: [], datasDuplicidade: [] };
+      return { totais, lancamentos: [], datasDuplicidade: [], duplicidades: [] };
     }
 
     // Pagamentos em que o guardador recebeu menos que o devido. O pagamento pode estar no agrupamento da ordem ou no PAI dele
@@ -193,38 +212,55 @@ export class PagamentosIndevidosGuardadoresService {
       params,
     );
 
-    // Cada ordem do guardador com a data em que foi paga (agrupamento da ordem ou do pai, pago/efetivado).
-    const ordens: { dia: string; valor: string; pagoEm: string | null }[] = await this.dataSource.query(
+    // Cada ordem do guardador com TODAS as datas em que foi paga (agrupamento da ordem ou do pai, pago/efetivado).
+    const ordens: OrdemComPagamentos[] = await this.dataSource.query(
       `SELECT to_char(g."dataOrdem", 'YYYY-MM-DD') AS dia, g."valorRepasseGuardador"::numeric(18,2)::text AS valor,
-              (SELECT to_char(min(da."dataVencimento"), 'YYYY-MM-DD')
-                 FROM ordem_pagamento_agrupado_historico h
-                 JOIN detalhe_a da ON da."ordemPagamentoAgrupadoHistoricoId" = h.id
-                WHERE h."statusRemessa" IN (3, 5)
-                  AND h."ordemPagamentoAgrupadoId" IN (g."ordemPagamentoAgrupadoId", a."ordemPagamentoAgrupadoId")) AS "pagoEm"
+              ARRAY(SELECT DISTINCT to_char(da."dataVencimento", 'YYYY-MM-DD')
+                      FROM ordem_pagamento_agrupado_historico h
+                      JOIN detalhe_a da ON da."ordemPagamentoAgrupadoHistoricoId" = h.id
+                     WHERE h."statusRemessa" IN (3, 5)
+                       AND h."ordemPagamentoAgrupadoId" IN (g."ordemPagamentoAgrupadoId", a."ordemPagamentoAgrupadoId")) AS pagamentos
          FROM ordem_pagamento_guardador g
          JOIN ordem_pagamento_agrupado a ON a.id = g."ordemPagamentoAgrupadoId"
         WHERE g."userId" = $1`,
       params,
     );
 
-    return { totais, lancamentos, datasDuplicidade: PagamentosIndevidosGuardadoresService.datasDeDuplicidade(ordens) };
+    return {
+      totais,
+      lancamentos,
+      datasDuplicidade: PagamentosIndevidosGuardadoresService.datasDeDuplicidade(ordens),
+      duplicidades: PagamentosIndevidosGuardadoresService.duplicidadesDeOrdens(ordens),
+    };
   }
 
   /**
-   * A mesma ordem (mesmo dia e valor) paga mais de uma vez: a primeira vez é a devida, as seguintes são a duplicidade.
-   * Devolve as datas desses pagamentos repetidos, sem repetição e em ordem.
+   * Quais ordens foram pagas em duplicidade. Ordens do mesmo dia e valor são a mesma ordem; junta TODAS as datas em que ela foi
+   * paga (de qualquer ordem do grupo, sem repetir). A primeira é o pagamento devido; as seguintes são a duplicidade.
+   * Uma ordem que entrou em dois pagamentos (ex.: 23/09 e depois de novo no cumulativo de 01/10) também conta.
    */
-  static datasDeDuplicidade(ordens: { dia: string; valor: string; pagoEm: string | null }[]): string[] {
-    const porOrdem = new Map<string, string[]>();
+  static duplicidadesDeOrdens(ordens: OrdemComPagamentos[]): DuplicidadeOrdem[] {
+    const porOrdem = new Map<string, { dataOrdem: string; valor: string; datas: Set<string> }>();
     for (const o of ordens) {
-      if (!o.pagoEm) continue;
+      if (!o.pagamentos?.length) continue;
       const chave = `${o.dia}|${o.valor}`;
-      porOrdem.set(chave, [...(porOrdem.get(chave) ?? []), o.pagoEm]);
+      const atual = porOrdem.get(chave) ?? { dataOrdem: o.dia, valor: o.valor, datas: new Set<string>() };
+      o.pagamentos.forEach((d) => atual.datas.add(d));
+      porOrdem.set(chave, atual);
     }
+    const resultado: DuplicidadeOrdem[] = [];
+    for (const { dataOrdem, valor, datas } of porOrdem.values()) {
+      if (datas.size < 2) continue;
+      const [pagoEm, ...repetidoEm] = [...datas].sort();
+      resultado.push({ dataOrdem, valor, pagoEm, repetidoEm });
+    }
+    return resultado.sort((x, y) => x.dataOrdem.localeCompare(y.dataOrdem) || x.valor.localeCompare(y.valor));
+  }
+
+  /** Datas (sem repetir e em ordem) dos pagamentos em duplicidade, de todas as ordens duplicadas. */
+  static datasDeDuplicidade(ordens: OrdemComPagamentos[]): string[] {
     const repetidas = new Set<string>();
-    for (const datas of porOrdem.values()) {
-      [...datas].sort().slice(1).forEach((d) => repetidas.add(d));
-    }
+    for (const d of PagamentosIndevidosGuardadoresService.duplicidadesDeOrdens(ordens)) d.repetidoEm.forEach((x) => repetidas.add(x));
     return [...repetidas].sort();
   }
 
