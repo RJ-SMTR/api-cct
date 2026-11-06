@@ -254,7 +254,7 @@ describe('guardador-novo-remessa-query-builder', () => {
       expect(sql).toContain(`NOT IN ('Estorno', 'Rejeitado') OR`);
       expect(sql).toContain('hp_reg."statusRemessa" IN (1, 2, 3, 5)');
       expect(sql).toContain('public.fn_ordem_guardador_ja_paga_ou_em_andamento(x_reg.id)');
-      expect(sql).toContain('da."valorLancamento" <> '0.00'');
+      expect(sql).toContain(`da."valorLancamento" <> '0.00'`);
       expect(sql).toContain('SELECT MAX(d_reg.id)');
       expect(sql).toContain('pu."bloqueado" IS NOT TRUE');
     });
