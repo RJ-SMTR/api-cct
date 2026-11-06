@@ -16,6 +16,7 @@ import {
   buildStucGratuidadeQuery,
   buildStucGratuidadePendenciaPagaSingleDateQuery,
   buildStucGratuidadePendenciaPagamentoSingleDateQuery,
+  CONSORCIO_CASE,
 } from '../novo-remessa/queries/novo-remessa-query-builder';
 import { IFindPublicacaoRelatorioNovoFinancialMovement } from '../interfaces/filter-publicacao-relatorio-novo-financial-movement.interface';
 import {
@@ -47,6 +48,9 @@ type ResolvedStatuses = {
   includeBase: boolean;
   includePendenciaPaga: boolean;
   parentErrorStatusesSingleDate: Array<StatusPagamento.ERRO_ESTORNO | StatusPagamento.ERRO_REJEITADO>;
+  // ADR 0017: "A Pagar" significa ordens nunca agrupadas/enviadas (buildAPagarNuncaEnviadoQuery),
+  // não mais statusRemessa IN (0,1) do fluxo normal (buildBaseQuery) - ver resolveStatuses.
+  includeAPagarNuncaEnviado: boolean;
 };
 
 type CursorValues = {
@@ -89,6 +93,11 @@ export class RelatorioNovoRemessaFinancialMovementService {
   // Todos selecionado - a Movimentação Financeira ficava sem VLT e sem os consórcios comuns
   // (Internorte, Santa Cruz etc.), divergindo do total do Consolidado (achado 2026-11-04).
   private readonly CONSORCIOS = ['VLT', 'Intersul', 'Transcarioca', 'Internorte', 'MobiRio', 'Santa Cruz', 'MOBI-Rio BUM', 'TUSE', 'STPC', 'STPL', 'TEC', 'GTU'];
+
+  // Mesma restrição que RelatorioNovoRemessaConsolidadoRepository.getQueryApagarVanzeiros aplica
+  // para "Favorecido = Todos": só os modais pagos avulso (STPC/STPL/TEC), nunca um favorecido de
+  // consórcio comum (ver CONTEXT.md, achado 2026-11-04).
+  private readonly MODAIS = ['STPC', 'STPL', 'TEC'];
 
   constructor(
     @InjectDataSource() private readonly dataSource: DataSource,
@@ -430,7 +439,12 @@ export class RelatorioNovoRemessaFinancialMovementService {
 
   private resolveStatuses(filter: NormalizedFilter): ResolvedStatuses {
     const all = this.getStatusParaFiltro(filter);
-    if (!all?.length) return { baseStatuses: null, allStatuses: null, includePendentes: false, includeBase: true, includePendenciaPaga: false, parentErrorStatusesSingleDate: [] };
+    if (!all?.length) {
+      // "Todos": sem filtro de status, buildBaseQuery continua sem filtro algum (mostra
+      // statusRemessa IN (0,1) como antes) E a nova consulta "nunca enviada" entra também -
+      // nenhuma das duas populações deve ficar de fora da visão sem filtro (ADR 0017).
+      return { baseStatuses: null, allStatuses: null, includePendentes: false, includeBase: true, includePendenciaPaga: false, parentErrorStatusesSingleDate: [], includeAPagarNuncaEnviado: true };
+    }
     const isSingle = this.isSingleDate(filter);
     const includePendentes = all.includes(StatusPagamento.PENDENTES);
     // Pendencia Paga é consultada pela data de pagamento em qualquer intervalo (ADR 0001), não só em dia único.
@@ -438,11 +452,18 @@ export class RelatorioNovoRemessaFinancialMovementService {
     const parentErrorStatusesSingleDate = isSingle
       ? all.filter((status): status is StatusPagamento.ERRO_ESTORNO | StatusPagamento.ERRO_REJEITADO => status === StatusPagamento.ERRO_ESTORNO || status === StatusPagamento.ERRO_REJEITADO)
       : [];
+    // ADR 0017: "A Pagar" não é mais servido por buildBaseQuery (statusRemessa IN (0,1)) - só pela
+    // nova consulta "nunca enviada" (buildAPagarNuncaEnviadoQuery). Removê-lo de baseStatuses
+    // antes de decidir includeBase: se "A Pagar" era o único status pedido, baseStatuses fica
+    // vazio e includeBase precisa virar false (nunca passar $4 vazio/nulo para buildBaseQuery,
+    // que faria STATUS_CASE = ANY($4) voltar a casar com tudo).
+    const includeAPagarNuncaEnviado = all.includes(StatusPagamento.A_PAGAR);
     let baseStatuses = all.filter((s) => s!== StatusPagamento.PENDENTES);
     // Pendencia Paga nunca pertence à base por vencimento (ela é identificada pela data de pagamento).
     baseStatuses = baseStatuses.filter((s) => s!== StatusPagamento.PENDENCIA_PAGA);
     baseStatuses = baseStatuses.filter((s) => !parentErrorStatusesSingleDate.includes(s as StatusPagamento.ERRO_ESTORNO | StatusPagamento.ERRO_REJEITADO));
-    return { baseStatuses: baseStatuses.length? baseStatuses : null, allStatuses: all, includePendentes, includeBase: baseStatuses.length > 0, includePendenciaPaga, parentErrorStatusesSingleDate };
+    baseStatuses = baseStatuses.filter((s) => s !== StatusPagamento.A_PAGAR);
+    return { baseStatuses: baseStatuses.length? baseStatuses : null, allStatuses: all, includePendentes, includeBase: baseStatuses.length > 0, includePendenciaPaga, parentErrorStatusesSingleDate, includeAPagarNuncaEnviado };
   }
 
   private buildFinalBaseQuery(filter: NormalizedFilter, statuses: ResolvedStatuses): string {
@@ -466,6 +487,7 @@ export class RelatorioNovoRemessaFinancialMovementService {
       if (filter.eleicao) return this.buildEleicaoQuery(filter);
       const q: string[] = [];
       if (statuses.includeBase) q.push(this.buildBaseQuery(filter));
+      if (statuses.includeAPagarNuncaEnviado) q.push(this.buildAPagarNuncaEnviadoQuery(filter));
       if (statuses.includePendenciaPaga) {
         q.push(this.buildPendenciaPagaSingleDateQuery(filter));
         q.push(this.buildPendenciaPagaPasso0Query(filter));
@@ -486,6 +508,92 @@ export class RelatorioNovoRemessaFinancialMovementService {
 
   private hasConsorcioFilter(filter: NormalizedFilter): boolean {
     return Boolean(filter.consorcioNome?.length) || Boolean(filter.todosConsorcios);
+  }
+
+  // ADR 0017: "A Pagar" = ordens nunca agrupadas/enviadas em remessa, mesma lógica de
+  // RelatorioNovoRemessaConsolidadoRepository.getQueryApagarVanzeiros/getWhereApagar (incluindo o
+  // ajuste de dataInicio por getDataMinima() abaixo) - não RelatorioNovoRemessaConsolidadoRepository
+  // em si, que não é tocado por esta correção. Vai em literais de string (não bind $1/$2), porque
+  // o $1/$2 compartilhado da união inteira carrega a data pedida sem esse ajuste, usada por todas
+  // as outras sub-queries.
+  private buildAPagarNuncaEnviadoQuery(filter: NormalizedFilter): string {
+    const dataMinima = this.getDataMinima();
+    let dataInicio = this.toQueryDate(filter.dataInicio);
+    if (dataMinima && dataMinima.getTime() >= filter.dataInicio.getTime()) {
+      dataInicio = dataMinima.toISOString().slice(0, 10);
+    }
+    const dataFim = this.toQueryDate(filter.dataFim);
+
+    // $1-$5 não são usados para filtrar aqui (a data efetiva vai como literal, ajustada por
+    // getDataMinima() - ver comentário acima do método) - mas precisam aparecer tipados em algum
+    // lugar da query final, senão o Postgres recusa a preparação quando só $6+ são referenciados
+    // noutra sub-query da união (erro "could not determine data type of parameter $1"). Mesmo
+    // truque de no-op já usado em buildPendenciaPagaTemplate (`AND ($4::text[] IS NULL OR TRUE)`).
+    let where = `
+      ((op."ordemPagamentoAgrupadoId" IS NULL) OR (da.id IS NULL))
+      AND (pu."bloqueado" IS NULL OR pu."bloqueado" = false)
+      AND op."dataCaptura" >= '${dataInicio}'::date
+      AND op."dataCaptura" < '${dataFim}'::date + interval '1 day'
+      AND ($1::date IS NULL OR TRUE)
+      AND ($2::date IS NULL OR TRUE)
+      AND ($3::integer[] IS NULL OR TRUE)
+      AND ($4::text[] IS NULL OR TRUE)
+      AND ($5::text[] IS NULL OR TRUE)
+    `;
+
+    if (filter.userIds?.length) {
+      where += ` AND pu."id" IN (${filter.userIds.map((id) => Number(id)).join(',')})`;
+    } else if (filter.todosVanzeiros) {
+      where += ` AND op."nomeConsorcio" IN ('${this.MODAIS.join(`','`)}') AND length(op."operadoraCpfCnpj") <= 11`;
+    }
+
+    if (filter.consorcioNome?.length) {
+      const placeholders = filter.consorcioNome.map((c) => c.trim().toUpperCase().replace(/'/g, `''`)).join(`','`);
+      where += ` AND UPPER(TRIM(${CONSORCIO_CASE})) IN ('${placeholders}')`;
+    } else if (filter.todosConsorcios) {
+      where += ` AND op."nomeConsorcio" IN ('${this.CONSORCIOS.join(`','`)}')`;
+    }
+
+    return `
+      SELECT
+        op."dataCaptura" AS "dataReferencia",
+        opa.id,
+        pu."fullName" AS nomes,
+        pu.email,
+        pu."bankCode" AS "codBanco",
+        bc.name AS "nomeBanco",
+        pu."cpfCnpj" AS "cpfCnpj",
+        ${CONSORCIO_CASE} AS "nomeConsorcio",
+        ROUND(op."valor"::numeric, 2) AS valor,
+        NULL::timestamp AS "dataPagamento",
+        'A Pagar' AS status,
+        NULL::text AS "codigoErro"
+      FROM ordem_pagamento op
+      LEFT JOIN ordem_pagamento_agrupado opa ON op."ordemPagamentoAgrupadoId" = opa.id
+      LEFT JOIN public."user" pu ON pu."id" = op."userId"
+      LEFT JOIN ordem_pagamento_agrupado_historico oph ON opa."id" = oph."ordemPagamentoAgrupadoId"
+      LEFT JOIN detalhe_a da ON da."ordemPagamentoAgrupadoHistoricoId" = oph.id
+      LEFT JOIN bank bc ON bc.code = pu."bankCode"
+      WHERE ${where}
+    `;
+  }
+
+  private getDataMinima(hoje = new Date()) {
+    const dia = hoje.getDay();
+    const data = new Date(hoje);
+    data.setHours(0, 0, 0, 0);
+    if ([2, 3, 4].includes(dia)) {
+      data.setDate(data.getDate() - (dia - 2));
+      return data;
+    }
+    if ([6, 0, 1, 5].includes(dia)) {
+      let diff = 0;
+      if (dia === 0) diff = 1;
+      if (dia === 1) diff = 2;
+      if (dia === 5) diff = 3;
+      data.setDate(data.getDate() - diff);
+      return data;
+    }
   }
   private buildBaseQuery(filter: NormalizedFilter): string {
     return `${buildBaseQuery({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5, hasConsorcioFilter: this.hasConsorcioFilter(filter) }).trim()} ${filter.desativados? 'AND pu.bloqueado = true' : ''}`;

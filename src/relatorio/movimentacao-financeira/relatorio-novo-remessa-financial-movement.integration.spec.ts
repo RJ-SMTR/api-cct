@@ -29,6 +29,17 @@ const CHILD_HISTORY_ID = BASE_ID + 21;
 const CHILD_DETAIL_ID = BASE_ID + 30;
 const CHILD_ORDER_ID = BASE_ID + 40;
 
+// "A Pagar" fixtures (T1): never-grouped order vs. grouped-and-sent orders (statusRemessa 0/1).
+const NEVER_GROUPED_ORDER_ID = BASE_ID + 140;
+const SENT_CRIADO_OPA_ID = BASE_ID + 110;
+const SENT_CRIADO_HISTORY_ID = BASE_ID + 120;
+const SENT_CRIADO_DETAIL_ID = BASE_ID + 130;
+const SENT_CRIADO_ORDER_ID = BASE_ID + 141;
+const SENT_PREPARADO_OPA_ID = BASE_ID + 111;
+const SENT_PREPARADO_HISTORY_ID = BASE_ID + 121;
+const SENT_PREPARADO_DETAIL_ID = BASE_ID + 131;
+const SENT_PREPARADO_ORDER_ID = BASE_ID + 142;
+
 suite('RelatorioNovoRemessaFinancialMovementService (PostgreSQL)', () => {
   let moduleRef: TestingModule;
   let dataSource: DataSource;
@@ -75,10 +86,14 @@ suite('RelatorioNovoRemessaFinancialMovementService (PostgreSQL)', () => {
     }
 
     await dataSource.query(`DELETE FROM detalhe_a WHERE id BETWEEN $1 AND $2`, [BASE_ID + 30, BASE_ID + 99]);
+    await dataSource.query(`DELETE FROM detalhe_a WHERE id BETWEEN $1 AND $2`, [BASE_ID + 130, BASE_ID + 139]);
     await dataSource.query(`DELETE FROM ordem_pagamento_agrupado_historico WHERE id BETWEEN $1 AND $2`, [BASE_ID + 20, BASE_ID + 29]);
+    await dataSource.query(`DELETE FROM ordem_pagamento_agrupado_historico WHERE id BETWEEN $1 AND $2`, [BASE_ID + 120, BASE_ID + 129]);
     await dataSource.query(`DELETE FROM ordem_pagamento WHERE id BETWEEN $1 AND $2`, [BASE_ID + 40, BASE_ID + 99]);
+    await dataSource.query(`DELETE FROM ordem_pagamento WHERE id BETWEEN $1 AND $2`, [BASE_ID + 140, BASE_ID + 149]);
     await dataSource.query(`UPDATE ordem_pagamento_agrupado SET "ordemPagamentoAgrupadoId" = NULL WHERE id BETWEEN $1 AND $2`, [BASE_ID + 10, BASE_ID + 19]);
     await dataSource.query(`DELETE FROM ordem_pagamento_agrupado WHERE id BETWEEN $1 AND $2`, [BASE_ID + 10, BASE_ID + 19]);
+    await dataSource.query(`DELETE FROM ordem_pagamento_agrupado WHERE id BETWEEN $1 AND $2`, [BASE_ID + 110, BASE_ID + 119]);
     await dataSource.query(`DELETE FROM public."user" WHERE id = $1`, [USER_ID]);
   }
 
@@ -131,6 +146,100 @@ suite('RelatorioNovoRemessaFinancialMovementService (PostgreSQL)', () => {
       [CHILD_DETAIL_ID, CHILD_HISTORY_ID],
     );
   }
+
+  // T1: one order never grouped/sent, plus two orders already grouped and sent but without a bank
+  // return yet (statusRemessa 0 "Criado" and 1 "Preparado para Envio"). "A Pagar" must select only
+  // the first; "Todos" (no status filter) must show all three.
+  async function seedAPagarFamily(): Promise<void> {
+    await dataSource.query(
+      `INSERT INTO ordem_pagamento (
+        id, "dataOrdem", "dataCaptura", valor, "bqUpdatedAt", "userId", "nomeConsorcio", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt"
+      ) VALUES ($1, DATE '2099-07-10', DATE '2099-07-10', 321, now(), $2, 'CONSORCIO TESTE', NULL, now(), now())`,
+      [NEVER_GROUPED_ORDER_ID, USER_ID],
+    );
+
+    await dataSource.query(
+      `INSERT INTO ordem_pagamento_agrupado (
+        id, "dataPagamento", "valorTotal", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt"
+      ) VALUES
+        ($1, DATE '2099-07-10', 150, NULL, now(), now()),
+        ($2, DATE '2099-07-10', 175, NULL, now(), now())`,
+      [SENT_CRIADO_OPA_ID, SENT_PREPARADO_OPA_ID],
+    );
+
+    await dataSource.query(
+      `INSERT INTO ordem_pagamento (
+        id, "dataOrdem", valor, "bqUpdatedAt", "userId", "nomeConsorcio", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt"
+      ) VALUES
+        ($1, DATE '2099-07-05', 150, now(), $3, 'CONSORCIO TESTE', $4, now(), now()),
+        ($2, DATE '2099-07-05', 175, now(), $3, 'CONSORCIO TESTE', $5, now(), now())`,
+      [SENT_CRIADO_ORDER_ID, SENT_PREPARADO_ORDER_ID, USER_ID, SENT_CRIADO_OPA_ID, SENT_PREPARADO_OPA_ID],
+    );
+
+    await dataSource.query(
+      `INSERT INTO ordem_pagamento_agrupado_historico (
+        id, "ordemPagamentoAgrupadoId", "dataReferencia", "userBankCode",
+        "userBankAgency", "userBankAccount", "userBankAccountDigit", "statusRemessa"
+      ) VALUES
+        ($1, $3, DATE '2099-07-10', '104', '0001', '99990002', '1', 0),
+        ($2, $4, DATE '2099-07-10', '104', '0001', '99990002', '1', 1)`,
+      [SENT_CRIADO_HISTORY_ID, SENT_PREPARADO_HISTORY_ID, SENT_CRIADO_OPA_ID, SENT_PREPARADO_OPA_ID],
+    );
+
+    await dataSource.query(
+      `INSERT INTO detalhe_a (
+        id, "ordemPagamentoAgrupadoHistoricoId", "numeroDocumentoEmpresa",
+        "dataVencimento", "valorLancamento", "valorRealEfetivado", nsr,
+        "createdAt", "updatedAt"
+      ) OVERRIDING SYSTEM VALUE VALUES
+        ($1, $3, 995004, DATE '2099-07-10', 150, 150, 995004, now(), now()),
+        ($2, $4, 995005, DATE '2099-07-10', 175, 175, 995005, now(), now())`,
+      [SENT_CRIADO_DETAIL_ID, SENT_PREPARADO_DETAIL_ID, SENT_CRIADO_HISTORY_ID, SENT_PREPARADO_HISTORY_ID],
+    );
+  }
+
+  it('"A Pagar" selects only the order never grouped/sent, not the ones already sent (statusRemessa 0/1)', async () => {
+    await seedAPagarFamily();
+
+    const filter = {
+      dataInicio: new Date('2099-07-10T00:00:00.000Z'),
+      dataFim: new Date('2099-07-10T00:00:00.000Z'),
+      // Explicit userIds sidesteps the unrelated MODAIS_FILTER/permitCode issue (see T1 summary,
+      // follow-up) that currently breaks every "todosVanzeiros" default fixture in this spec.
+      userIds: [USER_ID],
+      aPagar: true,
+      page: 1,
+      pageSize: 50,
+    };
+
+    const [page, summary] = await Promise.all([service.findFinancialMovementPage(filter), service.findFinancialMovementSummary(filter)]);
+
+    expect(page.data?.map((row) => [row.valor, row.status])).toEqual([['321.00', 'A Pagar']]);
+    expect(summary.count).toBe(1);
+    expect(summary.valorAPagar).toBe(321);
+    expect(summary.valorTotal).toBe(321);
+  });
+
+  it('"Todos" (no status filter) shows the never-grouped order together with the already-sent ones', async () => {
+    await seedAPagarFamily();
+
+    const filter = {
+      dataInicio: new Date('2099-07-10T00:00:00.000Z'),
+      dataFim: new Date('2099-07-10T00:00:00.000Z'),
+      userIds: [USER_ID],
+      page: 1,
+      pageSize: 50,
+    };
+
+    const [page, summary] = await Promise.all([service.findFinancialMovementPage(filter), service.findFinancialMovementSummary(filter)]);
+
+    // The two already-sent orders share the same date/favorecido/consórcio/status tuple, so the
+    // grouped CTE (buildGroupedCte) sums them into one row (150 + 175 = 325) - same behavior as
+    // before this change. The never-grouped order (own status "A Pagar") stays its own row.
+    expect(page.data?.map((row) => row.valor).sort()).toEqual(['321.00', '325.00']);
+    expect(summary.count).toBe(2);
+    expect(summary.valorTotal).toBe(646);
+  });
 
   it('shows the paid pending child with its own line value and the parent payment date', async () => {
     const filter = {
