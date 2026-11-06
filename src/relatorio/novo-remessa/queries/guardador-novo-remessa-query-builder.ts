@@ -174,7 +174,9 @@ export const buildGuardadorBaseQuery = (params: GuardadorBaseQueryParams = {}) =
         AND ($7::numeric IS NULL OR da."valorLancamento" <= $7::numeric)
       )
       ${favorecidoClause}
-      ${params.desativados ? 'AND pu.bloqueado = true' : guardaPendenciaRejeitada(GUARDADOR_STATUS_CASE, { oph: 'oph', da: 'da', opa: 'opa', pu: 'pu' })}
+      ${params.desativados
+        ? 'AND pu.bloqueado = true'
+        : `AND (pu.bloqueado IS NULL OR pu.bloqueado = false) ${guardaPendenciaRejeitada(GUARDADOR_STATUS_CASE, { oph: 'oph', da: 'da', opa: 'opa', pu: 'pu' })}`}
   )`.trim();
 };
 
@@ -215,7 +217,7 @@ export const buildGuardadorAPagarQuery = (params: GuardadorBaseQueryParams = {})
         AND ($7::numeric IS NULL OR opg."valorRepasseGuardador" <= $7::numeric)
       )
       ${favorecidoClause}
-      ${params.desativados ? 'AND pu.bloqueado = true' : ''}
+      ${params.desativados ? 'AND pu.bloqueado = true' : 'AND (pu.bloqueado IS NULL OR pu.bloqueado = false)'}
       ${params.excluirPendentes ? `AND NOT (${pendenciaOrdemSoltaGuardador('opg', 'pu')})` : ''}
   )`.trim();
 };
@@ -277,7 +279,7 @@ export const buildGuardadorPendenciaPagaSingleDateQuery = (params: GuardadorBase
       )
       AND (oph."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph."motivoStatusRemessa" IS NULL)
       ${favorecidoClause}
-      ${params.desativados ? 'AND pu.bloqueado = true' : ''}
+      ${params.desativados ? 'AND pu.bloqueado = true' : 'AND (pu.bloqueado IS NULL OR pu.bloqueado = false)'}
 
     UNION ALL
 
@@ -333,7 +335,7 @@ export const buildGuardadorPendenciaPagaSingleDateQuery = (params: GuardadorBase
         WHERE oph_qualquer."ordemPagamentoAgrupadoId" = opa.id
       )
       ${favorecidoClause}
-      ${params.desativados ? 'AND pu.bloqueado = true' : ''}
+      ${params.desativados ? 'AND pu.bloqueado = true' : 'AND (pu.bloqueado IS NULL OR pu.bloqueado = false)'}
   )`.trim();
 };
 
@@ -384,7 +386,7 @@ export const buildGuardadorPendenciaPagamentoSingleDateQuery = (params: Guardado
       AND ${parentStatusCase} IN (${requestedStatusSql})
       AND ${buildConsorcioFilter(consorcioParam, params.todosConsorcios)}
       AND (oph_pai."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph_pai."motivoStatusRemessa" IS NULL)
-      ${params.desativados ? 'AND pu.bloqueado = true' : ''}
+      ${params.desativados ? 'AND pu.bloqueado = true' : 'AND (pu.bloqueado IS NULL OR pu.bloqueado = false)'}
 
     UNION ALL
 
@@ -430,7 +432,9 @@ export const buildGuardadorPendenciaPagamentoSingleDateQuery = (params: Guardado
       AND ${buildConsorcioFilter(consorcioParam, params.todosConsorcios)}
       AND ${GUARDADOR_OPA_WITHOUT_CHILDREN}
       AND (oph."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph."motivoStatusRemessa" IS NULL)
-      ${params.desativados ? 'AND pu.bloqueado = true' : guardaPendenciaRejeitada(GUARDADOR_STATUS_CASE, { oph: 'oph', da: 'da', opa: 'opa', pu: 'pu' })}
+      ${params.desativados
+        ? 'AND pu.bloqueado = true'
+        : `AND (pu.bloqueado IS NULL OR pu.bloqueado = false) ${guardaPendenciaRejeitada(GUARDADOR_STATUS_CASE, { oph: 'oph', da: 'da', opa: 'opa', pu: 'pu' })}`}
   )`.trim();
 };
 
@@ -466,7 +470,8 @@ export const buildGuardadorPendenteNaoEnviadoQuery = (params: GuardadorBaseQuery
         ($6::numeric IS NULL OR ${valor} >= $6::numeric)
         AND ($7::numeric IS NULL OR ${valor} <= $7::numeric)
       )
-      ${favorecidoClause}`;
+      ${favorecidoClause}
+      ${params.desativados ? 'AND pu.bloqueado = true' : 'AND (pu.bloqueado IS NULL OR pu.bloqueado = false)'}`;
 
   return `(${GUARDADOR_ASSOCIACAO_CTE}
     SELECT DISTINCT${colunas('opa."valorTotal"', 'opa.id', 'opa."dataPagamento"')}
