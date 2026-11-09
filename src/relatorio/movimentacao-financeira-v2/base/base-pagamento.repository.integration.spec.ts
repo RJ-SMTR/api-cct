@@ -913,4 +913,391 @@ suite('BasePagamentoRepository (PostgreSQL)', () => {
       expect(legacySummary.valorRejeitado).toBe(300);
     });
   });
+
+  // T6 (ADR 0021/AC-18): "Pendentes" (OPs atrasadas) - exatamente a elegibilidade que a
+  // geracao real de remessa usa pra decidir o que reprocessar (regras-pendencia.ts, nunca
+  // reescrita). Datas relativas a CURRENT_DATE/hoje (nao fixas no passado/futuro como as
+  // demais fixtures deste arquivo), porque as funcoes de elegibilidade comparam contra
+  // CURRENT_DATE e contra "hoje" em horario de Brasilia.
+  //
+  // Dedicated id range (996020000..996020999), distinto do resto do arquivo e dos outros
+  // agentes paralelos (T4/T7/T8) que compartilham este mesmo arquivo/banco de teste local -
+  // ver aviso do orquestrador.
+  describe('Pendentes (T6)', () => {
+    const T6_BASE_ID = 996020000;
+    const T6_USER_ID = T6_BASE_ID + 1;
+    const T6_GUARDADOR_USER_ID = T6_BASE_ID + 2;
+
+    afterEach(async () => {
+      await dataSource.query(`DELETE FROM detalhe_a WHERE id BETWEEN $1 AND $2`, [T6_BASE_ID, T6_BASE_ID + 999]);
+      await dataSource.query(`DELETE FROM ordem_pagamento_agrupado_historico WHERE id BETWEEN $1 AND $2`, [T6_BASE_ID, T6_BASE_ID + 999]);
+      await dataSource.query(`DELETE FROM ordem_pagamento WHERE id BETWEEN $1 AND $2`, [T6_BASE_ID, T6_BASE_ID + 999]);
+      await dataSource.query(`DELETE FROM ordem_pagamento_guardador WHERE id BETWEEN $1 AND $2`, [T6_BASE_ID, T6_BASE_ID + 999]);
+      await dataSource.query(`UPDATE ordem_pagamento_agrupado SET "ordemPagamentoAgrupadoId" = NULL WHERE id BETWEEN $1 AND $2`, [T6_BASE_ID, T6_BASE_ID + 999]);
+      await dataSource.query(`DELETE FROM ordem_pagamento_agrupado WHERE id BETWEEN $1 AND $2`, [T6_BASE_ID, T6_BASE_ID + 999]);
+      await dataSource.query(`DELETE FROM public."user" WHERE id IN ($1, $2)`, [T6_USER_ID, T6_GUARDADOR_USER_ID]);
+    });
+
+    async function seedT6User(): Promise<void> {
+      await dataSource.query(
+        `INSERT INTO public."user" (
+          id, email, provider, "fullName", "roleId", "cpfCnpj",
+          "bankCode", "bankAgency", "bankAccount", "bankAccountDigit", bloqueado,
+          "createdAt", "updatedAt"
+        ) VALUES (
+          $1, $2, 'email', 'PERMISSIONARIO T6 TESTE', 1, '99999999701',
+          104, '0001', '99990002', '1', false, now(), now()
+        )`,
+        [T6_USER_ID, `permissionario-t6-${T6_USER_ID}@example.test`],
+      );
+    }
+
+    async function seedT6GuardadorUser(): Promise<void> {
+      await dataSource.query(`INSERT INTO role (id, name) VALUES (6, 'agentes') ON CONFLICT (id) DO NOTHING`);
+      await dataSource.query(
+        `INSERT INTO public."user" (
+          id, email, provider, "fullName", "roleId", "cpfCnpj",
+          "bankCode", "bankAgency", "bankAccount", "bankAccountDigit", bloqueado,
+          "createdAt", "updatedAt"
+        ) VALUES (
+          $1, $2, 'email', 'GUARDADOR T6 TESTE', 6, '99999999702',
+          104, '0001', '99990002', '1', false, now(), now()
+        )`,
+        [T6_GUARDADOR_USER_ID, `guardador-t6-${T6_GUARDADOR_USER_ID}@example.test`],
+      );
+    }
+
+    // Wide window covering everything these fixtures insert via "CURRENT_DATE - INTERVAL" -
+    // not boundary-sensitive itself, so JS/SQL clock skew of a few hours does not matter here.
+    const wideFilterWindow = () => ({
+      dataInicio: new Date(Date.now() - 60 * 24 * 3600 * 1000),
+      dataFim: new Date(),
+    });
+
+    // This local test database has no pagador seeded for conta=ContaRotativo (only CETT/
+    // ContaBilhetagem exist in pagadorSeedData) - reused across agents/runs (not deleted in
+    // afterEach): it is a harmless, permanent reference row, never touched by this task's
+    // BASE_ID cleanup range.
+    async function ensurePagadorRotativoId(): Promise<number> {
+      const conta = '000566697069'; // PagadorContaEnum.ContaRotativo
+      await dataSource.query(
+        `INSERT INTO pagador ("nomeEmpresa", conta)
+         SELECT 'PAGADOR ROTATIVO TESTE', $1::varchar
+         WHERE NOT EXISTS (SELECT 1 FROM pagador WHERE conta = $1::varchar)`,
+        [conta],
+      );
+      const [{ id }] = await dataSource.query(`SELECT id FROM pagador WHERE conta = $1::varchar LIMIT 1`, [conta]);
+      return id;
+    }
+
+    // Behavior 1 (permissionario): ordem solta capturada ha mais de 10 dias -> Pendentes.
+    it('a loose order captured more than 10 days ago appears as Pendentes, for Permissionario', async () => {
+      await seedT6User();
+      const orderId = T6_BASE_ID + 10;
+      await dataSource.query(
+        `INSERT INTO ordem_pagamento (
+          id, "dataOrdem", "dataCaptura", valor, "bqUpdatedAt", "userId", "nomeConsorcio", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt"
+        ) VALUES ($1, (CURRENT_DATE - INTERVAL '20 days'), (CURRENT_DATE - INTERVAL '20 days'), 111, now(), $2, 'CONSORCIO TESTE', NULL, now(), now())`,
+        [orderId, T6_USER_ID],
+      );
+
+      const rows = await repository.findGroupedRows('permissionario', { ...wideFilterWindow(), userIds: [T6_USER_ID] });
+
+      expect(rows).toHaveLength(1);
+      expect(rows[0].status).toBe(StatusPagamento.PENDENTES);
+      expect(Number(rows[0].valor)).toBe(111);
+    });
+
+    // Behavior 1 (guardador): guardador nao tem o corte explicito de 10 dias (so' "antes de
+    // hoje", dentro da janela pedida - regras-pendencia.ts, pendenciaOrdemSoltaGuardador), mas
+    // uma ordem solta de mais de 10 dias atras deve igualmente aparecer.
+    it('a loose order captured more than 10 days ago appears as Pendentes, for Guardador', async () => {
+      await seedT6GuardadorUser();
+      const orderId = T6_BASE_ID + 240;
+      await dataSource.query(
+        `INSERT INTO ordem_pagamento_guardador (
+          id, "dataOrdem", "dataInclusao", "valorRepasseGuardador", "userId",
+          "tipoOrdemPagamento", "ordemPagamentoAgrupadoId",
+          "qtdVerificacaoTotal", "qtdVerificacaoValida", "qtdVerificacaoInvalida",
+          "createdAt", "updatedAt"
+        ) VALUES ($1, (CURRENT_DATE - INTERVAL '20 days'), (CURRENT_DATE - INTERVAL '20 days'), 222, $2, 'AUTOMATICA', NULL, 0, 0, 0, now(), now())`,
+        [orderId, T6_GUARDADOR_USER_ID],
+      );
+
+      const rows = await repository.findGroupedRows('guardador', wideFilterWindow());
+
+      expect(rows).toHaveLength(1);
+      expect(rows[0].status).toBe(StatusPagamento.PENDENTES);
+      expect(Number(rows[0].valor)).toBe(222);
+    });
+
+    // Behavior 2 (permissionario): rejeicao real do banco (statusRemessa=4, motivo fora de
+    // AM/00/BD, valor<>0, sem historico de pagamento bem sucedido) -> Pendentes.
+    async function seedPermissionarioRejeitado(motivoStatusRemessa: string, valor: number): Promise<void> {
+      const opaId = T6_BASE_ID + 20 + valor;
+      const orderId = T6_BASE_ID + 21 + valor;
+      const historyId = T6_BASE_ID + 22 + valor;
+      const detailId = T6_BASE_ID + 23 + valor;
+
+      await dataSource.query(
+        `INSERT INTO ordem_pagamento_agrupado (id, "dataPagamento", "valorTotal", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt")
+         VALUES ($1, (CURRENT_DATE - INTERVAL '5 days'), $2, NULL, now(), now())`,
+        [opaId, valor],
+      );
+      await dataSource.query(
+        `INSERT INTO ordem_pagamento (id, "dataOrdem", "dataCaptura", valor, "bqUpdatedAt", "userId", "nomeConsorcio", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt")
+         VALUES ($1, (CURRENT_DATE - INTERVAL '5 days'), (CURRENT_DATE - INTERVAL '5 days'), $2, now(), $3, 'CONSORCIO TESTE', $4, now(), now())`,
+        [orderId, valor, T6_USER_ID, opaId],
+      );
+      await dataSource.query(
+        `INSERT INTO ordem_pagamento_agrupado_historico (id, "ordemPagamentoAgrupadoId", "dataReferencia", "userBankCode", "userBankAgency", "userBankAccount", "userBankAccountDigit", "statusRemessa", "motivoStatusRemessa")
+         VALUES ($1, $2, (CURRENT_DATE - INTERVAL '5 days'), '104', '0001', '99990002', '1', 4, $3)`,
+        [historyId, opaId, motivoStatusRemessa],
+      );
+      await dataSource.query(
+        `INSERT INTO detalhe_a (id, "ordemPagamentoAgrupadoHistoricoId", "numeroDocumentoEmpresa", "dataVencimento", "valorLancamento", "valorRealEfetivado", nsr, "createdAt", "updatedAt")
+         OVERRIDING SYSTEM VALUE VALUES ($1, $2, $3, (CURRENT_DATE - INTERVAL '5 days'), $4, 0, $3, now(), now())`,
+        [detailId, historyId, 996020000 + valor, valor],
+      );
+    }
+
+    it('a genuinely rejected order (reason outside AM/00/BD, value<>0, no success history) appears as Pendentes, for Permissionario', async () => {
+      await seedT6User();
+      await seedPermissionarioRejeitado('AR', 231);
+
+      const rows = await repository.findGroupedRows('permissionario', { ...wideFilterWindow(), userIds: [T6_USER_ID] });
+
+      const pendentes = rows.filter((r) => r.status === StatusPagamento.PENDENTES);
+      expect(pendentes).toHaveLength(1);
+      expect(Number(pendentes[0].valor)).toBe(231);
+    });
+
+    // Behavior 3 (permissionario): mesma rejeicao, mas com motivo em AM/00/BD (nao e' rejeicao
+    // real) -> NAO aparece em Pendentes.
+    it('a rejected order whose reason IS in AM/00/BD does NOT appear as Pendentes, for Permissionario', async () => {
+      await seedT6User();
+      await seedPermissionarioRejeitado('AM', 232);
+
+      const rows = await repository.findGroupedRows('permissionario', { ...wideFilterWindow(), userIds: [T6_USER_ID] });
+
+      expect(rows.filter((r) => r.status === StatusPagamento.PENDENTES)).toHaveLength(0);
+      expect(rows.some((r) => Number(r.valor) === 232)).toBe(false);
+    });
+
+    // Behavior 2 (guardador): mesma regra de rejeicao real, perfil Guardador.
+    it('a genuinely rejected order (reason outside AM/00/BD, value<>0, no success history) appears as Pendentes, for Guardador', async () => {
+      await seedT6GuardadorUser();
+      const opaId = T6_BASE_ID + 250;
+      const orderId = T6_BASE_ID + 251;
+      const historyId = T6_BASE_ID + 252;
+      const detailId = T6_BASE_ID + 253;
+
+      await dataSource.query(
+        `INSERT INTO ordem_pagamento_agrupado (id, "dataPagamento", "valorTotal", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt")
+         VALUES ($1, (CURRENT_DATE - INTERVAL '5 days'), 333, NULL, now(), now())`,
+        [opaId],
+      );
+      await dataSource.query(
+        `INSERT INTO ordem_pagamento_guardador (
+          id, "dataOrdem", "dataInclusao", "valorRepasseGuardador", "userId",
+          "tipoOrdemPagamento", "ordemPagamentoAgrupadoId",
+          "qtdVerificacaoTotal", "qtdVerificacaoValida", "qtdVerificacaoInvalida",
+          "createdAt", "updatedAt"
+        ) VALUES ($1, (CURRENT_DATE - INTERVAL '5 days'), (CURRENT_DATE - INTERVAL '5 days'), 333, $2, 'AUTOMATICA', $3, 0, 0, 0, now(), now())`,
+        [orderId, T6_GUARDADOR_USER_ID, opaId],
+      );
+      await dataSource.query(
+        `INSERT INTO ordem_pagamento_agrupado_historico (id, "ordemPagamentoAgrupadoId", "dataReferencia", "userBankCode", "userBankAgency", "userBankAccount", "userBankAccountDigit", "statusRemessa", "motivoStatusRemessa")
+         VALUES ($1, $2, (CURRENT_DATE - INTERVAL '5 days'), '104', '0001', '99990002', '1', 4, 'AR')`,
+        [historyId, opaId],
+      );
+      await dataSource.query(
+        `INSERT INTO detalhe_a (id, "ordemPagamentoAgrupadoHistoricoId", "numeroDocumentoEmpresa", "dataVencimento", "valorLancamento", "valorRealEfetivado", nsr, "createdAt", "updatedAt")
+         OVERRIDING SYSTEM VALUE VALUES ($1, $2, 996020333, (CURRENT_DATE - INTERVAL '5 days'), 333, 0, 996020333, now(), now())`,
+        [detailId, historyId],
+      );
+
+      const rows = await repository.findGroupedRows('guardador', wideFilterWindow());
+
+      const pendentes = rows.filter((r) => r.status === StatusPagamento.PENDENTES);
+      expect(pendentes).toHaveLength(1);
+      expect(Number(pendentes[0].valor)).toBe(333);
+    });
+
+    // Behavior 4 (guardador apenas - regras-pendencia.ts nao tem funcao equivalente para
+    // Permissionario, achado reportado na task): agrupamento criado e nunca enviado (so'
+    // historico "Criado"/statusRemessa=0, sem detalhe_a) -> Pendentes.
+    it('a grouping created and never sent appears as Pendentes, for Guardador', async () => {
+      await seedT6GuardadorUser();
+      const pagadorId = await ensurePagadorRotativoId();
+      const opaId = T6_BASE_ID + 260;
+      const orderId = T6_BASE_ID + 261;
+      const historyId = T6_BASE_ID + 262;
+
+      await dataSource.query(
+        `INSERT INTO ordem_pagamento_agrupado (id, "dataPagamento", "valorTotal", "ordemPagamentoAgrupadoId", "pagadorId", "createdAt", "updatedAt")
+         VALUES ($1, (CURRENT_DATE - INTERVAL '5 days'), 444, NULL, $2, now(), now())`,
+        [opaId, pagadorId],
+      );
+      await dataSource.query(
+        `INSERT INTO ordem_pagamento_guardador (
+          id, "dataOrdem", "dataInclusao", "valorRepasseGuardador", "userId",
+          "tipoOrdemPagamento", "ordemPagamentoAgrupadoId",
+          "qtdVerificacaoTotal", "qtdVerificacaoValida", "qtdVerificacaoInvalida",
+          "createdAt", "updatedAt"
+        ) VALUES ($1, (CURRENT_DATE - INTERVAL '5 days'), (CURRENT_DATE - INTERVAL '5 days'), 444, $2, 'AUTOMATICA', $3, 0, 0, 0, now(), now())`,
+        [orderId, T6_GUARDADOR_USER_ID, opaId],
+      );
+      // Historico "Criado" (statusRemessa=0) apenas - nunca foi enviado (nenhum detalhe_a).
+      await dataSource.query(
+        `INSERT INTO ordem_pagamento_agrupado_historico (id, "ordemPagamentoAgrupadoId", "dataReferencia", "userBankCode", "userBankAgency", "userBankAccount", "userBankAccountDigit", "statusRemessa")
+         VALUES ($1, $2, (CURRENT_DATE - INTERVAL '5 days'), '104', '0001', '99990002', '1', 0)`,
+        [historyId, opaId],
+      );
+
+      const rows = await repository.findGroupedRows('guardador', wideFilterWindow());
+
+      const pendentes = rows.filter((r) => r.status === StatusPagamento.PENDENTES);
+      expect(pendentes).toHaveLength(1);
+      expect(Number(pendentes[0].valor)).toBe(444);
+    });
+
+    // Edge case: ordem com equivalente (mesmo usuario/dia/valor) ja paga ou em andamento em
+    // outro agrupamento - nao deve contar como pendente de novo.
+    it('a loose order with an equivalent already paid/in progress does NOT appear as Pendentes', async () => {
+      await seedT6User();
+      const looseOrderId = T6_BASE_ID + 270;
+      const equivalentOrderId = T6_BASE_ID + 271;
+      const opaId = T6_BASE_ID + 272;
+      const historyId = T6_BASE_ID + 273;
+
+      await dataSource.query(
+        `INSERT INTO ordem_pagamento (
+          id, "dataOrdem", "dataCaptura", valor, "bqUpdatedAt", "userId", "nomeConsorcio", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt"
+        ) VALUES ($1, (CURRENT_DATE - INTERVAL '20 days'), (CURRENT_DATE - INTERVAL '20 days'), 555, now(), $2, 'CONSORCIO TESTE', NULL, now(), now())`,
+        [looseOrderId, T6_USER_ID],
+      );
+      await dataSource.query(
+        `INSERT INTO ordem_pagamento_agrupado (id, "dataPagamento", "valorTotal", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt")
+         VALUES ($1, (CURRENT_DATE - INTERVAL '20 days'), 555, NULL, now(), now())`,
+        [opaId],
+      );
+      // Equivalente: mesmo usuario, mesmo dia (dataCaptura), mesmo valor, ja agrupado com
+      // historico "em andamento" (statusRemessa=1) - fn_ordem_pagamento_ja_paga_ou_em_andamento
+      // passa a acusar o looseOrderId como ja' coberto.
+      await dataSource.query(
+        `INSERT INTO ordem_pagamento (
+          id, "dataOrdem", "dataCaptura", valor, "bqUpdatedAt", "userId", "nomeConsorcio", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt"
+        ) VALUES ($1, (CURRENT_DATE - INTERVAL '20 days'), (CURRENT_DATE - INTERVAL '20 days'), 555, now(), $2, 'CONSORCIO TESTE', $3, now(), now())`,
+        [equivalentOrderId, T6_USER_ID, opaId],
+      );
+      await dataSource.query(
+        `INSERT INTO ordem_pagamento_agrupado_historico (id, "ordemPagamentoAgrupadoId", "dataReferencia", "userBankCode", "userBankAgency", "userBankAccount", "userBankAccountDigit", "statusRemessa")
+         VALUES ($1, $2, (CURRENT_DATE - INTERVAL '20 days'), '104', '0001', '99990002', '1', 1)`,
+        [historyId, opaId],
+      );
+      // fn_ordem_pagamento_ja_paga_ou_em_andamento exige um detalhe_a no historico do
+      // equivalente (INNER JOIN) - sem ele a funcao nao o conta como "em andamento".
+      const detailId = T6_BASE_ID + 274;
+      await dataSource.query(
+        `INSERT INTO detalhe_a (id, "ordemPagamentoAgrupadoHistoricoId", "numeroDocumentoEmpresa", "dataVencimento", "valorLancamento", "valorRealEfetivado", nsr, "createdAt", "updatedAt")
+         OVERRIDING SYSTEM VALUE VALUES ($1, $2, $3, (CURRENT_DATE - INTERVAL '20 days'), 555, 0, $3, now(), now())`,
+        [detailId, historyId, 996020274],
+      );
+
+      const rows = await repository.findGroupedRows('permissionario', { ...wideFilterWindow(), userIds: [T6_USER_ID] });
+
+      expect(rows.filter((r) => r.status === StatusPagamento.PENDENTES)).toHaveLength(0);
+    });
+
+    // Edge case: janela de 10 dias exatamente na fronteira - capturada ha exatamente 10 dias
+    // ainda entra (<=); ha 9 dias ainda nao entra.
+    it('includes an order captured exactly 10 days ago but not one captured 9 days ago, for Permissionario', async () => {
+      await seedT6User();
+      const tenDaysOrderId = T6_BASE_ID + 280;
+      const nineDaysOrderId = T6_BASE_ID + 281;
+
+      await dataSource.query(
+        `INSERT INTO ordem_pagamento (
+          id, "dataOrdem", "dataCaptura", valor, "bqUpdatedAt", "userId", "nomeConsorcio", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt"
+        ) VALUES ($1, (CURRENT_DATE - INTERVAL '10 days'), (CURRENT_DATE - INTERVAL '10 days'), 611, now(), $2, 'CONSORCIO TESTE', NULL, now(), now())`,
+        [tenDaysOrderId, T6_USER_ID],
+      );
+      await dataSource.query(
+        `INSERT INTO ordem_pagamento (
+          id, "dataOrdem", "dataCaptura", valor, "bqUpdatedAt", "userId", "nomeConsorcio", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt"
+        ) VALUES ($1, (CURRENT_DATE - INTERVAL '9 days'), (CURRENT_DATE - INTERVAL '9 days'), 612, now(), $2, 'CONSORCIO TESTE', NULL, now(), now())`,
+        [nineDaysOrderId, T6_USER_ID],
+      );
+
+      const rows = await repository.findGroupedRows('permissionario', { ...wideFilterWindow(), userIds: [T6_USER_ID] });
+      const valores = rows.filter((r) => r.status === StatusPagamento.PENDENTES).map((r) => Number(r.valor));
+
+      expect(valores).toContain(611);
+      expect(valores).not.toContain(612);
+    });
+
+    // Behavior 5 (paridade entre os dois perfis): a mesma elegibilidade (loose + rejeitado)
+    // aplicada aos dois perfis soma corretamente quando combinada no mesmo filtro - garante que
+    // nenhuma fonte (ordem solta/rejeitado) se perde nem duplica quando as duas aparecem juntas
+    // no bucket Pendentes, em qualquer um dos perfis.
+    it('sums loose-order and rejected-order Pendentes together without loss or duplication, for both profiles', async () => {
+      await seedT6User();
+      const looseOrderId = T6_BASE_ID + 290;
+      await dataSource.query(
+        `INSERT INTO ordem_pagamento (
+          id, "dataOrdem", "dataCaptura", valor, "bqUpdatedAt", "userId", "nomeConsorcio", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt"
+        ) VALUES ($1, (CURRENT_DATE - INTERVAL '20 days'), (CURRENT_DATE - INTERVAL '20 days'), 701, now(), $2, 'CONSORCIO TESTE', NULL, now(), now())`,
+        [looseOrderId, T6_USER_ID],
+      );
+      await seedPermissionarioRejeitado('AR', 702);
+
+      const permissionarioRows = await repository.findGroupedRows('permissionario', { ...wideFilterWindow(), userIds: [T6_USER_ID] });
+      const permissionarioTotal = permissionarioRows
+        .filter((r) => r.status === StatusPagamento.PENDENTES)
+        .reduce((acc, r) => acc + Number(r.valor), 0);
+      expect(permissionarioTotal).toBe(701 + 702);
+
+      await seedT6GuardadorUser();
+      const looseGuardadorOrderId = T6_BASE_ID + 291;
+      const pagadorId = await ensurePagadorRotativoId();
+      await dataSource.query(
+        `INSERT INTO ordem_pagamento_guardador (
+          id, "dataOrdem", "dataInclusao", "valorRepasseGuardador", "userId",
+          "tipoOrdemPagamento", "ordemPagamentoAgrupadoId",
+          "qtdVerificacaoTotal", "qtdVerificacaoValida", "qtdVerificacaoInvalida",
+          "createdAt", "updatedAt"
+        ) VALUES ($1, (CURRENT_DATE - INTERVAL '20 days'), (CURRENT_DATE - INTERVAL '20 days'), 801, $2, 'AUTOMATICA', NULL, 0, 0, 0, now(), now())`,
+        [looseGuardadorOrderId, T6_GUARDADOR_USER_ID],
+      );
+      const opaId = T6_BASE_ID + 292;
+      await dataSource.query(
+        `INSERT INTO ordem_pagamento_agrupado (id, "dataPagamento", "valorTotal", "ordemPagamentoAgrupadoId", "pagadorId", "createdAt", "updatedAt")
+         VALUES ($1, (CURRENT_DATE - INTERVAL '5 days'), 802, NULL, $2, now(), now())`,
+        [opaId, pagadorId],
+      );
+      const nuncaEnviadoOrderId = T6_BASE_ID + 293;
+      await dataSource.query(
+        `INSERT INTO ordem_pagamento_guardador (
+          id, "dataOrdem", "dataInclusao", "valorRepasseGuardador", "userId",
+          "tipoOrdemPagamento", "ordemPagamentoAgrupadoId",
+          "qtdVerificacaoTotal", "qtdVerificacaoValida", "qtdVerificacaoInvalida",
+          "createdAt", "updatedAt"
+        ) VALUES ($1, (CURRENT_DATE - INTERVAL '5 days'), (CURRENT_DATE - INTERVAL '5 days'), 802, $2, 'AUTOMATICA', $3, 0, 0, 0, now(), now())`,
+        [nuncaEnviadoOrderId, T6_GUARDADOR_USER_ID, opaId],
+      );
+      const historyId = T6_BASE_ID + 294;
+      await dataSource.query(
+        `INSERT INTO ordem_pagamento_agrupado_historico (id, "ordemPagamentoAgrupadoId", "dataReferencia", "userBankCode", "userBankAgency", "userBankAccount", "userBankAccountDigit", "statusRemessa")
+         VALUES ($1, $2, (CURRENT_DATE - INTERVAL '5 days'), '104', '0001', '99990002', '1', 0)`,
+        [historyId, opaId],
+      );
+
+      const guardadorRows = await repository.findGroupedRows('guardador', wideFilterWindow());
+      const guardadorTotal = guardadorRows
+        .filter((r) => r.status === StatusPagamento.PENDENTES)
+        .reduce((acc, r) => acc + Number(r.valor), 0);
+      expect(guardadorTotal).toBe(801 + 802);
+    });
+  });
 });
