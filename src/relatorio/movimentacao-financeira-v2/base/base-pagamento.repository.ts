@@ -3,7 +3,7 @@ import { DataSource } from 'typeorm';
 import { StatusPagamento } from '../../enum/statusRemessafinancial-movement';
 import { pendenciaRejeitadaGuardador, pendenciaRejeitadaPermissionario } from '../../novo-remessa/queries/regras-pendencia';
 import { buildConsorcioCaseSql, CONSORCIOS, INSTITUTIONAL_CPF_CNPJ, MODAIS } from '../status/consorcio-resolver';
-import { buildStatusPagamentoCaseSql } from '../status/status-resolver';
+import { buildEleicaoStatusPagamentoCaseSql, buildStatusPagamentoCaseSql } from '../status/status-resolver';
 
 export type Perfil = 'permissionario' | 'guardador';
 
@@ -385,6 +385,64 @@ export class BasePagamentoRepository {
         excludeInstitutional ? [...INSTITUTIONAL_CPF_CNPJ] : null,
       ],
     };
+  }
+
+  // Eleição (T7, Permissionário apenas - AC-11): pagamento unico, pagador CETT. Le de
+  // ordem_pagamento_unico em vez das fontes compartilhadas acima (agrupada/nunca_enviada/
+  // pendencia_*) - nem o caminho de join do favorecido (permitCode/idOperadora, com fallback
+  // por cpfCnpj apenas quando nao ha usuario com aquele permitCode, ADR 0019) nem o conjunto de
+  // status disponivel (buildEleicaoStatusPagamentoCaseSql, restrito por ADR 0004 - sem
+  // Pendencia Paga/Pendentes) coincidem com o resto de findGroupedRows. Por isso e' um metodo
+  // separado, nao uma nova fonte na CTE "combinado" (decisao documentada no relatorio da task).
+  async findEleicaoRows(filter: Pick<BasePagamentoFilter, 'dataInicio' | 'dataFim' | 'statuses' | 'valorMin' | 'valorMax'>): Promise<BasePagamentoRow[]> {
+    const eleicaoStatusCase = buildEleicaoStatusPagamentoCaseSql('oph');
+
+    const sql = `
+      WITH eleicao AS (
+        SELECT
+          da."dataVencimento"::date AS "dataReferencia",
+          pu."fullName" AS nomes,
+          pu."cpfCnpj" AS "cpfCnpj",
+          opu."consorcio" AS "nomeConsorcio",
+          da."valorLancamento" AS valor,
+          ${eleicaoStatusCase} AS status
+        FROM ordem_pagamento_agrupado opa
+        INNER JOIN ordem_pagamento_agrupado_historico oph ON oph."ordemPagamentoAgrupadoId" = opa.id
+        INNER JOIN detalhe_a da ON da."ordemPagamentoAgrupadoHistoricoId" = oph.id
+        INNER JOIN ordem_pagamento_unico opu ON opu."idOrdemPagamento" = opa.id::varchar
+        -- permitCode/idOperadora e' a ligacao principal, nunca cpfCnpj diretamente: "user".
+        -- "cpfCnpj" nao e' unico (achado contra stag, 19/10/2026) - ligar por ele faria
+        -- fan-out, dobrando o valor da mesma ordem. Fallback por operadoraCpfCnpj (ADR 0019)
+        -- so' quando NAO EXISTE nenhum usuario com esse permitCode (ordens antigas, ex.
+        -- nov/2024, com idOperadora NULL) - verificado que essa populacao nao tem CPF
+        -- duplicado, entao o fallback nao reintroduz o fan-out que motivou a troca para
+        -- permitCode.
+        INNER JOIN LATERAL (
+          SELECT u.* FROM public."user" u WHERE u."permitCode" = opu."idOperadora"
+          UNION ALL
+          SELECT u.* FROM public."user" u
+          WHERE NOT EXISTS (
+            SELECT 1 FROM public."user" u2 WHERE u2."permitCode" = opu."idOperadora"
+          )
+          AND u."cpfCnpj" = opu."operadoraCpfCnpj"
+        ) pu ON true
+        WHERE da."dataVencimento"::date BETWEEN $1::date AND $2::date
+      )
+      SELECT "dataReferencia", nomes, "cpfCnpj", "nomeConsorcio", valor, status
+      FROM eleicao
+      WHERE ($3::text[] IS NULL OR status = ANY($3))
+        AND ($4::numeric IS NULL OR valor >= $4)
+        AND ($5::numeric IS NULL OR valor <= $5)
+      ORDER BY "dataReferencia", nomes
+    `;
+
+    return this.dataSource.query(sql, [
+      filter.dataInicio,
+      filter.dataFim,
+      filter.statuses?.length ? filter.statuses : null,
+      filter.valorMin ?? null,
+      filter.valorMax ?? null,
+    ]);
   }
 
   // Dia unico (ADR 0008/nota do ADR 0001): a familia pai define status (historico mais recente

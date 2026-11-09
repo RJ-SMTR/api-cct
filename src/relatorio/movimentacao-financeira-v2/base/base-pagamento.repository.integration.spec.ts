@@ -1364,4 +1364,251 @@ suite('BasePagamentoRepository (PostgreSQL)', () => {
       expect(page.nextCursor).toBeNull();
     });
   });
+  // T7 (AC-11, ADR 0004/0019): Eleição, single payment, payer CETT, Permissionário only. Own id
+  // range (coordinator instruction, 2026-11-09): other parallel tasks' fixtures live in
+  // BASE_ID/T5_BASE_ID above - this block only ever touches T7_BASE_ID..+999.
+  //
+  // Finding: this local test database has no "ordem_pagamento_unico" table at all (confirmed
+  // via information_schema.tables) - it is populated externally in real environments (the
+  // table is only ever read from, never INSERTed into, anywhere else in this codebase). The
+  // minimal columns actually read by findEleicaoRows/buildEleicaoQuery are created here,
+  // idempotently (IF NOT EXISTS), the same pattern already used by seedGuardadorUser above for
+  // the missing "agentes" role - not a migration, since this repo does not own that table's
+  // real schema.
+  describe('Eleição (T7)', () => {
+    const T7_BASE_ID = 996030000;
+    const T7_USER_ID = T7_BASE_ID + 1;
+    const T7_USER_FALLBACK_ID = T7_BASE_ID + 2;
+    const T7_USER_DUP_A_ID = T7_BASE_ID + 3;
+    const T7_USER_DUP_B_ID = T7_BASE_ID + 4;
+
+    beforeAll(async () => {
+      await dataSource.query(`
+        CREATE TABLE IF NOT EXISTS ordem_pagamento_unico (
+          id SERIAL PRIMARY KEY,
+          "idOrdemPagamento" VARCHAR,
+          "idOperadora" VARCHAR,
+          "operadoraCpfCnpj" VARCHAR,
+          "operadora" VARCHAR,
+          "consorcio" VARCHAR,
+          "dataOrdem" DATE,
+          "quantidadeTransacaoGratuidade" INTEGER,
+          "valorTotalTransacaoLiquido" NUMERIC
+        )
+      `);
+    });
+
+    afterEach(async () => {
+      await dataSource.query(`DELETE FROM ordem_pagamento_unico WHERE "idOrdemPagamento"::bigint BETWEEN $1 AND $2`, [T7_BASE_ID, T7_BASE_ID + 999]);
+      await dataSource.query(`DELETE FROM detalhe_a WHERE id BETWEEN $1 AND $2`, [T7_BASE_ID, T7_BASE_ID + 999]);
+      await dataSource.query(`DELETE FROM ordem_pagamento_agrupado_historico WHERE id BETWEEN $1 AND $2`, [T7_BASE_ID, T7_BASE_ID + 999]);
+      await dataSource.query(`DELETE FROM ordem_pagamento_agrupado WHERE id BETWEEN $1 AND $2`, [T7_BASE_ID, T7_BASE_ID + 999]);
+      await dataSource.query(`DELETE FROM public."user" WHERE id BETWEEN $1 AND $2`, [T7_BASE_ID, T7_BASE_ID + 999]);
+    });
+
+    async function seedEleicaoUser(id: number, cpfCnpj: string, permitCode: string | null, fullName: string): Promise<void> {
+      await dataSource.query(
+        `INSERT INTO public."user" (
+          id, email, provider, "fullName", "roleId", "cpfCnpj", "permitCode",
+          "bankCode", "bankAgency", "bankAccount", "bankAccountDigit", bloqueado,
+          "createdAt", "updatedAt"
+        ) VALUES (
+          $1, $2, 'email', $3, 1, $4, $5,
+          104, '0001', '99990002', '1', false, now(), now()
+        )`,
+        [id, `eleicao-v2-${id}@example.test`, fullName, cpfCnpj, permitCode],
+      );
+    }
+
+    // opaId/historyId/detailId/opuId all derived from a single seed id, inside T7_BASE_ID range.
+    async function seedEleicaoOrder(params: {
+      seedId: number;
+      dataVencimento: string;
+      valor: number;
+      statusRemessa: number;
+      motivoStatusRemessa?: string | null;
+      idOperadora: string | null;
+      operadoraCpfCnpj: string | null;
+      consorcio?: string;
+    }): Promise<void> {
+      // All four derived ids must stay within T7_BASE_ID..+999 (afterEach's cleanup range) -
+      // a *10 spacing per seedId leaves room for the four without crossing into the next
+      // seedId's block.
+      const opaId = T7_BASE_ID + params.seedId * 10;
+      const historyId = T7_BASE_ID + params.seedId * 10 + 1;
+      const detailId = T7_BASE_ID + params.seedId * 10 + 2;
+      const opuId = T7_BASE_ID + params.seedId * 10 + 3;
+
+      await dataSource.query(
+        `INSERT INTO ordem_pagamento_agrupado (id, "dataPagamento", "valorTotal", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt")
+         VALUES ($1, $2::date, $3, NULL, now(), now())`,
+        [opaId, params.dataVencimento, params.valor],
+      );
+      await dataSource.query(
+        `INSERT INTO ordem_pagamento_agrupado_historico (
+          id, "ordemPagamentoAgrupadoId", "dataReferencia", "userBankCode",
+          "userBankAgency", "userBankAccount", "userBankAccountDigit", "statusRemessa", "motivoStatusRemessa"
+        ) VALUES ($1, $2, $3::date, '104', '0001', '99990002', '1', $4, $5)`,
+        [historyId, opaId, params.dataVencimento, params.statusRemessa, params.motivoStatusRemessa ?? null],
+      );
+      await dataSource.query(
+        `INSERT INTO detalhe_a (
+          id, "ordemPagamentoAgrupadoHistoricoId", "numeroDocumentoEmpresa",
+          "dataVencimento", "valorLancamento", "valorRealEfetivado", nsr,
+          "createdAt", "updatedAt"
+        ) OVERRIDING SYSTEM VALUE VALUES ($1, $2, $1, $3::date, $4, $4, $1, now(), now())`,
+        [detailId, historyId, params.dataVencimento, params.valor],
+      );
+      await dataSource.query(
+        `INSERT INTO ordem_pagamento_unico (id, "idOrdemPagamento", "idOperadora", "operadoraCpfCnpj", "consorcio", "dataOrdem")
+         VALUES ($1, $2, $3, $4, $5, $6::date)`,
+        [opuId, String(opaId), params.idOperadora, params.operadoraCpfCnpj, params.consorcio ?? 'ELEICAO CONSORCIO TESTE', params.dataVencimento],
+      );
+    }
+
+    it('joins by permitCode/idOperadora as the primary match, no fallback needed', async () => {
+      await seedEleicaoUser(T7_USER_ID, '99999999701', 'ELEC-PC-1', 'ELEICAO PRIMARY TESTE');
+      await seedEleicaoOrder({
+        seedId: 10,
+        dataVencimento: '2098-12-10',
+        valor: 500,
+        statusRemessa: 0,
+        idOperadora: 'ELEC-PC-1',
+        operadoraCpfCnpj: '00000000000', // cpfCnpj diferente do do usuario - prova que nao foi o fallback que resolveu.
+      });
+
+      const rows = await repository.findEleicaoRows({
+        dataInicio: new Date('2098-12-10T00:00:00.000Z'),
+        dataFim: new Date('2098-12-10T00:00:00.000Z'),
+      });
+
+      expect(rows).toHaveLength(1);
+      expect(rows[0].nomes).toBe('ELEICAO PRIMARY TESTE');
+      expect(Number(rows[0].valor)).toBe(500);
+      expect(rows[0].status).toBe(StatusPagamento.A_PAGAR);
+    });
+
+    // Reproduz o caso real de nov/2024 (ADR 0019): ordem sem idOperadora preenchido.
+    it('falls back to cpfCnpj when idOperadora has no match, reproducing the nov/2024 case', async () => {
+      await seedEleicaoUser(T7_USER_FALLBACK_ID, '99999999702', null, 'ELEICAO FALLBACK TESTE');
+      await seedEleicaoOrder({
+        seedId: 11,
+        dataVencimento: '2098-12-11',
+        valor: 400,
+        statusRemessa: 1,
+        idOperadora: null,
+        operadoraCpfCnpj: '99999999702',
+      });
+
+      const rows = await repository.findEleicaoRows({
+        dataInicio: new Date('2098-12-11T00:00:00.000Z'),
+        dataFim: new Date('2098-12-11T00:00:00.000Z'),
+      });
+
+      expect(rows).toHaveLength(1);
+      expect(rows[0].nomes).toBe('ELEICAO FALLBACK TESTE');
+      expect(Number(rows[0].valor)).toBe(400);
+    });
+
+    // Constraint: a duplicate CPF among users must never reintroduce fan-out - the fallback only
+    // runs when permitCode genuinely has no match, which isn't the case here.
+    it('does not trigger the cpfCnpj fallback (no fan-out) when permitCode already matches, even with a duplicate CPF in "user"', async () => {
+      await seedEleicaoUser(T7_USER_DUP_A_ID, '99999999703', 'ELEC-PC-DUP', 'ELEICAO DUP A TESTE');
+      await seedEleicaoUser(T7_USER_DUP_B_ID, '99999999703', 'ELEC-PC-OTHER', 'ELEICAO DUP B TESTE');
+      await seedEleicaoOrder({
+        seedId: 12,
+        dataVencimento: '2098-12-12',
+        valor: 700,
+        statusRemessa: 0,
+        idOperadora: 'ELEC-PC-DUP', // so' bate com o usuario A.
+        operadoraCpfCnpj: '99999999703', // bate com A e B (CPF duplicado).
+      });
+
+      const rows = await repository.findEleicaoRows({
+        dataInicio: new Date('2098-12-12T00:00:00.000Z'),
+        dataFim: new Date('2098-12-12T00:00:00.000Z'),
+      });
+
+      expect(rows).toHaveLength(1);
+      expect(rows[0].nomes).toBe('ELEICAO DUP A TESTE');
+      expect(Number(rows[0].valor)).toBe(700);
+    });
+
+    // Edge case: nem permitCode nem cpfCnpj resolvem - a ordem nao deve aparecer, nao travar a query.
+    it('does not appear (and does not error) when neither idOperadora nor cpfCnpj match any user', async () => {
+      await seedEleicaoOrder({
+        seedId: 13,
+        dataVencimento: '2098-12-13',
+        valor: 999,
+        statusRemessa: 0,
+        idOperadora: 'NAO-EXISTE',
+        operadoraCpfCnpj: '00000000000',
+      });
+
+      const rows = await repository.findEleicaoRows({
+        dataInicio: new Date('2098-12-13T00:00:00.000Z'),
+        dataFim: new Date('2098-12-13T00:00:00.000Z'),
+      });
+
+      expect(rows).toHaveLength(0);
+    });
+
+    // ADR 0004: Eleição's status bucket set is restricted - statusRemessa=5 has no own bucket
+    // here (unlike the shared buildStatusPagamentoCaseSql), so it falls to the final ELSE
+    // ('Rejeitado'). statusRemessa 0/1 must still land on 'A Pagar', not that same ELSE fallback
+    // (the historical bug documented at ELEICAO_STATUS_CASE, found 19/10/2026).
+    it('restricted status set: statusRemessa=5 falls to Rejeitado (no Pendencia Paga bucket for Eleição)', async () => {
+      await seedEleicaoUser(T7_USER_ID, '99999999701', 'ELEC-PC-1', 'ELEICAO STATUS5 TESTE');
+      await seedEleicaoOrder({
+        seedId: 14,
+        dataVencimento: '2098-12-14',
+        valor: 150,
+        statusRemessa: 5,
+        idOperadora: 'ELEC-PC-1',
+        operadoraCpfCnpj: '99999999701',
+      });
+
+      const rows = await repository.findEleicaoRows({
+        dataInicio: new Date('2098-12-14T00:00:00.000Z'),
+        dataFim: new Date('2098-12-14T00:00:00.000Z'),
+      });
+
+      expect(rows).toHaveLength(1);
+      expect(rows[0].status).toBe(StatusPagamento.ERRO_REJEITADO);
+    });
+
+    // Parity (Test-First Plan item 5): totals per status bucket must match buildEleicaoQuery
+    // (via the legacy service, filter.eleicao=true) for the same fixtures, across the join
+    // scenarios above (primary match, fallback, duplicate-CPF-no-fan-out).
+    it('matches the legacy Eleição totals per status bucket (primary join + cpfCnpj fallback + duplicate-CPF safety)', async () => {
+      await seedEleicaoUser(T7_USER_ID, '99999999701', 'ELEC-PC-1', 'ELEICAO PRIMARY TESTE');
+      await seedEleicaoUser(T7_USER_FALLBACK_ID, '99999999702', null, 'ELEICAO FALLBACK TESTE');
+      await seedEleicaoUser(T7_USER_DUP_A_ID, '99999999703', 'ELEC-PC-DUP', 'ELEICAO DUP A TESTE');
+      await seedEleicaoUser(T7_USER_DUP_B_ID, '99999999703', 'ELEC-PC-OTHER', 'ELEICAO DUP B TESTE');
+      await seedEleicaoOrder({ seedId: 10, dataVencimento: '2098-12-10', valor: 500, statusRemessa: 0, idOperadora: 'ELEC-PC-1', operadoraCpfCnpj: '00000000000' });
+      await seedEleicaoOrder({ seedId: 11, dataVencimento: '2098-12-11', valor: 400, statusRemessa: 1, idOperadora: null, operadoraCpfCnpj: '99999999702' });
+      await seedEleicaoOrder({ seedId: 12, dataVencimento: '2098-12-12', valor: 700, statusRemessa: 0, idOperadora: 'ELEC-PC-DUP', operadoraCpfCnpj: '99999999703' });
+
+      // userIds (em vez de todosVanzeiros) evita o MODAIS_FILTER/NOT_CPF_FILTER do legado (so'
+      // pensado para "Favorecido = Todos" sem nenhum usuario especifico, restrito a
+      // permitCode LIKE '4%'/'81%'/'7%' - nao se aplica aos permitCodes sinteticos deste
+      // fixture). findEleicaoRows (v2) nao filtra por userIds ainda (fora do escopo de T7, ver
+      // Decisions do relatorio) - a lista so' serve para o lado legado.
+      const filter = {
+        dataInicio: new Date('2098-12-01T00:00:00.000Z'),
+        dataFim: new Date('2098-12-31T00:00:00.000Z'),
+        eleicao: true,
+        userIds: [T7_USER_ID, T7_USER_FALLBACK_ID, T7_USER_DUP_A_ID],
+      };
+
+      const [newRows, legacySummary] = await Promise.all([
+        repository.findEleicaoRows(filter),
+        legacyPermissionarioService.findFinancialMovementSummary(filter),
+      ]);
+
+      const newTotals = sumByStatus(newRows);
+      expect(newTotals[StatusPagamento.A_PAGAR] ?? 0).toBe(legacySummary.valorAPagar);
+      expect(legacySummary.valorAPagar).toBe(1600);
+    });
+  });
 });

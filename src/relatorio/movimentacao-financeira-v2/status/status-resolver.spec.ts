@@ -1,5 +1,5 @@
 import { StatusPagamento } from '../../enum/statusRemessafinancial-movement';
-import { buildStatusPagamentoCaseSql, resolveStatusPagamento } from './status-resolver';
+import { buildEleicaoStatusPagamentoCaseSql, buildStatusPagamentoCaseSql, resolveStatusPagamento } from './status-resolver';
 
 describe('status-resolver', () => {
   describe('resolveStatusPagamento', () => {
@@ -59,6 +59,40 @@ describe('status-resolver', () => {
     it('parameterizes the history alias', () => {
       expect(buildStatusPagamentoCaseSql('h')).toContain('h."statusRemessa"');
       expect(buildStatusPagamentoCaseSql('h')).not.toContain('oph."statusRemessa"');
+    });
+  });
+
+  // T7 (ADR 0004): Eleição restricts the available buckets relative to the normal
+  // buildStatusPagamentoCaseSql - no "Pendencia Paga" line, so statusRemessa=5 falls through to
+  // the final ELSE ('Rejeitado') instead of its own bucket. That concept doesn't exist for
+  // ordem_pagamento_unico's flow (product decision, not a gap to fix).
+  describe('buildEleicaoStatusPagamentoCaseSql', () => {
+    // Texto copiado literalmente de ELEICAO_STATUS_CASE (novo-remessa-query-builder.ts), fonte
+    // de verdade independente desta implementacao - nao gerado pelo codigo sob teste.
+    const EXPECTED_ELEICAO_CASE_OPH = `
+  CASE
+    WHEN oph."statusRemessa" = 2 THEN 'Aguardando Pagamento'
+    WHEN oph."statusRemessa" IN (0,1) THEN 'A Pagar'
+    WHEN oph."motivoStatusRemessa" IN ('00', 'BD') OR oph."statusRemessa" = 3 THEN 'Pago'
+    WHEN oph."motivoStatusRemessa" = '02' THEN 'Estorno'
+    ELSE 'Rejeitado'
+  END
+`;
+
+    const normalize = (sql: string) => sql.replace(/\s+/g, ' ').trim();
+
+    it('produces the same restricted CASE as ELEICAO_STATUS_CASE for alias "oph"', () => {
+      expect(normalize(buildEleicaoStatusPagamentoCaseSql('oph'))).toBe(normalize(EXPECTED_ELEICAO_CASE_OPH));
+    });
+
+    it('has no "Pendencia Paga" line, unlike buildStatusPagamentoCaseSql', () => {
+      expect(buildEleicaoStatusPagamentoCaseSql('oph')).not.toContain('Pendencia Paga');
+      expect(buildStatusPagamentoCaseSql('oph')).toContain('Pendencia Paga');
+    });
+
+    it('parameterizes the history alias', () => {
+      expect(buildEleicaoStatusPagamentoCaseSql('h')).toContain('h."statusRemessa"');
+      expect(buildEleicaoStatusPagamentoCaseSql('h')).not.toContain('oph."statusRemessa"');
     });
   });
 });
