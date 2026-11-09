@@ -913,4 +913,148 @@ suite('BasePagamentoRepository (PostgreSQL)', () => {
       expect(legacySummary.valorRejeitado).toBe(300);
     });
   });
+
+  // T3: filtro de Favorecido/Consorcio/Modal (ADR 2026-11-04, resolveConsorcioFilter).
+  describe('Favorecido / Consorcio / Modal (T3)', () => {
+    const T3_BASE_ID = 996300000;
+    const T3_INSTITUTIONAL_USER_ID = T3_BASE_ID + 1;
+    const T3_MODAL_USER_ID = T3_BASE_ID + 2;
+    const T3_VLT_USER_ID = T3_BASE_ID + 3;
+
+    afterEach(async () => {
+      await dataSource.query(`DELETE FROM ordem_pagamento WHERE id BETWEEN $1 AND $2`, [T3_BASE_ID, T3_BASE_ID + 999]);
+      await dataSource.query(`DELETE FROM public."user" WHERE id BETWEEN $1 AND $2`, [T3_BASE_ID, T3_BASE_ID + 999]);
+    });
+
+    // Institutional CNPJ favorecido (one of INSTITUTIONAL_CPF_CNPJ), raw nomeConsorcio
+    // "Internorte" (no permitCode, falls to the ELSE branch of the CASE), plus a modal
+    // favorecido (permitCode LIKE '4%' -> STPC).
+    async function seedInstitutionalAndModalFavorecidos(): Promise<void> {
+      await dataSource.query(
+        `INSERT INTO public."user" (
+          id, email, provider, "fullName", "roleId", "cpfCnpj",
+          "bankCode", "bankAgency", "bankAccount", "bankAccountDigit", bloqueado,
+          "createdAt", "updatedAt"
+        ) VALUES (
+          $1, $2, 'email', 'INSTITUCIONAL T3 TESTE', 1, '18201378000119',
+          104, '0001', '99990002', '1', false, now(), now()
+        )`,
+        [T3_INSTITUTIONAL_USER_ID, `institucional-t3-${T3_INSTITUTIONAL_USER_ID}@example.test`],
+      );
+      await dataSource.query(
+        `INSERT INTO public."user" (
+          id, email, provider, "fullName", "roleId", "cpfCnpj", "permitCode",
+          "bankCode", "bankAgency", "bankAccount", "bankAccountDigit", bloqueado,
+          "createdAt", "updatedAt"
+        ) VALUES (
+          $1, $2, 'email', 'MODAL T3 TESTE', 1, '99999999701', '41234',
+          104, '0001', '99990002', '1', false, now(), now()
+        )`,
+        [T3_MODAL_USER_ID, `modal-t3-${T3_MODAL_USER_ID}@example.test`],
+      );
+
+      await dataSource.query(
+        `INSERT INTO ordem_pagamento (
+          id, "dataOrdem", "dataCaptura", valor, "bqUpdatedAt", "userId", "nomeConsorcio", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt"
+        ) VALUES ($1, DATE '2098-12-10', DATE '2098-12-10', 111, now(), $2, 'Internorte', NULL, now(), now())`,
+        [T3_BASE_ID + 10, T3_INSTITUTIONAL_USER_ID],
+      );
+      await dataSource.query(
+        `INSERT INTO ordem_pagamento (
+          id, "dataOrdem", "dataCaptura", valor, "bqUpdatedAt", "userId", "nomeConsorcio", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt"
+        ) VALUES ($1, DATE '2098-12-10', DATE '2098-12-10', 222, now(), $2, 'RAW IGNORADO', NULL, now(), now())`,
+        [T3_BASE_ID + 11, T3_MODAL_USER_ID],
+      );
+    }
+
+    async function seedVltFavorecido(): Promise<void> {
+      await dataSource.query(
+        `INSERT INTO public."user" (
+          id, email, provider, "fullName", "roleId", "cpfCnpj", "permitCode",
+          "bankCode", "bankAgency", "bankAccount", "bankAccountDigit", bloqueado,
+          "createdAt", "updatedAt"
+        ) VALUES (
+          $1, $2, 'email', 'VLT T3 TESTE', 1, '99999999702', '8',
+          104, '0001', '99990002', '1', false, now(), now()
+        )`,
+        [T3_VLT_USER_ID, `vlt-t3-${T3_VLT_USER_ID}@example.test`],
+      );
+      await dataSource.query(
+        `INSERT INTO ordem_pagamento (
+          id, "dataOrdem", "dataCaptura", valor, "bqUpdatedAt", "userId", "nomeConsorcio", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt"
+        ) VALUES ($1, DATE '2098-12-15', DATE '2098-12-15', 777, now(), $2, 'RAW IGNORADO', NULL, now(), now())`,
+        [T3_BASE_ID + 20, T3_VLT_USER_ID],
+      );
+    }
+
+    const filterDates = { dataInicio: new Date('2098-12-10T00:00:00.000Z'), dataFim: new Date('2098-12-10T00:00:00.000Z') };
+
+    it('"Favorecido = Todos" (nenhuma selecao) restringe a modais, excluindo CNPJ institucional e consorcio comum', async () => {
+      await seedInstitutionalAndModalFavorecidos();
+
+      const rows = await repository.findGroupedRows('permissionario', { ...filterDates });
+
+      expect(rows).toHaveLength(1);
+      expect(rows[0].nomeConsorcio).toBe('STPC');
+      expect(Number(rows[0].valor)).toBe(222);
+    });
+
+    it('consorcio especifico inclui o CNPJ institucional daquele consorcio e exclui o modal de outro consorcio', async () => {
+      await seedInstitutionalAndModalFavorecidos();
+
+      const rows = await repository.findGroupedRows('permissionario', { ...filterDates, consorcioNome: ['Internorte'] });
+
+      expect(rows).toHaveLength(1);
+      expect(rows[0].nomeConsorcio).toBe('Internorte');
+      expect(Number(rows[0].valor)).toBe(111);
+    });
+
+    it('"Todos os consorcios" inclui o CNPJ institucional e o modal juntos (regressao 2026-11-04)', async () => {
+      await seedInstitutionalAndModalFavorecidos();
+
+      const rows = await repository.findGroupedRows('permissionario', { ...filterDates, todosConsorcios: true });
+
+      expect(rows).toHaveLength(2);
+      expect(rows.map((r) => r.nomeConsorcio).sort()).toEqual(['Internorte', 'STPC']);
+    });
+
+    it('matches the legacy Permissionário service for a specific consorcio filter (VLT)', async () => {
+      await seedVltFavorecido();
+
+      const filter = {
+        dataInicio: new Date('2098-12-15T00:00:00.000Z'),
+        dataFim: new Date('2098-12-15T00:00:00.000Z'),
+        userIds: [T3_VLT_USER_ID],
+        consorcioNome: ['VLT'],
+      };
+
+      const [newRows, legacySummary] = await Promise.all([
+        repository.findGroupedRows('permissionario', filter),
+        legacyPermissionarioService.findFinancialMovementSummary(filter),
+      ]);
+
+      const newTotals = sumByStatus(newRows);
+      expect(newTotals[StatusPagamento.A_PAGAR] ?? 0).toBe(legacySummary.valorAPagar);
+      expect(legacySummary.valorAPagar).toBe(777);
+    });
+
+    it('Guardador: filtro so por userIds, sem distincao de modal/consorcio', async () => {
+      await seedGuardadorUser();
+      await seedGuardadorAPagarFamily();
+
+      const filter = {
+        dataInicio: new Date('2098-08-01T00:00:00.000Z'),
+        dataFim: new Date('2098-08-31T00:00:00.000Z'),
+        userIds: [GUARDADOR_USER_ID],
+      };
+
+      const [newRows, legacySummary] = await Promise.all([
+        repository.findGroupedRows('guardador', filter),
+        legacyGuardadorRepository.findFinancialMovementSummary(filter),
+      ]);
+
+      const newTotals = sumByStatus(newRows);
+      expect(newTotals[StatusPagamento.A_PAGAR] ?? 0).toBe(legacySummary.valorAPagar);
+    });
+  });
 });

@@ -106,12 +106,16 @@ function resolveConsorcioFilter(perfil: Perfil, filter: BasePagamentoFilter): { 
     return { nomeConsorcioList: filter.consorcioNome.map((nome) => nome.trim().toUpperCase()), excludeInstitutional: false };
   }
   if (filter.todosConsorcios) {
-    return { nomeConsorcioList: [...CONSORCIOS], excludeInstitutional: false };
+    // CONSORCIOS tem grafia mista (ex. "Internorte") - uppercase aqui para casar com o
+    // UPPER(TRIM(...)) aplicado na coluna (igual ao filtro de consorcioNome especifico acima;
+    // achado de T3: o legado so faz UPPER(TRIM()) no branch de consorcio especifico, nao no de
+    // "Todos os consorcios" - aqui os dois branches sao tratados de forma consistente).
+    return { nomeConsorcioList: CONSORCIOS.map((nome) => nome.toUpperCase()), excludeInstitutional: false };
   }
   if (filter.userIds?.length) {
     return { nomeConsorcioList: null, excludeInstitutional: false };
   }
-  return { nomeConsorcioList: [...MODAIS], excludeInstitutional: true };
+  return { nomeConsorcioList: MODAIS.map((nome) => nome.toUpperCase()), excludeInstitutional: true };
 }
 
 @Injectable()
@@ -260,7 +264,7 @@ export class BasePagamentoRepository {
       WHERE ($3::text[] IS NULL OR status = ANY($3))
         AND ($4::numeric IS NULL OR valor >= $4)
         AND ($5::numeric IS NULL OR valor <= $5)
-        AND ($7::text[] IS NULL OR "nomeConsorcio" = ANY($7))
+        AND ($7::text[] IS NULL OR UPPER(TRIM("nomeConsorcio")) = ANY($7))
         AND ($8::text[] IS NULL OR NOT ("cpfCnpj" = ANY($8)))
       ORDER BY "dataReferencia", nomes
     `;
