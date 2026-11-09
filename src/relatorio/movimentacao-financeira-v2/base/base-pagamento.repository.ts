@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { StatusPagamento } from '../../enum/statusRemessafinancial-movement';
-import { buildConsorcioCaseSql } from '../status/consorcio-resolver';
+import { buildConsorcioCaseSql, CONSORCIOS, INSTITUTIONAL_CPF_CNPJ, MODAIS } from '../status/consorcio-resolver';
 import { buildStatusPagamentoCaseSql } from '../status/status-resolver';
 
 export type Perfil = 'permissionario' | 'guardador';
@@ -12,6 +12,14 @@ export interface BasePagamentoFilter {
   statuses?: StatusPagamento[];
   valorMin?: number;
   valorMax?: number;
+  // Favorecido/Consorcio/Modal (T3, Permissionario apenas - Guardador nesta camada so suporta
+  // userIds, sem a distincao modal/consorcio que nao existe nesse perfil). "Nenhum selecionado"
+  // (nem userIds nem consorcio) normaliza para o mesmo comportamento de todosVanzeiros=true
+  // (ADR 0014), aplicado dentro do repository - nao precisa ser setado explicitamente pelo
+  // chamador.
+  userIds?: number[];
+  consorcioNome?: string[];
+  todosConsorcios?: boolean;
 }
 
 export interface BasePagamentoRow {
@@ -62,6 +70,30 @@ const VALOR_COLUMN: Record<Perfil, string> = {
   guardador: 'valorRepasseGuardador',
 };
 
+// Resolve a lista de nomeConsorcio aceitos no filtro final e se os CNPJs institucionais devem
+// ser excluidos - so se aplica ao Permissionario (Guardador nao tem esse conceito nesta
+// camada, T3). Espelha a Desired Behavior de docs/tasks/T3.md:
+// - userIds especifico: sem restricao de consorcio/modal (favorecido ja escolhido a dedo).
+// - consorcioNome especifico ou todosConsorcios: lista correspondente, CNPJs institucionais
+//   inclusos, sem restricao a modais (ADR 0018).
+// - nada selecionado (nem userIds, nem consorcio): só modais, CNPJs institucionais excluidos
+//   (ADR 2026-11-04/MODAIS_FILTER) - mesmo efeito de "Favorecido = Todos" default (ADR 0014).
+function resolveConsorcioFilter(perfil: Perfil, filter: BasePagamentoFilter): { nomeConsorcioList: string[] | null; excludeInstitutional: boolean } {
+  if (perfil === 'guardador') {
+    return { nomeConsorcioList: null, excludeInstitutional: false };
+  }
+  if (filter.consorcioNome?.length) {
+    return { nomeConsorcioList: filter.consorcioNome.map((nome) => nome.trim().toUpperCase()), excludeInstitutional: false };
+  }
+  if (filter.todosConsorcios) {
+    return { nomeConsorcioList: [...CONSORCIOS], excludeInstitutional: false };
+  }
+  if (filter.userIds?.length) {
+    return { nomeConsorcioList: null, excludeInstitutional: false };
+  }
+  return { nomeConsorcioList: [...MODAIS], excludeInstitutional: true };
+}
+
 @Injectable()
 export class BasePagamentoRepository {
   constructor(private readonly dataSource: DataSource) {}
@@ -71,6 +103,7 @@ export class BasePagamentoRepository {
     const dataCapturaColumn = DATA_CAPTURA_COLUMN[perfil];
     const valorColumn = VALOR_COLUMN[perfil];
     const statusCase = buildStatusPagamentoCaseSql('oph');
+    const { nomeConsorcioList, excludeInstitutional } = resolveConsorcioFilter(perfil, filter);
 
     const sql = `
       WITH agrupada AS (
@@ -93,6 +126,7 @@ export class BasePagamentoRepository {
         ) representante ON true
         LEFT JOIN public."user" pu ON pu.id = representante."userId"
         WHERE da."dataVencimento"::date BETWEEN $1::date AND $2::date
+          AND ($6::integer[] IS NULL OR pu.id = ANY($6))
       ),
       agrupada_somada AS (
         -- Soma lotes distintos (agrupamentos diferentes) do mesmo favorecido/dia/status - unico
@@ -120,6 +154,7 @@ export class BasePagamentoRepository {
         LEFT JOIN detalhe_a da ON da."ordemPagamentoAgrupadoHistoricoId" = oph.id
         WHERE (op."ordemPagamentoAgrupadoId" IS NULL OR da.id IS NULL)
           AND op."${dataCapturaColumn}"::date BETWEEN $1::date AND $2::date
+          AND ($6::integer[] IS NULL OR pu.id = ANY($6))
       ),
       combinado AS (
         SELECT * FROM agrupada_somada
@@ -131,6 +166,8 @@ export class BasePagamentoRepository {
       WHERE ($3::text[] IS NULL OR status = ANY($3))
         AND ($4::numeric IS NULL OR valor >= $4)
         AND ($5::numeric IS NULL OR valor <= $5)
+        AND ($7::text[] IS NULL OR "nomeConsorcio" = ANY($7))
+        AND ($8::text[] IS NULL OR NOT ("cpfCnpj" = ANY($8)))
       ORDER BY "dataReferencia", nomes
     `;
 
@@ -140,6 +177,9 @@ export class BasePagamentoRepository {
       filter.statuses?.length ? filter.statuses : null,
       filter.valorMin ?? null,
       filter.valorMax ?? null,
+      filter.userIds?.length ? filter.userIds : null,
+      nomeConsorcioList,
+      excludeInstitutional ? [...INSTITUTIONAL_CPF_CNPJ] : null,
     ]);
   }
 }

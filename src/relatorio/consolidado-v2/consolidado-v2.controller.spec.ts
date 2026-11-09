@@ -1,0 +1,123 @@
+import { GUARDS_METADATA } from '@nestjs/common/constants';
+import { HttpException } from '@nestjs/common';
+import { Test, TestingModule } from '@nestjs/testing';
+import { StatusPagamento } from '../enum/statusRemessafinancial-movement';
+import { ConsolidadoV2Controller } from './consolidado-v2.controller';
+import { ConsorcioAggregatorService } from './consorcio-aggregator.service';
+import { VanzeiroAggregatorService } from './vanzeiro-aggregator.service';
+
+describe('ConsolidadoV2Controller', () => {
+  let controller: ConsolidadoV2Controller;
+  let vanzeiroAggregatorService: VanzeiroAggregatorService;
+  let consorcioAggregatorService: ConsorcioAggregatorService;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      controllers: [ConsolidadoV2Controller],
+      providers: [
+        { provide: VanzeiroAggregatorService, useValue: { aggregate: jest.fn().mockResolvedValue({ count: 0, valor: 0, valorAPagar: 0, data: [] }) } },
+        { provide: ConsorcioAggregatorService, useValue: { aggregate: jest.fn().mockResolvedValue({ count: 0, valor: 0, valorAPagar: 0, data: [] }) } },
+      ],
+    }).compile();
+
+    controller = module.get(ConsolidadoV2Controller);
+    vanzeiroAggregatorService = module.get(VanzeiroAggregatorService);
+    consorcioAggregatorService = module.get(ConsorcioAggregatorService);
+  });
+
+  const dataInicio = new Date('2098-01-01');
+  const dataFim = new Date('2098-01-31');
+
+  async function callController(overrides: Partial<Record<string, any>> = {}) {
+    const defaults = {
+      userIds: undefined,
+      consorcioNome: undefined,
+      valorMin: undefined,
+      valorMax: undefined,
+      pago: undefined,
+      aPagar: undefined,
+      emProcessamento: undefined,
+      todosVanzeiros: undefined,
+      todosConsorcios: undefined,
+      eleicao: undefined,
+      desativados: undefined,
+      pendentes: undefined,
+      rejeitado: undefined,
+      estorno: undefined,
+      pendenciaPaga: undefined,
+      stucGratuidade: undefined,
+      erro: undefined,
+      ...overrides,
+    };
+
+    return controller.getConsolidado(
+      dataInicio,
+      dataFim,
+      defaults.userIds,
+      defaults.consorcioNome,
+      defaults.valorMin,
+      defaults.valorMax,
+      defaults.pago,
+      defaults.aPagar,
+      defaults.emProcessamento,
+      defaults.todosVanzeiros,
+      defaults.todosConsorcios,
+      defaults.eleicao,
+      defaults.desativados,
+      defaults.pendentes,
+      defaults.rejeitado,
+      defaults.estorno,
+      defaults.pendenciaPaga,
+      defaults.stucGratuidade,
+      defaults.erro,
+    );
+  }
+
+  it('calls the favorecido aggregator (T3) when neither consorcioNome nor todosConsorcios is present', async () => {
+    await callController({ pago: true });
+
+    expect(vanzeiroAggregatorService.aggregate).toHaveBeenCalledWith(
+      expect.objectContaining({ dataInicio, dataFim, statuses: [StatusPagamento.PAGO] }),
+    );
+    expect(consorcioAggregatorService.aggregate).not.toHaveBeenCalled();
+  });
+
+  it('calls the consorcio aggregator (T4) when todosConsorcios is true', async () => {
+    await callController({ todosConsorcios: true });
+
+    expect(consorcioAggregatorService.aggregate).toHaveBeenCalledWith(
+      expect.objectContaining({ dataInicio, dataFim }),
+      expect.objectContaining({ todosConsorcios: true }),
+    );
+    expect(vanzeiroAggregatorService.aggregate).not.toHaveBeenCalled();
+  });
+
+  // AuthGuard('jwt') enforcement itself (a real 401 without a token) is an HTTP-level concern,
+  // verified at the e2e seam (T6) - a unit spec that calls the controller method directly
+  // bypasses the Nest guard pipeline entirely. Here we assert the guard decorator is present,
+  // so the route cannot silently lose its auth protection without this spec catching it.
+  it('has AuthGuard(jwt) applied to getConsolidado', () => {
+    const guards = Reflect.getMetadata(GUARDS_METADATA, ConsolidadoV2Controller.prototype.getConsolidado);
+    expect(guards).toBeDefined();
+    expect(guards.length).toBeGreaterThan(0);
+  });
+
+  it.each(['eleicao', 'desativados', 'pendentes', 'rejeitado', 'estorno', 'pendenciaPaga', 'stucGratuidade', 'erro'])(
+    'rejects with 400 when "%s" is sent as true (out of scope for this slice)',
+    async (flag) => {
+      await expect(callController({ [flag]: true })).rejects.toThrow(HttpException);
+
+      try {
+        await callController({ [flag]: true });
+        fail('expected HttpException');
+      } catch (e) {
+        expect(e).toBeInstanceOf(HttpException);
+        expect(e.getStatus()).toBe(400);
+      }
+    },
+  );
+
+  it('rejects with 400 when userIds is sent (not supported until ADR 0021 T3 lands)', async () => {
+    await expect(callController({ userIds: [1] })).rejects.toThrow(HttpException);
+  });
+});
