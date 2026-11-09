@@ -34,6 +34,7 @@
     "src/mail-history/pipes/mail-history-validation.pipe.spec.ts",
     "src/mail/mail.service.spec.ts",
     "src/pagamento_indevido/service/pagamentos-indevidos-guardadores.service.spec.ts",
+    "src/relatorio/consolidado-v2/consolidado-v2.controller.spec.ts",
     "src/relatorio/consolidado/relatorio-guardador-consolidado.repository.spec.ts",
     "src/relatorio/extrato-bancario/relatorio-extrato-bancario.repository.spec.ts",
     "src/relatorio/movimentacao-financeira-v2/status/consorcio-resolver.spec.ts",
