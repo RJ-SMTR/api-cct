@@ -57,6 +57,15 @@ Três decisões tomadas por Rayanne em 2026-11-06:
 6. **Mudanças de DTO (campos internos) e o ajuste correspondente em `app-cct`
    (`reportSlice.js`) acontecem na mesma task/entrega**, não em PRs desacoplados — evita um
    período em que os dois repositórios ficam fora de sincronia quanto ao formato de dados.
+7. **Rota HTTP paralela real em produção (`v2`), não só um módulo de teste isolado**
+   (decisão de 2026-11-09, Rayanne). Em vez de validar a paridade só via teste de integração/
+   e2e isolado, a implementação nova expõe rotas próprias (`.../v2/report/...`,
+   `.../v2/guardador/report/...`), espelhando as rotas atuais, para os dois perfis desde já —
+   acessível por API real, para comparação lado a lado com dados reais antes do cutover. As
+   rotas antigas continuam intocadas e servindo o tráfego real do `app-cct` até o cutover
+   (T12, antigo T11) decidir o destino final das rotas `v2` (promovidas a definitivas, ou
+   removidas depois que as rotas antigas passarem a usar a implementação nova
+   internamente — decisão explicitamente adiada para o momento do cutover, não tomada agora).
 
 ## Consequências
 
