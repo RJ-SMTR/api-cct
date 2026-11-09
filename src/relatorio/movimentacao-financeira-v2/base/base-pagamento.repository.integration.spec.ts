@@ -182,6 +182,7 @@ suite('BasePagamentoRepository (PostgreSQL)', () => {
     const rows = await repository.findGroupedRows('permissionario', {
       dataInicio: new Date('2098-07-10T00:00:00.000Z'),
       dataFim: new Date('2098-07-10T00:00:00.000Z'),
+      userIds: [USER_ID],
     });
 
     expect(rows).toHaveLength(2);
@@ -305,6 +306,7 @@ suite('BasePagamentoRepository (PostgreSQL)', () => {
     const rows = await repository.findGroupedRows('permissionario', {
       dataInicio: new Date('2098-09-10T00:00:00.000Z'),
       dataFim: new Date('2098-09-10T00:00:00.000Z'),
+      userIds: [USER_ID],
     });
 
     expect(rows).toHaveLength(1);
@@ -323,6 +325,7 @@ suite('BasePagamentoRepository (PostgreSQL)', () => {
       dataInicio: new Date('2098-07-10T00:00:00.000Z'),
       dataFim: new Date('2098-07-10T00:00:00.000Z'),
       valorMin: 300,
+      userIds: [USER_ID],
     });
 
     expect(rows).toHaveLength(1);
@@ -339,6 +342,7 @@ suite('BasePagamentoRepository (PostgreSQL)', () => {
     const rows = await repository.findGroupedRows('permissionario', {
       dataInicio: new Date('2098-07-10T00:00:00.000Z'),
       dataFim: new Date('2098-07-10T00:00:00.000Z'),
+      userIds: [USER_ID],
     });
 
     expect(rows.some((row) => Number(row.valor) === 150)).toBe(true);
@@ -391,6 +395,7 @@ suite('BasePagamentoRepository (PostgreSQL)', () => {
     const rows = await repository.findGroupedRows('permissionario', {
       dataInicio: new Date('2098-10-10T00:00:00.000Z'),
       dataFim: new Date('2098-10-10T00:00:00.000Z'),
+      userIds: [USER_ID],
     });
 
     expect(rows).toHaveLength(1);
@@ -407,6 +412,7 @@ suite('BasePagamentoRepository (PostgreSQL)', () => {
     const rows = await repository.findGroupedRows('permissionario', {
       dataInicio: new Date('2098-07-01T00:00:00.000Z'),
       dataFim: new Date('2098-10-31T00:00:00.000Z'),
+      userIds: [USER_ID],
     });
 
     const statuses = new Set(rows.map((row) => row.status));
@@ -528,6 +534,7 @@ suite('BasePagamentoRepository (PostgreSQL)', () => {
       const rows = await repository.findGroupedRows('permissionario', {
         dataInicio: new Date('2098-07-10T00:00:00.000Z'),
         dataFim: new Date('2098-07-10T00:00:00.000Z'),
+        userIds: [USER_ID],
       });
 
       expect(rows.every((row) => row.nomeConsorcio === 'CONSORCIO TESTE')).toBe(true);
@@ -540,6 +547,7 @@ suite('BasePagamentoRepository (PostgreSQL)', () => {
       const rows = await repository.findGroupedRows('permissionario', {
         dataInicio: new Date('2098-11-10T00:00:00.000Z'),
         dataFim: new Date('2098-11-10T00:00:00.000Z'),
+        userIds: [VLT_USER_ID],
       });
 
       expect(rows).toHaveLength(1);
@@ -557,6 +565,352 @@ suite('BasePagamentoRepository (PostgreSQL)', () => {
 
       expect(rows.length).toBeGreaterThan(0);
       expect(rows.every((row) => row.nomeConsorcio === null)).toBe(true);
+    });
+  });
+
+  // T5 (ADR 0021): Pendencia Paga (status 5) e Pendencia de Pagamento (Estorno/Rejeitado).
+  // Datas no passado (nao no futuro, como as demais fixtures deste arquivo) - a regra de
+  // elegibilidade de rejeitado (ADR 0020) trata qualquer ordem com dataCaptura >= hoje como
+  // "ordem de hoje" (SQL_HOJE_BRASILIA), o que a excluiria da pendencia independente do resto.
+  describe('Pendencia Paga / Pendencia de Pagamento (T5)', () => {
+    const T5_BASE_ID = 996500000;
+    const T5_USER_ID = T5_BASE_ID + 1;
+
+    afterEach(async () => {
+      await dataSource.query(`DELETE FROM detalhe_a WHERE id BETWEEN $1 AND $2`, [T5_BASE_ID, T5_BASE_ID + 999]);
+      await dataSource.query(`DELETE FROM ordem_pagamento_agrupado_historico WHERE id BETWEEN $1 AND $2`, [T5_BASE_ID, T5_BASE_ID + 999]);
+      await dataSource.query(`DELETE FROM ordem_pagamento WHERE id BETWEEN $1 AND $2`, [T5_BASE_ID, T5_BASE_ID + 999]);
+      await dataSource.query(`UPDATE ordem_pagamento_agrupado SET "ordemPagamentoAgrupadoId" = NULL WHERE id BETWEEN $1 AND $2`, [T5_BASE_ID, T5_BASE_ID + 999]);
+      await dataSource.query(`DELETE FROM ordem_pagamento_agrupado WHERE id BETWEEN $1 AND $2`, [T5_BASE_ID, T5_BASE_ID + 999]);
+      await dataSource.query(`DELETE FROM public."user" WHERE id = $1`, [T5_USER_ID]);
+    });
+
+    async function seedT5User(): Promise<void> {
+      await dataSource.query(
+        `INSERT INTO public."user" (
+          id, email, provider, "fullName", "roleId", "cpfCnpj",
+          "bankCode", "bankAgency", "bankAccount", "bankAccountDigit", bloqueado,
+          "createdAt", "updatedAt"
+        ) VALUES (
+          $1, $2, 'email', 'PERMISSIONARIO T5 TESTE', 1, '99999999601',
+          104, '0001', '99990002', '1', false, now(), now()
+        )`,
+        [T5_USER_ID, `permissionario-t5-${T5_USER_ID}@example.test`],
+      );
+    }
+
+    // 1 pai (dataPagamento = D) + 1 filha (dataPagamento = outra data, para provar que a
+    // consulta usa a data do PAI, nao da filha), filha com status 5 (Pendencia Paga) e seu
+    // proprio detalhe_a/valor.
+    async function seedPendenciaPagaFamily(): Promise<{ opaPaiId: number; opaFilhaId: number }> {
+      const opaPaiId = T5_BASE_ID + 10;
+      const opaFilhaId = T5_BASE_ID + 11;
+      const orderId = T5_BASE_ID + 20;
+      const historyId = T5_BASE_ID + 30;
+      const detailId = T5_BASE_ID + 40;
+
+      await dataSource.query(
+        `INSERT INTO ordem_pagamento_agrupado (id, "dataPagamento", "valorTotal", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt")
+         VALUES ($1, DATE '2020-03-10', 500, NULL, now(), now())`,
+        [opaPaiId],
+      );
+      await dataSource.query(
+        `INSERT INTO ordem_pagamento_agrupado (id, "dataPagamento", "valorTotal", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt")
+         VALUES ($1, DATE '2020-01-01', 500, $2, now(), now())`,
+        [opaFilhaId, opaPaiId],
+      );
+      await dataSource.query(
+        `INSERT INTO ordem_pagamento (id, "dataOrdem", valor, "bqUpdatedAt", "userId", "nomeConsorcio", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt")
+         VALUES ($1, DATE '2020-01-01', 500, now(), $2, 'CONSORCIO TESTE', $3, now(), now())`,
+        [orderId, T5_USER_ID, opaFilhaId],
+      );
+      await dataSource.query(
+        `INSERT INTO ordem_pagamento_agrupado_historico (id, "ordemPagamentoAgrupadoId", "dataReferencia", "userBankCode", "userBankAgency", "userBankAccount", "userBankAccountDigit", "statusRemessa")
+         VALUES ($1, $2, DATE '2020-01-01', '104', '0001', '99990002', '1', 5)`,
+        [historyId, opaFilhaId],
+      );
+      await dataSource.query(
+        `INSERT INTO detalhe_a (id, "ordemPagamentoAgrupadoHistoricoId", "numeroDocumentoEmpresa", "dataVencimento", "valorLancamento", "valorRealEfetivado", nsr, "createdAt", "updatedAt")
+         OVERRIDING SYSTEM VALUE VALUES ($1, $2, 996501, DATE '2020-01-01', 500, 500, 996501, now(), now())`,
+        [detailId, historyId],
+      );
+      return { opaPaiId, opaFilhaId };
+    }
+
+    it('Pendencia Paga (familia): data vem do pai, valor da filha (ADR 0001)', async () => {
+      await seedT5User();
+      await seedPendenciaPagaFamily();
+
+      const rows = await repository.findGroupedRows('permissionario', {
+        dataInicio: new Date('2020-03-10T00:00:00.000Z'),
+        dataFim: new Date('2020-03-10T00:00:00.000Z'),
+        userIds: [T5_USER_ID],
+      });
+
+      expect(rows).toHaveLength(1);
+      expect(rows[0].status).toBe(StatusPagamento.PENDENCIA_PAGA);
+      expect(Number(rows[0].valor)).toBe(500);
+    });
+
+    it('Pendencia Paga (familia): consulta por intervalo tambem traz a linha, sem gate de dia unico (ADR 0001)', async () => {
+      await seedT5User();
+      await seedPendenciaPagaFamily();
+
+      const rows = await repository.findGroupedRows('permissionario', {
+        dataInicio: new Date('2020-03-01T00:00:00.000Z'),
+        dataFim: new Date('2020-03-31T00:00:00.000Z'),
+        userIds: [T5_USER_ID],
+      });
+
+      expect(rows).toHaveLength(1);
+      expect(rows[0].status).toBe(StatusPagamento.PENDENCIA_PAGA);
+    });
+
+    it('Pendencia Paga sem pai (primeiro nivel) aparece pela propria data de pagamento', async () => {
+      await seedT5User();
+      const opaId = T5_BASE_ID + 110;
+      const orderId = T5_BASE_ID + 120;
+      const historyId = T5_BASE_ID + 130;
+      const detailId = T5_BASE_ID + 140;
+
+      await dataSource.query(
+        `INSERT INTO ordem_pagamento_agrupado (id, "dataPagamento", "valorTotal", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt")
+         VALUES ($1, DATE '2020-04-10', 222, NULL, now(), now())`,
+        [opaId],
+      );
+      await dataSource.query(
+        `INSERT INTO ordem_pagamento (id, "dataOrdem", valor, "bqUpdatedAt", "userId", "nomeConsorcio", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt")
+         VALUES ($1, DATE '2020-04-01', 222, now(), $2, 'CONSORCIO TESTE', $3, now(), now())`,
+        [orderId, T5_USER_ID, opaId],
+      );
+      await dataSource.query(
+        `INSERT INTO ordem_pagamento_agrupado_historico (id, "ordemPagamentoAgrupadoId", "dataReferencia", "userBankCode", "userBankAgency", "userBankAccount", "userBankAccountDigit", "statusRemessa")
+         VALUES ($1, $2, DATE '2020-04-01', '104', '0001', '99990002', '1', 5)`,
+        [historyId, opaId],
+      );
+      await dataSource.query(
+        `INSERT INTO detalhe_a (id, "ordemPagamentoAgrupadoHistoricoId", "numeroDocumentoEmpresa", "dataVencimento", "valorLancamento", "valorRealEfetivado", nsr, "createdAt", "updatedAt")
+         OVERRIDING SYSTEM VALUE VALUES ($1, $2, 996502, DATE '2020-04-01', 222, 222, 996502, now(), now())`,
+        [detailId, historyId],
+      );
+
+      const rows = await repository.findGroupedRows('permissionario', {
+        dataInicio: new Date('2020-04-10T00:00:00.000Z'),
+        dataFim: new Date('2020-04-10T00:00:00.000Z'),
+        userIds: [T5_USER_ID],
+      });
+
+      expect(rows).toHaveLength(1);
+      expect(rows[0].status).toBe(StatusPagamento.PENDENCIA_PAGA);
+      expect(Number(rows[0].valor)).toBe(222);
+    });
+
+    // Familia pai/filha, dia unico: pai rejeitado (status 4, motivo 'AR') define status/data;
+    // valor vem da filha.
+    async function seedRejeitadoFamiliaDiaUnico(): Promise<void> {
+      const opaPaiId = T5_BASE_ID + 210;
+      const opaFilhaId = T5_BASE_ID + 211;
+      const orderId = T5_BASE_ID + 220;
+      const historyPaiId = T5_BASE_ID + 230;
+      const historyFilhaId = T5_BASE_ID + 231;
+      const detailId = T5_BASE_ID + 240;
+
+      await dataSource.query(
+        `INSERT INTO ordem_pagamento_agrupado (id, "dataPagamento", "valorTotal", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt")
+         VALUES ($1, DATE '2020-05-10', 300, NULL, now(), now())`,
+        [opaPaiId],
+      );
+      await dataSource.query(
+        `INSERT INTO ordem_pagamento_agrupado (id, "dataPagamento", "valorTotal", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt")
+         VALUES ($1, DATE '2020-01-01', 300, $2, now(), now())`,
+        [opaFilhaId, opaPaiId],
+      );
+      await dataSource.query(
+        `INSERT INTO ordem_pagamento (id, "dataOrdem", valor, "bqUpdatedAt", "userId", "nomeConsorcio", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt")
+         VALUES ($1, DATE '2020-01-01', 300, now(), $2, 'CONSORCIO TESTE', $3, now(), now())`,
+        [orderId, T5_USER_ID, opaFilhaId],
+      );
+      await dataSource.query(
+        `INSERT INTO ordem_pagamento_agrupado_historico (id, "ordemPagamentoAgrupadoId", "dataReferencia", "userBankCode", "userBankAgency", "userBankAccount", "userBankAccountDigit", "statusRemessa", "motivoStatusRemessa")
+         VALUES ($1, $2, DATE '2020-01-01', '104', '0001', '99990002', '1', 4, 'AR')`,
+        [historyPaiId, opaPaiId],
+      );
+      await dataSource.query(
+        `INSERT INTO ordem_pagamento_agrupado_historico (id, "ordemPagamentoAgrupadoId", "dataReferencia", "userBankCode", "userBankAgency", "userBankAccount", "userBankAccountDigit", "statusRemessa")
+         VALUES ($1, $2, DATE '2020-01-01', '104', '0001', '99990002', '1', 0)`,
+        [historyFilhaId, opaFilhaId],
+      );
+      await dataSource.query(
+        `INSERT INTO detalhe_a (id, "ordemPagamentoAgrupadoHistoricoId", "numeroDocumentoEmpresa", "dataVencimento", "valorLancamento", "valorRealEfetivado", nsr, "createdAt", "updatedAt")
+         OVERRIDING SYSTEM VALUE VALUES ($1, $2, 996503, DATE '2020-01-01', 300, 300, 996503, now(), now())`,
+        [detailId, historyFilhaId],
+      );
+    }
+
+    it('Rejeitado (familia, dia unico): status/data vem do historico mais recente do pai, valor da filha', async () => {
+      await seedT5User();
+      await seedRejeitadoFamiliaDiaUnico();
+
+      const rows = await repository.findGroupedRows('permissionario', {
+        dataInicio: new Date('2020-05-10T00:00:00.000Z'),
+        dataFim: new Date('2020-05-10T00:00:00.000Z'),
+        userIds: [T5_USER_ID],
+      });
+
+      expect(rows).toHaveLength(1);
+      expect(rows[0].status).toBe(StatusPagamento.ERRO_REJEITADO);
+      expect(Number(rows[0].valor)).toBe(300);
+    });
+
+    // Estorno sem pai (primeiro nivel), consulta de dia unico (ADR 0008).
+    it('Estorno sem agrupamento pai aparece no filtro de dia unico (ADR 0008)', async () => {
+      await seedT5User();
+      const opaId = T5_BASE_ID + 310;
+      const orderId = T5_BASE_ID + 320;
+      const historyId = T5_BASE_ID + 330;
+      const detailId = T5_BASE_ID + 340;
+
+      await dataSource.query(
+        `INSERT INTO ordem_pagamento_agrupado (id, "dataPagamento", "valorTotal", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt")
+         VALUES ($1, DATE '2020-06-10', 400, NULL, now(), now())`,
+        [opaId],
+      );
+      await dataSource.query(
+        `INSERT INTO ordem_pagamento (id, "dataOrdem", valor, "bqUpdatedAt", "userId", "nomeConsorcio", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt")
+         VALUES ($1, DATE '2020-06-01', 400, now(), $2, 'CONSORCIO TESTE', $3, now(), now())`,
+        [orderId, T5_USER_ID, opaId],
+      );
+      await dataSource.query(
+        `INSERT INTO ordem_pagamento_agrupado_historico (id, "ordemPagamentoAgrupadoId", "dataReferencia", "userBankCode", "userBankAgency", "userBankAccount", "userBankAccountDigit", "statusRemessa", "motivoStatusRemessa")
+         VALUES ($1, $2, DATE '2020-06-01', '104', '0001', '99990002', '1', 4, '02')`,
+        [historyId, opaId],
+      );
+      await dataSource.query(
+        `INSERT INTO detalhe_a (id, "ordemPagamentoAgrupadoHistoricoId", "numeroDocumentoEmpresa", "dataVencimento", "valorLancamento", "valorRealEfetivado", nsr, "createdAt", "updatedAt")
+         OVERRIDING SYSTEM VALUE VALUES ($1, $2, 996504, DATE '2020-06-01', 400, 400, 996504, now(), now())`,
+        [detailId, historyId],
+      );
+
+      const rows = await repository.findGroupedRows('permissionario', {
+        dataInicio: new Date('2020-06-10T00:00:00.000Z'),
+        dataFim: new Date('2020-06-10T00:00:00.000Z'),
+        userIds: [T5_USER_ID],
+      });
+
+      expect(rows).toHaveLength(1);
+      expect(rows[0].status).toBe(StatusPagamento.ERRO_ESTORNO);
+      expect(Number(rows[0].valor)).toBe(400);
+    });
+
+    // ADR 0020: rejeicao com tentativa posterior bem sucedida nao conta mais como pendencia no
+    // filtro de intervalo (nao e' mais a ultima tentativa do agrupamento).
+    it('Rejeitado corrigido por pagamento posterior nao aparece no filtro de intervalo (ADR 0020)', async () => {
+      await seedT5User();
+      const opaId = T5_BASE_ID + 410;
+      const orderId = T5_BASE_ID + 420;
+      const rejectedHistoryId = T5_BASE_ID + 430;
+      const rejectedDetailId = T5_BASE_ID + 440;
+      const paidHistoryId = T5_BASE_ID + 431;
+      const paidDetailId = T5_BASE_ID + 441;
+
+      await dataSource.query(
+        `INSERT INTO ordem_pagamento_agrupado (id, "dataPagamento", "valorTotal", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt")
+         VALUES ($1, DATE '2020-07-05', 777, NULL, now(), now())`,
+        [opaId],
+      );
+      await dataSource.query(
+        `INSERT INTO ordem_pagamento (id, "dataOrdem", valor, "bqUpdatedAt", "userId", "nomeConsorcio", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt")
+         VALUES ($1, DATE '2020-07-01', 777, now(), $2, 'CONSORCIO TESTE', $3, now(), now())`,
+        [orderId, T5_USER_ID, opaId],
+      );
+      // Primeira tentativa: rejeitada, em 2020-07-01.
+      await dataSource.query(
+        `INSERT INTO ordem_pagamento_agrupado_historico (id, "ordemPagamentoAgrupadoId", "dataReferencia", "userBankCode", "userBankAgency", "userBankAccount", "userBankAccountDigit", "statusRemessa", "motivoStatusRemessa")
+         VALUES ($1, $2, DATE '2020-07-01', '104', '0001', '99990002', '1', 4, 'AR')`,
+        [rejectedHistoryId, opaId],
+      );
+      await dataSource.query(
+        `INSERT INTO detalhe_a (id, "ordemPagamentoAgrupadoHistoricoId", "numeroDocumentoEmpresa", "dataVencimento", "valorLancamento", "valorRealEfetivado", nsr, "createdAt", "updatedAt")
+         OVERRIDING SYSTEM VALUE VALUES ($1, $2, 996505, DATE '2020-07-01', 777, 0, 996505, now(), now())`,
+        [rejectedDetailId, rejectedHistoryId],
+      );
+      // Segunda tentativa: paga com sucesso, em 2020-07-05 (mesmo agrupamento).
+      await dataSource.query(
+        `INSERT INTO ordem_pagamento_agrupado_historico (id, "ordemPagamentoAgrupadoId", "dataReferencia", "userBankCode", "userBankAgency", "userBankAccount", "userBankAccountDigit", "statusRemessa", "motivoStatusRemessa")
+         VALUES ($1, $2, DATE '2020-07-05', '104', '0001', '99990002', '1', 3, '00')`,
+        [paidHistoryId, opaId],
+      );
+      await dataSource.query(
+        `INSERT INTO detalhe_a (id, "ordemPagamentoAgrupadoHistoricoId", "numeroDocumentoEmpresa", "dataVencimento", "valorLancamento", "valorRealEfetivado", nsr, "createdAt", "updatedAt")
+         OVERRIDING SYSTEM VALUE VALUES ($1, $2, 996506, DATE '2020-07-05', 777, 777, 996506, now(), now())`,
+        [paidDetailId, paidHistoryId],
+      );
+
+      // Intervalo (nao dia unico) cobrindo so a rejeicao original - orientado pela propria filha
+      // (sem family lookup), com o filtro de elegibilidade do ADR 0020 por cima.
+      const rows = await repository.findGroupedRows('permissionario', {
+        dataInicio: new Date('2020-07-01T00:00:00.000Z'),
+        dataFim: new Date('2020-07-02T00:00:00.000Z'),
+        userIds: [T5_USER_ID],
+      });
+
+      expect(rows.filter((r) => r.status === StatusPagamento.ERRO_REJEITADO || r.status === StatusPagamento.ERRO_ESTORNO)).toHaveLength(0);
+    });
+
+    it('matches the legacy Permissionário service for Pendencia Paga total (family, single day)', async () => {
+      await seedT5User();
+      await seedPendenciaPagaFamily();
+
+      const filter = {
+        dataInicio: new Date('2020-03-10T00:00:00.000Z'),
+        dataFim: new Date('2020-03-10T00:00:00.000Z'),
+        userIds: [T5_USER_ID],
+        consorcioNome: ['CONSORCIO TESTE'],
+        pendenciaPaga: true,
+      };
+
+      const [newRows, legacySummary] = await Promise.all([
+        repository.findGroupedRows('permissionario', {
+          dataInicio: filter.dataInicio,
+          dataFim: filter.dataFim,
+          userIds: filter.userIds,
+          consorcioNome: filter.consorcioNome,
+          statuses: [StatusPagamento.PENDENCIA_PAGA],
+        }),
+        legacyPermissionarioService.findFinancialMovementSummary(filter),
+      ]);
+
+      const newTotal = newRows.reduce((acc, r) => acc + Number(r.valor), 0);
+      expect(newTotal).toBe(legacySummary.valorPendenciaPaga);
+      expect(legacySummary.valorPendenciaPaga).toBe(500);
+    });
+
+    it('matches the legacy Permissionário service for Rejeitado total (family, single day)', async () => {
+      await seedT5User();
+      await seedRejeitadoFamiliaDiaUnico();
+
+      const filter = {
+        dataInicio: new Date('2020-05-10T00:00:00.000Z'),
+        dataFim: new Date('2020-05-10T00:00:00.000Z'),
+        userIds: [T5_USER_ID],
+        consorcioNome: ['CONSORCIO TESTE'],
+        rejeitado: true,
+      };
+
+      const [newRows, legacySummary] = await Promise.all([
+        repository.findGroupedRows('permissionario', {
+          dataInicio: filter.dataInicio,
+          dataFim: filter.dataFim,
+          userIds: filter.userIds,
+          consorcioNome: filter.consorcioNome,
+          statuses: [StatusPagamento.ERRO_REJEITADO],
+        }),
+        legacyPermissionarioService.findFinancialMovementSummary(filter),
+      ]);
+
+      const newTotal = newRows.reduce((acc, r) => acc + Number(r.valor), 0);
+      expect(newTotal).toBe(legacySummary.valorRejeitado);
+      expect(legacySummary.valorRejeitado).toBe(300);
     });
   });
 });
