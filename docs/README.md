@@ -24,6 +24,7 @@ Tipo: **texto** (legível por agentes), **diagrama** (`.drawio`, XML), **planilh
 | `docs/fluxo-pagamento.md` | Fluxo de pagamento ponta a ponta, jobs ativos e desligados | texto |
 | `docs/COMO-TRABALHAR-COM-IA.md` | Guia do time para trabalhar com IA neste repositório | texto |
 | `docs/TECH-DEBT.md` | Registro de débitos técnicos | texto |
+| `docs/rn/RN-0047-plano-de-teste-relatorios.md` | Plano de teste dos relatórios, derivado das RN-0001 a RN-0029 | texto |
 | `docs/cct dados conceitual.drawio` | Modelo conceitual de dados e regras de agrupamento (ordem, item, transação, DetalheA) | diagrama |
 | `docs/cct-negocio.drawio` | Relação entre publicação, transação, item e lançamento | diagrama |
 | `docs/cct metodos.drawio` | Sem conteúdo textual | diagrama (vazio) |
