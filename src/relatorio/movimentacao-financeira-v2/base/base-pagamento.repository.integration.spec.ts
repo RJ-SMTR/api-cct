@@ -485,4 +485,78 @@ suite('BasePagamentoRepository (PostgreSQL)', () => {
     expect(newTotals[StatusPagamento.A_PAGAR] ?? 0).toBe(legacySummary.valorAPagar);
     expect(legacySummary.valorAPagar).toBe(321);
   });
+
+  // T2 do plano consolidado-v2 (ADR 0022): nomeConsorcio adicionado a saida, usando o resolver
+  // compartilhado de consorcio-resolver.ts (mesmo CASE que o Consolidado atual ja usa).
+  describe('nomeConsorcio', () => {
+    const VLT_USER_ID = BASE_ID + 3;
+
+    async function seedVltUser(): Promise<void> {
+      await dataSource.query(
+        `INSERT INTO public."user" (
+          id, email, provider, "fullName", "roleId", "cpfCnpj", "permitCode",
+          "bankCode", "bankAgency", "bankAccount", "bankAccountDigit", bloqueado,
+          "createdAt", "updatedAt"
+        ) VALUES (
+          $1, $2, 'email', 'PERMISSIONARIO VLT V2 TESTE', 1, '99999999504', '8',
+          104, '0001', '99990002', '1', false, now(), now()
+        )`,
+        [VLT_USER_ID, `permissionario-vlt-v2-${VLT_USER_ID}@example.test`],
+      );
+    }
+
+    async function seedVltAPagarFamily(): Promise<void> {
+      const orderId = BASE_ID + 540;
+
+      await dataSource.query(
+        `INSERT INTO ordem_pagamento (
+          id, "dataOrdem", "dataCaptura", valor, "bqUpdatedAt", "userId", "nomeConsorcio", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt"
+        ) VALUES ($1, DATE '2098-11-10', DATE '2098-11-10', 888, now(), $2, 'CONSORCIO BRUTO DIVERGENTE', NULL, now(), now())`,
+        [orderId, VLT_USER_ID],
+      );
+    }
+
+    afterEach(async () => {
+      await dataSource.query(`DELETE FROM ordem_pagamento WHERE id = $1`, [BASE_ID + 540]);
+      await dataSource.query(`DELETE FROM public."user" WHERE id = $1`, [VLT_USER_ID]);
+    });
+
+    it('falls back to the raw nomeConsorcio (ELSE) when permitCode does not match any pattern, for Permissionario', async () => {
+      await seedUser();
+      await seedPermissionarioAPagarFamily();
+
+      const rows = await repository.findGroupedRows('permissionario', {
+        dataInicio: new Date('2098-07-10T00:00:00.000Z'),
+        dataFim: new Date('2098-07-10T00:00:00.000Z'),
+      });
+
+      expect(rows.every((row) => row.nomeConsorcio === 'CONSORCIO TESTE')).toBe(true);
+    });
+
+    it('resolves nomeConsorcio to VLT via permitCode, overriding the raw nomeConsorcio column, for Permissionario', async () => {
+      await seedVltUser();
+      await seedVltAPagarFamily();
+
+      const rows = await repository.findGroupedRows('permissionario', {
+        dataInicio: new Date('2098-11-10T00:00:00.000Z'),
+        dataFim: new Date('2098-11-10T00:00:00.000Z'),
+      });
+
+      expect(rows).toHaveLength(1);
+      expect(rows[0].nomeConsorcio).toBe('VLT');
+    });
+
+    it('nomeConsorcio is always null for Guardador (out of scope for this slice)', async () => {
+      await seedGuardadorUser();
+      await seedGuardadorAPagarFamily();
+
+      const rows = await repository.findGroupedRows('guardador', {
+        dataInicio: new Date('2098-08-10T00:00:00.000Z'),
+        dataFim: new Date('2098-08-10T00:00:00.000Z'),
+      });
+
+      expect(rows.length).toBeGreaterThan(0);
+      expect(rows.every((row) => row.nomeConsorcio === null)).toBe(true);
+    });
+  });
 });
