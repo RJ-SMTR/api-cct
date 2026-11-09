@@ -913,4 +913,313 @@ suite('BasePagamentoRepository (PostgreSQL)', () => {
       expect(legacySummary.valorRejeitado).toBe(300);
     });
   });
+
+  // T4 (AC-19/ADR 0002): keyset-cursor pagination for findGroupedRowsPage, for both profiles.
+  // Dedicated ID range (996010000-996010999), distinct from BASE_ID above, and its own cleanup
+  // scoped to that range only - this spec file is shared by several parallel tasks running
+  // against the same local database (T6/T7/T8 also extend it), so this suite must never widen
+  // the existing cleanFixtures() range or touch rows outside its own.
+  describe('Keyset pagination (T4, AC-19)', () => {
+    const BASE_ID_T4 = 996010000;
+    const USER_ID_T4 = BASE_ID_T4 + 1;
+    const GUARDADOR_USER_ID_T4 = BASE_ID_T4 + 2;
+
+    async function cleanFixturesT4(): Promise<void> {
+      if (!dataSource?.isInitialized) {
+        return;
+      }
+      await dataSource.query(`DELETE FROM detalhe_a WHERE id BETWEEN $1 AND $2`, [BASE_ID_T4, BASE_ID_T4 + 999]);
+      await dataSource.query(`DELETE FROM ordem_pagamento_agrupado_historico WHERE id BETWEEN $1 AND $2`, [BASE_ID_T4, BASE_ID_T4 + 999]);
+      await dataSource.query(`DELETE FROM ordem_pagamento WHERE id BETWEEN $1 AND $2`, [BASE_ID_T4, BASE_ID_T4 + 999]);
+      await dataSource.query(`DELETE FROM ordem_pagamento_guardador WHERE id BETWEEN $1 AND $2`, [BASE_ID_T4, BASE_ID_T4 + 999]);
+      await dataSource.query(`UPDATE ordem_pagamento_agrupado SET "ordemPagamentoAgrupadoId" = NULL WHERE id BETWEEN $1 AND $2`, [BASE_ID_T4, BASE_ID_T4 + 999]);
+      await dataSource.query(`DELETE FROM ordem_pagamento_agrupado WHERE id BETWEEN $1 AND $2`, [BASE_ID_T4, BASE_ID_T4 + 999]);
+      await dataSource.query(`DELETE FROM public."user" WHERE id IN ($1, $2)`, [USER_ID_T4, GUARDADOR_USER_ID_T4]);
+    }
+
+    beforeEach(cleanFixturesT4);
+    afterAll(cleanFixturesT4);
+
+    async function seedPermissionarioUserT4(): Promise<void> {
+      await dataSource.query(
+        `INSERT INTO public."user" (
+          id, email, provider, "fullName", "roleId", "cpfCnpj",
+          "bankCode", "bankAgency", "bankAccount", "bankAccountDigit", bloqueado,
+          "createdAt", "updatedAt"
+        ) VALUES (
+          $1, $2, 'email', 'PERMISSIONARIO V2 T4', 1, '99999999504',
+          104, '0001', '99990002', '1', false, now(), now()
+        )`,
+        [USER_ID_T4, `permissionario-v2-t4-${USER_ID_T4}@example.test`],
+      );
+    }
+
+    async function seedGuardadorUserT4(): Promise<void> {
+      await dataSource.query(`INSERT INTO role (id, name) VALUES (6, 'agentes') ON CONFLICT (id) DO NOTHING`);
+      await dataSource.query(
+        `INSERT INTO public."user" (
+          id, email, provider, "fullName", "roleId", "cpfCnpj",
+          "bankCode", "bankAgency", "bankAccount", "bankAccountDigit", bloqueado,
+          "createdAt", "updatedAt"
+        ) VALUES (
+          $1, $2, 'email', 'GUARDADOR V2 T4', 6, '99999999505',
+          104, '0001', '99990002', '1', false, now(), now()
+        )`,
+        [GUARDADOR_USER_ID_T4, `guardador-v2-t4-${GUARDADOR_USER_ID_T4}@example.test`],
+      );
+    }
+
+    // ADR 0002 scenario, verbatim: the same favorecido, paid (status 'Pago') on the same date,
+    // under two different consórcios - a tie on the legacy 4-column cursor tuple
+    // (dataReferencia, nomes, status, cpfCnpj), distinguished only by nomeConsorcio.
+    async function seedPermissionarioTieFamily(): Promise<void> {
+      const specs = [
+        { opaId: BASE_ID_T4 + 10, orderId: BASE_ID_T4 + 11, historyId: BASE_ID_T4 + 12, detailId: BASE_ID_T4 + 13, nomeConsorcio: 'Intersul', valor: 111 },
+        { opaId: BASE_ID_T4 + 20, orderId: BASE_ID_T4 + 21, historyId: BASE_ID_T4 + 22, detailId: BASE_ID_T4 + 23, nomeConsorcio: 'Transcarioca', valor: 222 },
+      ];
+
+      for (const s of specs) {
+        await dataSource.query(
+          `INSERT INTO ordem_pagamento_agrupado (
+            id, "dataPagamento", "valorTotal", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt"
+          ) VALUES ($1, DATE '2098-11-10', $2, NULL, now(), now())`,
+          [s.opaId, s.valor],
+        );
+        await dataSource.query(
+          `INSERT INTO ordem_pagamento (
+            id, "dataOrdem", valor, "bqUpdatedAt", "userId", "nomeConsorcio", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt"
+          ) VALUES ($1, DATE '2098-11-05', $2, now(), $3, $4, $5, now(), now())`,
+          [s.orderId, s.valor, USER_ID_T4, s.nomeConsorcio, s.opaId],
+        );
+        await dataSource.query(
+          `INSERT INTO ordem_pagamento_agrupado_historico (
+            id, "ordemPagamentoAgrupadoId", "dataReferencia", "userBankCode",
+            "userBankAgency", "userBankAccount", "userBankAccountDigit", "statusRemessa", "motivoStatusRemessa"
+          ) VALUES ($1, $2, DATE '2098-11-10', '104', '0001', '99990002', '1', 3, '00')`,
+          [s.historyId, s.opaId],
+        );
+        await dataSource.query(
+          `INSERT INTO detalhe_a (
+            id, "ordemPagamentoAgrupadoHistoricoId", "numeroDocumentoEmpresa",
+            "dataVencimento", "valorLancamento", "valorRealEfetivado", nsr,
+            "createdAt", "updatedAt"
+          ) OVERRIDING SYSTEM VALUE VALUES ($1, $2, $3, DATE '2098-11-10', $4, $4, $3, now(), now())`,
+          [s.detailId, s.historyId, s.detailId, s.valor],
+        );
+      }
+    }
+
+    // Guardador has no nomeConsorcio dimension (always NULL, see NOME_CONSORCIO_AGRUPADA), so
+    // two agrupamentos on the same day/status for the same guardador legitimately collapse into
+    // one summed row (agrupada_somada) - not a tie. The equivalent real tie for this profile is
+    // in "nunca_enviada" (ADR 0017: no aggregation there): two distinct never-grouped orders,
+    // same day/status, distinguished only by valor (the cursor's 6th column).
+    async function seedGuardadorTieFamily(): Promise<void> {
+      const specs = [
+        { orderId: BASE_ID_T4 + 110, valor: 333 },
+        { orderId: BASE_ID_T4 + 111, valor: 444 },
+      ];
+      for (const s of specs) {
+        await dataSource.query(
+          `INSERT INTO ordem_pagamento_guardador (
+            id, "dataOrdem", "dataInclusao", "valorRepasseGuardador", "userId",
+            "tipoOrdemPagamento", "ordemPagamentoAgrupadoId",
+            "qtdVerificacaoTotal", "qtdVerificacaoValida", "qtdVerificacaoInvalida",
+            "createdAt", "updatedAt"
+          ) VALUES ($1, DATE '2098-11-10', DATE '2098-11-10', $2, $3, 'AUTOMATICA', NULL, 0, 0, 0, now(), now())`,
+          [s.orderId, s.valor, GUARDADOR_USER_ID_T4],
+        );
+      }
+    }
+
+    // Walk every page from an empty cursor until nextCursor is null, collecting all rows.
+    async function collectAllPages(
+      perfil: 'permissionario' | 'guardador',
+      filter: Record<string, unknown>,
+      pageSize: number,
+    ) {
+      const pages: (typeof repository extends never ? never : any)[] = [];
+      let cursor: any;
+      let safety = 0;
+      do {
+        const page = await repository.findGroupedRowsPage(perfil, filter as any, pageSize, cursor);
+        pages.push(page);
+        cursor = page.nextCursor ?? undefined;
+        safety += 1;
+        if (safety > 200) {
+          throw new Error('Too many pages - possible infinite pagination loop');
+        }
+      } while (cursor);
+      return pages;
+    }
+
+    function rowKey(row: { dataReferencia: unknown; nomes: unknown; cpfCnpj: unknown; nomeConsorcio: unknown; status: unknown; valor: unknown }): string {
+      return [row.dataReferencia, row.nomes, row.cpfCnpj, row.nomeConsorcio, row.status, Number(row.valor)].join('|');
+    }
+
+    it('loses no row and duplicates no row across pages, landing mid-tie on the legacy 4-column tuple (Permissionario, ADR 0002)', async () => {
+      await seedPermissionarioUserT4();
+      await seedPermissionarioTieFamily();
+
+      const filter = {
+        dataInicio: new Date('2098-11-10T00:00:00.000Z'),
+        dataFim: new Date('2098-11-10T00:00:00.000Z'),
+        userIds: [USER_ID_T4],
+      };
+
+      const unpaginated = await repository.findGroupedRows('permissionario', filter);
+      expect(unpaginated).toHaveLength(2);
+
+      const pages = await collectAllPages('permissionario', filter, 1);
+      const paginatedRows = pages.flatMap((p) => p.rows);
+
+      expect(paginatedRows).toHaveLength(2);
+      expect(new Set(paginatedRows.map(rowKey))).toEqual(new Set(unpaginated.map(rowKey)));
+      expect(pages[pages.length - 1].nextCursor).toBeNull();
+    });
+
+    it('loses no row and duplicates no row across pages, landing mid-tie distinguished only by valor (Guardador)', async () => {
+      await seedGuardadorUserT4();
+      await seedGuardadorTieFamily();
+
+      const filter = {
+        dataInicio: new Date('2098-11-10T00:00:00.000Z'),
+        dataFim: new Date('2098-11-10T00:00:00.000Z'),
+      };
+
+      const unpaginated = await repository.findGroupedRows('guardador', filter);
+      expect(unpaginated).toHaveLength(2);
+
+      const pages = await collectAllPages('guardador', filter, 1);
+      const paginatedRows = pages.flatMap((p) => p.rows);
+
+      expect(paginatedRows).toHaveLength(2);
+      expect(new Set(paginatedRows.map(rowKey))).toEqual(new Set(unpaginated.map(rowKey)));
+      expect(pages[pages.length - 1].nextCursor).toBeNull();
+    });
+
+    async function seedManyNuncaEnviada(perfil: 'permissionario' | 'guardador', userId: number, count: number): Promise<void> {
+      for (let i = 0; i < count; i += 1) {
+        const orderId = BASE_ID_T4 + 500 + i;
+        const valor = 1 + i;
+        const day = 11 + (i % 10); // spread across 10 distinct days, several orders per day
+        const data = `2099-01-${String(day).padStart(2, '0')}`;
+        if (perfil === 'permissionario') {
+          await dataSource.query(
+            `INSERT INTO ordem_pagamento (
+              id, "dataOrdem", "dataCaptura", valor, "bqUpdatedAt", "userId", "nomeConsorcio", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt"
+            ) VALUES ($1, $2::date, $2::date, $3, now(), $4, 'CONSORCIO TESTE T4', NULL, now(), now())`,
+            [orderId, data, valor, userId],
+          );
+        } else {
+          await dataSource.query(
+            `INSERT INTO ordem_pagamento_guardador (
+              id, "dataOrdem", "dataInclusao", "valorRepasseGuardador", "userId",
+              "tipoOrdemPagamento", "ordemPagamentoAgrupadoId",
+              "qtdVerificacaoTotal", "qtdVerificacaoValida", "qtdVerificacaoInvalida",
+              "createdAt", "updatedAt"
+            ) VALUES ($1, $2::date, $2::date, $3, $4, 'AUTOMATICA', NULL, 0, 0, 0, now(), now())`,
+            [orderId, data, valor, userId],
+          );
+        }
+      }
+    }
+
+    it.each(['permissionario', 'guardador'] as const)(
+      'walking all pages with varied pageSize (%s) equals the unpaginated result exactly, over 55 rows',
+      async (perfil) => {
+        if (perfil === 'permissionario') {
+          await seedPermissionarioUserT4();
+          await seedManyNuncaEnviada('permissionario', USER_ID_T4, 55);
+        } else {
+          await seedGuardadorUserT4();
+          await seedManyNuncaEnviada('guardador', GUARDADOR_USER_ID_T4, 55);
+        }
+
+        const filter = {
+          dataInicio: new Date('2099-01-11T00:00:00.000Z'),
+          dataFim: new Date('2099-01-20T00:00:00.000Z'),
+          userIds: [perfil === 'permissionario' ? USER_ID_T4 : GUARDADOR_USER_ID_T4],
+        };
+
+        const unpaginated = await repository.findGroupedRows(perfil, filter);
+        expect(unpaginated).toHaveLength(55);
+
+        for (const pageSize of [7, 13, 55, 100]) {
+          const pages = await collectAllPages(perfil, filter, pageSize);
+          const paginatedRows = pages.flatMap((p) => p.rows);
+
+          expect(paginatedRows.map(rowKey)).toEqual(unpaginated.map(rowKey));
+          expect(pages[pages.length - 1].nextCursor).toBeNull();
+          // Every page but the last must be exactly pageSize (no short/empty intermediate pages).
+          pages.slice(0, -1).forEach((p) => expect(p.rows).toHaveLength(pageSize));
+        }
+      },
+    );
+
+    it('page N cursor fetches exactly page N+1 (not page N again, no skipped rows)', async () => {
+      await seedPermissionarioUserT4();
+      await seedManyNuncaEnviada('permissionario', USER_ID_T4, 25);
+
+      const filter = {
+        dataInicio: new Date('2099-01-11T00:00:00.000Z'),
+        dataFim: new Date('2099-01-20T00:00:00.000Z'),
+        userIds: [USER_ID_T4],
+      };
+
+      const unpaginated = await repository.findGroupedRows('permissionario', filter);
+      const pageSize = 10;
+
+      const page1 = await repository.findGroupedRowsPage('permissionario', filter, pageSize);
+      expect(page1.rows.map(rowKey)).toEqual(unpaginated.slice(0, 10).map(rowKey));
+      expect(page1.nextCursor).not.toBeNull();
+
+      const page2 = await repository.findGroupedRowsPage('permissionario', filter, pageSize, page1.nextCursor ?? undefined);
+      expect(page2.rows.map(rowKey)).toEqual(unpaginated.slice(10, 20).map(rowKey));
+      expect(page2.nextCursor).not.toBeNull();
+
+      const page3 = await repository.findGroupedRowsPage('permissionario', filter, pageSize, page2.nextCursor ?? undefined);
+      expect(page3.rows.map(rowKey)).toEqual(unpaginated.slice(20, 25).map(rowKey));
+      expect(page3.nextCursor).toBeNull();
+    });
+
+    it('returns exactly pageSize rows and a null nextCursor when the dataset size equals pageSize exactly', async () => {
+      await seedPermissionarioUserT4();
+      // seedManyNuncaEnviada spreads rows across 10 distinct days; seeding exactly 5 rows keeps
+      // the dataset itself at exactly pageSize, which is the boundary this test targets.
+      await seedManyNuncaEnviada('permissionario', USER_ID_T4, 5);
+
+      const filter = {
+        dataInicio: new Date('2099-01-11T00:00:00.000Z'),
+        dataFim: new Date('2099-01-20T00:00:00.000Z'),
+        userIds: [USER_ID_T4],
+      };
+
+      const unpaginated = await repository.findGroupedRows('permissionario', filter);
+      expect(unpaginated).toHaveLength(5);
+
+      const page = await repository.findGroupedRowsPage('permissionario', filter, 5);
+
+      expect(page.rows).toHaveLength(5);
+      expect(page.rows.map(rowKey)).toEqual(unpaginated.map(rowKey));
+      expect(page.nextCursor).toBeNull();
+    });
+
+    it('returns an empty page (no rows, null nextCursor) for an empty dataset', async () => {
+      await seedPermissionarioUserT4();
+
+      const page = await repository.findGroupedRowsPage(
+        'permissionario',
+        {
+          dataInicio: new Date('2099-01-11T00:00:00.000Z'),
+          dataFim: new Date('2099-01-20T00:00:00.000Z'),
+          userIds: [USER_ID_T4],
+        },
+        10,
+      );
+
+      expect(page.rows).toHaveLength(0);
+      expect(page.nextCursor).toBeNull();
+    });
+  });
 });
