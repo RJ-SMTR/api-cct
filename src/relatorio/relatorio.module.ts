@@ -16,6 +16,8 @@ import { ConsolidadoV2Controller } from './consolidado-v2/consolidado-v2.control
 import { ConsorcioAggregatorService } from './consolidado-v2/consorcio-aggregator.service';
 import { VanzeiroAggregatorService } from './consolidado-v2/vanzeiro-aggregator.service';
 import { BasePagamentoRepository } from './movimentacao-financeira-v2/base/base-pagamento.repository';
+import { StucGratuidadeRepository } from './movimentacao-financeira-v2/stuc-gratuidade/stuc-gratuidade.repository';
+import { FinancialMovementV2ExportService } from './movimentacao-financeira-v2/export/financial-movement-v2-export.service';
 
 @Module({
   imports: [CnabModule],
@@ -32,6 +34,10 @@ import { BasePagamentoRepository } from './movimentacao-financeira-v2/base/base-
     RelatorioGuardadorFinancialMovementRepository,
     // ADR 0022 (Consolidado-v2, fatia 1) - rota paralela v2, nao usada pelo app-cct ainda.
     BasePagamentoRepository,
+    // ADR 0021 (Movimentacao Financeira v2, T8/T9) - repositorio e export dedicados, ainda
+    // sem controller proprio (T10).
+    StucGratuidadeRepository,
+    FinancialMovementV2ExportService,
     VanzeiroAggregatorService,
     ConsorcioAggregatorService,
   ],
