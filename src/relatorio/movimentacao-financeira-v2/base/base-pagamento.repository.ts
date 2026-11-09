@@ -32,6 +32,43 @@ export interface BasePagamentoRow {
   status: StatusPagamento;
 }
 
+// Keyset cursor (T4, AC-19/ADR 0002): every field of BasePagamentoRow doubles as a
+// tie-breaker, in the exact order used by CURSOR_ORDER_BY/CURSOR_TUPLE_COMPARE below - not
+// opaque to the frontend (ADR 0021 decision 6), same as the legacy Guardador cursor shape. Not
+// a subset (the bug this fixes, in the legacy Permissionario cursor, was using fewer columns
+// than the "grouped" source actually distinguishes rows by).
+export interface BasePagamentoCursor {
+  dataReferencia: Date | string | null;
+  nomes: string | null;
+  cpfCnpj: string | null;
+  nomeConsorcio: string | null;
+  status: string | null;
+  valor: string | null;
+}
+
+export interface BasePagamentoPage {
+  rows: BasePagamentoRow[];
+  // null means "no more rows" - never a cursor that would repeat the last page.
+  nextCursor: BasePagamentoCursor | null;
+}
+
+// Plain tuple for ORDER BY (nulls sort predictably on their own, no COALESCE needed) - keeps
+// the existing perceptible order (dataReferencia, nomes first) and only adds the remaining
+// columns as deterministic tie-breakers after it.
+const CURSOR_ORDER_BY = `"dataReferencia", nomes, "cpfCnpj", "nomeConsorcio", status, valor`;
+
+// Same tuple, COALESCEd for the keyset WHERE row-comparison: Postgres row comparison returns
+// NULL (silently excluding the row) if any compared element is NULL, so every nullable column
+// needs a non-NULL stand-in on both sides of the comparison.
+const CURSOR_TUPLE_COMPARE = `
+  "dataReferencia",
+  COALESCE(nomes, ''),
+  COALESCE("cpfCnpj", ''),
+  COALESCE("nomeConsorcio", ''),
+  COALESCE(status, ''),
+  COALESCE(valor::numeric, 0)
+`;
+
 // Guardador nao tem o conceito de consorcio nesta forma (fora de escopo da fatia 1, ADR 0022) -
 // nomeConsorcio sai sempre null para esse perfil, nunca inventado. Dois pontos de resolucao
 // porque os aliases disponiveis diferem por fonte: "nunca_enviada" tem a tabela de ordem em si
@@ -123,6 +160,73 @@ export class BasePagamentoRepository {
   constructor(private readonly dataSource: DataSource) {}
 
   async findGroupedRows(perfil: Perfil, filter: BasePagamentoFilter): Promise<BasePagamentoRow[]> {
+    const { sql, params } = this.buildCombinadoSql(perfil, filter);
+    return this.dataSource.query(`${sql}\n      ORDER BY ${CURSOR_ORDER_BY}`, params);
+  }
+
+  // Keyset-cursor pagination (T4, AC-19/ADR 0002) over the same "combinado" result as
+  // findGroupedRows - never OFFSET-based, so a page cut never skips/repeats rows as the
+  // underlying data is captured/updated between pages. Fetches pageSize+1 rows to know whether
+  // there is a next page without a separate COUNT query; nextCursor is built from the last row
+  // actually returned to the caller (never from the probe row).
+  async findGroupedRowsPage(
+    perfil: Perfil,
+    filter: BasePagamentoFilter,
+    pageSize: number,
+    cursor?: BasePagamentoCursor,
+  ): Promise<BasePagamentoPage> {
+    const { sql, params } = this.buildCombinadoSql(perfil, filter);
+    const base = params.length; // last positional param already used by buildCombinadoSql
+    const pagedSql = `
+      ${sql}
+        AND (
+          $${base + 1}::date IS NULL
+          OR (${CURSOR_TUPLE_COMPARE}) > (
+            $${base + 1}::date,
+            COALESCE($${base + 2}::text, ''),
+            COALESCE($${base + 3}::text, ''),
+            COALESCE($${base + 4}::text, ''),
+            COALESCE($${base + 5}::text, ''),
+            COALESCE($${base + 6}::numeric, 0)
+          )
+        )
+      ORDER BY ${CURSOR_ORDER_BY}
+      LIMIT $${base + 7}
+    `;
+
+    const rows: BasePagamentoRow[] = await this.dataSource.query(pagedSql, [
+      ...params,
+      cursor?.dataReferencia ?? null,
+      cursor?.nomes ?? null,
+      cursor?.cpfCnpj ?? null,
+      cursor?.nomeConsorcio ?? null,
+      cursor?.status ?? null,
+      cursor?.valor ?? null,
+      pageSize + 1,
+    ]);
+
+    const hasMore = rows.length > pageSize;
+    const pageRows = hasMore ? rows.slice(0, pageSize) : rows;
+    const lastRow = pageRows[pageRows.length - 1];
+    const nextCursor: BasePagamentoCursor | null =
+      hasMore && lastRow
+        ? {
+            dataReferencia: lastRow.dataReferencia,
+            nomes: lastRow.nomes,
+            cpfCnpj: lastRow.cpfCnpj,
+            nomeConsorcio: lastRow.nomeConsorcio,
+            status: lastRow.status,
+            valor: lastRow.valor,
+          }
+        : null;
+
+    return { rows: pageRows, nextCursor };
+  }
+
+  // Builds the shared "combinado" CTE chain + final filtered SELECT (everything findGroupedRows
+  // and findGroupedRowsPage have in common), without ORDER BY/LIMIT so each caller can append
+  // its own (plain order for a full scan, keyset WHERE + order + limit for a page).
+  private buildCombinadoSql(perfil: Perfil, filter: BasePagamentoFilter): { sql: string; params: unknown[] } {
     const ordemTable = ORDEM_TABLE[perfil];
     const dataCapturaColumn = DATA_CAPTURA_COLUMN[perfil];
     const valorColumn = VALOR_COLUMN[perfil];
@@ -266,19 +370,21 @@ export class BasePagamentoRepository {
         AND ($5::numeric IS NULL OR valor <= $5)
         AND ($7::text[] IS NULL OR UPPER(TRIM("nomeConsorcio")) = ANY($7))
         AND ($8::text[] IS NULL OR NOT ("cpfCnpj" = ANY($8)))
-      ORDER BY "dataReferencia", nomes
     `;
 
-    return this.dataSource.query(sql, [
-      filter.dataInicio,
-      filter.dataFim,
-      filter.statuses?.length ? filter.statuses : null,
-      filter.valorMin ?? null,
-      filter.valorMax ?? null,
-      filter.userIds?.length ? filter.userIds : null,
-      nomeConsorcioList,
-      excludeInstitutional ? [...INSTITUTIONAL_CPF_CNPJ] : null,
-    ]);
+    return {
+      sql,
+      params: [
+        filter.dataInicio,
+        filter.dataFim,
+        filter.statuses?.length ? filter.statuses : null,
+        filter.valorMin ?? null,
+        filter.valorMax ?? null,
+        filter.userIds?.length ? filter.userIds : null,
+        nomeConsorcioList,
+        excludeInstitutional ? [...INSTITUTIONAL_CPF_CNPJ] : null,
+      ],
+    };
   }
 
   // Dia unico (ADR 0008/nota do ADR 0001): a familia pai define status (historico mais recente
