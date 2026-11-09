@@ -1,7 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { StatusPagamento } from '../../enum/statusRemessafinancial-movement';
-import { pendenciaRejeitadaGuardador, pendenciaRejeitadaPermissionario } from '../../novo-remessa/queries/regras-pendencia';
+import {
+  pendenciaAgrupamentoNuncaEnviadoGuardador,
+  pendenciaOrdemSoltaGuardador,
+  pendenciaOrdemSoltaPermissionario,
+  pendenciaRejeitadaGuardador,
+  pendenciaRejeitadaPermissionario,
+} from '../../novo-remessa/queries/regras-pendencia';
 import { buildConsorcioCaseSql, CONSORCIOS, INSTITUTIONAL_CPF_CNPJ, MODAIS } from '../status/consorcio-resolver';
 import { buildEleicaoStatusPagamentoCaseSql, buildStatusPagamentoCaseSql } from '../status/status-resolver';
 
@@ -125,6 +131,29 @@ function resolveElegibilidadeRejeitado(perfil: Perfil): string {
   return perfil === 'guardador'
     ? pendenciaRejeitadaGuardador({ oph: 'oph', da: 'da', opa: 'opa', pu: 'pu' })
     : pendenciaRejeitadaPermissionario({ oph: 'oph', da: 'da', opa: 'opa', users: ['pu'] });
+}
+
+// T6 (ADR 0021/AC-18): "Pendentes" (OPs atrasadas) reusa regras-pendencia.ts como fonte de
+// verdade - a mesma elegibilidade que a geracao real de remessa usa pra decidir o que
+// reprocessar, nunca re-derivada. pendenciaOrdemSoltaPermissionario ja devolve um fragmento
+// "AND ..." (espera que o chamador tenha filtrado a ordem solta antes); pendenciaOrdemSolta
+// Guardador devolve uma condicao booleana completa (inclui o proprio "ordemPagamentoAgrupado
+// Id IS NULL"), por isso entra entre parenteses com "AND" na frente.
+function resolveElegibilidadePendenteOrdemSolta(perfil: Perfil): string {
+  return perfil === 'guardador'
+    ? `AND (${pendenciaOrdemSoltaGuardador('op', 'pu')})`
+    : pendenciaOrdemSoltaPermissionario('op', 'pu');
+}
+
+// Mesma regra acima, mas como expressao booleana pura (sem "AND" na frente) - usada para
+// EXCLUIR da fonte "A Pagar nunca enviado" o que ja e Pendente, pra nao duplicar a mesma ordem
+// solta nos dois buckets (A Pagar teria janela aberta, sem corte de 10 dias/elegibilidade).
+// pendenciaOrdemSoltaPermissionario devolve um fragmento "AND x AND y..."; "(TRUE AND x AND y)"
+// o transforma numa condicao booleana valida sem reescrever o fragmento.
+function resolveCondicaoPendenteOrdemSolta(perfil: Perfil): string {
+  return perfil === 'guardador'
+    ? `(${pendenciaOrdemSoltaGuardador('op', 'pu')})`
+    : `(TRUE ${pendenciaOrdemSoltaPermissionario('op', 'pu')})`;
 }
 
 // Resolve a lista de nomeConsorcio aceitos no filtro final e se os CNPJs institucionais devem
@@ -324,6 +353,9 @@ export class BasePagamentoRepository {
       pendencia_pagamento AS (
         ${isSingleDate ? this.buildPendenciaPagamentoDiaUnicoSql(perfil, lateral) : this.buildPendenciaPagamentoIntervaloSql(perfil, lateral)}
       ),
+      pendentes AS (
+        ${this.buildPendentesSql(perfil, lateral)}
+      ),
       agrupada_somada AS (
         -- Soma lotes distintos (agrupamentos diferentes) do mesmo favorecido/dia/status - unico
         -- nivel de agregacao desta fonte. Nao se mistura com a fonte "nunca enviada" abaixo: cada
@@ -348,7 +380,10 @@ export class BasePagamentoRepository {
         LEFT JOIN public."user" pu ON pu.id = op."userId"
         LEFT JOIN ordem_pagamento_agrupado_historico oph ON opa.id = oph."ordemPagamentoAgrupadoId"
         LEFT JOIN detalhe_a da ON da."ordemPagamentoAgrupadoHistoricoId" = oph.id
-        WHERE (op."ordemPagamentoAgrupadoId" IS NULL OR da.id IS NULL)
+        WHERE (
+            (op."ordemPagamentoAgrupadoId" IS NULL AND NOT ${resolveCondicaoPendenteOrdemSolta(perfil)})
+            OR (op."ordemPagamentoAgrupadoId" IS NOT NULL AND da.id IS NULL)
+          )
           AND op."${dataCapturaColumn}"::date BETWEEN $1::date AND $2::date
           AND ($6::integer[] IS NULL OR pu.id = ANY($6))
       ),
@@ -362,6 +397,8 @@ export class BasePagamentoRepository {
         SELECT * FROM pendencia_paga_passo0
         UNION ALL
         SELECT * FROM pendencia_pagamento
+        UNION ALL
+        SELECT * FROM pendentes
       )
       SELECT "dataReferencia", nomes, "cpfCnpj", "nomeConsorcio", valor, status
       FROM combinado
@@ -516,6 +553,72 @@ export class BasePagamentoRepository {
           AND ${AGRUPAMENTO_SEM_FILHAS('opa')}
           AND ${resolveElegibilidadeRejeitado(perfil)}
           AND ($6::integer[] IS NULL OR pu.id = ANY($6))
+    `;
+  }
+
+  // T6 (ADR 0021/AC-18): "Pendentes" (OPs atrasadas) - exatamente a elegibilidade que a
+  // geracao real de remessa usa pra decidir o que reprocessar (regras-pendencia.ts, nunca
+  // reescrita): ordem solta capturada ha mais de 10 dias (PASSO 0), rejeicao real do banco que
+  // ainda seria paga de novo (PASSO 1, mesma condicao reusada pelo bucket Rejeitado/Estorno em
+  // resolveElegibilidadeRejeitado) e, so' para Guardador, agrupamento criado e nunca enviado
+  // (PASSO 1, 3o ramo - nao existe funcao equivalente em regras-pendencia.ts para
+  // Permissionario; achado a reportar, nao uma lacuna desta task).
+  private buildPendentesSql(perfil: Perfil, lateral: string): string {
+    const ordemTable = ORDEM_TABLE[perfil];
+    const dataCapturaColumn = DATA_CAPTURA_COLUMN[perfil];
+    const valorColumn = VALOR_COLUMN[perfil];
+    const nuncaEnviadoGuardador = perfil === 'guardador'
+      ? `
+        UNION ALL
+
+        SELECT
+          opa."dataPagamento"::date AS "dataReferencia",
+          pu."fullName" AS nomes,
+          pu."cpfCnpj" AS "cpfCnpj",
+          ${NOME_CONSORCIO_AGRUPADA[perfil]} AS "nomeConsorcio",
+          opa."valorTotal" AS valor,
+          '${StatusPagamento.PENDENTES}' AS status
+        FROM ordem_pagamento_agrupado opa
+        ${lateral}
+        WHERE opa."dataPagamento"::date BETWEEN $1::date AND $2::date
+          AND ${pendenciaAgrupamentoNuncaEnviadoGuardador('opa', 'pu')}
+          AND ($6::integer[] IS NULL OR pu.id = ANY($6))
+      `
+      : '';
+
+    return `
+        SELECT
+          op."${dataCapturaColumn}"::date AS "dataReferencia",
+          pu."fullName" AS nomes,
+          pu."cpfCnpj" AS "cpfCnpj",
+          ${NOME_CONSORCIO_NUNCA_ENVIADA[perfil]} AS "nomeConsorcio",
+          op."${valorColumn}" AS valor,
+          '${StatusPagamento.PENDENTES}' AS status
+        FROM ${ordemTable} op
+        LEFT JOIN public."user" pu ON pu.id = op."userId"
+        WHERE op."${dataCapturaColumn}"::date BETWEEN $1::date AND $2::date
+          AND op."ordemPagamentoAgrupadoId" IS NULL
+          ${resolveElegibilidadePendenteOrdemSolta(perfil)}
+          AND ($6::integer[] IS NULL OR pu.id = ANY($6))
+
+        UNION ALL
+
+        SELECT
+          da."dataVencimento"::date AS "dataReferencia",
+          pu."fullName" AS nomes,
+          pu."cpfCnpj" AS "cpfCnpj",
+          ${NOME_CONSORCIO_AGRUPADA[perfil]} AS "nomeConsorcio",
+          da."valorLancamento" AS valor,
+          '${StatusPagamento.PENDENTES}' AS status
+        FROM ordem_pagamento_agrupado opa
+        INNER JOIN ordem_pagamento_agrupado_historico oph ON oph."ordemPagamentoAgrupadoId" = opa.id
+        INNER JOIN detalhe_a da ON da."ordemPagamentoAgrupadoHistoricoId" = oph.id
+        ${lateral}
+        WHERE da."dataVencimento"::date BETWEEN $1::date AND $2::date
+          AND ${AGRUPAMENTO_SEM_FILHAS('opa')}
+          AND ${resolveElegibilidadeRejeitado(perfil)}
+          AND ($6::integer[] IS NULL OR pu.id = ANY($6))
+        ${nuncaEnviadoGuardador}
     `;
   }
 }
