@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { buildConsorcioCaseSql, CONSORCIOS, MODAIS } from './consorcio-resolver';
+import { buildConsorcioCaseSql, CONSORCIOS, INSTITUTIONAL_CPF_CNPJ, MODAIS } from './consorcio-resolver';
 
 describe('consorcio-resolver', () => {
   // Texto copiado literalmente de consorcioCaseSimples/MODAIS/CONSORCIOS
@@ -42,6 +42,18 @@ describe('consorcio-resolver', () => {
 
   it('CONSORCIOS matches the private array in relatorio-novo-remessa-consolidado.repository.ts', () => {
     expect(CONSORCIOS).toEqual(EXPECTED_CONSORCIOS);
+  });
+
+  // Texto copiado literalmente de NOT_CPF_FILTER (novo-remessa-query-builder.ts).
+  it('INSTITUTIONAL_CPF_CNPJ matches the legacy NOT_CPF_FILTER list', () => {
+    expect(INSTITUTIONAL_CPF_CNPJ).toEqual([
+      '18201378000119',
+      '12464869000176',
+      '12464539000180',
+      '12464553000184',
+      '44520687000161',
+      '12464577000133',
+    ]);
   });
 
   // CronJobsService.CONSORCIOS ("puro") e o CONSORCIOS do Consolidado ("com modais") nao sao a
