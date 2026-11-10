@@ -616,28 +616,28 @@ suite('VanzeiroAggregatorService (PostgreSQL)', () => {
   // Rejeitado sem pai: unico formato em que a base v2 e o Consolidado legado usam a mesma linha.
   // Em familia, a base segue o status/data do pai (regra da Movimentacao Financeira) e o legado
   // usa o status/dataVencimento da propria filha - divergencia conhecida, ainda sem decisao.
-  async function seedRejeitadoSemPai(): Promise<void> {
+  async function seedRejeitadoSemPai(data = '2098-02-10', motivo = 'AR'): Promise<void> {
     const opaId = BASE_ID + 540;
     const historyId = BASE_ID + 542;
 
     await dataSource.query(
       `INSERT INTO ordem_pagamento_agrupado (id, "dataPagamento", "valorTotal", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt")
-       VALUES ($1, DATE '2098-02-10', 300, NULL, now(), now())`,
+       VALUES ($1, DATE '${data}', 300, NULL, now(), now())`,
       [opaId],
     );
     await dataSource.query(
       `INSERT INTO ordem_pagamento (id, "dataOrdem", valor, "bqUpdatedAt", "userId", "nomeConsorcio", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt")
-       VALUES ($1, DATE '2098-02-01', 300, now(), $2, 'STPC', $3, now(), now())`,
+       VALUES ($1, DATE '${data}', 300, now(), $2, 'STPC', $3, now(), now())`,
       [BASE_ID + 541, USER_ID, opaId],
     );
     await dataSource.query(
       `INSERT INTO ordem_pagamento_agrupado_historico (id, "ordemPagamentoAgrupadoId", "dataReferencia", "userBankCode", "userBankAgency", "userBankAccount", "userBankAccountDigit", "statusRemessa", "motivoStatusRemessa")
-       VALUES ($1, $2, DATE '2098-02-10', '104', '0001', '99990002', '1', 4, 'AR')`,
+       VALUES ($1, $2, DATE '${data}', '104', '0001', '99990002', '1', 4, '${motivo}')`,
       [historyId, opaId],
     );
     await dataSource.query(
       `INSERT INTO detalhe_a (id, "ordemPagamentoAgrupadoHistoricoId", "numeroDocumentoEmpresa", "dataVencimento", "valorLancamento", "valorRealEfetivado", nsr, "createdAt", "updatedAt")
-       OVERRIDING SYSTEM VALUE VALUES ($1, $2, 995540, DATE '2098-02-10', 300, 300, 995540, now(), now())`,
+       OVERRIDING SYSTEM VALUE VALUES ($1, $2, 995540, DATE '${data}', 300, 300, 995540, now(), now())`,
       [BASE_ID + 543, historyId],
     );
   }
@@ -660,6 +660,28 @@ suite('VanzeiroAggregatorService (PostgreSQL)', () => {
 
     expect(newResult.data).toHaveLength(1);
     expect(legacyResult.data).toHaveLength(1);
+    expect(newResult.data[0].valor).toBe(legacyResult.data[0].valor);
+  });
+
+  // Intervalo com datas passadas: a elegibilidade do ADR 0020 trata datas futuras como "ordem de hoje".
+  it.each([
+    ['rejeitado', StatusPagamento.ERRO_REJEITADO, 'AR', '2001-09-10'],
+    ['estorno', StatusPagamento.ERRO_ESTORNO, '02', '2001-10-10'],
+  ] as const)('matches the legacy Consolidado total for %s over an interval (favorecido)', async (flag, status, motivo, data) => {
+    await seedUser();
+    await seedRejeitadoSemPai(data, motivo);
+
+    const filter = {
+      dataInicio: new Date(`${data.slice(0, 8)}01T00:00:00.000Z`),
+      dataFim: new Date(`${data.slice(0, 8)}28T00:00:00.000Z`),
+      userIds: [USER_ID],
+      [flag]: true,
+    };
+
+    const [newResult, legacyResult] = await Promise.all([aggregator.aggregate({ ...filter, statuses: [status] }), legacyConsolidadoRepository.findConsolidado(filter)]);
+
+    expect(legacyResult.data).toHaveLength(1);
+    expect(newResult.data).toHaveLength(1);
     expect(newResult.data[0].valor).toBe(legacyResult.data[0].valor);
   });
 });
