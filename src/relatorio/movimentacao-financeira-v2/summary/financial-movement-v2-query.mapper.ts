@@ -46,21 +46,12 @@ export function mapQueryToFinancialMovementV2Filter(
     cursorStatus: query.cursorStatus,
     cursorCpfCnpj: query.cursorCpfCnpj,
     cursorNomeConsorcio: query.cursorNomeConsorcio,
+    cursorValor: query.cursorValor,
   };
 }
 
 // Builds the T4 keyset cursor (BasePagamentoRepository.findGroupedRowsPage) from the request
-// DTO's cursor* fields. KNOWN SHAPE MISMATCH (documented, not silently dropped): the legacy
-// cursor (RelatorioFinancialMovementNovoRemessaCursor) and the DTO built for it carry
-// cursorCodBanco/cursorDataPagamento/cursorEmail/cursorCodigoErro (Guardador tie-breakers for
-// the OLD query shape) but no "cursorValor" - while BasePagamentoCursor (T4/ADR 0002) uses
-// dataReferencia/nomes/cpfCnpj/nomeConsorcio/status/valor as its tuple. There is no DTO field
-// for the "valor" tie-breaker. Extending the DTO is out of scope for T10 (Constraints: same
-// request DTOs, "se os campos nao mudaram" - this is the one case where the v2 source's cursor
-// genuinely needs a field the legacy DTO never had). Left as-is (valor tie-breaker always null
-// here): a page boundary that lands on two rows sharing dataReferencia/nomes/cpfCnpj/
-// nomeConsorcio/status but different valor could in theory skip/repeat a row - flagged as a
-// follow-up for whoever extends the DTO before the v2 routes carry real pagination traffic.
+// DTO's cursor* fields, including valor, the last tie-breaker of the tuple.
 export function resolveCursorFromQuery(query: FinancialMovementV2Filter): BasePagamentoCursor | undefined {
   const hasCursor = Boolean(query.cursorDataReferencia) && Boolean(query.cursorNome) && Boolean(query.cursorStatus) && Boolean(query.cursorCpfCnpj);
   if (!hasCursor) return undefined;
@@ -70,6 +61,6 @@ export function resolveCursorFromQuery(query: FinancialMovementV2Filter): BasePa
     cpfCnpj: query.cursorCpfCnpj ?? null,
     nomeConsorcio: query.cursorNomeConsorcio ?? null,
     status: query.cursorStatus ?? null,
-    valor: null,
+    valor: query.cursorValor || null,
   };
 }

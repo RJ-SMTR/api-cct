@@ -14,6 +14,7 @@ import { StatusPagamento } from '../../enum/statusRemessafinancial-movement';
 import { RelatorioGuardadorFinancialMovementRepository } from '../../movimentacao-financeira/relatorio-guardador-financial-movement.repository';
 import { RelatorioNovoRemessaFinancialMovementService } from '../../movimentacao-financeira/relatorio-novo-remessa-financial-movement.service';
 import { BasePagamentoRepository } from './base-pagamento.repository';
+import { resolveCursorFromQuery } from '../summary/financial-movement-v2-query.mapper';
 
 // The old service imports the PDF exporter, which this spec never exercises; the virtual mock
 // keeps the suite loadable where pdfkit is not installed (same as the old integration specs).
@@ -343,6 +344,37 @@ suite('BasePagamentoRepository (PostgreSQL)', () => {
 
       const segunda = await repository.findGroupedRowsPage('permissionario', filtro, 1, primeira.nextCursor as NonNullable<typeof primeira.nextCursor>);
       expect(segunda.rows).toHaveLength(1);
+      expect(segunda.nextCursor).toBeNull();
+    });
+
+    // TD-21: duas linhas empatadas nas 5 primeiras colunas do cursor, diferindo so por valor.
+    it('pages through rows that tie on the first five cursor columns using the request cursor', async () => {
+      for (const [offset, valor] of [
+        [43, 100],
+        [44, 200],
+      ]) {
+        await dataSource.query(
+          `INSERT INTO ordem_pagamento (id, "dataOrdem", "dataCaptura", valor, "bqUpdatedAt", "userId", "nomeConsorcio", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt")
+           VALUES ($1, DATE '2098-07-20', DATE '2098-07-20', $2, now(), $3, 'CONSORCIO TESTE', NULL, now(), now())`,
+          [BASE_ID + offset, valor, USER_ID],
+        );
+      }
+      const filtro = { dataInicio: new Date('2098-07-20T00:00:00.000Z'), dataFim: new Date('2098-07-20T00:00:00.000Z'), userIds: [USER_ID] };
+
+      const primeira = await repository.findGroupedRowsPage('permissionario', filtro, 1);
+      const c = primeira.nextCursor as NonNullable<typeof primeira.nextCursor>;
+      const cursor = resolveCursorFromQuery({
+        ...filtro,
+        cursorDataReferencia: c.dataReferencia as string,
+        cursorNome: c.nomes ?? undefined,
+        cursorCpfCnpj: c.cpfCnpj ?? undefined,
+        cursorNomeConsorcio: c.nomeConsorcio ?? undefined,
+        cursorStatus: c.status ?? undefined,
+        cursorValor: c.valor === null ? undefined : String(c.valor),
+      });
+      const segunda = await repository.findGroupedRowsPage('permissionario', filtro, 1, cursor);
+
+      expect([...primeira.rows, ...segunda.rows].map((row) => Number(row.valor)).sort((x, y) => x - y)).toEqual([100, 200]);
       expect(segunda.nextCursor).toBeNull();
     });
 

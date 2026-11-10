@@ -51,15 +51,6 @@ describe('Rotas v2 reais do relatório de movimentação financeira (e2e)', () =
       .send(body);
 
   // Walks every page of a report/v2/page endpoint by cursor, until nextCursor is null.
-  // KNOWN LIMITATION (TD-21, docs/TECH-DEBT.md): FinancialMovementQueryDto has no cursorValor
-  // field, so resolveCursorFromQuery (financial-movement-v2-query.mapper.ts) always sends
-  // valor: null for the cursor's 6th tie-breaker column. Confirmed here, not just theoretical:
-  // the last row of every page ties the next page's lower bound on the first 5 columns, and
-  // since its real valor is > the cursor's null/0 stand-in, the keyset "greater than" check
-  // re-includes it - the last row of page N reliably reappears as the first row of page N+1.
-  // This helper tolerates that single known duplicate per page cut (asserting no row is lost
-  // and no OTHER duplication/loss pattern appears) rather than hiding it; fixing it is TD-21's
-  // job (before the v2 cursor carries real pagination traffic), not T11's.
   async function walkPages(path: string, params: Record<string, string | number | boolean>, pageSize: number): Promise<number[]> {
     const seen: number[] = [];
     let cursor: Record<string, string> | undefined;
@@ -80,6 +71,7 @@ describe('Rotas v2 reais do relatório de movimentação financeira (e2e)', () =
             cursorCpfCnpj: nextCursor.cpfCnpj ?? '',
             cursorNomeConsorcio: nextCursor.nomeConsorcio ?? '',
             cursorStatus: nextCursor.status ?? '',
+            cursorValor: String((nextCursor as unknown as { valor: string | null }).valor ?? ''),
           }
         : undefined;
 
@@ -362,11 +354,7 @@ describe('Rotas v2 reais do relatório de movimentação financeira (e2e)', () =
     const seen = await walkPages('/report/v2/page', { dataInicio: PAGE_DATA_INICIO, dataFim: PAGE_DATA_FIM, userIds: PERM_USER_ID }, 2);
 
     // No loss: every expected row shows up at least once across the whole walk.
-    expect(new Set(seen)).toEqual(new Set(PAGE_VALORES));
-    // No loss/duplication beyond the known TD-21 boundary repeat (at most one repeated row per
-    // page cut) - rules out any OTHER duplication/loss pattern without hard-pinning the exact
-    // repeat count, which depends on how many page cuts pageSize produces.
-    expect(seen.length).toBeLessThan(PAGE_VALORES.length * 2);
+    expect([...seen].sort((a, b) => a - b)).toEqual([...PAGE_VALORES].sort((a, b) => a - b));
   });
 
   // ---- Comportamento 3: export/download (Permissionário) ----
@@ -406,9 +394,7 @@ describe('Rotas v2 reais do relatório de movimentação financeira (e2e)', () =
   it('GET guardador/report/v2/page percorre todas as páginas sem perder nenhuma linha', async () => {
     const seen = await walkPages('/guardador/report/v2/page', { dataInicio: '2097-08-01', dataFim: '2097-08-10', userIds: GUARD_USER_ID }, 2);
 
-    // Same TD-21 boundary-repeat tolerance as the Permissionário page test above.
-    expect(new Set(seen)).toEqual(new Set(GUARD_PAGE_VALORES));
-    expect(seen.length).toBeLessThan(GUARD_PAGE_VALORES.length * 2);
+    expect([...seen].sort((a, b) => a - b)).toEqual([...GUARD_PAGE_VALORES].sort((a, b) => a - b));
   });
 
   it('POST guardador/report/v2/export/download retorna um CSV válido', async () => {
