@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { RelatorioConsolidadoNovoRemessaData, RelatorioConsolidadoNovoRemessaDto } from '../dtos/relatorio-consolidado-novo-remessa.dto';
 import { StatusPagamento } from '../enum/statusRemessafinancial-movement';
-import { BasePagamentoFilter, BasePagamentoRepository } from '../movimentacao-financeira-v2/base/base-pagamento.repository';
+import { BasePagamentoFilter, BasePagamentoRepository, Perfil } from '../movimentacao-financeira-v2/base/base-pagamento.repository';
 
 interface FavorecidoAccumulator {
   nome: string;
@@ -16,7 +16,7 @@ export class VanzeiroAggregatorService {
   // Agrega por "nomes" (nome completo do favorecido), replicando GROUP BY "nome" de
   // getQueryVanzeiros (relatorio-novo-remessa-consolidado.repository.ts) - nao por cpfCnpj, que
   // nao e unico (ADR 0019). Nao inventa correcao para esse caso aqui (fora de escopo da fatia).
-  async aggregate(filter: BasePagamentoFilter): Promise<RelatorioConsolidadoNovoRemessaDto> {
+  async aggregate(filter: BasePagamentoFilter, perfil: Perfil = 'permissionario'): Promise<RelatorioConsolidadoNovoRemessaDto> {
     // valorMin/valorMax nao sao passados para findGroupedRows aqui: o legado
     // (relatorio-novo-remessa-consolidado.repository.ts:957-966) filtra com HAVING SUM(valor)
     // depois do GROUP BY "nome" final (soma do favorecido no PERIODO TODO) - uma granularidade
@@ -25,7 +25,7 @@ export class VanzeiroAggregatorService {
     // desta soma, divergindo da paridade exigida; o filtro correto entra depois, sobre o total
     // ja agregado por favorecido (ver abaixo).
     const { valorMin, valorMax, ...baseFilter } = filter;
-    const rows = await this.basePagamentoRepository.findGroupedRows('permissionario', baseFilter);
+    const rows = await this.basePagamentoRepository.findGroupedRows(perfil, baseFilter);
 
     const totalsByFavorecido = new Map<string, FavorecidoAccumulator>();
 

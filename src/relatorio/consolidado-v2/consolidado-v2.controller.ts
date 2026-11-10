@@ -16,6 +16,34 @@ import { VanzeiroAggregatorService } from './vanzeiro-aggregator.service';
 // do PRD-consolidado-v2.md).
 const OUT_OF_SCOPE_FLAGS = ['desativados', 'pendentes'] as const;
 
+interface StatusFlags {
+  pago?: boolean;
+  aPagar?: boolean;
+  emProcessamento?: boolean;
+  pendenciaPaga?: boolean;
+  rejeitado?: boolean;
+  estorno?: boolean;
+  erro?: boolean;
+}
+
+// Mesma semantica do getSelectedStatuses legado: erro=true e' o combo Estorno + Rejeitado, e o
+// Set remove duplicatas quando erro e' combinado com rejeitado/estorno isolados.
+function mapStatuses(flags: StatusFlags): StatusPagamento[] | undefined {
+  const statuses = [
+    ...new Set([
+      ...(flags.pago ? [StatusPagamento.PAGO] : []),
+      ...(flags.aPagar ? [StatusPagamento.A_PAGAR] : []),
+      ...(flags.emProcessamento ? [StatusPagamento.AGUARDANDO_PAGAMENTO] : []),
+      ...(flags.pendenciaPaga ? [StatusPagamento.PENDENCIA_PAGA] : []),
+      ...(flags.rejeitado ? [StatusPagamento.ERRO_REJEITADO] : []),
+      ...(flags.estorno ? [StatusPagamento.ERRO_ESTORNO] : []),
+      ...(flags.erro ? [StatusPagamento.ERRO_ESTORNO, StatusPagamento.ERRO_REJEITADO] : []),
+    ]),
+  ];
+
+  return statuses.length > 0 ? statuses : undefined;
+}
+
 @ApiTags('Cnab')
 @Controller({
   path: 'cnab/relatorio-novo-remessa',
@@ -77,12 +105,11 @@ export class ConsolidadoV2Controller {
     const outOfScope: Record<string, boolean | undefined> = {
       desativados,
       pendentes,
-      stucGratuidade,
     };
     const offendingFlag = OUT_OF_SCOPE_FLAGS.find((flag) => outOfScope[flag]);
     if (offendingFlag) {
       throw new HttpException(
-        { error: `"${offendingFlag}" não é suportado por esta rota ainda (fora do escopo da fatia 1, ADR 0022)` },
+        { error: `"${offendingFlag}" não é suportado por esta rota ainda (fora do escopo da fatia 2, ADR 0022)` },
         HttpStatus.BAD_REQUEST,
       );
     }
@@ -98,27 +125,12 @@ export class ConsolidadoV2Controller {
       );
     }
 
-    // pendenciaPaga/rejeitado/estorno/erro (T1, fatia 2): mesma semantica do getSelectedStatuses
-    // legado - erro=true e' o combo Estorno + Rejeitado; rejeitado/estorno isolados tambem
-    // funcionam sozinhos (o Set abaixo remove qualquer duplicata se os dois forem combinados).
-    const statuses = [
-      ...new Set([
-        ...(pago ? [StatusPagamento.PAGO] : []),
-        ...(aPagar ? [StatusPagamento.A_PAGAR] : []),
-        ...(emProcessamento ? [StatusPagamento.AGUARDANDO_PAGAMENTO] : []),
-        ...(pendenciaPaga ? [StatusPagamento.PENDENCIA_PAGA] : []),
-        ...(rejeitado ? [StatusPagamento.ERRO_REJEITADO] : []),
-        ...(estorno ? [StatusPagamento.ERRO_ESTORNO] : []),
-        ...(erro ? [StatusPagamento.ERRO_ESTORNO, StatusPagamento.ERRO_REJEITADO] : []),
-      ]),
-    ];
-
     const filter = {
       dataInicio,
       dataFim,
       valorMin,
       valorMax,
-      statuses: statuses.length > 0 ? statuses : undefined,
+      statuses: mapStatuses({ pago, aPagar, emProcessamento, pendenciaPaga, rejeitado, estorno, erro }),
     };
 
     // STUC vem antes de Eleicao: no legado (findConsolidado), stucGratuidade tem prioridade sobre
@@ -162,5 +174,72 @@ export class ConsolidadoV2Controller {
     }
 
     return this.vanzeiroAggregatorService.aggregate(filter);
+  }
+
+  @ApiQuery({ name: 'dataInicio', description: 'Data da Ordem de Pagamento Inicial', required: true, type: String })
+  @ApiQuery({ name: 'dataFim', description: 'Data da Ordem de Pagamento Final', required: true, type: String })
+  @ApiQuery({ name: 'valorMin', required: false, type: Number })
+  @ApiQuery({ name: 'valorMax', required: false, type: Number })
+  @ApiQuery({ name: 'pago', required: false, type: Boolean })
+  @ApiQuery({ name: 'aPagar', required: false, type: Boolean })
+  @ApiQuery({ name: 'emProcessamento', required: false, type: Boolean })
+  @ApiQuery({ name: 'pendenciaPaga', required: false, type: Boolean })
+  @ApiQuery({ name: 'rejeitado', required: false, type: Boolean })
+  @ApiQuery({ name: 'estorno', required: false, type: Boolean })
+  @ApiQuery({ name: 'erro', description: 'Combo Estorno + Rejeitado', required: false, type: Boolean })
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
+  @Get('guardador/consolidado')
+  async getGuardadorConsolidado(
+    @Query('dataInicio', new ParseDatePipe({ dateOnly: true }))
+    dataInicio: Date,
+    @Query('dataFim', new ParseDatePipe({ dateOnly: true }))
+    dataFim: Date,
+    @Query('userIds', new ParseArrayPipe({ items: Int32, separator: ',', optional: true }))
+    userIds: number[] | undefined,
+    @Query('consorcioNome', new ParseArrayPipe({ items: String, separator: ',', optional: true }))
+    consorcioNome: string[] | undefined,
+    @Query('valorMin', new ParseNumberPipe({ optional: true }))
+    valorMin: number | undefined,
+    @Query('valorMax', new ParseNumberPipe({ optional: true }))
+    valorMax: number | undefined,
+    @Query('pago', new ParseBooleanPipe({ optional: true })) pago: boolean | undefined,
+    @Query('aPagar', new ParseBooleanPipe({ optional: true })) aPagar: boolean | undefined,
+    @Query('emProcessamento', new ParseBooleanPipe({ optional: true })) emProcessamento: boolean | undefined,
+    @Query('todosConsorcios', new ParseBooleanPipe({ optional: true })) todosConsorcios: boolean | undefined,
+    @Query('eleicao', new ParseBooleanPipe({ optional: true })) eleicao: boolean | undefined,
+    @Query('desativados', new ParseBooleanPipe({ optional: true })) desativados: boolean | undefined,
+    @Query('pendentes', new ParseBooleanPipe({ optional: true })) pendentes: boolean | undefined,
+    @Query('rejeitado', new ParseBooleanPipe({ optional: true })) rejeitado: boolean | undefined,
+    @Query('estorno', new ParseBooleanPipe({ optional: true })) estorno: boolean | undefined,
+    @Query('pendenciaPaga', new ParseBooleanPipe({ optional: true })) pendenciaPaga: boolean | undefined,
+    @Query('stucGratuidade', new ParseBooleanPipe({ optional: true })) stucGratuidade: boolean | undefined,
+    @Query('erro', new ParseBooleanPipe({ optional: true })) erro: boolean | undefined,
+  ) {
+    // Guardador nao tem visao por consorcio, Eleicao nem STUC-Gratuidade (PRD, AC-8/AC-9), e
+    // userIds segue fora desta fatia (OQ-2): erro explicito, nunca ignorado silenciosamente.
+    const naoSuportados: Record<string, boolean> = {
+      userIds: Boolean(userIds?.length),
+      consorcioNome: Boolean(consorcioNome?.length),
+      todosConsorcios: Boolean(todosConsorcios),
+      eleicao: Boolean(eleicao),
+      stucGratuidade: Boolean(stucGratuidade),
+      desativados: Boolean(desativados),
+      pendentes: Boolean(pendentes),
+    };
+    const parametroInvalido = Object.keys(naoSuportados).find((parametro) => naoSuportados[parametro]);
+    if (parametroInvalido) {
+      throw new HttpException({ error: `"${parametroInvalido}" não é suportado pela rota de Guardador` }, HttpStatus.BAD_REQUEST);
+    }
+
+    const filter = {
+      dataInicio,
+      dataFim,
+      valorMin,
+      valorMax,
+      statuses: mapStatuses({ pago, aPagar, emProcessamento, pendenciaPaga, rejeitado, estorno, erro }),
+    };
+
+    return this.vanzeiroAggregatorService.aggregate(filter, 'guardador');
   }
 }

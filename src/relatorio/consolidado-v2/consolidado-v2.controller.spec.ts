@@ -244,4 +244,71 @@ describe('ConsolidadoV2Controller', () => {
     expect(stucGratuidadeAggregatorService.aggregate).toHaveBeenCalledTimes(1);
     expect(eleicaoAggregatorService.aggregateByFavorecido).not.toHaveBeenCalled();
   });
+
+  describe('getGuardadorConsolidado', () => {
+    async function callGuardador(overrides: Partial<Record<string, any>> = {}) {
+      const d: Record<string, any> = { ...overrides };
+      return controller.getGuardadorConsolidado(
+        dataInicio,
+        dataFim,
+        d.userIds,
+        d.consorcioNome,
+        d.valorMin,
+        d.valorMax,
+        d.pago,
+        d.aPagar,
+        d.emProcessamento,
+        d.todosConsorcios,
+        d.eleicao,
+        d.desativados,
+        d.pendentes,
+        d.rejeitado,
+        d.estorno,
+        d.pendenciaPaga,
+        d.stucGratuidade,
+        d.erro,
+      );
+    }
+
+    it('has AuthGuard(jwt) applied', () => {
+      const guards = Reflect.getMetadata(GUARDS_METADATA, ConsolidadoV2Controller.prototype.getGuardadorConsolidado);
+      expect(guards).toBeDefined();
+      expect(guards.length).toBeGreaterThan(0);
+    });
+
+    it('aggregates by favorecido with the guardador perfil and the mapped statuses', async () => {
+      await callGuardador({ pago: true, pendenciaPaga: true, valorMin: 10 });
+
+      expect(vanzeiroAggregatorService.aggregate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          dataInicio,
+          dataFim,
+          valorMin: 10,
+          statuses: expect.arrayContaining([StatusPagamento.PAGO, StatusPagamento.PENDENCIA_PAGA]),
+        }),
+        'guardador',
+      );
+    });
+
+    it('maps erro=true to Estorno + Rejeitado without duplicates', async () => {
+      await callGuardador({ erro: true, rejeitado: true });
+
+      const calledFilter = (vanzeiroAggregatorService.aggregate as jest.Mock).mock.calls[0][0];
+      expect(calledFilter.statuses).toHaveLength(2);
+      expect(calledFilter.statuses).toEqual(expect.arrayContaining([StatusPagamento.ERRO_ESTORNO, StatusPagamento.ERRO_REJEITADO]));
+    });
+
+    it.each([
+      [{ consorcioNome: ['STPC'] }],
+      [{ todosConsorcios: true }],
+      [{ eleicao: true }],
+      [{ stucGratuidade: true }],
+      [{ desativados: true }],
+      [{ pendentes: true }],
+      [{ userIds: [1] }],
+    ])('rejects %j with 400 instead of ignoring it', async (overrides) => {
+      await expect(callGuardador(overrides)).rejects.toMatchObject({ status: 400 });
+      expect(vanzeiroAggregatorService.aggregate).not.toHaveBeenCalled();
+    });
+  });
 });
