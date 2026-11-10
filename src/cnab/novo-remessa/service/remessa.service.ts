@@ -37,6 +37,22 @@ import { PagamentoIndevidoDTO } from "src/pagamento_indevido/dto/pagamento-indev
 export const DESCONTAR_PAGAMENTO_INDEVIDO = false;
 
 /**
+ * Dados do favorecido que o arquivo de remessa exige: nome (campo do Segmento A; sem ele o banco rejeita o arquivo inteiro com
+ * 'AO - nome do favorecido não informado') e banco, agência, conta e dígito. Devolve o que falta, ou null se está completo.
+ */
+export function dadosFavorecidoFaltantes(user?: { fullName?: string | null; bankCode?: number | null; bankAgency?: string | null; bankAccount?: string | null; bankAccountDigit?: string | null } | null): string | null {
+  const vazio = (valor: unknown) => valor === null || valor === undefined || String(valor).trim() === '';
+  const faltantes = [
+    vazio(user?.fullName) ? 'nome' : null,
+    vazio(user?.bankCode) ? 'banco' : null,
+    vazio(user?.bankAgency) ? 'agência' : null,
+    vazio(user?.bankAccount) ? 'conta' : null,
+    vazio(user?.bankAccountDigit) ? 'dígito da conta' : null,
+  ].filter(Boolean);
+  return faltantes.length ? faltantes.join(', ') : null;
+}
+
+/**
  * Opções do desconto de pagamentos indevidos na preparação da remessa (hoje só guardadores). `valorMaximo` é o máximo, em R$, que pode
  * ser descontado de cada indevido nesta remessa (padrão R$ 100,00). Sem opções vale DESCONTAR_PAGAMENTO_INDEVIDO e R$ 100,00.
  */
@@ -108,6 +124,9 @@ export class RemessaService {
         const TAMANHO_LOTE_LEITURA = 25;
         interface IOrdemResolvida { user: any; indevido: any; opa: any; }
         const resolvidos: (IOrdemResolvida | null)[] = new Array(ordens.length).fill(null);
+        // Todas as ordens do mesmo favorecido neste preparo compartilham o MESMO objeto de indevido: o saldo é lido antes do laço de
+        // geração, então sem isso cada ordem partiria do saldo cheio e o desconto passaria do saldo devedor.
+        const indevidosDoPreparo = new Map<string, Promise<any>>();
 
         const resolverOrdem = async (i: number) => {
           let parentOp = (ordens[i].ordemPagamentoAgrupadoId === null);
@@ -166,15 +185,17 @@ export class RemessaService {
             }
           }
 
-          if (!user.bankCode) {
+          // Favorecido sem nome ou sem dados bancários completos não entra na remessa (o banco rejeitaria o arquivo todo); fica de
+          // fora do preparo, como já ficava o sem banco, e o log diz quem corrigir.
+          const faltantes = dadosFavorecidoFaltantes(user);
+          if (faltantes) {
+            this.logger.warn(`Remessa: favorecido ${user?.id ?? '?'} (${user?.fullName ?? 'sem nome'}) fora do preparo; falta: ${faltantes}`);
             return;
           }
 
           // Desconto de pagamentos indevidos: sem "indevido" o valor da remessa não é abatido nem o saldo devedor é alterado.
           // Liga-se por opção do preparo (guardadores) ou, sem opção, por DESCONTAR_PAGAMENTO_INDEVIDO.
-          const indevido = descontarIndevido
-            ? await this.pagamentoIndevidoService.findByNome(user.fullName)
-            : undefined;
+          const indevido = descontarIndevido ? await this.indevidoCompartilhado(indevidosDoPreparo, user.fullName) : undefined;
 
           let opa;
           if (gratuidade) {
@@ -441,7 +462,11 @@ export class RemessaService {
       numeroDocumentoRef.value += 1;
     }
 
-    if (indevido && indevido.saldoDevedor > 0) {
+    if (indevido && detalheA.length > 0) {
+      // DetalheA já gerado (preparo interrompido e refeito) com o desconto do indevido ligado: mantém o valor já gravado e NÃO debita
+      // o indevido de novo, senão o saldo devedor cairia duas vezes por um único desconto no pagamento.
+      detalheADTO.valorLancamento = detalheA[0].valorLancamento;
+    } else if (indevido && indevido.saldoDevedor > 0) {
       const valor = await this.debitarPagamentoIndevido(indevido, detalheADTO.valorLancamento, valorMaximoIndevido);
       detalheADTO.valorLancamento = valor;
       detalheADTO.valorRealEfetivado = valor;
@@ -461,6 +486,16 @@ export class RemessaService {
       return await this.detalheBService.save(detalheB);
     }
     return null;
+  }
+
+  /** Indevido do favorecido (por nome) lido uma única vez por preparo; as ordens seguintes recebem o mesmo objeto e o saldo já abatido. */
+  private indevidoCompartilhado(cache: Map<string, Promise<any>>, nome: string): Promise<any> {
+    let busca = cache.get(nome);
+    if (!busca) {
+      busca = this.pagamentoIndevidoService.findByNome(nome);
+      cache.set(nome, busca);
+    }
+    return busca;
   }
 
   private async atualizaStatusRemessa(opa: OrdemPagamentoAgrupado, statusRemessa: StatusRemessaEnum) {

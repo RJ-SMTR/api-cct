@@ -1,5 +1,7 @@
 import { Body, Controller, Get, HttpException, HttpStatus, Param, ParseIntPipe, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { OrdemPagamentoService } from 'src/cnab/novo-remessa/service/ordem-pagamento.service';
+import { SincronizarOrdensPeriodoDto } from 'src/cnab/novo-remessa/dto/sincronizar-ordens-periodo.dto';
 import { AuditoriaAcessoGuard } from './auditoria-acesso.guard';
 import { AuditoriaService, paginar } from './auditoria.service';
 import { ReconciliacaoService } from './reconciliacao.service';
@@ -13,6 +15,7 @@ export class AuditoriaController {
   constructor(
     private readonly service: AuditoriaService,
     private readonly reconciliacaoService: ReconciliacaoService,
+    private readonly ordemPagamentoService: OrdemPagamentoService,
   ) {}
 
   @Get('execucoes')
@@ -63,6 +66,18 @@ export class AuditoriaController {
   @Post('reconciliacao/recalcular')
   recalcular(@Body() body: { dataInicio: string; dataFim: string }) {
     return this.reconciliacaoService.recalcularBanco(body?.dataInicio, body?.dataFim);
+  }
+
+  /**
+   * Sincroniza com o BigQuery as ordens de pagamento capturadas entre dataInicio e dataFim (YYYY-MM-DD, inclusive).
+   * Mesma rotina do cron, forçada: grava só o que falta ou mudou (ordem alterada vai para a quarentena, conforme as regras
+   * do sincronismo) e fica registrada em Execuções. Não agrupa nada.
+   */
+  @Post('sincronizar')
+  sincronizar(@Body() body: SincronizarOrdensPeriodoDto, @Req() req: any) {
+    const dataInicio = new Date(`${body?.dataInicio}T00:00:00.000Z`);
+    const dataFim = new Date(`${body?.dataFim}T00:00:00.000Z`);
+    return this.ordemPagamentoService.sincronizarOrdensPorPeriodo(dataInicio, dataFim, body?.consorcios, Number(req.user?.id));
   }
 
   @Get('guarda')
