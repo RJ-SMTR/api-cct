@@ -37,6 +37,7 @@ Registro único do que foi adiado de propósito, por quê e por quem. Serve para
 | [TD-20](#td-20) | CNPJ institucional em "Consórcio = Todos": Consolidado exclui, Movimentação Financeira inclui — intenção documentada e contraditória nos dois lados | aberto | Rayanne | 2026-11-06 |
 | [TD-21](#td-21) | Cursor keyset da rota `v2` sempre envia `valor: null` (DTO sem `cursorValor`) | pago | Rayanne | 2026-11-10 |
 | [TD-22](#td-22) | Consolidado legado de Guardador falhava com Pendência Paga sozinha em dia único | pago | Rayanne | 2026-11-10 |
+| [TD-23](#td-23) | Hook de pre-commit falha de forma intermitente na suíte de escrita da exportação | aberto | Rayanne | 2026-11-10 |
 
 ## Entradas
 
@@ -259,3 +260,13 @@ Registro único do que foi adiado de propósito, por quê e por quem. Serve para
 - **Impacto/risco:** a rota legada `guardador/consolidado` respondia erro nesse filtro; além disso, os limites de valor não valiam para essa consulta.
 - **Critério de pagamento:** a combinação responde com o total correto, com teste de paridade contra a rota v2.
 - **Pago por:** agente, a pedido de Rayanne · **Data do pagamento:** 2026-11-10 · **Referência:** commit `708aed8c`
+
+## TD-23
+**Hook de pre-commit falha de forma intermitente na suíte de escrita da exportação**
+
+- **Status:** aberto
+- **Registrado por:** Rayanne · **Detectado por:** agente · **Data:** 2026-11-10
+- **Contexto:** ao commitar as regras de negócio e filtros das rotas v2, o hook bloqueou cinco vezes, em suítes diferentes (`financial-movement-export-writer.spec.ts` e `relatorio-novo-remessa-financial-movement.service.spec.ts`). As mesmas suítes, e o mesmo conjunto `--findRelatedTests` do hook, passaram quando rodadas fora dele. Duas causas reais foram corrigidas antes (arquivo temporário da exportação com nome repetido no mesmo milissegundo, commit `779a188c`; tempo limite de geração de PDF/XLSX, commit `84e55366`), mas o hook seguiu falhando na suíte de escrita. O hook apaga o próprio `jest.json`, então a mensagem de falha não foi lida.
+- **Atalho aceito:** o commit das regras v2 foi feito com `--no-verify`, com autorização de Rayanne em 2026-11-10.
+- **Impacto/risco:** um defeito real nessa suíte pode ter passado sem ser visto nesse commit; o hook pode voltar a bloquear commits sem relação com a exportação.
+- **Critério de pagamento:** o hook guardar o resultado do jest quando bloquear, a causa da falha ser identificada e corrigida, e o hook passar em commits seguidos sem instabilidade.

@@ -3,8 +3,9 @@ import { RelatorioConsolidadoNovoRemessaData, RelatorioConsolidadoNovoRemessaDto
 import { StatusPagamento } from '../enum/statusRemessafinancial-movement';
 import { BasePagamentoFilter, BasePagamentoRepository, BasePagamentoRow } from '../movimentacao-financeira-v2/base/base-pagamento.repository';
 import { CONSORCIOS } from '../movimentacao-financeira-v2/status/consorcio-resolver';
+import { somarSemFavorecido } from './vanzeiro-aggregator.service';
 
-export type EleicaoAggregatorFilter = Pick<BasePagamentoFilter, 'dataInicio' | 'dataFim' | 'statuses' | 'valorMin' | 'valorMax' | 'todosConsorcios'>;
+export type EleicaoAggregatorFilter = Pick<BasePagamentoFilter, 'dataInicio' | 'dataFim' | 'statuses' | 'valorMin' | 'valorMax' | 'userIds' | 'consorcioNome' | 'todosConsorcios' | 'desativados'>;
 
 interface Accumulator {
   nome: string;
@@ -40,10 +41,11 @@ export class EleicaoAggregatorService {
   }
 
   private aggregate(
-    rows: BasePagamentoRow[],
+    todasAsLinhas: BasePagamentoRow[],
     keyOf: (row: BasePagamentoRow) => string,
     cpfCnpjOf: (row: BasePagamentoRow) => string | null,
   ): RelatorioConsolidadoNovoRemessaDto {
+    const rows = todasAsLinhas.filter((row) => row.nomes !== null);
     const totals = new Map<string, Accumulator>();
 
     for (const row of rows) {
@@ -78,6 +80,7 @@ export class EleicaoAggregatorService {
       count: data.length,
       valor,
       valorAPagar,
+      valorSemFavorecido: somarSemFavorecido(todasAsLinhas),
       data,
     });
   }

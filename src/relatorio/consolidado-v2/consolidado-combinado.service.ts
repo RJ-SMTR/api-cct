@@ -28,6 +28,7 @@ export class ConsolidadoCombinadoService {
       count: data.length,
       valor: fonteDoTotal.valor,
       valorAPagar: fonteDoTotal.valorAPagar,
+      valorSemFavorecido: consorcios.valorSemFavorecido,
       data,
     });
   }

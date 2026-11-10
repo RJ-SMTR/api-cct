@@ -100,7 +100,7 @@ export class FinancialMovementV2ExportService {
   ): Promise<void> {
     let cursor: BasePagamentoCursor | undefined;
     for (;;) {
-      const page = await this.basePagamentoRepository.findGroupedRowsPage(perfil, filter, FINANCIAL_MOVEMENT_V2_EXPORT_BATCH_SIZE, cursor);
+      const page = await this.basePagamentoRepository.findGroupedRowsPage(perfil, { ...filter, excluirSemFavorecido: true }, FINANCIAL_MOVEMENT_V2_EXPORT_BATCH_SIZE, cursor);
       for (const row of page.rows) await onRow(toExportRow(row));
       if (!page.nextCursor) break;
       cursor = page.nextCursor;
@@ -115,7 +115,9 @@ export class FinancialMovementV2ExportService {
     onRow: (row: RelatorioFinancialMovementNovoRemessaData) => Promise<void> | void,
   ): Promise<void> {
     const rows = await this.basePagamentoRepository.findEleicaoRows(filter);
-    for (const row of rows) await onRow(toExportRow(row));
+    for (const row of rows) {
+      if (row.nomes !== null) await onRow(toExportRow(row));
+    }
   }
 
   // STUC-Gratuidade: StucGratuidadeRepository.findRows ja devolve a janela pivotada (ate 4
@@ -216,12 +218,17 @@ export function buildSummaryFromRows(rows: BasePagamentoRow[]): RelatorioFinanci
     valorAPagar: 0,
     valorPendente: 0,
     valorPendenciaPaga: 0,
+    valorSemFavorecido: 0,
   };
   let valorTotal = 0;
   let count = 0;
 
   for (const row of rows) {
     const valor = Number(row.valor);
+    if (row.nomes === null) {
+      totals.valorSemFavorecido += valor;
+      continue;
+    }
     valorTotal += valor;
     count += 1;
     switch (row.status) {

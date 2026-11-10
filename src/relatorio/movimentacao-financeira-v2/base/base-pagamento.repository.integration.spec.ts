@@ -1810,6 +1810,18 @@ suite('BasePagamentoRepository (PostgreSQL)', () => {
       expect(Number(pendentes[0].valor)).toBe(231);
     });
 
+    it.each([
+      ['sem filtro de status', undefined],
+      ['Pendentes + Rejeitado', [StatusPagamento.PENDENTES, StatusPagamento.ERRO_REJEITADO]],
+    ])('counts an eligible rejected lot once, %s', async (_caso, statuses) => {
+      await seedT6User();
+      await seedPermissionarioRejeitado('AR', 233);
+
+      const rows = await repository.findGroupedRows('permissionario', { ...wideFilterWindow(), userIds: [T6_USER_ID], statuses });
+
+      expect(rows.reduce((total, r) => total + Number(r.valor), 0)).toBe(233);
+    });
+
     // Behavior 3 (permissionario): mesma rejeicao, mas com motivo em AM/00/BD (nao e' rejeicao
     // real) -> NAO aparece em Pendentes.
     it('a rejected order whose reason IS in AM/00/BD does NOT appear as Pendentes, for Permissionario', async () => {

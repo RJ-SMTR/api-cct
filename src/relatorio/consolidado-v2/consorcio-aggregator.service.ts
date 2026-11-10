@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { RelatorioConsolidadoNovoRemessaData, RelatorioConsolidadoNovoRemessaDto } from '../dtos/relatorio-consolidado-novo-remessa.dto';
 import { StatusPagamento } from '../enum/statusRemessafinancial-movement';
 import { BasePagamentoFilter, BasePagamentoRepository } from '../movimentacao-financeira-v2/base/base-pagamento.repository';
+import { somarSemFavorecido } from './vanzeiro-aggregator.service';
 
 interface ConsorcioAccumulator {
   nomeConsorcio: string;
@@ -29,11 +30,12 @@ export class ConsorcioAggregatorService {
     // consorcioNome/todosConsorcios precisam chegar a findGroupedRows: sem nenhum dos dois, a base
     // restringe aos modais (STPC/STPL/TEC) e exclui os CNPJs institucionais, o que esvaziaria a
     // visao por consorcio. A base tambem faz a comparacao sem diferenciar maiusculas, como o legado.
-    const rows = await this.basePagamentoRepository.findGroupedRows('permissionario', {
+    const todasAsLinhas = await this.basePagamentoRepository.findGroupedRows('permissionario', {
       ...baseFilter,
       consorcioNome: options.consorcioNome,
       todosConsorcios: options.todosConsorcios,
     });
+    const rows = todasAsLinhas.filter((row) => row.nomes !== null);
 
     const totalsByConsorcio = new Map<string, ConsorcioAccumulator>();
 
@@ -83,6 +85,7 @@ export class ConsorcioAggregatorService {
       count: data.length,
       valor,
       valorAPagar,
+      valorSemFavorecido: somarSemFavorecido(todasAsLinhas),
       data,
     });
   }

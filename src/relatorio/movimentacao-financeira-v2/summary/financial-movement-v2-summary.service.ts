@@ -75,12 +75,12 @@ export class FinancialMovementV2SummaryService {
     }
     if (perfil === 'permissionario' && filter.eleicao) {
       const rows = await this.basePagamentoRepository.findEleicaoRows(filter);
-      return buildInMemoryPage(rows, currentPage, pageSize, buildSummaryFromRows(rows), toExportRow);
+      return buildInMemoryPage(rows.filter((row) => row.nomes !== null), currentPage, pageSize, buildSummaryFromRows(rows), toExportRow);
     }
 
     const cursor = resolveCursorFromQuery(filter);
     const [page, summary] = await Promise.all([
-      this.basePagamentoRepository.findGroupedRowsPage(perfil, filter, pageSize, cursor),
+      this.basePagamentoRepository.findGroupedRowsPage(perfil, { ...filter, excluirSemFavorecido: true }, pageSize, cursor),
       this.findSummary(perfil, filter),
     ]);
     return new RelatorioFinancialMovementNovoRemessaPageDto({

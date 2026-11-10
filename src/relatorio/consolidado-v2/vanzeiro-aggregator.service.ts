@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { RelatorioConsolidadoNovoRemessaData, RelatorioConsolidadoNovoRemessaDto } from '../dtos/relatorio-consolidado-novo-remessa.dto';
 import { StatusPagamento } from '../enum/statusRemessafinancial-movement';
-import { BasePagamentoFilter, BasePagamentoRepository, Perfil } from '../movimentacao-financeira-v2/base/base-pagamento.repository';
+import { BasePagamentoFilter, BasePagamentoRepository, BasePagamentoRow, Perfil } from '../movimentacao-financeira-v2/base/base-pagamento.repository';
 
 interface FavorecidoAccumulator {
   nome: string;
@@ -12,6 +12,10 @@ interface FavorecidoAccumulator {
 export interface VanzeiroAggregatorOptions {
   // So pessoas fisicas: mesmo recorte de length(operadoraCpfCnpj)<=11 do "todosVanzeiros" legado.
   somenteIndividuais?: boolean;
+}
+
+export function somarSemFavorecido(rows: BasePagamentoRow[]): number {
+  return rows.filter((row) => row.nomes === null).reduce((total, row) => total + Number(row.valor), 0);
 }
 
 @Injectable()
@@ -30,7 +34,9 @@ export class VanzeiroAggregatorService {
     // da soma, porque valorAPagar so considera os favorecidos que ficam dentro dos limites.
     const { valorMin, valorMax, ...baseFilter } = filter;
     const allRows = await this.basePagamentoRepository.findGroupedRows(perfil, baseFilter);
-    const rows = options.somenteIndividuais ? allRows.filter((row) => row.cpfCnpj && row.cpfCnpj.length <= 11) : allRows;
+    const comFavorecido = allRows.filter((row) => row.nomes !== null);
+    const rows = options.somenteIndividuais ? comFavorecido.filter((row) => row.cpfCnpj && row.cpfCnpj.length <= 11) : comFavorecido;
+    const valorSemFavorecido = somarSemFavorecido(allRows);
 
     const totalsByFavorecido = new Map<string, FavorecidoAccumulator>();
 
@@ -77,6 +83,7 @@ export class VanzeiroAggregatorService {
       count: data.length,
       valor,
       valorAPagar,
+      valorSemFavorecido,
       data,
     });
   }

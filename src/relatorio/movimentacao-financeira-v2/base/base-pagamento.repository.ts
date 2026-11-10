@@ -10,6 +10,7 @@ import {
 } from '../../novo-remessa/queries/regras-pendencia';
 import { GUARDADOR_CONSORCIO_CASE } from '../../novo-remessa/queries/guardador-novo-remessa-query-builder';
 import { buildConsorcioCaseSql, CONSORCIOS, INSTITUTIONAL_CPF_CNPJ, MODAIS } from '../status/consorcio-resolver';
+import { resolveInicioAPagar } from '../status/data-minima-a-pagar';
 import { buildEleicaoStatusPagamentoCaseSql, buildStatusPagamentoCaseSql } from '../status/status-resolver';
 
 export type Perfil = 'permissionario' | 'guardador';
@@ -20,6 +21,8 @@ export interface BasePagamentoFilter {
   statuses?: StatusPagamento[];
   valorMin?: number;
   valorMax?: number;
+  // Listagem e exportacao: ordens sem favorecido saem das linhas e aparecem so no resumo.
+  excluirSemFavorecido?: boolean;
   // Favorecido/Consorcio/Modal (T3, Permissionario apenas - Guardador nesta camada so suporta
   // userIds, sem a distincao modal/consorcio que nao existe nesse perfil). "Nenhum selecionado"
   // (nem userIds nem consorcio) normaliza para o mesmo comportamento de todosVanzeiros=true
@@ -478,7 +481,7 @@ export class BasePagamentoRepository {
             (op."ordemPagamentoAgrupadoId" IS NULL AND NOT ${resolveCondicaoPendenteOrdemSolta(perfil)})
             OR (op."ordemPagamentoAgrupadoId" IS NOT NULL AND da.id IS NULL)
           )
-          AND op."${dataCapturaColumn}"::date BETWEEN $1::date AND $2::date
+          AND op."${dataCapturaColumn}"::date BETWEEN $10::date AND $2::date
           ${filtroFavorecido}
       ),
       combinado AS (
@@ -496,16 +499,30 @@ export class BasePagamentoRepository {
       ),
       filtrado AS (
         SELECT "dataReferencia", nomes, "cpfCnpj", "nomeConsorcio", valor, status, "chaveLinha",
-          SUM(valor) OVER (PARTITION BY ${chaveDoTotal}) AS "totalDoGrupo"
+          SUM(valor) FILTER (WHERE nomes IS NOT NULL) OVER (PARTITION BY ${chaveDoTotal}) AS "totalDoGrupo"
         FROM combinado
         WHERE ($3::text[] IS NULL OR status = ANY($3))
+          -- Um lote rejeitado elegivel vem de pendencia_pagamento e de pendentes: conta uma vez so.
+          AND NOT (
+            "chaveLinha" LIKE 'pendentes_rejeitado:%'
+            AND EXISTS (
+              SELECT 1 FROM combinado outra
+              WHERE outra."chaveLinha" IN (
+                'pendencia_pagamento_intervalo:' || split_part(combinado."chaveLinha", ':', 2),
+                'pendencia_pagamento_familia:' || split_part(combinado."chaveLinha", ':', 2),
+                'pendencia_pagamento_propria:' || split_part(combinado."chaveLinha", ':', 2)
+              )
+              AND ($3::text[] IS NULL OR outra.status = ANY($3))
+            )
+          )
           AND ($7::text[] IS NULL OR UPPER(TRIM("nomeConsorcio")) = ANY($7))
-          AND ($8::text[] IS NULL OR NOT ("cpfCnpj" = ANY($8)))
+          AND ($8::text[] IS NULL OR "cpfCnpj" IS NULL OR NOT ("cpfCnpj" = ANY($8)))
       )
       SELECT "dataReferencia", nomes, "cpfCnpj", "nomeConsorcio", valor, status, "chaveLinha"
       FROM filtrado
       WHERE ($4::numeric IS NULL OR "totalDoGrupo" >= $4)
         AND ($5::numeric IS NULL OR "totalDoGrupo" <= $5)
+        ${filter.excluirSemFavorecido ? 'AND nomes IS NOT NULL' : ''}
     `;
 
     return {
@@ -520,6 +537,7 @@ export class BasePagamentoRepository {
         nomeConsorcioList,
         excludeInstitutional ? [...INSTITUTIONAL_CPF_CNPJ] : null,
         ...paramsAssociacao,
+        perfil === 'permissionario' ? resolveInicioAPagar(filter.dataInicio) : filter.dataInicio,
       ],
     };
   }
@@ -572,7 +590,7 @@ export class BasePagamentoRepository {
       )
       , filtrado AS (
         SELECT "dataReferencia", nomes, "cpfCnpj", "nomeConsorcio", valor, status,
-          SUM(valor) OVER (PARTITION BY ${chaveDoTotal}) AS "totalDoGrupo"
+          SUM(valor) FILTER (WHERE nomes IS NOT NULL) OVER (PARTITION BY ${chaveDoTotal}) AS "totalDoGrupo"
         FROM eleicao
         WHERE ($3::text[] IS NULL OR status = ANY($3))
           AND ($7::text[] IS NULL OR UPPER(TRIM("nomeConsorcio")) = ANY($7))

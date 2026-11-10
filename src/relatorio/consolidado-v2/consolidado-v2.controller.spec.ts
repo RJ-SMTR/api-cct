@@ -1,5 +1,4 @@
 import { GUARDS_METADATA } from '@nestjs/common/constants';
-import { HttpException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { StatusPagamento } from '../enum/statusRemessafinancial-movement';
 import { ConsolidadoCombinadoService } from './consolidado-combinado.service';
@@ -131,8 +130,10 @@ describe('ConsolidadoV2Controller', () => {
     expect(guards.length).toBeGreaterThan(0);
   });
 
-  it('rejects with 400 when "desativados" is sent as true (out of scope for this slice)', async () => {
-    await expect(callController({ desativados: true })).rejects.toMatchObject({ status: 400 });
+  it('forwards desativados to the favorecido view', async () => {
+    await callController({ desativados: true });
+
+    expect(vanzeiroAggregatorService.aggregate).toHaveBeenCalledWith(expect.objectContaining({ desativados: true }));
   });
 
   it('forwards userIds to the favorecido aggregator', async () => {
@@ -233,8 +234,10 @@ describe('ConsolidadoV2Controller', () => {
       expect(consorcioAggregatorService.aggregate).not.toHaveBeenCalled();
     });
 
-    it('rejects with 400 when eleicao=true is combined with consorcioNome', async () => {
-      await expect(callController({ eleicao: true, consorcioNome: ['CONSORCIO TESTE'] })).rejects.toThrow(HttpException);
+    it('selects the consorcio view when eleicao=true is combined with consorcioNome', async () => {
+      await callController({ eleicao: true, consorcioNome: ['CONSORCIO TESTE'] });
+
+      expect(eleicaoAggregatorService.aggregateByConsorcio).toHaveBeenCalledWith(expect.objectContaining({ consorcioNome: ['CONSORCIO TESTE'] }));
     });
 
     it('selects the consorcio view when eleicao=true is combined with todosConsorcios', async () => {
@@ -244,8 +247,10 @@ describe('ConsolidadoV2Controller', () => {
       expect(eleicaoAggregatorService.aggregateByFavorecido).not.toHaveBeenCalled();
     });
 
-    it('rejects with 400 when eleicao=true is combined with userIds', async () => {
-      await expect(callController({ eleicao: true, userIds: [1] })).rejects.toThrow(HttpException);
+    it('forwards userIds to the Eleicao favorecido view', async () => {
+      await callController({ eleicao: true, userIds: [1] });
+
+      expect(eleicaoAggregatorService.aggregateByFavorecido).toHaveBeenCalledWith(expect.objectContaining({ userIds: [1] }));
     });
   });
 
@@ -350,8 +355,6 @@ describe('ConsolidadoV2Controller', () => {
     });
 
     it.each([
-      [{ consorcioNome: ['STPC'] }],
-      [{ todosConsorcios: true }],
       [{ eleicao: true }],
       [{ stucGratuidade: true }],
       [{ desativados: true }],

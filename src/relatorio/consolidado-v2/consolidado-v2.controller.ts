@@ -12,9 +12,6 @@ import { EleicaoAggregatorService } from './eleicao-aggregator.service';
 import { StucGratuidadeAggregatorService } from './stuc-gratuidade-aggregator.service';
 import { VanzeiroAggregatorService } from './vanzeiro-aggregator.service';
 
-// Desativados ainda nao tem fonte na base: erro explicito, nunca ignorado silenciosamente
-// (decisao do PRD-consolidado-v2.md).
-const OUT_OF_SCOPE_FLAGS = ['desativados'] as const;
 
 interface StatusFlags {
   pendentes?: boolean;
@@ -106,17 +103,6 @@ export class ConsolidadoV2Controller {
     @Query('stucGratuidade', new ParseBooleanPipe({ optional: true })) stucGratuidade: boolean | undefined,
     @Query('erro', new ParseBooleanPipe({ optional: true })) erro: boolean | undefined,
   ) {
-    const outOfScope: Record<string, boolean | undefined> = {
-      desativados,
-    };
-    const offendingFlag = OUT_OF_SCOPE_FLAGS.find((flag) => outOfScope[flag]);
-    if (offendingFlag) {
-      throw new HttpException(
-        { error: `"${offendingFlag}" não é suportado por esta rota ainda (fora do escopo da fatia 2, ADR 0022)` },
-        HttpStatus.BAD_REQUEST,
-      );
-    }
-
     // Como no legado, todosVanzeiros tem prioridade sobre o favorecido especifico.
     const favorecidos = todosVanzeiros ? undefined : userIds;
     const temFiltroConsorcio = Boolean(consorcioNome?.length) || Boolean(todosConsorcios);
@@ -135,6 +121,7 @@ export class ConsolidadoV2Controller {
       valorMin,
       valorMax,
       statuses: mapStatuses({ pago, aPagar, emProcessamento, pendentes, pendenciaPaga, rejeitado, estorno, erro }),
+      desativados,
     };
 
     // STUC vem antes de Eleicao: no legado (findConsolidado), stucGratuidade tem prioridade sobre
@@ -143,27 +130,16 @@ export class ConsolidadoV2Controller {
     // linha por favorecido, como o legado.
     if (stucGratuidade) {
       // STUC nao tem fonte de Pendentes (ADR 0004): sozinho, o legado devolveria todos os status.
-      if (pendentes) {
-        throw new HttpException({ error: '"stucGratuidade" não pode ser combinado com "pendentes"' }, HttpStatus.BAD_REQUEST);
+      if (pendentes || desativados) {
+        throw new HttpException({ error: '"stucGratuidade" não pode ser combinado com "pendentes"/"desativados"' }, HttpStatus.BAD_REQUEST);
       }
       return this.stucGratuidadeAggregatorService.aggregate({ ...filter, userIds: favorecidos, consorcioNome, todosConsorcios });
     }
 
-    // Eleicao: todosConsorcios seleciona a visao por consorcio; consorcio ou favorecido especifico
-    // seguem sem suporte (findEleicaoRows nao filtra por eles), e nunca sao ignorados.
+    // Eleicao: filtro de consorcio seleciona a visao por consorcio; senao, por favorecido.
     if (eleicao) {
-      if (favorecidos?.length) {
-        throw new HttpException({ error: '"eleicao" não pode ser combinado com "userIds" nesta rota' }, HttpStatus.BAD_REQUEST);
-      }
-      if (consorcioNome?.length) {
-        throw new HttpException(
-          { error: '"eleicao" não pode ser combinado com "consorcioNome" (sem filtro por consórcio específico nesta rota ainda)' },
-          HttpStatus.BAD_REQUEST,
-        );
-      }
-      return todosConsorcios
-        ? this.eleicaoAggregatorService.aggregateByConsorcio({ ...filter, todosConsorcios })
-        : this.eleicaoAggregatorService.aggregateByFavorecido(filter);
+      const filtroEleicao = { ...filter, userIds: favorecidos, consorcioNome, todosConsorcios };
+      return temFiltroConsorcio ? this.eleicaoAggregatorService.aggregateByConsorcio(filtroEleicao) : this.eleicaoAggregatorService.aggregateByFavorecido(filtroEleicao);
     }
 
     // Mesma regra implicita do legado (temFiltroConsorcio/temFiltroVanzeiros em
@@ -224,8 +200,6 @@ export class ConsolidadoV2Controller {
     // Guardador nao tem visao por consorcio, Eleicao nem STUC-Gratuidade (PRD, AC-8/AC-9): erro
     // explicito, nunca ignorado silenciosamente.
     const naoSuportados: Record<string, boolean> = {
-      consorcioNome: Boolean(consorcioNome?.length),
-      todosConsorcios: Boolean(todosConsorcios),
       eleicao: Boolean(eleicao),
       stucGratuidade: Boolean(stucGratuidade),
       desativados: Boolean(desativados),
@@ -243,6 +217,8 @@ export class ConsolidadoV2Controller {
       valorMax,
       statuses: mapStatuses({ pago, aPagar, emProcessamento, pendenciaPaga, rejeitado, estorno, erro }),
       userIds,
+      consorcioNome,
+      todosConsorcios,
     };
 
     return this.vanzeiroAggregatorService.aggregate(filter, 'guardador');
