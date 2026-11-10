@@ -506,6 +506,48 @@ export const buildEleicaoQuery = (params: NovoRemessaBaseParams) => {
   `;
 };
 
+// Eleicao "A Pagar": ordem_pagamento_unico ainda sem agrupamento (idOrdemPagamento NULL), pela data
+// da ordem - mesma fonte do Consolidado (getQueryApagarEleicao*). Mesmas colunas e ligacao de
+// usuario de buildEleicaoQuery, para as duas entrarem na mesma uniao.
+export const buildEleicaoAPagarQuery = (params: NovoRemessaBaseParams) => {
+  const consorcioParam = `$${params.consorcioFilterParamIndex}`;
+  return `
+    SELECT DISTINCT
+      opu."dataOrdem"::timestamp AS "dataReferencia",
+      opu.id,
+      pu."fullName" AS nomes,
+      pu.email,
+      pu."bankCode" AS "codBanco",
+      bc.name AS "nomeBanco",
+      pu."cpfCnpj",
+      opu."consorcio" AS "nomeConsorcio",
+      opu."valorTotalTransacaoLiquido" AS valor,
+      NULL::timestamp AS "dataPagamento",
+      'A Pagar' AS status,
+      NULL::text AS "codigoErro"
+    FROM ordem_pagamento_unico opu
+    INNER JOIN LATERAL (
+      SELECT u.* FROM public."user" u
+      WHERE u."permitCode" = opu."idOperadora"
+      UNION ALL
+      SELECT u.* FROM public."user" u
+      WHERE NOT EXISTS (
+        SELECT 1 FROM public."user" u2 WHERE u2."permitCode" = opu."idOperadora"
+      )
+      AND u."cpfCnpj" = opu."operadoraCpfCnpj"
+    ) pu ON true
+    LEFT JOIN bank bc
+      ON bc.code = pu."bankCode"
+    WHERE
+      opu."dataOrdem" BETWEEN $1::date AND $2::date
+      AND opu."idOrdemPagamento" IS NULL
+      AND ($3::integer[] IS NULL OR pu."id" = ANY($3))
+      AND ($4::text[] IS NULL OR 'A Pagar' = ANY($4))
+      AND (${consorcioParam}::text[] IS NULL OR TRIM(UPPER(opu."consorcio")) = ANY(${consorcioParam}))
+      ${buildTodosVanzeirosFilter(params)}
+  `;
+};
+
 export const buildStucGratuidadeQuery = (params: NovoRemessaBaseParams) => buildGroupedQuery(params, AGRUPAMENTO_GRATUIDADE);
 
 export const buildPendentesQuery = (params: NovoRemessaPendentesParams) => {

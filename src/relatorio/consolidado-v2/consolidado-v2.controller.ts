@@ -12,6 +12,7 @@ import { ConsorcioAggregatorService } from './consorcio-aggregator.service';
 import { EleicaoAggregatorService } from './eleicao-aggregator.service';
 import { StucGratuidadeAggregatorService } from './stuc-gratuidade-aggregator.service';
 import { VanzeiroAggregatorService } from './vanzeiro-aggregator.service';
+import { agruparStucPorFavorecido } from './stuc-por-favorecido';
 
 
 interface StatusFlags {
@@ -108,7 +109,7 @@ export class ConsolidadoV2Controller {
     // STUC-Gratuidade e Eleicao: mesmo resultado da rota v1 (decisao de Rayanne, 2026-11-10), pela
     // propria implementacao do legado.
     if (stucGratuidade || eleicao) {
-      return this.relatorioNovoRemessaService.findConsolidado({
+      const resultado = await this.relatorioNovoRemessaService.findConsolidado({
         dataInicio,
         dataFim,
         userIds,
@@ -129,6 +130,7 @@ export class ConsolidadoV2Controller {
         pendenciaPaga,
         stucGratuidade,
       });
+      return stucGratuidade ? agruparStucPorFavorecido(resultado) : resultado;
     }
 
     // Como no legado, todosVanzeiros tem prioridade sobre o favorecido especifico.
