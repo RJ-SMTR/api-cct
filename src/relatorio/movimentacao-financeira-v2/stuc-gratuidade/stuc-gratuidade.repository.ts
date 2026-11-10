@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { StatusPagamento } from '../../enum/statusRemessafinancial-movement';
-import { buildConsorcioCaseSql } from '../status/consorcio-resolver';
+import { buildConsorcioCaseSql, CONSORCIOS } from '../status/consorcio-resolver';
 import { buildStatusPagamentoCaseSql } from '../status/status-resolver';
 import { pivotStucGratuidadeRows, StucPivotOutputRow } from '../../utils/stuc-gratuidade-pivot';
 
@@ -24,6 +24,9 @@ export interface StucGratuidadeFilter {
   valorMin?: number;
   valorMax?: number;
   userIds?: number[];
+  // Mesma regra do ramo STUC de findConsolidado: todosConsorcios tem prioridade sobre consorcioNome.
+  consorcioNome?: string[];
+  todosConsorcios?: boolean;
 }
 
 type StucGratuidadeIdentity = {
@@ -38,6 +41,10 @@ type StucGratuidadeDayRow = StucGratuidadeIdentity & { dataReferencia: Date; val
 export type StucGratuidadeRow = StucPivotOutputRow<StucGratuidadeIdentity>;
 
 const CONSORCIO_CASE = buildConsorcioCaseSql('pu', 'op');
+
+// Como no legado: nome especifico compara o consorcio resolvido, "todos" compara a coluna bruta.
+const FILTRO_CONSORCIO = `AND ($5::text[] IS NULL OR UPPER(TRIM(${CONSORCIO_CASE})) = ANY($5))
+          AND ($6::text[] IS NULL OR op."nomeConsorcio" = ANY($6))`;
 
 @Injectable()
 export class StucGratuidadeRepository {
@@ -90,6 +97,7 @@ export class StucGratuidadeRepository {
           AND da."dataVencimento"::date BETWEEN $1::date AND $2::date
           AND oph."statusRemessa" NOT IN (4, 5)
           AND ($4::integer[] IS NULL OR pu.id = ANY($4))
+          ${FILTRO_CONSORCIO}
       ),
       pendencia_paga AS (
         -- Pendencia Paga (status 5, ADR 0001): sem gate de dia unico, data vem do pai quando ha
@@ -115,6 +123,7 @@ export class StucGratuidadeRepository {
           )
           AND (oph."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph."motivoStatusRemessa" IS NULL)
           AND ($4::integer[] IS NULL OR pu.id = ANY($4))
+          ${FILTRO_CONSORCIO}
       ),
       pendencia_pagamento AS (
         ${isSingleDate ? this.buildPendenciaPagamentoDiaUnicoSql(statusCase) : 'SELECT NULL::date AS "dataReferencia", NULL::text AS nomes, NULL::text AS "cpfCnpj", NULL::text AS "nomeConsorcio", NULL::numeric AS valor, NULL::text AS status WHERE FALSE'}
@@ -137,6 +146,8 @@ export class StucGratuidadeRepository {
       filter.dataFim,
       filter.statuses?.length ? filter.statuses : null,
       filter.userIds?.length ? filter.userIds : null,
+      !filter.todosConsorcios && filter.consorcioNome?.length ? filter.consorcioNome.map((nome) => nome.trim().toUpperCase()) : null,
+      filter.todosConsorcios ? [...CONSORCIOS] : null,
     ]);
   }
 
@@ -171,6 +182,7 @@ export class StucGratuidadeRepository {
           AND ${statusPai} IN (${statusRejeitado})
           AND (oph_pai."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph_pai."motivoStatusRemessa" IS NULL)
           AND ($4::integer[] IS NULL OR pu.id = ANY($4))
+          ${FILTRO_CONSORCIO}
 
         UNION ALL
 
@@ -193,6 +205,7 @@ export class StucGratuidadeRepository {
           AND ${statusPropria} IN (${statusRejeitado})
           AND (oph."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph."motivoStatusRemessa" IS NULL)
           AND ($4::integer[] IS NULL OR pu.id = ANY($4))
+          ${FILTRO_CONSORCIO}
     `;
   }
 }

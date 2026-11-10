@@ -2,6 +2,7 @@ import { GUARDS_METADATA } from '@nestjs/common/constants';
 import { HttpException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { StatusPagamento } from '../enum/statusRemessafinancial-movement';
+import { ConsolidadoCombinadoService } from './consolidado-combinado.service';
 import { ConsolidadoV2Controller } from './consolidado-v2.controller';
 import { ConsorcioAggregatorService } from './consorcio-aggregator.service';
 import { EleicaoAggregatorService } from './eleicao-aggregator.service';
@@ -14,6 +15,7 @@ describe('ConsolidadoV2Controller', () => {
   let consorcioAggregatorService: ConsorcioAggregatorService;
   let eleicaoAggregatorService: EleicaoAggregatorService;
   let stucGratuidadeAggregatorService: StucGratuidadeAggregatorService;
+  let consolidadoCombinadoService: ConsolidadoCombinadoService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -23,6 +25,7 @@ describe('ConsolidadoV2Controller', () => {
         { provide: ConsorcioAggregatorService, useValue: { aggregate: jest.fn().mockResolvedValue({ count: 0, valor: 0, valorAPagar: 0, data: [] }) } },
         { provide: EleicaoAggregatorService, useValue: { aggregateByFavorecido: jest.fn().mockResolvedValue({ count: 0, valor: 0, valorAPagar: 0, data: [] }), aggregateByConsorcio: jest.fn().mockResolvedValue({ count: 0, valor: 0, valorAPagar: 0, data: [] }) } },
         { provide: StucGratuidadeAggregatorService, useValue: { aggregate: jest.fn().mockResolvedValue({ count: 0, valor: 0, valorAPagar: 0, data: [] }) } },
+        { provide: ConsolidadoCombinadoService, useValue: { aggregate: jest.fn().mockResolvedValue({ count: 0, valor: 0, valorAPagar: 0, data: [] }) } },
       ],
     }).compile();
 
@@ -31,6 +34,7 @@ describe('ConsolidadoV2Controller', () => {
     consorcioAggregatorService = module.get(ConsorcioAggregatorService);
     eleicaoAggregatorService = module.get(EleicaoAggregatorService);
     stucGratuidadeAggregatorService = module.get(StucGratuidadeAggregatorService);
+    consolidadoCombinadoService = module.get(ConsolidadoCombinadoService);
   });
 
   const dataInicio = new Date('2098-01-01');
@@ -100,6 +104,23 @@ describe('ConsolidadoV2Controller', () => {
     expect(vanzeiroAggregatorService.aggregate).not.toHaveBeenCalled();
   });
 
+  it('routes to the combined view when todosVanzeiros and todosConsorcios are both true', async () => {
+    await callController({ todosVanzeiros: true, todosConsorcios: true, pago: true, valorMax: 10 });
+
+    expect(consolidadoCombinadoService.aggregate).toHaveBeenCalledWith(expect.objectContaining({ dataInicio, dataFim, valorMax: 10, statuses: [StatusPagamento.PAGO] }));
+    expect(consorcioAggregatorService.aggregate).not.toHaveBeenCalled();
+    expect(vanzeiroAggregatorService.aggregate).not.toHaveBeenCalled();
+  });
+
+  it('does not use the combined view for STUC or Eleicao with both flags', async () => {
+    await callController({ todosVanzeiros: true, todosConsorcios: true, stucGratuidade: true });
+    await callController({ todosVanzeiros: true, todosConsorcios: true, eleicao: true });
+
+    expect(stucGratuidadeAggregatorService.aggregate).toHaveBeenCalledTimes(1);
+    expect(eleicaoAggregatorService.aggregateByConsorcio).toHaveBeenCalledTimes(1);
+    expect(consolidadoCombinadoService.aggregate).not.toHaveBeenCalled();
+  });
+
   // AuthGuard('jwt') enforcement itself (a real 401 without a token) is an HTTP-level concern,
   // verified at the e2e seam (T6) - a unit spec that calls the controller method directly
   // bypasses the Nest guard pipeline entirely. Here we assert the guard decorator is present,
@@ -110,23 +131,39 @@ describe('ConsolidadoV2Controller', () => {
     expect(guards.length).toBeGreaterThan(0);
   });
 
-  it.each(['desativados', 'pendentes'])(
-    'rejects with 400 when "%s" is sent as true (out of scope for this slice)',
-    async (flag) => {
-      await expect(callController({ [flag]: true })).rejects.toThrow(HttpException);
+  it('rejects with 400 when "desativados" is sent as true (out of scope for this slice)', async () => {
+    await expect(callController({ desativados: true })).rejects.toMatchObject({ status: 400 });
+  });
 
-      try {
-        await callController({ [flag]: true });
-        fail('expected HttpException');
-      } catch (e) {
-        expect(e).toBeInstanceOf(HttpException);
-        expect(e.getStatus()).toBe(400);
-      }
-    },
-  );
+  it('forwards userIds to the favorecido aggregator', async () => {
+    await callController({ userIds: [7, 8], pago: true });
 
-  it('rejects with 400 when userIds is sent (not supported until ADR 0021 T3 lands)', async () => {
-    await expect(callController({ userIds: [1] })).rejects.toThrow(HttpException);
+    expect(vanzeiroAggregatorService.aggregate).toHaveBeenCalledWith(
+      expect.objectContaining({ userIds: [7, 8], statuses: [StatusPagamento.PAGO] }),
+    );
+  });
+
+  // Legado: "todosVanzeiros" tem prioridade sobre o favorecido especifico.
+  it('ignores userIds when todosVanzeiros is true, like legacy', async () => {
+    await callController({ userIds: [7], todosVanzeiros: true });
+
+    const calledFilter = (vanzeiroAggregatorService.aggregate as jest.Mock).mock.calls[0][0];
+    expect(calledFilter.userIds).toBeUndefined();
+  });
+
+  // Legado une as duas visoes nesse caso; sem suporte aqui, erro explicito e nunca ignorado.
+  it.each([{ consorcioNome: ['STPC'] }, { todosConsorcios: true }])('rejects with 400 when userIds is combined with %j', async (consorcioOverrides) => {
+    await expect(callController({ userIds: [7], ...consorcioOverrides })).rejects.toMatchObject({ status: 400 });
+    await expect(callController({ userIds: [7], stucGratuidade: true, ...consorcioOverrides })).rejects.toMatchObject({ status: 400 });
+
+    expect(consorcioAggregatorService.aggregate).not.toHaveBeenCalled();
+    expect(stucGratuidadeAggregatorService.aggregate).not.toHaveBeenCalled();
+  });
+
+  it('maps pendentes to StatusPagamento.PENDENTES', async () => {
+    await callController({ pendentes: true });
+
+    expect(vanzeiroAggregatorService.aggregate).toHaveBeenCalledWith(expect.objectContaining({ statuses: [StatusPagamento.PENDENTES] }));
   });
 
   // T1 (fatia 2): pendenciaPaga/rejeitado/estorno/erro deixam de ser rejeitados e passam a
@@ -212,8 +249,7 @@ describe('ConsolidadoV2Controller', () => {
     });
   });
 
-  // T3 do ADR 0021 (fatia 2): stucGratuidade sai de OUT_OF_SCOPE_FLAGS e passa a ter roteamento
-  // proprio, sem view por consorcio (StucGratuidadeRepository nao implementa esse filtro).
+  // STUC tem roteamento proprio; o filtro de consorcio vai para o repositorio.
   it('calls the STUC-Gratuidade aggregator when "stucGratuidade" is true', async () => {
     await callController({ stucGratuidade: true, pago: true });
 
@@ -225,21 +261,27 @@ describe('ConsolidadoV2Controller', () => {
   });
 
   it.each([{ consorcioNome: ['CONSORCIO TESTE'] }, { todosConsorcios: true }])(
-    'rejects with 400 when "stucGratuidade" is combined with a consórcio filter (%j)',
+    'forwards the consórcio filter (%j) to the STUC-Gratuidade aggregator',
     async (consorcioOverrides) => {
-      await expect(callController({ stucGratuidade: true, ...consorcioOverrides })).rejects.toThrow(HttpException);
+      await callController({ stucGratuidade: true, ...consorcioOverrides });
 
-      try {
-        await callController({ stucGratuidade: true, ...consorcioOverrides });
-        fail('expected HttpException');
-      } catch (e) {
-        expect(e).toBeInstanceOf(HttpException);
-        expect(e.getStatus()).toBe(400);
-      }
-
-      expect(stucGratuidadeAggregatorService.aggregate).not.toHaveBeenCalled();
+      expect(stucGratuidadeAggregatorService.aggregate).toHaveBeenCalledWith(expect.objectContaining(consorcioOverrides));
+      expect(consorcioAggregatorService.aggregate).not.toHaveBeenCalled();
     },
   );
+
+  it('forwards userIds to the STUC-Gratuidade aggregator', async () => {
+    await callController({ stucGratuidade: true, userIds: [7] });
+
+    expect(stucGratuidadeAggregatorService.aggregate).toHaveBeenCalledWith(expect.objectContaining({ userIds: [7] }));
+  });
+
+  // STUC nao tem fonte de Pendentes: o legado devolveria todos os status nesse caso.
+  it('rejects with 400 when "stucGratuidade" is combined with pendentes', async () => {
+    await expect(callController({ stucGratuidade: true, pendentes: true })).rejects.toMatchObject({ status: 400 });
+
+    expect(stucGratuidadeAggregatorService.aggregate).not.toHaveBeenCalled();
+  });
 
   it('gives stucGratuidade precedence over eleicao, like the legacy findConsolidado', async () => {
     await callController({ stucGratuidade: true, eleicao: true });
@@ -293,6 +335,12 @@ describe('ConsolidadoV2Controller', () => {
       );
     });
 
+    it('forwards userIds with the guardador perfil', async () => {
+      await callGuardador({ userIds: [7, 8], pago: true });
+
+      expect(vanzeiroAggregatorService.aggregate).toHaveBeenCalledWith(expect.objectContaining({ userIds: [7, 8] }), 'guardador');
+    });
+
     it('maps erro=true to Estorno + Rejeitado without duplicates', async () => {
       await callGuardador({ erro: true, rejeitado: true });
 
@@ -308,7 +356,6 @@ describe('ConsolidadoV2Controller', () => {
       [{ stucGratuidade: true }],
       [{ desativados: true }],
       [{ pendentes: true }],
-      [{ userIds: [1] }],
     ])('rejects %j with 400 instead of ignoring it', async (overrides) => {
       await expect(callGuardador(overrides)).rejects.toMatchObject({ status: 400 });
       expect(vanzeiroAggregatorService.aggregate).not.toHaveBeenCalled();
