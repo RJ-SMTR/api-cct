@@ -335,6 +335,12 @@ describe('ConsolidadoV2Controller', () => {
       );
     });
 
+    it('forwards userIds with the guardador perfil', async () => {
+      await callGuardador({ userIds: [7, 8], pago: true });
+
+      expect(vanzeiroAggregatorService.aggregate).toHaveBeenCalledWith(expect.objectContaining({ userIds: [7, 8] }), 'guardador');
+    });
+
     it('maps erro=true to Estorno + Rejeitado without duplicates', async () => {
       await callGuardador({ erro: true, rejeitado: true });
 
@@ -350,7 +356,6 @@ describe('ConsolidadoV2Controller', () => {
       [{ stucGratuidade: true }],
       [{ desativados: true }],
       [{ pendentes: true }],
-      [{ userIds: [1] }],
     ])('rejects %j with 400 instead of ignoring it', async (overrides) => {
       await expect(callGuardador(overrides)).rejects.toMatchObject({ status: 400 });
       expect(vanzeiroAggregatorService.aggregate).not.toHaveBeenCalled();

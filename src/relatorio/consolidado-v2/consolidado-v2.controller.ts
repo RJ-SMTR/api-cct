@@ -193,6 +193,7 @@ export class ConsolidadoV2Controller {
   @ApiQuery({ name: 'erro', description: 'Combo Estorno + Rejeitado', required: false, type: Boolean })
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'))
+  @ApiQuery({ name: 'userIds', description: 'Pesquisa o id dos usuários.', required: false, type: [Number] })
   @Get('guardador/consolidado')
   async getGuardadorConsolidado(
     @Query('dataInicio', new ParseDatePipe({ dateOnly: true }))
@@ -220,10 +221,9 @@ export class ConsolidadoV2Controller {
     @Query('stucGratuidade', new ParseBooleanPipe({ optional: true })) stucGratuidade: boolean | undefined,
     @Query('erro', new ParseBooleanPipe({ optional: true })) erro: boolean | undefined,
   ) {
-    // Guardador nao tem visao por consorcio, Eleicao nem STUC-Gratuidade (PRD, AC-8/AC-9), e
-    // userIds segue fora desta fatia (OQ-2): erro explicito, nunca ignorado silenciosamente.
+    // Guardador nao tem visao por consorcio, Eleicao nem STUC-Gratuidade (PRD, AC-8/AC-9): erro
+    // explicito, nunca ignorado silenciosamente.
     const naoSuportados: Record<string, boolean> = {
-      userIds: Boolean(userIds?.length),
       consorcioNome: Boolean(consorcioNome?.length),
       todosConsorcios: Boolean(todosConsorcios),
       eleicao: Boolean(eleicao),
@@ -242,6 +242,7 @@ export class ConsolidadoV2Controller {
       valorMin,
       valorMax,
       statuses: mapStatuses({ pago, aPagar, emProcessamento, pendenciaPaga, rejeitado, estorno, erro }),
+      userIds,
     };
 
     return this.vanzeiroAggregatorService.aggregate(filter, 'guardador');
