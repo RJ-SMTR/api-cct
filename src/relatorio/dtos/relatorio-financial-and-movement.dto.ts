@@ -33,6 +33,7 @@ export class RelatorioFinancialMovementNovoRemessaSummaryDto {
   valorAPagar?: number;
   valorPendente?: number;
   valorPendenciaPaga?: number;
+  valorSemFavorecido?: number;
 }
 
 export class RelatorioFinancialMovementNovoRemessaPageDto {

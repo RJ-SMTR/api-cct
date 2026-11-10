@@ -35,6 +35,9 @@ Registro único do que foi adiado de propósito, por quê e por quem. Serve para
 | [TD-18](#td-18) | `MODAIS_FILTER` quebra 10 de 14 testes de `relatorio-novo-remessa-financial-movement.integration.spec.ts` | aberto | Rayanne | 2026-11-06 |
 | [TD-19](#td-19) | Resíduo de ~0,3% entre Consolidado e Movimentação Financeira em "A Pagar" (Permissionário) mesmo após o ADR 0017 | aberto | Rayanne | 2026-11-06 |
 | [TD-20](#td-20) | CNPJ institucional em "Consórcio = Todos": Consolidado exclui, Movimentação Financeira inclui — intenção documentada e contraditória nos dois lados | aberto | Rayanne | 2026-11-06 |
+| [TD-21](#td-21) | Cursor keyset da rota `v2` sempre envia `valor: null` (DTO sem `cursorValor`) | pago | Rayanne | 2026-11-10 |
+| [TD-22](#td-22) | Consolidado legado de Guardador falhava com Pendência Paga sozinha em dia único | pago | Rayanne | 2026-11-10 |
+| [TD-23](#td-23) | Hook de pre-commit falha de forma intermitente na suíte de escrita da exportação | aberto | Rayanne | 2026-11-10 |
 
 ## Entradas
 
@@ -236,3 +239,34 @@ Registro único do que foi adiado de propósito, por quê e por quem. Serve para
   - A ADR 0018 (que criou essa regra) só discute o caso de um consórcio *específico* (VLT, Internorte, Santa Cruz) — nunca menciona "Todos os consórcios" explicitamente, então os dois lados ficaram com intenção documentada mas oposta sem ninguém perceber a contradição.
 - **Impacto/risco:** para o mesmo filtro (Consórcio = Todos, qualquer status que passe pelo histórico — Pago, Aguardando, a metade histórico de A Pagar etc.), o Consolidado mostra um total sem os institucionais e a Movimentação Financeira mostra um total com eles — divergência real e atual entre as duas telas, não coberta por nenhuma ADR/TD anterior.
 - **Critério de pagamento:** decisão de negócio sobre qual comportamento é o correto para "Consórcio = Todos" (institucional aparece ou não), confirmada com quem define a regra; depois, alinhar o lado divergente (ajustar `hasConsorcioFilter`/`buildTodosVanzeirosFilter` na Movimentação, ou o ramo `todosConsorcios` no Consolidado) com teste de regressão cobrindo o cenário.
+
+## TD-21
+**Cursor keyset da rota `v2` sempre envia `valor: null` (DTO sem `cursorValor`)**
+
+- **Status:** pago
+- **Registrado por:** Rayanne · **Detectado por:** agente · **Data:** 2026-11-10
+- **Contexto:** achado durante T10 (ADR 0021, controller novo `RelatorioNovoRemessaV2Controller`). O cursor keyset novo de `BasePagamentoRepository.findGroupedRowsPage` (T4/ADR 0002) usa 6 colunas de tie-breaker — `dataReferencia, nomes, cpfCnpj, nomeConsorcio, status, valor` — mas `FinancialMovementQueryDto` (construído para o cursor legado do Guardador) não tem um campo `cursorValor`. A rota `GET report/v2/page`/`guardador/report/v2/page` sempre envia `valor: null` nessa posição do cursor ao reconstruir o filtro a partir da query string. Extensão do DTO foi deixada fora do escopo de T10 por constraint explícita da task ("mesmos DTOs de request").
+- **Impacto/risco:** em tese, duas linhas podem empatar nas 5 primeiras colunas do cursor (mesmo favorecido/data/status/consórcio) e diferir só por `valor` — um corte de página exatamente nesse ponto pode pular ou repetir uma dessas linhas. Risco baixo e a rota `v2` ainda não tem tráfego real (só comparação lado a lado, ADR 0021 item 7), mas precisa ser resolvido antes do cutover (T12) se a paginação for exposta de fato.
+- **Critério de pagamento:** adicionar `cursorValor` a `FinancialMovementQueryDto` (e ao mapeamento em `financial-movement-v2-query.mapper.ts`), com teste de integração reproduzindo o empate de 5 colunas e confirmando que a paginação não perde/duplica a linha.
+- **Atualização (2026-11-10):** o e2e de T11 mostrou que o problema não era raro: sem `valor` no cursor, a última linha de toda página reaparecia na página seguinte.
+- **Pago por:** agente, a pedido de Rayanne · **Data do pagamento:** 2026-11-10 · **Referência:** commit `baaa38e7` (`cursorValor` no DTO e no mapper; teste de empate nas 5 colunas e e2e sem tolerância a repetição)
+
+## TD-22
+**Consolidado legado de Guardador falhava com Pendência Paga sozinha em dia único**
+
+- **Status:** pago
+- **Registrado por:** Rayanne · **Detectado por:** agente · **Data:** 2026-11-10
+- **Contexto:** em `RelatorioGuardadorConsolidadoRepository.findConsolidado`, com `pendenciaPaga=true` sozinho em dia único só entrava a consulta de Pendência Paga, que não referencia `$6`/`$7`, e o Postgres devolvia `could not determine data type of parameter $6`.
+- **Impacto/risco:** a rota legada `guardador/consolidado` respondia erro nesse filtro; além disso, os limites de valor não valiam para essa consulta.
+- **Critério de pagamento:** a combinação responde com o total correto, com teste de paridade contra a rota v2.
+- **Pago por:** agente, a pedido de Rayanne · **Data do pagamento:** 2026-11-10 · **Referência:** commit `708aed8c`
+
+## TD-23
+**Hook de pre-commit falha de forma intermitente na suíte de escrita da exportação**
+
+- **Status:** aberto
+- **Registrado por:** Rayanne · **Detectado por:** agente · **Data:** 2026-11-10
+- **Contexto:** ao commitar as regras de negócio e filtros das rotas v2, o hook bloqueou cinco vezes, em suítes diferentes (`financial-movement-export-writer.spec.ts` e `relatorio-novo-remessa-financial-movement.service.spec.ts`). As mesmas suítes, e o mesmo conjunto `--findRelatedTests` do hook, passaram quando rodadas fora dele. Duas causas reais foram corrigidas antes (arquivo temporário da exportação com nome repetido no mesmo milissegundo, commit `779a188c`; tempo limite de geração de PDF/XLSX, commit `84e55366`), mas o hook seguiu falhando na suíte de escrita. O hook apaga o próprio `jest.json`, então a mensagem de falha não foi lida.
+- **Atalho aceito:** o commit das regras v2 foi feito com `--no-verify`, com autorização de Rayanne em 2026-11-10.
+- **Impacto/risco:** um defeito real nessa suíte pode ter passado sem ser visto nesse commit; o hook pode voltar a bloquear commits sem relação com a exportação.
+- **Critério de pagamento:** o hook guardar o resultado do jest quando bloquear, a causa da falha ser identificada e corrigida, e o hook passar em commits seguidos sem instabilidade.
