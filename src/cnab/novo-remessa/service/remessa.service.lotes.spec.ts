@@ -97,14 +97,26 @@ describe('RemessaService.gerarListaCnab - distribuicao dos pagamentos nos lotes'
     expect((await gerar()).map((l: any) => l.docs)).toEqual([[1]]);
   });
 
-  it('lote sem pagamentos sai vazio (nao herda pagamentos de outros lotes)', async () => {
+  it('lote sem pagamentos fica fora do arquivo (nao herda pagamentos de outros lotes nem sai vazio)', async () => {
     contas = { 9: { userBankCode: 104 } };
     headerLoteService.findAll.mockResolvedValue([lote(1, '05'), lote(2, '01')]);
     detalheAService.getDetalheAHeaderLote.mockImplementation((loteId: number) => (loteId === 2 ? [detalheA(9)] : []));
 
-    expect((await gerar()).map((l: any) => ({ forma: l.forma, docs: l.docs }))).toEqual([
-      { forma: '05', docs: [] },
-      { forma: '01', docs: [9] },
-    ]);
+    expect((await gerar()).map((l: any) => ({ forma: l.forma, docs: l.docs }))).toEqual([{ forma: '01', docs: [9] }]);
+  });
+
+  it('remessa so de TED e conta corrente nao leva o lote de poupanca vazio (caso CETT de 10/11/2026)', async () => {
+    contas = { 1: { userBankCode: 341 }, 2: { userBankCode: 104 } };
+    headerLoteService.findAll.mockResolvedValue([lote(1, '41'), lote(2, '01'), lote(3, '05')]);
+    detalheAService.getDetalheAHeaderLote.mockImplementation((loteId: number) => ({ 1: [detalheA(1)], 2: [detalheA(2)], 3: [] } as any)[loteId]);
+
+    expect((await gerar()).map((l: any) => l.forma)).toEqual(['41', '01']);
+  });
+
+  it('sem nenhum pagamento em nenhum lote, mantem os lotes (comportamento anterior)', async () => {
+    headerLoteService.findAll.mockResolvedValue([lote(1, '41'), lote(2, '01')]);
+    detalheAService.getDetalheAHeaderLote.mockResolvedValue([]);
+
+    expect((await gerar()).map((l: any) => l.forma)).toEqual(['41', '01']);
   });
 });

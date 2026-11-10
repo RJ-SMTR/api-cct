@@ -335,9 +335,14 @@ export class RemessaService {
       });
     }
 
+    // Lote sem nenhum pagamento (ex.: o de poupança quando ninguém da remessa tem poupança) fica fora do arquivo: o banco pode recusar o
+    // arquivo inteiro por causa de um lote vazio. Se nenhum lote tem pagamento, mantém todos como antes.
+    const lotesComPagamento = headersLote.filter((headerLote: HeaderLote) => (registrosPorLote.get(headerLote.id) ?? []).length > 0);
+    const lotesDoArquivo = lotesComPagamento.length > 0 ? lotesComPagamento : headersLote;
+
     const cnab104 = new CnabFile104PgtoDTO({
       headerArquivo: headerArquivoCnab,
-      lotes: headersLote.map((headerLote: HeaderLote) => ({
+      lotes: lotesDoArquivo.map((headerLote: HeaderLote) => ({
         headerLote: CnabHeaderLote104PgtoDTO.convert(headerLote, headerArquivo),
         registros: registrosPorLote.get(headerLote.id) ?? [],
         trailerLote: structuredClone(Cnab104PgtoTemplates.file104.registros.trailerLote),
