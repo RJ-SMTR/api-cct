@@ -53,7 +53,9 @@ export function mapQueryToFinancialMovementV2Filter(
 // Builds the T4 keyset cursor (BasePagamentoRepository.findGroupedRowsPage) from the request
 // DTO's cursor* fields, including valor, the last tie-breaker of the tuple.
 export function resolveCursorFromQuery(query: FinancialMovementV2Filter): BasePagamentoCursor | undefined {
-  const hasCursor = Boolean(query.cursorDataReferencia) && Boolean(query.cursorNome) && Boolean(query.cursorStatus) && Boolean(query.cursorCpfCnpj);
+  // nomes/cpfCnpj are null on orders without a linked favorecido, and the keyset already treats
+  // null as an empty string: requiring them would send such a page back to the start.
+  const hasCursor = Boolean(query.cursorDataReferencia) && Boolean(query.cursorStatus);
   if (!hasCursor) return undefined;
   return {
     dataReferencia: query.cursorDataReferencia ?? null,
