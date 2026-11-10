@@ -21,7 +21,7 @@ describe('ConsolidadoV2Controller', () => {
       providers: [
         { provide: VanzeiroAggregatorService, useValue: { aggregate: jest.fn().mockResolvedValue({ count: 0, valor: 0, valorAPagar: 0, data: [] }) } },
         { provide: ConsorcioAggregatorService, useValue: { aggregate: jest.fn().mockResolvedValue({ count: 0, valor: 0, valorAPagar: 0, data: [] }) } },
-        { provide: EleicaoAggregatorService, useValue: { aggregateByFavorecido: jest.fn().mockResolvedValue({ count: 0, valor: 0, valorAPagar: 0, data: [] }) } },
+        { provide: EleicaoAggregatorService, useValue: { aggregateByFavorecido: jest.fn().mockResolvedValue({ count: 0, valor: 0, valorAPagar: 0, data: [] }), aggregateByConsorcio: jest.fn().mockResolvedValue({ count: 0, valor: 0, valorAPagar: 0, data: [] }) } },
         { provide: StucGratuidadeAggregatorService, useValue: { aggregate: jest.fn().mockResolvedValue({ count: 0, valor: 0, valorAPagar: 0, data: [] }) } },
       ],
     }).compile();
@@ -200,8 +200,11 @@ describe('ConsolidadoV2Controller', () => {
       await expect(callController({ eleicao: true, consorcioNome: ['CONSORCIO TESTE'] })).rejects.toThrow(HttpException);
     });
 
-    it('rejects with 400 when eleicao=true is combined with todosConsorcios', async () => {
-      await expect(callController({ eleicao: true, todosConsorcios: true })).rejects.toThrow(HttpException);
+    it('selects the consorcio view when eleicao=true is combined with todosConsorcios', async () => {
+      await callController({ eleicao: true, todosConsorcios: true });
+
+      expect(eleicaoAggregatorService.aggregateByConsorcio).toHaveBeenCalledWith(expect.objectContaining({ todosConsorcios: true }));
+      expect(eleicaoAggregatorService.aggregateByFavorecido).not.toHaveBeenCalled();
     });
 
     it('rejects with 400 when eleicao=true is combined with userIds', async () => {

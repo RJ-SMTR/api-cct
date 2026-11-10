@@ -156,6 +156,22 @@ suite('EleicaoAggregatorService (PostgreSQL)', () => {
     );
   }
 
+  it('todosConsorcios keeps only the fixed CONSORCIOS list and matches the legacy total', async () => {
+    await seedEleicaoUser(USER_PRIMARY_ID, '99399999901', 'ELEC-V2-PC-1', 'ELEICAO AGG PRIMARY TESTE');
+    await seedEleicaoOrder({ seedId: 70, dataVencimento: '2097-12-20', valor: 300, statusRemessa: 3, idOperadora: 'ELEC-V2-PC-1', operadoraCpfCnpj: '99399999901', consorcio: 'VLT' });
+    await seedEleicaoOrder({ seedId: 71, dataVencimento: '2097-12-20', valor: 200, statusRemessa: 3, idOperadora: 'ELEC-V2-PC-1', operadoraCpfCnpj: '99399999901', consorcio: 'FORA DA LISTA' });
+    const periodo = { dataInicio: new Date('2097-12-20T00:00:00.000Z'), dataFim: new Date('2097-12-20T00:00:00.000Z') };
+
+    const [novo, antigo] = await Promise.all([
+      aggregator.aggregateByConsorcio({ ...periodo, todosConsorcios: true }),
+      legacyConsolidadoRepository.findConsolidado({ ...periodo, eleicao: true, todosConsorcios: true }),
+    ]);
+
+    expect(novo.data.map((linha) => linha.nomefavorecido)).toEqual(['VLT']);
+    expect(novo.valor).toBe(300);
+    expect(antigo.data.reduce((total, linha) => total + Number(linha.valor), 0)).toBe(novo.valor);
+  });
+
   it('applies valorMin/valorMax to the favorecido total, not to each line', async () => {
     await seedEleicaoUser(USER_PRIMARY_ID, '99399999901', 'ELEC-V2-PC-1', 'ELEICAO AGG PRIMARY TESTE');
     for (const [seedId, dataVencimento] of [[60, '2097-12-10'], [61, '2097-12-11']] as const) {

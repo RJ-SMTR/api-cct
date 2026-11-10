@@ -149,19 +149,18 @@ export class ConsolidadoV2Controller {
       return this.stucGratuidadeAggregatorService.aggregate(filter);
     }
 
-    // Eleicao (T2 da fatia 2, OQ-1 do PRD resolvido como opcao (b)): findEleicaoRows (T7 do ADR
-    // 0021) nao aceita userIds/consorcioNome/todosConsorcios - sem filtro por favorecido/
-    // consorcio especifico nesta rota ainda, so' o total de todos no periodo. userIds ja' cai no
-    // throw generico acima; consorcioNome/todosConsorcios precisam do proprio
-    // rejeicao explicita aqui (nunca ignorados silenciosamente).
+    // Eleicao: todosConsorcios seleciona a visao por consorcio; consorcio especifico segue sem
+    // suporte (findEleicaoRows nao filtra por consorcio), e nunca e' ignorado silenciosamente.
     if (eleicao) {
-      if (consorcioNome?.length || todosConsorcios) {
+      if (consorcioNome?.length) {
         throw new HttpException(
-          { error: '"eleicao" não pode ser combinado com "consorcioNome"/"todosConsorcios" (sem filtro por consórcio específico nesta rota ainda)' },
+          { error: '"eleicao" não pode ser combinado com "consorcioNome" (sem filtro por consórcio específico nesta rota ainda)' },
           HttpStatus.BAD_REQUEST,
         );
       }
-      return this.eleicaoAggregatorService.aggregateByFavorecido(filter);
+      return todosConsorcios
+        ? this.eleicaoAggregatorService.aggregateByConsorcio({ ...filter, todosConsorcios })
+        : this.eleicaoAggregatorService.aggregateByFavorecido(filter);
     }
 
     // Mesma regra implicita do legado (temFiltroConsorcio/temFiltroVanzeiros em

@@ -2,8 +2,9 @@ import { Injectable } from '@nestjs/common';
 import { RelatorioConsolidadoNovoRemessaData, RelatorioConsolidadoNovoRemessaDto } from '../dtos/relatorio-consolidado-novo-remessa.dto';
 import { StatusPagamento } from '../enum/statusRemessafinancial-movement';
 import { BasePagamentoFilter, BasePagamentoRepository, BasePagamentoRow } from '../movimentacao-financeira-v2/base/base-pagamento.repository';
+import { CONSORCIOS } from '../movimentacao-financeira-v2/status/consorcio-resolver';
 
-export type EleicaoAggregatorFilter = Pick<BasePagamentoFilter, 'dataInicio' | 'dataFim' | 'statuses' | 'valorMin' | 'valorMax'>;
+export type EleicaoAggregatorFilter = Pick<BasePagamentoFilter, 'dataInicio' | 'dataFim' | 'statuses' | 'valorMin' | 'valorMax' | 'todosConsorcios'>;
 
 interface Accumulator {
   nome: string;
@@ -33,7 +34,8 @@ export class EleicaoAggregatorService {
   // comportamento do filtro `nome IS NOT NULL` do legado e do ConsorcioAggregatorService (T3).
   async aggregateByConsorcio(filter: EleicaoAggregatorFilter): Promise<RelatorioConsolidadoNovoRemessaDto> {
     const rows = await this.basePagamentoRepository.findEleicaoRows(filter);
-    const rowsComConsorcio = rows.filter((row) => row.nomeConsorcio !== null);
+    // todosConsorcios restringe a lista fixa CONSORCIOS, como o legado faz nessa consulta.
+    const rowsComConsorcio = rows.filter((row) => row.nomeConsorcio !== null && (!filter.todosConsorcios || CONSORCIOS.includes(row.nomeConsorcio)));
     return this.aggregate(rowsComConsorcio, (row) => row.nomeConsorcio as string, () => null);
   }
 

@@ -116,7 +116,7 @@ describe('Rotas v2 do Consolidado, fatia 2 (e2e)', () => {
     await seedDetalhe(BASE_ID + 302, BASE_ID + 301, '2094-06-10', 250);
     await client.query(
       `INSERT INTO ordem_pagamento_unico (id, "idOrdemPagamento", "idOperadora", "operadoraCpfCnpj", "consorcio", "dataOrdem")
-       VALUES ($1, $2, $3, NULL, 'ELEICAO E2E FATIA 2', DATE '2094-06-10')`,
+       VALUES ($1, $2, $3, NULL, 'VLT', DATE '2094-06-10')`,
       [BASE_ID + 303, String(opaId), ELEICAO_PERMIT_CODE],
     );
   }
@@ -181,6 +181,14 @@ describe('Rotas v2 do Consolidado, fatia 2 (e2e)', () => {
 
     expect(res.body.valor).toBe(250);
     expect(res.body.data).toHaveLength(1);
+  });
+
+  it('eleicao=true&todosConsorcios=true devolve a visao por consorcio', async () => {
+    const res = await get(PERM, { dataInicio: '2094-06-10', dataFim: '2094-06-10', eleicao: true, todosConsorcios: true }).expect(HttpStatus.OK);
+
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0].nomefavorecido).toBe('VLT');
+    expect(res.body.valor).toBe(250);
   });
 
   it('eleicao=true em periodo sem ordens responde 200 com lista vazia', async () => {

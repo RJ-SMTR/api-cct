@@ -441,8 +441,9 @@ export class BasePagamentoRepository {
   // status disponivel (buildEleicaoStatusPagamentoCaseSql, restrito por ADR 0004 - sem
   // Pendencia Paga/Pendentes) coincidem com o resto de findGroupedRows. Por isso e' um metodo
   // separado, nao uma nova fonte na CTE "combinado" (decisao documentada no relatorio da task).
-  async findEleicaoRows(filter: Pick<BasePagamentoFilter, 'dataInicio' | 'dataFim' | 'statuses' | 'valorMin' | 'valorMax'>): Promise<BasePagamentoRow[]> {
+  async findEleicaoRows(filter: Pick<BasePagamentoFilter, 'dataInicio' | 'dataFim' | 'statuses' | 'valorMin' | 'valorMax' | 'consorcioNome' | 'todosConsorcios'>): Promise<BasePagamentoRow[]> {
     const eleicaoStatusCase = buildEleicaoStatusPagamentoCaseSql('oph');
+    const chaveDoTotal = filter.consorcioNome?.length || filter.todosConsorcios ? '"nomeConsorcio"' : 'nomes';
 
     const sql = `
       WITH eleicao AS (
@@ -477,7 +478,7 @@ export class BasePagamentoRepository {
       )
       , filtrado AS (
         SELECT "dataReferencia", nomes, "cpfCnpj", "nomeConsorcio", valor, status,
-          SUM(valor) OVER (PARTITION BY nomes) AS "totalDoGrupo"
+          SUM(valor) OVER (PARTITION BY ${chaveDoTotal}) AS "totalDoGrupo"
         FROM eleicao
         WHERE ($3::text[] IS NULL OR status = ANY($3))
       )
