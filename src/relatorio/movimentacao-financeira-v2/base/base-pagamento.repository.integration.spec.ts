@@ -2038,4 +2038,140 @@ suite('BasePagamentoRepository (PostgreSQL)', () => {
       expect(guardadorTotal).toBe(801 + 802);
     });
   });
+
+  // Fixtures dos itens A1-A4 (faixa 985000000-985000999, limpeza so' desta faixa).
+  describe('Fechamento v2 (A1-A4)', () => {
+    const A_BASE = 985000000;
+    const periodo = { dataInicio: new Date('2098-03-10T00:00:00.000Z'), dataFim: new Date('2098-03-10T00:00:00.000Z') };
+
+    async function cleanFixturesA(): Promise<void> {
+      await dataSource.query(`DELETE FROM detalhe_a WHERE id BETWEEN $1 AND $2`, [A_BASE, A_BASE + 999]);
+      await dataSource.query(`DELETE FROM ordem_pagamento_agrupado_historico WHERE id BETWEEN $1 AND $2`, [A_BASE, A_BASE + 999]);
+      await dataSource.query(`DELETE FROM ordem_pagamento WHERE id BETWEEN $1 AND $2`, [A_BASE, A_BASE + 999]);
+      await dataSource.query(`DELETE FROM ordem_pagamento_guardador WHERE id BETWEEN $1 AND $2`, [A_BASE, A_BASE + 999]);
+      await dataSource.query(`DELETE FROM ordem_pagamento_agrupado WHERE id BETWEEN $1 AND $2`, [A_BASE, A_BASE + 999]);
+      await dataSource.query(`DELETE FROM user_relationships WHERE user_id BETWEEN $1 AND $2 OR related_user_id BETWEEN $1 AND $2`, [A_BASE, A_BASE + 999]);
+      await dataSource.query(`DELETE FROM public."user" WHERE id BETWEEN $1 AND $2`, [A_BASE, A_BASE + 999]);
+    }
+
+    beforeEach(cleanFixturesA);
+    afterAll(cleanFixturesA);
+
+    async function seedUsuario(params: { id: number; nome: string; cpf: string; bloqueado?: boolean; roleId?: number; permitCode?: string | null }): Promise<void> {
+      await dataSource.query(`INSERT INTO role (id, name) VALUES (6, 'agentes') ON CONFLICT (id) DO NOTHING`);
+      await dataSource.query(
+        `INSERT INTO public."user" (
+          id, email, provider, "fullName", "roleId", "cpfCnpj", "permitCode",
+          "bankCode", "bankAgency", "bankAccount", "bankAccountDigit", bloqueado,
+          "createdAt", "updatedAt"
+        ) VALUES ($1, $2, 'email', $3, $4, $5, $6, 104, '0001', '99990002', '1', $7, now(), now())`,
+        [params.id, `rv2-${params.id}@example.test`, params.nome, params.roleId ?? 1, params.cpf, params.permitCode ?? null, params.bloqueado ?? false],
+      );
+    }
+
+    async function seedOrdemSolta(params: { id: number; valor: number; userId: number | null; consorcio?: string; data?: string }): Promise<void> {
+      const data = params.data ?? '2098-03-10';
+      await dataSource.query(
+        `INSERT INTO ordem_pagamento (id, "dataOrdem", "dataCaptura", valor, "bqUpdatedAt", "userId", "nomeConsorcio", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt")
+         VALUES ($1, $2::date, $2::date, $3, now(), $4, $5, NULL, now(), now())`,
+        [params.id, data, params.valor, params.userId, params.consorcio ?? 'RV2 CONSORCIO'],
+      );
+    }
+
+    type Filtro = Parameters<BasePagamentoRepository['findGroupedRowsPage']>[1];
+
+    async function percorrer(perfil: 'permissionario' | 'guardador', filtro: Filtro, pageSize: number) {
+      const linhas: Awaited<ReturnType<BasePagamentoRepository['findGroupedRows']>> = [];
+      let cursor: Parameters<BasePagamentoRepository['findGroupedRowsPage']>[3];
+      for (let pagina = 0; pagina < 50; pagina += 1) {
+        const resultado = await repository.findGroupedRowsPage(perfil, filtro, pageSize, cursor);
+        linhas.push(...resultado.rows);
+        if (!resultado.nextCursor) return linhas;
+        cursor = resultado.nextCursor;
+      }
+      throw new Error('paginacao nao terminou em 50 paginas');
+    }
+
+    describe('A1: chave estavel por linha', () => {
+      const filtroConsorcio = { ...periodo, consorcioNome: ['RV2 CONSORCIO'] };
+
+      it('returns two orders identical on every cursor column, paging with pageSize 1', async () => {
+        await seedOrdemSolta({ id: A_BASE + 1, valor: 77, userId: null });
+        await seedOrdemSolta({ id: A_BASE + 2, valor: 77, userId: null });
+
+        const linhas = await percorrer('permissionario', filtroConsorcio, 1);
+
+        expect(linhas).toHaveLength(2);
+        expect(new Set(linhas.map((linha) => linha.chaveLinha)).size).toBe(2);
+      });
+
+      it('does not lose a row without a favorecido that sorts after a named one (NULL handling)', async () => {
+        await seedUsuario({ id: A_BASE + 10, nome: 'RV2 NOMEADO', cpf: '98500000010' });
+        await seedOrdemSolta({ id: A_BASE + 3, valor: 10, userId: A_BASE + 10 });
+        await seedOrdemSolta({ id: A_BASE + 4, valor: 20, userId: null });
+
+        const linhas = await percorrer('permissionario', filtroConsorcio, 1);
+
+        expect(linhas.map((linha) => Number(linha.valor)).sort((a, b) => a - b)).toEqual([10, 20]);
+      });
+
+      it('keeps one row per history when a never-sent order fans out (key is per emitted row)', async () => {
+        const opaId = A_BASE + 100;
+        await dataSource.query(
+          `INSERT INTO ordem_pagamento_agrupado (id, "dataPagamento", "valorTotal", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt")
+           VALUES ($1, DATE '2098-03-10', 33, NULL, now(), now())`,
+          [opaId],
+        );
+        await dataSource.query(
+          `INSERT INTO ordem_pagamento (id, "dataOrdem", "dataCaptura", valor, "bqUpdatedAt", "userId", "nomeConsorcio", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt")
+           VALUES ($1, DATE '2098-03-10', DATE '2098-03-10', 33, now(), NULL, 'RV2 CONSORCIO', $2, now(), now())`,
+          [A_BASE + 5, opaId],
+        );
+        for (const offset of [101, 102]) {
+          await dataSource.query(
+            `INSERT INTO ordem_pagamento_agrupado_historico (id, "ordemPagamentoAgrupadoId", "dataReferencia", "userBankCode", "userBankAgency", "userBankAccount", "userBankAccountDigit", "statusRemessa")
+             VALUES ($1, $2, DATE '2098-03-10', '104', '0001', '99990002', '1', 0)`,
+            [A_BASE + offset, opaId],
+          );
+        }
+
+        const [completo, paginado] = await Promise.all([repository.findGroupedRows('permissionario', filtroConsorcio), percorrer('permissionario', filtroConsorcio, 1)]);
+
+        expect(paginado).toHaveLength(completo.length);
+        expect(new Set(paginado.map((linha) => linha.chaveLinha)).size).toBe(paginado.length);
+      });
+
+      it('a cursor without the key keeps the previous behaviour (no error, no repeated row)', async () => {
+        await seedOrdemSolta({ id: A_BASE + 1, valor: 77, userId: null });
+        await seedOrdemSolta({ id: A_BASE + 2, valor: 88, userId: null });
+
+        const primeira = await repository.findGroupedRowsPage('permissionario', filtroConsorcio, 1);
+        const semChave = { ...(primeira.nextCursor as NonNullable<typeof primeira.nextCursor>), chaveLinha: undefined };
+        const segunda = await repository.findGroupedRowsPage('permissionario', filtroConsorcio, 1, semChave);
+
+        expect(segunda.rows.map((linha) => Number(linha.valor))).toEqual([88]);
+        expect(segunda.nextCursor).toBeNull();
+      });
+
+      it('round-trips the key through the request cursor', async () => {
+        await seedOrdemSolta({ id: A_BASE + 1, valor: 77, userId: null });
+        await seedOrdemSolta({ id: A_BASE + 2, valor: 77, userId: null });
+
+        const primeira = await repository.findGroupedRowsPage('permissionario', filtroConsorcio, 1);
+        const c = primeira.nextCursor as NonNullable<typeof primeira.nextCursor>;
+        const cursor = resolveCursorFromQuery({
+          ...filtroConsorcio,
+          cursorDataReferencia: c.dataReferencia as string,
+          cursorNomeConsorcio: c.nomeConsorcio ?? undefined,
+          cursorStatus: c.status ?? undefined,
+          cursorValor: c.valor === null ? undefined : String(c.valor),
+          cursorChaveLinha: c.chaveLinha ?? undefined,
+        });
+        const segunda = await repository.findGroupedRowsPage('permissionario', filtroConsorcio, 1, cursor);
+
+        expect(segunda.rows).toHaveLength(1);
+        expect(segunda.rows[0].chaveLinha).not.toBe(primeira.rows[0].chaveLinha);
+      });
+    });
+  });
 });

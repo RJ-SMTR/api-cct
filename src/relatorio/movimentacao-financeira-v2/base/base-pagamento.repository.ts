@@ -36,6 +36,9 @@ export interface BasePagamentoRow {
   nomeConsorcio: string | null;
   valor: string;
   status: StatusPagamento;
+  // Chave estavel por linha (ver CURSOR_ORDER_BY); ausente nas linhas de Eleicao, que nao paginam
+  // por cursor. Nunca vai para as colunas de saida (toExportRow escolhe os campos).
+  chaveLinha?: string;
 }
 
 // Keyset cursor (T4, AC-19/ADR 0002): every field of BasePagamentoRow doubles as a
@@ -50,6 +53,8 @@ export interface BasePagamentoCursor {
   nomeConsorcio: string | null;
   status: string | null;
   valor: string | null;
+  // Opcional: um cliente que ainda nao envia cursorChaveLinha continua paginando pelas 6 colunas.
+  chaveLinha?: string | null;
 }
 
 export interface BasePagamentoPage {
@@ -58,15 +63,11 @@ export interface BasePagamentoPage {
   nextCursor: BasePagamentoCursor | null;
 }
 
-// Plain tuple for ORDER BY (nulls sort predictably on their own, no COALESCE needed) - keeps
-// the existing perceptible order (dataReferencia, nomes first) and only adds the remaining
-// columns as deterministic tie-breakers after it.
-const CURSOR_ORDER_BY = `"dataReferencia", nomes, "cpfCnpj", "nomeConsorcio", status, valor`;
-
-// Same tuple, COALESCEd for the keyset WHERE row-comparison: Postgres row comparison returns
-// NULL (silently excluding the row) if any compared element is NULL, so every nullable column
-// needs a non-NULL stand-in on both sides of the comparison.
-const CURSOR_TUPLE_COMPARE = `
+// Mesma lista de expressoes no ORDER BY e na comparacao de tupla do keyset: com ORDER BY na
+// coluna pura, NULL ordena por ultimo mas COALESCE(nomes, '') o trata como menor valor, e a linha
+// sem favorecido sumia num corte de pagina. Row comparison do Postgres tambem nao aceita NULL, por
+// isso o COALESCE nos dois lados. Efeito visivel: linhas sem favorecido vem primeiro no seu dia.
+const CURSOR_TUPLE = `
   "dataReferencia",
   COALESCE(nomes, ''),
   COALESCE("cpfCnpj", ''),
@@ -74,6 +75,10 @@ const CURSOR_TUPLE_COMPARE = `
   COALESCE(status, ''),
   COALESCE(valor::numeric, 0)
 `;
+
+// chaveLinha desempata linhas identicas nas 6 colunas (que o keyset perdia num corte de pagina):
+// prefixo da fonte + id da linha, sempre texto, comparado na collation padrao como o ORDER BY.
+const CURSOR_ORDER_BY = `${CURSOR_TUPLE}, "chaveLinha"`;
 
 // Guardador nao tem o conceito de consorcio nesta forma (fora de escopo da fatia 1, ADR 0022) -
 // nomeConsorcio sai sempre null para esse perfil, nunca inventado. Dois pontos de resolucao
@@ -206,18 +211,22 @@ export class BasePagamentoRepository {
   ): Promise<BasePagamentoPage> {
     const { sql, params } = this.buildCombinadoSql(perfil, filter);
     const base = params.length; // last positional param already used by buildCombinadoSql
-    const pagedSql = `
-      ${sql}
-        AND (
-          $${base + 1}::date IS NULL
-          OR (${CURSOR_TUPLE_COMPARE}) > (
+    const tuplaCursor = `(
             $${base + 1}::date,
             COALESCE($${base + 2}::text, ''),
             COALESCE($${base + 3}::text, ''),
             COALESCE($${base + 4}::text, ''),
             COALESCE($${base + 5}::text, ''),
             COALESCE($${base + 6}::numeric, 0)
-          )
+          )`;
+    // Sem a chave no pedido, compara so as 6 colunas: tratar a chave ausente como '' repetiria a
+    // propria linha do cursor.
+    const pagedSql = `
+      ${sql}
+        AND (
+          $${base + 1}::date IS NULL
+          OR (${CURSOR_TUPLE}) > ${tuplaCursor}
+          OR ($${base + 8}::text IS NOT NULL AND (${CURSOR_TUPLE}) = ${tuplaCursor} AND "chaveLinha" > $${base + 8}::text)
         )
       ORDER BY ${CURSOR_ORDER_BY}
       LIMIT $${base + 7}
@@ -232,6 +241,7 @@ export class BasePagamentoRepository {
       cursor?.status ?? null,
       cursor?.valor ?? null,
       pageSize + 1,
+      cursor?.chaveLinha ?? null,
     ]);
 
     const hasMore = rows.length > pageSize;
@@ -246,6 +256,7 @@ export class BasePagamentoRepository {
             nomeConsorcio: lastRow.nomeConsorcio,
             status: lastRow.status,
             valor: lastRow.valor,
+            chaveLinha: lastRow.chaveLinha ?? null,
           }
         : null;
 
@@ -283,7 +294,8 @@ export class BasePagamentoRepository {
           pu."cpfCnpj" AS "cpfCnpj",
           ${NOME_CONSORCIO_AGRUPADA[perfil]} AS "nomeConsorcio",
           da."valorLancamento" AS valor,
-          ${statusCase} AS status
+          ${statusCase} AS status,
+          da.id AS "detalheAId"
         FROM ordem_pagamento_agrupado opa
         INNER JOIN ordem_pagamento_agrupado_historico oph ON oph."ordemPagamentoAgrupadoId" = opa.id
         INNER JOIN detalhe_a da ON da."ordemPagamentoAgrupadoHistoricoId" = oph.id
@@ -302,7 +314,8 @@ export class BasePagamentoRepository {
           pu."cpfCnpj" AS "cpfCnpj",
           ${NOME_CONSORCIO_AGRUPADA[perfil]} AS "nomeConsorcio",
           da."valorLancamento" AS valor,
-          '${StatusPagamento.PENDENCIA_PAGA}' AS status
+          '${StatusPagamento.PENDENCIA_PAGA}' AS status,
+          'pendencia_paga:' || da.id::text AS "chaveLinha"
         FROM ordem_pagamento_agrupado opa
         LEFT JOIN ordem_pagamento_agrupado op_pai ON op_pai.id = opa."ordemPagamentoAgrupadoId"
         INNER JOIN ordem_pagamento_agrupado_historico oph ON oph."ordemPagamentoAgrupadoId" = opa.id
@@ -336,7 +349,8 @@ export class BasePagamentoRepository {
           pu."cpfCnpj" AS "cpfCnpj",
           ${NOME_CONSORCIO_AGRUPADA[perfil]} AS "nomeConsorcio",
           ROUND(opa."valorTotal"::numeric, 2) AS valor,
-          '${StatusPagamento.PENDENCIA_PAGA}' AS status
+          '${StatusPagamento.PENDENCIA_PAGA}' AS status,
+          'pendencia_paga_passo0:' || opa.id::text AS "chaveLinha"
         FROM ordem_pagamento_agrupado opa
         INNER JOIN ordem_pagamento_agrupado op_pai ON op_pai.id = opa."ordemPagamentoAgrupadoId"
         INNER JOIN ordem_pagamento_agrupado_historico oph ON oph.id = (
@@ -366,7 +380,8 @@ export class BasePagamentoRepository {
         -- nivel de agregacao desta fonte. Nao se mistura com a fonte "nunca enviada" abaixo: cada
         -- fonte agrega (ou nao) dentro de si mesma, nunca as duas juntas. nomeConsorcio entra no
         -- GROUP BY mas e deterministico por favorecido/ordem (nao fragmenta totais reais).
-        SELECT "dataReferencia", nomes, "cpfCnpj", "nomeConsorcio", SUM(valor) AS valor, status
+        SELECT "dataReferencia", nomes, "cpfCnpj", "nomeConsorcio", SUM(valor) AS valor, status,
+          'agrupada:' || MIN("detalheAId")::text AS "chaveLinha"
         FROM agrupada
         GROUP BY "dataReferencia", nomes, "cpfCnpj", "nomeConsorcio", status
       ),
@@ -379,7 +394,9 @@ export class BasePagamentoRepository {
           pu."cpfCnpj" AS "cpfCnpj",
           ${NOME_CONSORCIO_NUNCA_ENVIADA[perfil]} AS "nomeConsorcio",
           op."${valorColumn}" AS valor,
-          '${StatusPagamento.A_PAGAR}' AS status
+          '${StatusPagamento.A_PAGAR}' AS status,
+          -- oph.id entra na chave: uma ordem de agrupamento sem detalhe_a sai uma vez por historico.
+          'nunca_enviada:' || op.id::text || ':' || COALESCE(oph.id::text, '0') AS "chaveLinha"
         FROM ${ordemTable} op
         LEFT JOIN ordem_pagamento_agrupado opa ON op."ordemPagamentoAgrupadoId" = opa.id
         LEFT JOIN public."user" pu ON pu.id = op."userId"
@@ -406,14 +423,14 @@ export class BasePagamentoRepository {
         SELECT * FROM pendentes
       ),
       filtrado AS (
-        SELECT "dataReferencia", nomes, "cpfCnpj", "nomeConsorcio", valor, status,
+        SELECT "dataReferencia", nomes, "cpfCnpj", "nomeConsorcio", valor, status, "chaveLinha",
           SUM(valor) OVER (PARTITION BY ${chaveDoTotal}) AS "totalDoGrupo"
         FROM combinado
         WHERE ($3::text[] IS NULL OR status = ANY($3))
           AND ($7::text[] IS NULL OR UPPER(TRIM("nomeConsorcio")) = ANY($7))
           AND ($8::text[] IS NULL OR NOT ("cpfCnpj" = ANY($8)))
       )
-      SELECT "dataReferencia", nomes, "cpfCnpj", "nomeConsorcio", valor, status
+      SELECT "dataReferencia", nomes, "cpfCnpj", "nomeConsorcio", valor, status, "chaveLinha"
       FROM filtrado
       WHERE ($4::numeric IS NULL OR "totalDoGrupo" >= $4)
         AND ($5::numeric IS NULL OR "totalDoGrupo" <= $5)
@@ -512,7 +529,8 @@ export class BasePagamentoRepository {
           pu."cpfCnpj" AS "cpfCnpj",
           ${NOME_CONSORCIO_AGRUPADA[perfil]} AS "nomeConsorcio",
           da."valorLancamento" AS valor,
-          ${statusPai} AS status
+          ${statusPai} AS status,
+          'pendencia_pagamento_familia:' || da.id::text AS "chaveLinha"
         FROM ordem_pagamento_agrupado opa
         INNER JOIN ordem_pagamento_agrupado op_pai ON op_pai.id = opa."ordemPagamentoAgrupadoId"
         INNER JOIN ordem_pagamento_agrupado_historico oph ON oph."ordemPagamentoAgrupadoId" = opa.id
@@ -535,7 +553,8 @@ export class BasePagamentoRepository {
           pu."cpfCnpj" AS "cpfCnpj",
           ${NOME_CONSORCIO_AGRUPADA[perfil]} AS "nomeConsorcio",
           da."valorLancamento" AS valor,
-          ${statusPropria} AS status
+          ${statusPropria} AS status,
+          'pendencia_pagamento_propria:' || da.id::text AS "chaveLinha"
         FROM ordem_pagamento_agrupado opa
         INNER JOIN ordem_pagamento_agrupado_historico oph ON oph."ordemPagamentoAgrupadoId" = opa.id
         INNER JOIN detalhe_a da ON da."ordemPagamentoAgrupadoHistoricoId" = oph.id
@@ -560,7 +579,8 @@ export class BasePagamentoRepository {
           pu."cpfCnpj" AS "cpfCnpj",
           ${NOME_CONSORCIO_AGRUPADA[perfil]} AS "nomeConsorcio",
           da."valorLancamento" AS valor,
-          ${statusPropria} AS status
+          ${statusPropria} AS status,
+          'pendencia_pagamento_intervalo:' || da.id::text AS "chaveLinha"
         FROM ordem_pagamento_agrupado opa
         INNER JOIN ordem_pagamento_agrupado_historico oph ON oph."ordemPagamentoAgrupadoId" = opa.id
         INNER JOIN detalhe_a da ON da."ordemPagamentoAgrupadoHistoricoId" = oph.id
@@ -593,7 +613,8 @@ export class BasePagamentoRepository {
           pu."cpfCnpj" AS "cpfCnpj",
           ${NOME_CONSORCIO_AGRUPADA[perfil]} AS "nomeConsorcio",
           opa."valorTotal" AS valor,
-          '${StatusPagamento.PENDENTES}' AS status
+          '${StatusPagamento.PENDENTES}' AS status,
+          'pendentes_nunca_enviado:' || opa.id::text AS "chaveLinha"
         FROM ordem_pagamento_agrupado opa
         ${lateral}
         WHERE opa."dataPagamento"::date BETWEEN $1::date AND $2::date
@@ -609,7 +630,8 @@ export class BasePagamentoRepository {
           pu."cpfCnpj" AS "cpfCnpj",
           ${NOME_CONSORCIO_NUNCA_ENVIADA[perfil]} AS "nomeConsorcio",
           op."${valorColumn}" AS valor,
-          '${StatusPagamento.PENDENTES}' AS status
+          '${StatusPagamento.PENDENTES}' AS status,
+          'pendentes_solta:' || op.id::text AS "chaveLinha"
         FROM ${ordemTable} op
         LEFT JOIN public."user" pu ON pu.id = op."userId"
         WHERE op."${dataCapturaColumn}"::date BETWEEN $1::date AND $2::date
@@ -625,7 +647,8 @@ export class BasePagamentoRepository {
           pu."cpfCnpj" AS "cpfCnpj",
           ${NOME_CONSORCIO_AGRUPADA[perfil]} AS "nomeConsorcio",
           da."valorLancamento" AS valor,
-          '${StatusPagamento.PENDENTES}' AS status
+          '${StatusPagamento.PENDENTES}' AS status,
+          'pendentes_rejeitado:' || da.id::text AS "chaveLinha"
         FROM ordem_pagamento_agrupado opa
         INNER JOIN ordem_pagamento_agrupado_historico oph ON oph."ordemPagamentoAgrupadoId" = opa.id
         INNER JOIN detalhe_a da ON da."ordemPagamentoAgrupadoHistoricoId" = oph.id

@@ -25,6 +25,7 @@ export type FinancialMovementV2Filter = BasePagamentoFilter & {
   cursorCpfCnpj?: string;
   cursorNomeConsorcio?: string;
   cursorValor?: string;
+  cursorChaveLinha?: string;
 };
 
 const DEFAULT_PAGE_SIZE = 50;

@@ -47,6 +47,7 @@ export function mapQueryToFinancialMovementV2Filter(
     cursorCpfCnpj: query.cursorCpfCnpj,
     cursorNomeConsorcio: query.cursorNomeConsorcio,
     cursorValor: query.cursorValor,
+    cursorChaveLinha: query.cursorChaveLinha,
   };
 }
 
@@ -64,5 +65,6 @@ export function resolveCursorFromQuery(query: FinancialMovementV2Filter): BasePa
     nomeConsorcio: query.cursorNomeConsorcio ?? null,
     status: query.cursorStatus ?? null,
     valor: query.cursorValor || null,
+    chaveLinha: query.cursorChaveLinha || undefined,
   };
 }

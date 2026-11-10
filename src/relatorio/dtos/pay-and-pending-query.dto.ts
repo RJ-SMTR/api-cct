@@ -47,6 +47,11 @@ export class FinancialMovementQueryDto {
   @IsString()
   cursorValor?: string;
 
+  @ApiPropertyOptional({ description: 'Cursor (rotas v2): chave estável da última linha da página (nextCursor.chaveLinha).', type: String })
+  @IsOptional()
+  @IsString()
+  cursorChaveLinha?: string;
+
   @ApiPropertyOptional({ description: 'Cursor: cpfCnpj', type: String })
   @IsOptional()
   @IsString()
