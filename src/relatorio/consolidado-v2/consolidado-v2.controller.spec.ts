@@ -110,23 +110,39 @@ describe('ConsolidadoV2Controller', () => {
     expect(guards.length).toBeGreaterThan(0);
   });
 
-  it.each(['desativados', 'pendentes'])(
-    'rejects with 400 when "%s" is sent as true (out of scope for this slice)',
-    async (flag) => {
-      await expect(callController({ [flag]: true })).rejects.toThrow(HttpException);
+  it('rejects with 400 when "desativados" is sent as true (out of scope for this slice)', async () => {
+    await expect(callController({ desativados: true })).rejects.toMatchObject({ status: 400 });
+  });
 
-      try {
-        await callController({ [flag]: true });
-        fail('expected HttpException');
-      } catch (e) {
-        expect(e).toBeInstanceOf(HttpException);
-        expect(e.getStatus()).toBe(400);
-      }
-    },
-  );
+  it('forwards userIds to the favorecido aggregator', async () => {
+    await callController({ userIds: [7, 8], pago: true });
 
-  it('rejects with 400 when userIds is sent (not supported until ADR 0021 T3 lands)', async () => {
-    await expect(callController({ userIds: [1] })).rejects.toThrow(HttpException);
+    expect(vanzeiroAggregatorService.aggregate).toHaveBeenCalledWith(
+      expect.objectContaining({ userIds: [7, 8], statuses: [StatusPagamento.PAGO] }),
+    );
+  });
+
+  // Legado: "todosVanzeiros" tem prioridade sobre o favorecido especifico.
+  it('ignores userIds when todosVanzeiros is true, like legacy', async () => {
+    await callController({ userIds: [7], todosVanzeiros: true });
+
+    const calledFilter = (vanzeiroAggregatorService.aggregate as jest.Mock).mock.calls[0][0];
+    expect(calledFilter.userIds).toBeUndefined();
+  });
+
+  // Legado une as duas visoes nesse caso; sem suporte aqui, erro explicito e nunca ignorado.
+  it.each([{ consorcioNome: ['STPC'] }, { todosConsorcios: true }])('rejects with 400 when userIds is combined with %j', async (consorcioOverrides) => {
+    await expect(callController({ userIds: [7], ...consorcioOverrides })).rejects.toMatchObject({ status: 400 });
+    await expect(callController({ userIds: [7], stucGratuidade: true, ...consorcioOverrides })).rejects.toMatchObject({ status: 400 });
+
+    expect(consorcioAggregatorService.aggregate).not.toHaveBeenCalled();
+    expect(stucGratuidadeAggregatorService.aggregate).not.toHaveBeenCalled();
+  });
+
+  it('maps pendentes to StatusPagamento.PENDENTES', async () => {
+    await callController({ pendentes: true });
+
+    expect(vanzeiroAggregatorService.aggregate).toHaveBeenCalledWith(expect.objectContaining({ statuses: [StatusPagamento.PENDENTES] }));
   });
 
   // T1 (fatia 2): pendenciaPaga/rejeitado/estorno/erro deixam de ser rejeitados e passam a
@@ -232,6 +248,19 @@ describe('ConsolidadoV2Controller', () => {
       expect(consorcioAggregatorService.aggregate).not.toHaveBeenCalled();
     },
   );
+
+  it('forwards userIds to the STUC-Gratuidade aggregator', async () => {
+    await callController({ stucGratuidade: true, userIds: [7] });
+
+    expect(stucGratuidadeAggregatorService.aggregate).toHaveBeenCalledWith(expect.objectContaining({ userIds: [7] }));
+  });
+
+  // STUC nao tem fonte de Pendentes: o legado devolveria todos os status nesse caso.
+  it('rejects with 400 when "stucGratuidade" is combined with pendentes', async () => {
+    await expect(callController({ stucGratuidade: true, pendentes: true })).rejects.toMatchObject({ status: 400 });
+
+    expect(stucGratuidadeAggregatorService.aggregate).not.toHaveBeenCalled();
+  });
 
   it('gives stucGratuidade precedence over eleicao, like the legacy findConsolidado', async () => {
     await callController({ stucGratuidade: true, eleicao: true });

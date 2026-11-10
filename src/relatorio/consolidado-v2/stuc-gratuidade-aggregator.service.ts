@@ -10,15 +10,13 @@ import { StucGratuidadeFilter, StucGratuidadeRepository } from '../movimentacao-
 // T8 do ADR 0021, ja' faz o pivot e aplica valorMin/valorMax pos-pivot). Este servico so' mapeia
 // o shape pivotado para RelatorioConsolidadoNovoRemessaDto. O filtro de consorcio vai para o
 // repositorio e continua devolvendo uma linha por favorecido, como o ramo STUC do legado.
-export type StucGratuidadeAggregatorFilter = Omit<StucGratuidadeFilter, 'userIds'>;
+export type StucGratuidadeAggregatorFilter = StucGratuidadeFilter;
 
 @Injectable()
 export class StucGratuidadeAggregatorService {
   constructor(private readonly stucGratuidadeRepository: StucGratuidadeRepository) {}
 
   async aggregate(filter: StucGratuidadeAggregatorFilter): Promise<RelatorioConsolidadoNovoRemessaDto> {
-    // userIds nao e' exposto por esta rota para STUC (mesma decisao das demais categorias desta
-    // fatia, OQ-2 do PRD) - nunca repassado ao repositorio, mesmo que ele aceite o parametro.
     const rows = await this.stucGratuidadeRepository.findRows(filter);
 
     // DTO expõe as colunas de data como string (dd/MM/yyyy, mesmo formato do legado
