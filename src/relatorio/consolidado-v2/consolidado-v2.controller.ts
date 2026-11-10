@@ -8,12 +8,13 @@ import { ParseNumberPipe } from 'src/utils/pipes/parse-number.pipe';
 import { StatusPagamento } from '../enum/statusRemessafinancial-movement';
 import { ConsorcioAggregatorService } from './consorcio-aggregator.service';
 import { EleicaoAggregatorService } from './eleicao-aggregator.service';
+import { StucGratuidadeAggregatorService } from './stuc-gratuidade-aggregator.service';
 import { VanzeiroAggregatorService } from './vanzeiro-aggregator.service';
 
 // Parametros fora do escopo da fatia 2 (ADR 0022) - Pendentes, desativados e paginacao. Enviar
 // qualquer um deles com valor truthy e' erro explicito (nunca ignorado silenciosamente - decisao
 // do PRD-consolidado-v2.md).
-const OUT_OF_SCOPE_FLAGS = ['desativados', 'pendentes', 'stucGratuidade'] as const;
+const OUT_OF_SCOPE_FLAGS = ['desativados', 'pendentes'] as const;
 
 @ApiTags('Cnab')
 @Controller({
@@ -25,6 +26,7 @@ export class ConsolidadoV2Controller {
     private readonly vanzeiroAggregatorService: VanzeiroAggregatorService,
     private readonly consorcioAggregatorService: ConsorcioAggregatorService,
     private readonly eleicaoAggregatorService: EleicaoAggregatorService,
+    private readonly stucGratuidadeAggregatorService: StucGratuidadeAggregatorService,
   ) {}
 
   @ApiQuery({ name: 'dataInicio', description: 'Data da Ordem de Pagamento Inicial', required: true, type: String })
@@ -118,6 +120,22 @@ export class ConsolidadoV2Controller {
       valorMax,
       statuses: statuses.length > 0 ? statuses : undefined,
     };
+
+    // STUC vem antes de Eleicao: no legado (findConsolidado), stucGratuidade tem prioridade sobre
+    // os demais tipos de consulta.
+    // STUC - Gratuidade (T3 do ADR 0021, fatia 2): sem visao por consorcio - o legado tambem nao
+    // tem uma agregacao por consorcio de verdade para STUC (StucGratuidadeRepository nao
+    // implementa esse filtro, OQ-1 do PRD) - rejeitar explicitamente em vez de rotear para a
+    // visao de consorcio ou ignorar o parametro silenciosamente.
+    if (stucGratuidade) {
+      if (consorcioNome?.length || todosConsorcios) {
+        throw new HttpException(
+          { error: '"stucGratuidade" não suporta filtro de consórcio ("consorcioNome"/"todosConsorcios") nesta rota' },
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+      return this.stucGratuidadeAggregatorService.aggregate(filter);
+    }
 
     // Eleicao (T2 da fatia 2, OQ-1 do PRD resolvido como opcao (b)): findEleicaoRows (T7 do ADR
     // 0021) nao aceita userIds/consorcioNome/todosConsorcios - sem filtro por favorecido/

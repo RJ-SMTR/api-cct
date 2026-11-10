@@ -5,6 +5,7 @@ import { StatusPagamento } from '../enum/statusRemessafinancial-movement';
 import { ConsolidadoV2Controller } from './consolidado-v2.controller';
 import { ConsorcioAggregatorService } from './consorcio-aggregator.service';
 import { EleicaoAggregatorService } from './eleicao-aggregator.service';
+import { StucGratuidadeAggregatorService } from './stuc-gratuidade-aggregator.service';
 import { VanzeiroAggregatorService } from './vanzeiro-aggregator.service';
 
 describe('ConsolidadoV2Controller', () => {
@@ -12,6 +13,7 @@ describe('ConsolidadoV2Controller', () => {
   let vanzeiroAggregatorService: VanzeiroAggregatorService;
   let consorcioAggregatorService: ConsorcioAggregatorService;
   let eleicaoAggregatorService: EleicaoAggregatorService;
+  let stucGratuidadeAggregatorService: StucGratuidadeAggregatorService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -20,6 +22,7 @@ describe('ConsolidadoV2Controller', () => {
         { provide: VanzeiroAggregatorService, useValue: { aggregate: jest.fn().mockResolvedValue({ count: 0, valor: 0, valorAPagar: 0, data: [] }) } },
         { provide: ConsorcioAggregatorService, useValue: { aggregate: jest.fn().mockResolvedValue({ count: 0, valor: 0, valorAPagar: 0, data: [] }) } },
         { provide: EleicaoAggregatorService, useValue: { aggregateByFavorecido: jest.fn().mockResolvedValue({ count: 0, valor: 0, valorAPagar: 0, data: [] }) } },
+        { provide: StucGratuidadeAggregatorService, useValue: { aggregate: jest.fn().mockResolvedValue({ count: 0, valor: 0, valorAPagar: 0, data: [] }) } },
       ],
     }).compile();
 
@@ -27,6 +30,7 @@ describe('ConsolidadoV2Controller', () => {
     vanzeiroAggregatorService = module.get(VanzeiroAggregatorService);
     consorcioAggregatorService = module.get(ConsorcioAggregatorService);
     eleicaoAggregatorService = module.get(EleicaoAggregatorService);
+    stucGratuidadeAggregatorService = module.get(StucGratuidadeAggregatorService);
   });
 
   const dataInicio = new Date('2098-01-01');
@@ -106,7 +110,7 @@ describe('ConsolidadoV2Controller', () => {
     expect(guards.length).toBeGreaterThan(0);
   });
 
-  it.each(['desativados', 'pendentes', 'stucGratuidade'])(
+  it.each(['desativados', 'pendentes'])(
     'rejects with 400 when "%s" is sent as true (out of scope for this slice)',
     async (flag) => {
       await expect(callController({ [flag]: true })).rejects.toThrow(HttpException);
@@ -203,5 +207,41 @@ describe('ConsolidadoV2Controller', () => {
     it('rejects with 400 when eleicao=true is combined with userIds', async () => {
       await expect(callController({ eleicao: true, userIds: [1] })).rejects.toThrow(HttpException);
     });
+  });
+
+  // T3 do ADR 0021 (fatia 2): stucGratuidade sai de OUT_OF_SCOPE_FLAGS e passa a ter roteamento
+  // proprio, sem view por consorcio (StucGratuidadeRepository nao implementa esse filtro).
+  it('calls the STUC-Gratuidade aggregator when "stucGratuidade" is true', async () => {
+    await callController({ stucGratuidade: true, pago: true });
+
+    expect(stucGratuidadeAggregatorService.aggregate).toHaveBeenCalledWith(
+      expect.objectContaining({ dataInicio, dataFim, statuses: [StatusPagamento.PAGO] }),
+    );
+    expect(vanzeiroAggregatorService.aggregate).not.toHaveBeenCalled();
+    expect(consorcioAggregatorService.aggregate).not.toHaveBeenCalled();
+  });
+
+  it.each([{ consorcioNome: ['CONSORCIO TESTE'] }, { todosConsorcios: true }])(
+    'rejects with 400 when "stucGratuidade" is combined with a consórcio filter (%j)',
+    async (consorcioOverrides) => {
+      await expect(callController({ stucGratuidade: true, ...consorcioOverrides })).rejects.toThrow(HttpException);
+
+      try {
+        await callController({ stucGratuidade: true, ...consorcioOverrides });
+        fail('expected HttpException');
+      } catch (e) {
+        expect(e).toBeInstanceOf(HttpException);
+        expect(e.getStatus()).toBe(400);
+      }
+
+      expect(stucGratuidadeAggregatorService.aggregate).not.toHaveBeenCalled();
+    },
+  );
+
+  it('gives stucGratuidade precedence over eleicao, like the legacy findConsolidado', async () => {
+    await callController({ stucGratuidade: true, eleicao: true });
+
+    expect(stucGratuidadeAggregatorService.aggregate).toHaveBeenCalledTimes(1);
+    expect(eleicaoAggregatorService.aggregateByFavorecido).not.toHaveBeenCalled();
   });
 });

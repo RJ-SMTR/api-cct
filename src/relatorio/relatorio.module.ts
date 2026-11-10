@@ -16,6 +16,7 @@ import { ConsolidadoV2Controller } from './consolidado-v2/consolidado-v2.control
 import { ConsorcioAggregatorService } from './consolidado-v2/consorcio-aggregator.service';
 import { EleicaoAggregatorService } from './consolidado-v2/eleicao-aggregator.service';
 import { VanzeiroAggregatorService } from './consolidado-v2/vanzeiro-aggregator.service';
+import { StucGratuidadeAggregatorService } from './consolidado-v2/stuc-gratuidade-aggregator.service';
 import { BasePagamentoRepository } from './movimentacao-financeira-v2/base/base-pagamento.repository';
 import { StucGratuidadeRepository } from './movimentacao-financeira-v2/stuc-gratuidade/stuc-gratuidade.repository';
 import { FinancialMovementV2ExportService } from './movimentacao-financeira-v2/export/financial-movement-v2-export.service';
@@ -47,6 +48,7 @@ import { RelatorioNovoRemessaV2Controller } from './novo-remessa-v2/relatorio-no
     VanzeiroAggregatorService,
     ConsorcioAggregatorService,
     EleicaoAggregatorService,
+    StucGratuidadeAggregatorService,
   ],
   exports: [
     RelatorioNovoRemessaFinancialMovementService,
