@@ -18,10 +18,12 @@ import { VanzeiroAggregatorService } from './consolidado-v2/vanzeiro-aggregator.
 import { BasePagamentoRepository } from './movimentacao-financeira-v2/base/base-pagamento.repository';
 import { StucGratuidadeRepository } from './movimentacao-financeira-v2/stuc-gratuidade/stuc-gratuidade.repository';
 import { FinancialMovementV2ExportService } from './movimentacao-financeira-v2/export/financial-movement-v2-export.service';
+import { FinancialMovementV2SummaryService } from './movimentacao-financeira-v2/summary/financial-movement-v2-summary.service';
+import { RelatorioNovoRemessaV2Controller } from './novo-remessa-v2/relatorio-novo-remessa-v2.controller';
 
 @Module({
   imports: [CnabModule],
-  controllers: [RelatorioNovoRemessaController, RelatorioController, ConsolidadoV2Controller],
+  controllers: [RelatorioNovoRemessaController, RelatorioController, ConsolidadoV2Controller, RelatorioNovoRemessaV2Controller],
   providers: [
     RelatorioNovoRemessaService,
     RelatorioSinteticoRepository,
@@ -38,6 +40,9 @@ import { FinancialMovementV2ExportService } from './movimentacao-financeira-v2/e
     // sem controller proprio (T10).
     StucGratuidadeRepository,
     FinancialMovementV2ExportService,
+    // T10: servico de summary/page novo (combina as 3 fontes de Permissionario por filtro) +
+    // controller v2 paralelo, consumindo tudo acima.
+    FinancialMovementV2SummaryService,
     VanzeiroAggregatorService,
     ConsorcioAggregatorService,
   ],

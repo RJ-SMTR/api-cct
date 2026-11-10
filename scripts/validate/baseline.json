@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-09",
+  "generatedAt": "2026-11-10",
   "node": "v18.16.0",
   "passingSuites": [
     "scripts/validate/boundaries.spec.ts",
@@ -40,9 +40,11 @@
     "src/relatorio/movimentacao-financeira-v2/export/financial-movement-v2-export.service.spec.ts",
     "src/relatorio/movimentacao-financeira-v2/status/consorcio-resolver.spec.ts",
     "src/relatorio/movimentacao-financeira-v2/status/status-resolver.spec.ts",
+    "src/relatorio/movimentacao-financeira-v2/summary/financial-movement-v2-summary.service.spec.ts",
     "src/relatorio/movimentacao-financeira/financial-movement-pdf.spec.ts",
     "src/relatorio/movimentacao-financeira/relatorio-guardador-financial-movement.repository.spec.ts",
     "src/relatorio/movimentacao-financeira/relatorio-novo-remessa-financial-movement.service.spec.ts",
+    "src/relatorio/novo-remessa-v2/relatorio-novo-remessa-v2.controller.spec.ts",
     "src/relatorio/novo-remessa/queries/descricao-erro.spec.ts",
     "src/relatorio/novo-remessa/queries/guardador-novo-remessa-query-builder.spec.ts",
     "src/relatorio/novo-remessa/queries/novo-remessa-query-builder.spec.ts",

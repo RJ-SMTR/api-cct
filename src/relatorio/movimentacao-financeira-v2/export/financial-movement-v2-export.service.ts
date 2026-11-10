@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import * as fs from 'fs';
 import { format } from 'date-fns';
 import { StatusPagamento } from '../../enum/statusRemessafinancial-movement';
 import {
@@ -53,6 +54,20 @@ export class FinancialMovementV2ExportService {
       },
       Boolean(filter.stucGratuidade),
     );
+  }
+
+  // Mesma limpeza do arquivo temporario que o controller legado ja faz apos o streaming
+  // (relatorio-novo-remessa.controller.ts, finally -> removeGeneratedExportFile) - o writer
+  // compartilhado (writeFinancialMovementExport) grava em os.tmpdir(), nunca remove por conta
+  // propria. Usada pelo controller novo (T10), nao pelo legado (que mantem seu proprio metodo,
+  // intocado).
+  async removeGeneratedExportFile(filePath: string): Promise<void> {
+    try {
+      if (fs.existsSync(filePath)) await fs.promises.unlink(filePath);
+    } catch {
+      // Best-effort cleanup, mesma tolerancia do legado - uma falha de limpeza nao deve
+      // mascarar o resultado real do download.
+    }
   }
 
   // Roteia pela mesma exclusividade de filtro que T7/T8 ja documentam (Eleicao e STUC-
@@ -156,7 +171,7 @@ export class FinancialMovementV2ExportService {
 // podia mostrar o motivo real do banco quando disponivel. Ver T9-summary.md "Follow-up
 // Needed" - achado relatado, nao corrigido nesta task (exigiria expor motivoStatusRemessa em
 // BasePagamentoRow, fora do escopo de T9).
-function toExportRow(row: BasePagamentoRow): RelatorioFinancialMovementNovoRemessaData {
+export function toExportRow(row: BasePagamentoRow): RelatorioFinancialMovementNovoRemessaData {
   return new RelatorioFinancialMovementNovoRemessaData({
     dataReferencia: format(new Date(row.dataReferencia), 'dd/MM/yyyy'),
     nomes: row.nomes,
