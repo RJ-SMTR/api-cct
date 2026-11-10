@@ -4,12 +4,14 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { StatusPagamento } from '../enum/statusRemessafinancial-movement';
 import { ConsolidadoV2Controller } from './consolidado-v2.controller';
 import { ConsorcioAggregatorService } from './consorcio-aggregator.service';
+import { EleicaoAggregatorService } from './eleicao-aggregator.service';
 import { VanzeiroAggregatorService } from './vanzeiro-aggregator.service';
 
 describe('ConsolidadoV2Controller', () => {
   let controller: ConsolidadoV2Controller;
   let vanzeiroAggregatorService: VanzeiroAggregatorService;
   let consorcioAggregatorService: ConsorcioAggregatorService;
+  let eleicaoAggregatorService: EleicaoAggregatorService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -17,12 +19,14 @@ describe('ConsolidadoV2Controller', () => {
       providers: [
         { provide: VanzeiroAggregatorService, useValue: { aggregate: jest.fn().mockResolvedValue({ count: 0, valor: 0, valorAPagar: 0, data: [] }) } },
         { provide: ConsorcioAggregatorService, useValue: { aggregate: jest.fn().mockResolvedValue({ count: 0, valor: 0, valorAPagar: 0, data: [] }) } },
+        { provide: EleicaoAggregatorService, useValue: { aggregateByFavorecido: jest.fn().mockResolvedValue({ count: 0, valor: 0, valorAPagar: 0, data: [] }) } },
       ],
     }).compile();
 
     controller = module.get(ConsolidadoV2Controller);
     vanzeiroAggregatorService = module.get(VanzeiroAggregatorService);
     consorcioAggregatorService = module.get(ConsorcioAggregatorService);
+    eleicaoAggregatorService = module.get(EleicaoAggregatorService);
   });
 
   const dataInicio = new Date('2098-01-01');
@@ -102,7 +106,7 @@ describe('ConsolidadoV2Controller', () => {
     expect(guards.length).toBeGreaterThan(0);
   });
 
-  it.each(['eleicao', 'desativados', 'pendentes', 'stucGratuidade'])(
+  it.each(['desativados', 'pendentes', 'stucGratuidade'])(
     'rejects with 400 when "%s" is sent as true (out of scope for this slice)',
     async (flag) => {
       await expect(callController({ [flag]: true })).rejects.toThrow(HttpException);
@@ -172,5 +176,32 @@ describe('ConsolidadoV2Controller', () => {
         statuses: expect.arrayContaining([StatusPagamento.PENDENCIA_PAGA, StatusPagamento.PAGO, StatusPagamento.A_PAGAR]),
       }),
     );
+  });
+
+  // T2 da fatia 2 (ADR 0021/0022): "eleicao" saiu de OUT_OF_SCOPE_FLAGS, mas sem suporte a
+  // userIds/consorcioNome/todosConsorcios ainda (OQ-1 do PRD, opcao (b)) - combinar deve
+  // continuar sendo 400 explicito, nunca ignorado silenciosamente.
+  describe('eleicao', () => {
+    it('calls the eleicao aggregator (by favorecido) when eleicao=true alone', async () => {
+      await callController({ eleicao: true, pago: true });
+
+      expect(eleicaoAggregatorService.aggregateByFavorecido).toHaveBeenCalledWith(
+        expect.objectContaining({ dataInicio, dataFim, statuses: [StatusPagamento.PAGO] }),
+      );
+      expect(vanzeiroAggregatorService.aggregate).not.toHaveBeenCalled();
+      expect(consorcioAggregatorService.aggregate).not.toHaveBeenCalled();
+    });
+
+    it('rejects with 400 when eleicao=true is combined with consorcioNome', async () => {
+      await expect(callController({ eleicao: true, consorcioNome: ['CONSORCIO TESTE'] })).rejects.toThrow(HttpException);
+    });
+
+    it('rejects with 400 when eleicao=true is combined with todosConsorcios', async () => {
+      await expect(callController({ eleicao: true, todosConsorcios: true })).rejects.toThrow(HttpException);
+    });
+
+    it('rejects with 400 when eleicao=true is combined with userIds', async () => {
+      await expect(callController({ eleicao: true, userIds: [1] })).rejects.toThrow(HttpException);
+    });
   });
 });

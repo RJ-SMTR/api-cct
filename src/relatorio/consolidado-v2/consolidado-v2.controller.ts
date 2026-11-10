@@ -7,15 +7,13 @@ import { ParseDatePipe } from 'src/utils/pipes/parse-date.pipe';
 import { ParseNumberPipe } from 'src/utils/pipes/parse-number.pipe';
 import { StatusPagamento } from '../enum/statusRemessafinancial-movement';
 import { ConsorcioAggregatorService } from './consorcio-aggregator.service';
+import { EleicaoAggregatorService } from './eleicao-aggregator.service';
 import { VanzeiroAggregatorService } from './vanzeiro-aggregator.service';
 
-// Parametros fora do escopo da fatia 2 (ADR 0022) - eleicao, Pendentes, STUC-Gratuidade,
-// paginacao. Enviar qualquer um deles com valor truthy e' erro explicito (nunca ignorado
-// silenciosamente - decisao do PRD-consolidado-v2.md). Pendencia Paga/Pendencia de Pagamento
-// (pendenciaPaga/rejeitado/estorno/erro) saem desta lista em T1 da fatia 2 - BasePagamentoRepository.
-// findGroupedRows ja expoe essas fontes desde T5 do ADR 0021, so faltava desbloquear o controller
-// (ver docs/tasks-consolidado-v2-fatia2/T1.md).
-const OUT_OF_SCOPE_FLAGS = ['eleicao', 'desativados', 'pendentes', 'stucGratuidade'] as const;
+// Parametros fora do escopo da fatia 2 (ADR 0022) - Pendentes, desativados e paginacao. Enviar
+// qualquer um deles com valor truthy e' erro explicito (nunca ignorado silenciosamente - decisao
+// do PRD-consolidado-v2.md).
+const OUT_OF_SCOPE_FLAGS = ['desativados', 'pendentes', 'stucGratuidade'] as const;
 
 @ApiTags('Cnab')
 @Controller({
@@ -26,6 +24,7 @@ export class ConsolidadoV2Controller {
   constructor(
     private readonly vanzeiroAggregatorService: VanzeiroAggregatorService,
     private readonly consorcioAggregatorService: ConsorcioAggregatorService,
+    private readonly eleicaoAggregatorService: EleicaoAggregatorService,
   ) {}
 
   @ApiQuery({ name: 'dataInicio', description: 'Data da Ordem de Pagamento Inicial', required: true, type: String })
@@ -74,7 +73,6 @@ export class ConsolidadoV2Controller {
     @Query('erro', new ParseBooleanPipe({ optional: true })) erro: boolean | undefined,
   ) {
     const outOfScope: Record<string, boolean | undefined> = {
-      eleicao,
       desativados,
       pendentes,
       stucGratuidade,
@@ -120,6 +118,21 @@ export class ConsolidadoV2Controller {
       valorMax,
       statuses: statuses.length > 0 ? statuses : undefined,
     };
+
+    // Eleicao (T2 da fatia 2, OQ-1 do PRD resolvido como opcao (b)): findEleicaoRows (T7 do ADR
+    // 0021) nao aceita userIds/consorcioNome/todosConsorcios - sem filtro por favorecido/
+    // consorcio especifico nesta rota ainda, so' o total de todos no periodo. userIds ja' cai no
+    // throw generico acima; consorcioNome/todosConsorcios precisam do proprio
+    // rejeicao explicita aqui (nunca ignorados silenciosamente).
+    if (eleicao) {
+      if (consorcioNome?.length || todosConsorcios) {
+        throw new HttpException(
+          { error: '"eleicao" não pode ser combinado com "consorcioNome"/"todosConsorcios" (sem filtro por consórcio específico nesta rota ainda)' },
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+      return this.eleicaoAggregatorService.aggregateByFavorecido(filter);
+    }
 
     // Mesma regra implicita do legado (temFiltroConsorcio/temFiltroVanzeiros em
     // findConsolidado, relatorio-novo-remessa-consolidado.repository.ts:881-886): um filtro de
