@@ -595,7 +595,7 @@ suite('BasePagamentoRepository (PostgreSQL)', () => {
       expect(rows[0].nomeConsorcio).toBe('VLT');
     });
 
-    it('nomeConsorcio is always null for Guardador (out of scope for this slice)', async () => {
+    it('nomeConsorcio for Guardador follows the association rule (fullName when there is no permitCode)', async () => {
       await seedGuardadorUser();
       await seedGuardadorAPagarFamily();
 
@@ -605,7 +605,7 @@ suite('BasePagamentoRepository (PostgreSQL)', () => {
       });
 
       expect(rows.length).toBeGreaterThan(0);
-      expect(rows.every((row) => row.nomeConsorcio === null)).toBe(true);
+      expect(rows.every((row) => row.nomeConsorcio === 'GUARDADOR V2 TESTE')).toBe(true);
     });
   });
 
@@ -2316,6 +2316,82 @@ suite('BasePagamentoRepository (PostgreSQL)', () => {
         expect(sumByStatus(novoPadrao)[StatusPagamento.A_PAGAR] ?? 0).toBe(legadoPadrao.valorAPagar);
         expect(sumByStatus(novoDesativados)[StatusPagamento.A_PAGAR]).toBe(11);
         expect(legadoDesativados.valorAPagar).toBe(0);
+      }, 30000);
+    });
+
+    describe('A3: filtro de associacao do Guardador', () => {
+      const ASSOC_A = A_BASE + 300;
+      const ASSOC_B = A_BASE + 301;
+      const G_A = A_BASE + 302;
+      const G_B = A_BASE + 303;
+      const G_SEM = A_BASE + 304;
+      const G_ASSOC_A_2 = A_BASE + 305;
+
+      beforeEach(async () => {
+        await seedUsuario({ id: ASSOC_A, nome: 'RV2 ANGLAE', cpf: '98500000300' });
+        await seedUsuario({ id: ASSOC_B, nome: 'RV2 SINGAERJ', cpf: '98500000301' });
+        await seedUsuario({ id: G_A, nome: 'RV2 G ANGLAE', cpf: '98500000302', roleId: 6, permitCode: 'RV2-PERMIT-A' });
+        await seedUsuario({ id: G_B, nome: 'RV2 G SINGAERJ', cpf: '98500000303', roleId: 6, permitCode: 'RV2-PERMIT-B' });
+        await seedUsuario({ id: G_SEM, nome: 'RV2 G AUTONOMO', cpf: '98500000304', roleId: 6, permitCode: 'RV2-PERMIT-C' });
+        await seedUsuario({ id: G_ASSOC_A_2, nome: 'RV2 G ANGLAE 2', cpf: '98500000305', roleId: 6, permitCode: 'RV2-PERMIT-D' });
+        await dataSource.query(`INSERT INTO user_relationships (user_id, related_user_id) VALUES ($1, $2), ($3, $4), ($5, $2)`, [G_A, ASSOC_A, G_B, ASSOC_B, G_ASSOC_A_2]);
+        await seedOrdemGuardador({ id: A_BASE + 310, valor: 300, userId: G_A });
+        await seedOrdemGuardador({ id: A_BASE + 311, valor: 400, userId: G_B });
+        await seedOrdemGuardador({ id: A_BASE + 312, valor: 500, userId: G_SEM });
+        // Pagamento da propria associacao: nunca deve aparecer sob o filtro.
+        await seedOrdemGuardador({ id: A_BASE + 313, valor: 900, userId: ASSOC_A });
+      });
+
+      const nomes = (linhas: { nomes: string }[]) => linhas.map((linha) => linha.nomes).sort();
+
+      it('consorcioNome keeps only the guardadores of that association, case-insensitive', async () => {
+        const linhas = await repository.findGroupedRows('guardador', { ...periodo, consorcioNome: [' rv2 anglae '] });
+
+        expect(nomes(linhas)).toEqual(['RV2 G ANGLAE']);
+        expect(linhas[0].nomeConsorcio).toBe('RV2 ANGLAE');
+      });
+
+      it('todosConsorcios keeps every guardador with an association, regardless of which', async () => {
+        const linhas = await repository.findGroupedRows('guardador', { ...periodo, todosConsorcios: true });
+
+        expect(nomes(linhas)).toEqual(['RV2 G ANGLAE', 'RV2 G SINGAERJ']);
+      });
+
+      it('applies to grouped sources too (detalhe_a path, through the LATERAL)', async () => {
+        await seedAgrupado({ base: A_BASE + 320, userId: G_B, statusRemessa: 3, valor: 77, perfil: 'guardador' });
+
+        const linhas = await repository.findGroupedRows('guardador', { ...periodo, consorcioNome: ['RV2 ANGLAE'], statuses: [StatusPagamento.PAGO] });
+        const singaerj = await repository.findGroupedRows('guardador', { ...periodo, consorcioNome: ['RV2 SINGAERJ'], statuses: [StatusPagamento.PAGO] });
+
+        expect(linhas).toHaveLength(0);
+        expect(singaerj.map((linha) => Number(linha.valor))).toEqual([77]);
+      });
+
+      it('valorMin is by favorecido for Guardador even under an association filter (decision)', async () => {
+        await seedOrdemGuardador({ id: A_BASE + 314, valor: 300, userId: G_ASSOC_A_2 });
+
+        const linhas = await repository.findGroupedRows('guardador', { ...periodo, consorcioNome: ['RV2 ANGLAE'], valorMin: 500 });
+
+        expect(linhas).toHaveLength(0);
+      });
+
+      it('with no association filter, a guardador order with no user stays visible', async () => {
+        await seedOrdemGuardador({ id: A_BASE + 315, valor: 15, userId: null });
+
+        const linhas = await repository.findGroupedRows('guardador', periodo);
+
+        expect(linhas.some((linha) => linha.nomes === null && Number(linha.valor) === 15)).toBe(true);
+      });
+
+      it.each([
+        ['consorcioNome', { consorcioNome: ['RV2 ANGLAE'] }],
+        ['todosConsorcios', { todosConsorcios: true }],
+      ])('matches the legacy Guardador total (%s)', async (_nome, extra) => {
+        const filtro = { ...periodo, ...extra };
+
+        const [novo, legado] = await Promise.all([repository.findGroupedRows('guardador', filtro), legacyGuardadorRepository.findFinancialMovementSummary(filtro)]);
+
+        expect(sumByStatus(novo)[StatusPagamento.A_PAGAR] ?? 0).toBe(legado.valorAPagar);
       }, 30000);
     });
   });

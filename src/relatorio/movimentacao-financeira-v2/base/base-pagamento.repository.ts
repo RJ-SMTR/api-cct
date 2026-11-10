@@ -8,6 +8,7 @@ import {
   pendenciaRejeitadaGuardador,
   pendenciaRejeitadaPermissionario,
 } from '../../novo-remessa/queries/regras-pendencia';
+import { GUARDADOR_CONSORCIO_CASE } from '../../novo-remessa/queries/guardador-novo-remessa-query-builder';
 import { buildConsorcioCaseSql, CONSORCIOS, INSTITUTIONAL_CPF_CNPJ, MODAIS } from '../status/consorcio-resolver';
 import { buildEleicaoStatusPagamentoCaseSql, buildStatusPagamentoCaseSql } from '../status/status-resolver';
 
@@ -83,19 +84,41 @@ const CURSOR_TUPLE = `
 // prefixo da fonte + id da linha, sempre texto, comparado na collation padrao como o ORDER BY.
 const CURSOR_ORDER_BY = `${CURSOR_TUPLE}, "chaveLinha"`;
 
-// Guardador nao tem o conceito de consorcio nesta forma (fora de escopo da fatia 1, ADR 0022) -
-// nomeConsorcio sai sempre null para esse perfil, nunca inventado. Dois pontos de resolucao
-// porque os aliases disponiveis diferem por fonte: "nunca_enviada" tem a tabela de ordem em si
-// (op), "agrupada" so tem o representante trazido pela LATERAL (sem coluna nomeConsorcio bruta
-// disponivel ali a menos que a subquery da LATERAL a selecione tambem, ver REPRESENTANTE_EXTRA).
+// Dois pontos de resolucao porque os aliases disponiveis diferem por fonte: "nunca_enviada" tem a
+// tabela de ordem em si (op), "agrupada" so tem o representante trazido pela LATERAL. Guardador
+// resolve pela associacao (mesmo CASE do legado, depende do join com "assoc" abaixo).
 const NOME_CONSORCIO_NUNCA_ENVIADA: Record<Perfil, string> = {
   permissionario: buildConsorcioCaseSql('pu', 'op'),
-  guardador: 'NULL',
+  guardador: GUARDADOR_CONSORCIO_CASE,
 };
 
 const NOME_CONSORCIO_AGRUPADA: Record<Perfil, string> = {
   permissionario: buildConsorcioCaseSql('pu', 'representante'),
-  guardador: 'NULL',
+  guardador: GUARDADOR_CONSORCIO_CASE,
+};
+
+// public."user"."roleId" do guardador (associacoes tem pagamento proprio, mas nao sao guardadores).
+const GUARDADOR_ROLE_ID = 6;
+
+// Associacoes agregadas uma vez por usuario (um guardador pode ter mais de uma): o join nao
+// multiplica a linha de pagamento. Mesmo desenho do legado (GUARDADOR_ASSOCIACAO_CTE).
+const ASSOCIACAO_CTE: Record<Perfil, string> = {
+  permissionario: '',
+  guardador: `assoc AS MATERIALIZED (
+        SELECT
+          ur.user_id,
+          STRING_AGG(a."fullName", ' / ' ORDER BY a."fullName") AS "fullName",
+          ARRAY_AGG(UPPER(TRIM(a."fullName"))) AS "nomesUpper"
+        FROM user_relationships ur
+        INNER JOIN public."user" a ON a.id = ur.related_user_id
+        WHERE a."fullName" IS NOT NULL
+        GROUP BY ur.user_id
+      ),`,
+};
+
+const ASSOCIACAO_JOIN: Record<Perfil, string> = {
+  permissionario: '',
+  guardador: 'LEFT JOIN assoc ON assoc.user_id = pu.id',
 };
 
 // ordem_pagamento_guardador nao tem coluna nomeConsorcio - so o Permissionario precisa dela na
@@ -133,6 +156,7 @@ const representanteLateral = (perfil: Perfil, ordemTable: string) => `
     SELECT rep."userId"${REPRESENTANTE_EXTRA_COLUMN[perfil]} FROM ${ordemTable} rep WHERE rep."ordemPagamentoAgrupadoId" = opa.id LIMIT 1
   ) representante ON true
   LEFT JOIN public."user" pu ON pu.id = representante."userId"
+  ${ASSOCIACAO_JOIN[perfil]}
 `;
 
 function resolveElegibilidadeRejeitado(perfil: Perfil): string {
@@ -198,9 +222,33 @@ function condicaoBloqueado(filter: Pick<BasePagamentoFilter, 'desativados'>): st
 
 // Filtro por favorecido comum a todas as fontes de "combinado" - um unico fragmento para nenhum
 // ramo de UNION ficar sem a condicao de bloqueado.
-function resolveFiltroFavorecido(filter: BasePagamentoFilter): string {
-  return `AND ($6::integer[] IS NULL OR pu.id = ANY($6))
-          ${condicaoBloqueado(filter)}`;
+function resolveFiltroFavorecido(perfil: Perfil, filter: BasePagamentoFilter): { sql: string; params: unknown[] } {
+  const associacao = resolveFiltroAssociacao(perfil, filter);
+  return {
+    sql: `AND ($6::integer[] IS NULL OR pu.id = ANY($6))
+          ${condicaoBloqueado(filter)}
+          ${associacao.sql}`,
+    params: associacao.params,
+  };
+}
+
+// Guardador (legado: buildConsorcioFilter): todosConsorcios ("Todas as Associacoes") tem
+// precedencia sobre consorcioNome, e os dois exigem o papel de guardador - a linha de pagamento
+// da propria associacao nunca entra. Sem filtro nao ha restricao de papel aqui (ordem sem usuario
+// continua visivel); o legado exige o papel sempre, divergencia registrada.
+// $9 so entra na lista de parametros quando o SQL o referencia.
+function resolveFiltroAssociacao(perfil: Perfil, filter: BasePagamentoFilter): { sql: string; params: unknown[] } {
+  if (perfil !== 'guardador') return { sql: '', params: [] };
+  if (filter.todosConsorcios) {
+    return { sql: `AND pu."roleId" = ${GUARDADOR_ROLE_ID} AND assoc."nomesUpper" IS NOT NULL`, params: [] };
+  }
+  if (filter.consorcioNome?.length) {
+    return {
+      sql: `AND pu."roleId" = ${GUARDADOR_ROLE_ID} AND assoc."nomesUpper" && $9::text[]`,
+      params: [filter.consorcioNome.map((nome) => nome.trim().toUpperCase())],
+    };
+  }
+  return { sql: '', params: [] };
 }
 
 @Injectable()
@@ -287,7 +335,7 @@ export class BasePagamentoRepository {
     const statusCase = buildStatusPagamentoCaseSql('oph');
     const { nomeConsorcioList, excludeInstitutional } = resolveConsorcioFilter(perfil, filter);
     const lateral = representanteLateral(perfil, ordemTable);
-    const filtroFavorecido = resolveFiltroFavorecido(filter);
+    const { sql: filtroFavorecido, params: paramsAssociacao } = resolveFiltroFavorecido(perfil, filter);
     // ADR 0001/0020: Pendencia Paga (5) e Rejeitado/Estorno (4) nunca vem desta fonte, que
     // filtra por data de VENCIMENTO - as duas tem data/regra propria (pendencia_paga*,
     // pendencia_pagamento abaixo), filtradas por data de PAGAMENTO.
@@ -299,7 +347,7 @@ export class BasePagamentoRepository {
     const chaveDoTotal = temFiltroConsorcio ? '"nomeConsorcio"' : 'nomes';
 
     const sql = `
-      WITH agrupada AS (
+      WITH ${ASSOCIACAO_CTE[perfil]} agrupada AS (
         -- Ordens ja agrupadas com detalhe_a (Pago / A Pagar enviado / Aguardando Pagamento, via
         -- resolver de status compartilhado). Dedupe de fan-out (ADR 0011): uma linha
         -- representativa por agrupamento (LATERAL), nunca uma por ordem filha.
@@ -415,6 +463,7 @@ export class BasePagamentoRepository {
         FROM ${ordemTable} op
         LEFT JOIN ordem_pagamento_agrupado opa ON op."ordemPagamentoAgrupadoId" = opa.id
         LEFT JOIN public."user" pu ON pu.id = op."userId"
+        ${ASSOCIACAO_JOIN[perfil]}
         LEFT JOIN ordem_pagamento_agrupado_historico oph ON opa.id = oph."ordemPagamentoAgrupadoId"
         LEFT JOIN detalhe_a da ON da."ordemPagamentoAgrupadoHistoricoId" = oph.id
         WHERE (
@@ -462,6 +511,7 @@ export class BasePagamentoRepository {
         filter.userIds?.length ? filter.userIds : null,
         nomeConsorcioList,
         excludeInstitutional ? [...INSTITUTIONAL_CPF_CNPJ] : null,
+        ...paramsAssociacao,
       ],
     };
   }
@@ -650,6 +700,7 @@ export class BasePagamentoRepository {
           'pendentes_solta:' || op.id::text AS "chaveLinha"
         FROM ${ordemTable} op
         LEFT JOIN public."user" pu ON pu.id = op."userId"
+        ${ASSOCIACAO_JOIN[perfil]}
         WHERE op."${dataCapturaColumn}"::date BETWEEN $1::date AND $2::date
           AND op."ordemPagamentoAgrupadoId" IS NULL
           ${resolveElegibilidadePendenteOrdemSolta(perfil)}
