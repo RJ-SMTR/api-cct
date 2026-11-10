@@ -12,10 +12,17 @@ import { FinancialMovementExportRequestDto } from '../dtos/financial-movement-ex
 import { FinancialMovementV2SummaryService } from '../movimentacao-financeira-v2/summary/financial-movement-v2-summary.service';
 import { FinancialMovementV2ExportService } from '../movimentacao-financeira-v2/export/financial-movement-v2-export.service';
 import { mapQueryToFinancialMovementV2Filter } from '../movimentacao-financeira-v2/summary/financial-movement-v2-query.mapper';
+import { RelatorioNovoRemessaFinancialMovementService } from '../movimentacao-financeira/relatorio-novo-remessa-financial-movement.service';
 
 // Perfil nao e' importado do repository (ESLint bloqueia controller -> repository direto,
 // "Controllers must go through a service") - mesmo literal usado por BasePagamentoRepository.
 type Perfil = 'permissionario' | 'guardador';
+
+// STUC-Gratuidade e Eleicao: mesmo resultado da rota v1 (decisao de Rayanne, 2026-11-10), pela
+// propria implementacao do legado. Guardador nao tem essas categorias.
+function usaLegado(perfil: Perfil, query: Pick<FinancialMovementQueryDto, 'eleicao' | 'stucGratuidade'>): boolean {
+  return perfil === 'permissionario' && Boolean(query.eleicao || query.stucGratuidade);
+}
 
 // Rotas v2 paralelas (T10, ADR 0021 item 7, decisao 2026-11-09): mesmo base path e mesmos DTOs
 // de request do controller legado (RelatorioNovoRemessaController, NUNCA tocado por esta task -
@@ -31,6 +38,7 @@ export class RelatorioNovoRemessaV2Controller {
   constructor(
     private readonly financialMovementV2SummaryService: FinancialMovementV2SummaryService,
     private readonly financialMovementV2ExportService: FinancialMovementV2ExportService,
+    private readonly relatorioNovoRemessaFinancialMovementService: RelatorioNovoRemessaFinancialMovementService,
   ) {}
 
   @HttpCode(HttpStatus.OK)
@@ -99,6 +107,9 @@ export class RelatorioNovoRemessaV2Controller {
 
   private async handleSummary(perfil: Perfil, queryParams: FinancialMovementQueryDto) {
     try {
+      if (usaLegado(perfil, queryParams)) {
+        return await this.relatorioNovoRemessaFinancialMovementService.findFinancialMovementSummary(queryParams);
+      }
       return await this.financialMovementV2SummaryService.findSummary(perfil, mapQueryToFinancialMovementV2Filter(queryParams));
     } catch (e) {
       throw new HttpException({ error: e.message }, HttpStatus.BAD_REQUEST);
@@ -107,6 +118,9 @@ export class RelatorioNovoRemessaV2Controller {
 
   private async handlePage(perfil: Perfil, queryParams: FinancialMovementQueryDto) {
     try {
+      if (usaLegado(perfil, queryParams)) {
+        return await this.relatorioNovoRemessaFinancialMovementService.findFinancialMovementPage(queryParams);
+      }
       return await this.financialMovementV2SummaryService.findPage(perfil, mapQueryToFinancialMovementV2Filter(queryParams));
     } catch (e) {
       throw new HttpException({ error: e.message }, HttpStatus.BAD_REQUEST);
@@ -116,10 +130,12 @@ export class RelatorioNovoRemessaV2Controller {
   private async handleDownload(perfil: Perfil, body: FinancialMovementExportRequestDto, response: Response) {
     let generatedFile: Awaited<ReturnType<FinancialMovementV2ExportService['downloadFinancialMovementExport']>> | undefined;
     try {
-      generatedFile = await this.financialMovementV2ExportService.downloadFinancialMovementExport(perfil, {
-        ...mapQueryToFinancialMovementV2Filter(body),
-        format: body.format,
-      });
+      generatedFile = usaLegado(perfil, body)
+        ? await this.relatorioNovoRemessaFinancialMovementService.downloadFinancialMovementExport(body)
+        : await this.financialMovementV2ExportService.downloadFinancialMovementExport(perfil, {
+            ...mapQueryToFinancialMovementV2Filter(body),
+            format: body.format,
+          });
       const file = generatedFile;
 
       response.setHeader('Cache-Control', 'no-store');

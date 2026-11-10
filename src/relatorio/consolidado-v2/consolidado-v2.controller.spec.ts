@@ -2,6 +2,7 @@ import { GUARDS_METADATA } from '@nestjs/common/constants';
 import { Test, TestingModule } from '@nestjs/testing';
 import { StatusPagamento } from '../enum/statusRemessafinancial-movement';
 import { ConsolidadoCombinadoService } from './consolidado-combinado.service';
+import { RelatorioNovoRemessaService } from '../novo-remessa/relatorio-novo-remessa.service';
 import { ConsolidadoV2Controller } from './consolidado-v2.controller';
 import { ConsorcioAggregatorService } from './consorcio-aggregator.service';
 import { EleicaoAggregatorService } from './eleicao-aggregator.service';
@@ -15,6 +16,7 @@ describe('ConsolidadoV2Controller', () => {
   let eleicaoAggregatorService: EleicaoAggregatorService;
   let stucGratuidadeAggregatorService: StucGratuidadeAggregatorService;
   let consolidadoCombinadoService: ConsolidadoCombinadoService;
+  let relatorioNovoRemessaService: RelatorioNovoRemessaService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -25,6 +27,7 @@ describe('ConsolidadoV2Controller', () => {
         { provide: EleicaoAggregatorService, useValue: { aggregateByFavorecido: jest.fn().mockResolvedValue({ count: 0, valor: 0, valorAPagar: 0, data: [] }), aggregateByConsorcio: jest.fn().mockResolvedValue({ count: 0, valor: 0, valorAPagar: 0, data: [] }) } },
         { provide: StucGratuidadeAggregatorService, useValue: { aggregate: jest.fn().mockResolvedValue({ count: 0, valor: 0, valorAPagar: 0, data: [] }) } },
         { provide: ConsolidadoCombinadoService, useValue: { aggregate: jest.fn().mockResolvedValue({ count: 0, valor: 0, valorAPagar: 0, data: [] }) } },
+        { provide: RelatorioNovoRemessaService, useValue: { findConsolidado: jest.fn().mockResolvedValue({ count: 0, valor: 0, data: [] }) } },
       ],
     }).compile();
 
@@ -34,12 +37,16 @@ describe('ConsolidadoV2Controller', () => {
     eleicaoAggregatorService = module.get(EleicaoAggregatorService);
     stucGratuidadeAggregatorService = module.get(StucGratuidadeAggregatorService);
     consolidadoCombinadoService = module.get(ConsolidadoCombinadoService);
+    relatorioNovoRemessaService = module.get(RelatorioNovoRemessaService);
   });
 
   const dataInicio = new Date('2098-01-01');
   const dataFim = new Date('2098-01-31');
 
+  // Sem favorecido nem consorcio, a rota une as duas visoes (como o legado). Os testes que nao
+  // tratam disso selecionam "Favorecido = Todos" por padrao.
   async function callController(overrides: Partial<Record<string, any>> = {}) {
+    const escolheuVisao = ['todosVanzeiros', 'userIds', 'consorcioNome', 'todosConsorcios'].some((campo) => campo in overrides);
     const defaults = {
       userIds: undefined,
       consorcioNome: undefined,
@@ -48,7 +55,7 @@ describe('ConsolidadoV2Controller', () => {
       pago: undefined,
       aPagar: undefined,
       emProcessamento: undefined,
-      todosVanzeiros: undefined,
+      todosVanzeiros: escolheuVisao ? undefined : true,
       todosConsorcios: undefined,
       eleicao: undefined,
       desativados: undefined,
@@ -106,18 +113,9 @@ describe('ConsolidadoV2Controller', () => {
   it('routes to the combined view when todosVanzeiros and todosConsorcios are both true', async () => {
     await callController({ todosVanzeiros: true, todosConsorcios: true, pago: true, valorMax: 10 });
 
-    expect(consolidadoCombinadoService.aggregate).toHaveBeenCalledWith(expect.objectContaining({ dataInicio, dataFim, valorMax: 10, statuses: [StatusPagamento.PAGO] }));
+    expect(consolidadoCombinadoService.aggregate).toHaveBeenCalledWith(expect.objectContaining({ dataInicio, dataFim, valorMax: 10, statuses: [StatusPagamento.PAGO] }), expect.objectContaining({ todosVanzeiros: true, todosConsorcios: true }));
     expect(consorcioAggregatorService.aggregate).not.toHaveBeenCalled();
     expect(vanzeiroAggregatorService.aggregate).not.toHaveBeenCalled();
-  });
-
-  it('does not use the combined view for STUC or Eleicao with both flags', async () => {
-    await callController({ todosVanzeiros: true, todosConsorcios: true, stucGratuidade: true });
-    await callController({ todosVanzeiros: true, todosConsorcios: true, eleicao: true });
-
-    expect(stucGratuidadeAggregatorService.aggregate).toHaveBeenCalledTimes(1);
-    expect(eleicaoAggregatorService.aggregateByConsorcio).toHaveBeenCalledTimes(1);
-    expect(consolidadoCombinadoService.aggregate).not.toHaveBeenCalled();
   });
 
   // AuthGuard('jwt') enforcement itself (a real 401 without a token) is an HTTP-level concern,
@@ -153,14 +151,6 @@ describe('ConsolidadoV2Controller', () => {
   });
 
   // Legado une as duas visoes nesse caso; sem suporte aqui, erro explicito e nunca ignorado.
-  it.each([{ consorcioNome: ['STPC'] }, { todosConsorcios: true }])('rejects with 400 when userIds is combined with %j', async (consorcioOverrides) => {
-    await expect(callController({ userIds: [7], ...consorcioOverrides })).rejects.toMatchObject({ status: 400 });
-    await expect(callController({ userIds: [7], stucGratuidade: true, ...consorcioOverrides })).rejects.toMatchObject({ status: 400 });
-
-    expect(consorcioAggregatorService.aggregate).not.toHaveBeenCalled();
-    expect(stucGratuidadeAggregatorService.aggregate).not.toHaveBeenCalled();
-  });
-
   it('maps pendentes to StatusPagamento.PENDENTES', async () => {
     await callController({ pendentes: true });
 
@@ -223,78 +213,8 @@ describe('ConsolidadoV2Controller', () => {
   // T2 da fatia 2 (ADR 0021/0022): "eleicao" saiu de OUT_OF_SCOPE_FLAGS, mas sem suporte a
   // userIds/consorcioNome/todosConsorcios ainda (OQ-1 do PRD, opcao (b)) - combinar deve
   // continuar sendo 400 explicito, nunca ignorado silenciosamente.
-  describe('eleicao', () => {
-    it('calls the eleicao aggregator (by favorecido) when eleicao=true alone', async () => {
-      await callController({ eleicao: true, pago: true });
-
-      expect(eleicaoAggregatorService.aggregateByFavorecido).toHaveBeenCalledWith(
-        expect.objectContaining({ dataInicio, dataFim, statuses: [StatusPagamento.PAGO] }),
-      );
-      expect(vanzeiroAggregatorService.aggregate).not.toHaveBeenCalled();
-      expect(consorcioAggregatorService.aggregate).not.toHaveBeenCalled();
-    });
-
-    it('selects the consorcio view when eleicao=true is combined with consorcioNome', async () => {
-      await callController({ eleicao: true, consorcioNome: ['CONSORCIO TESTE'] });
-
-      expect(eleicaoAggregatorService.aggregateByConsorcio).toHaveBeenCalledWith(expect.objectContaining({ consorcioNome: ['CONSORCIO TESTE'] }));
-    });
-
-    it('selects the consorcio view when eleicao=true is combined with todosConsorcios', async () => {
-      await callController({ eleicao: true, todosConsorcios: true });
-
-      expect(eleicaoAggregatorService.aggregateByConsorcio).toHaveBeenCalledWith(expect.objectContaining({ todosConsorcios: true }));
-      expect(eleicaoAggregatorService.aggregateByFavorecido).not.toHaveBeenCalled();
-    });
-
-    it('forwards userIds to the Eleicao favorecido view', async () => {
-      await callController({ eleicao: true, userIds: [1] });
-
-      expect(eleicaoAggregatorService.aggregateByFavorecido).toHaveBeenCalledWith(expect.objectContaining({ userIds: [1] }));
-    });
-  });
-
   // STUC tem roteamento proprio; o filtro de consorcio vai para o repositorio.
-  it('calls the STUC-Gratuidade aggregator when "stucGratuidade" is true', async () => {
-    await callController({ stucGratuidade: true, pago: true });
-
-    expect(stucGratuidadeAggregatorService.aggregate).toHaveBeenCalledWith(
-      expect.objectContaining({ dataInicio, dataFim, statuses: [StatusPagamento.PAGO] }),
-    );
-    expect(vanzeiroAggregatorService.aggregate).not.toHaveBeenCalled();
-    expect(consorcioAggregatorService.aggregate).not.toHaveBeenCalled();
-  });
-
-  it.each([{ consorcioNome: ['CONSORCIO TESTE'] }, { todosConsorcios: true }])(
-    'forwards the consórcio filter (%j) to the STUC-Gratuidade aggregator',
-    async (consorcioOverrides) => {
-      await callController({ stucGratuidade: true, ...consorcioOverrides });
-
-      expect(stucGratuidadeAggregatorService.aggregate).toHaveBeenCalledWith(expect.objectContaining(consorcioOverrides));
-      expect(consorcioAggregatorService.aggregate).not.toHaveBeenCalled();
-    },
-  );
-
-  it('forwards userIds to the STUC-Gratuidade aggregator', async () => {
-    await callController({ stucGratuidade: true, userIds: [7] });
-
-    expect(stucGratuidadeAggregatorService.aggregate).toHaveBeenCalledWith(expect.objectContaining({ userIds: [7] }));
-  });
-
   // STUC nao tem fonte de Pendentes: o legado devolveria todos os status nesse caso.
-  it('rejects with 400 when "stucGratuidade" is combined with pendentes', async () => {
-    await expect(callController({ stucGratuidade: true, pendentes: true })).rejects.toMatchObject({ status: 400 });
-
-    expect(stucGratuidadeAggregatorService.aggregate).not.toHaveBeenCalled();
-  });
-
-  it('gives stucGratuidade precedence over eleicao, like the legacy findConsolidado', async () => {
-    await callController({ stucGratuidade: true, eleicao: true });
-
-    expect(stucGratuidadeAggregatorService.aggregate).toHaveBeenCalledTimes(1);
-    expect(eleicaoAggregatorService.aggregateByFavorecido).not.toHaveBeenCalled();
-  });
-
   describe('getGuardadorConsolidado', () => {
     async function callGuardador(overrides: Partial<Record<string, any>> = {}) {
       const d: Record<string, any> = { ...overrides };
@@ -363,5 +283,27 @@ describe('ConsolidadoV2Controller', () => {
       await expect(callGuardador(overrides)).rejects.toMatchObject({ status: 400 });
       expect(vanzeiroAggregatorService.aggregate).not.toHaveBeenCalled();
     });
+  });
+  it.each([
+    [{ stucGratuidade: true, consorcioNome: ['VLT'], pendentes: true }],
+    [{ eleicao: true, todosVanzeiros: true, todosConsorcios: true }],
+    [{ stucGratuidade: true, eleicao: true, desativados: true }],
+  ])('delegates %j to the v1 implementation with every filter', async (overrides) => {
+    await callController(overrides);
+
+    expect(relatorioNovoRemessaService.findConsolidado).toHaveBeenCalledWith(expect.objectContaining({ dataInicio, dataFim, ...overrides }));
+    expect(stucGratuidadeAggregatorService.aggregate).not.toHaveBeenCalled();
+    expect(eleicaoAggregatorService.aggregateByFavorecido).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [{ userIds: [1], consorcioNome: ['STPC'] }, { userIds: [1], consorcioNome: ['STPC'] }],
+    [{ todosVanzeiros: true, consorcioNome: ['STPC'] }, { todosVanzeiros: true, consorcioNome: ['STPC'] }],
+    [{ todosVanzeiros: undefined }, undefined],
+  ])('unites the favorecido and consorcio views for %j, like the legacy report', async (overrides, uniao) => {
+    await callController(overrides);
+
+    expect(consolidadoCombinadoService.aggregate).toHaveBeenCalledWith(expect.any(Object), uniao === undefined ? undefined : expect.objectContaining(uniao));
+    expect(vanzeiroAggregatorService.aggregate).not.toHaveBeenCalled();
   });
 });

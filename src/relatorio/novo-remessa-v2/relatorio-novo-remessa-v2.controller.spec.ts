@@ -7,6 +7,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { RelatorioNovoRemessaV2Controller } from './relatorio-novo-remessa-v2.controller';
 import { FinancialMovementV2SummaryService } from '../movimentacao-financeira-v2/summary/financial-movement-v2-summary.service';
 import { FinancialMovementV2ExportService } from '../movimentacao-financeira-v2/export/financial-movement-v2-export.service';
+import { RelatorioNovoRemessaFinancialMovementService } from '../movimentacao-financeira/relatorio-novo-remessa-financial-movement.service';
 import { FinancialMovementExportFormat } from '../dtos/financial-movement-export-request.dto';
 import { RolesGuard } from 'src/roles/roles.guard';
 import { RoleEnum } from 'src/roles/roles.enum';
@@ -23,6 +24,14 @@ describe('RelatorioNovoRemessaV2Controller', () => {
         {
           provide: FinancialMovementV2SummaryService,
           useValue: { findSummary: jest.fn(), findPage: jest.fn() },
+        },
+        {
+          provide: RelatorioNovoRemessaFinancialMovementService,
+          useValue: {
+            findFinancialMovementSummary: jest.fn().mockResolvedValue({ count: 0 }),
+            findFinancialMovementPage: jest.fn().mockResolvedValue({ count: 0, data: [] }),
+            downloadFinancialMovementExport: jest.fn(),
+          },
         },
         {
           provide: FinancialMovementV2ExportService,
@@ -47,22 +56,22 @@ describe('RelatorioNovoRemessaV2Controller', () => {
     it('getFinancialMovementSummaryV2 calls findSummary("permissionario", ...) with mapped filter', async () => {
       jest.spyOn(summaryService, 'findSummary').mockResolvedValue({ count: 0 } as any);
 
-      await controller.getFinancialMovementSummaryV2({ ...baseQuery, eleicao: true });
+      await controller.getFinancialMovementSummaryV2({ ...baseQuery, pago: true });
 
       expect(summaryService.findSummary).toHaveBeenCalledWith(
         'permissionario',
-        expect.objectContaining({ dataInicio: baseQuery.dataInicio, dataFim: baseQuery.dataFim, eleicao: true }),
+        expect.objectContaining({ dataInicio: baseQuery.dataInicio, dataFim: baseQuery.dataFim }),
       );
     });
 
     it('getFinancialMovementPageV2 calls findPage("permissionario", ...) with mapped filter', async () => {
       jest.spyOn(summaryService, 'findPage').mockResolvedValue({ data: [] } as any);
 
-      await controller.getFinancialMovementPageV2({ ...baseQuery, stucGratuidade: true, page: 2, pageSize: 10 });
+      await controller.getFinancialMovementPageV2({ ...baseQuery, page: 2, pageSize: 10 });
 
       expect(summaryService.findPage).toHaveBeenCalledWith(
         'permissionario',
-        expect.objectContaining({ stucGratuidade: true, page: 2, pageSize: 10 }),
+        expect.objectContaining({ page: 2, pageSize: 10 }),
       );
     });
 
@@ -190,5 +199,16 @@ describe('RelatorioNovoRemessaV2Controller', () => {
       expect(guards).toContain(RolesGuard);
       expect(roles).toEqual([RoleEnum.master, RoleEnum.admin]);
     });
+  });
+  it.each([[{ eleicao: true }], [{ stucGratuidade: true }]])('serves %j from the v1 implementation', async (flags) => {
+    const legado = (controller as any).relatorioNovoRemessaFinancialMovementService;
+    const query = { dataInicio: '2098-01-01', dataFim: '2098-01-31', ...flags } as any;
+
+    await controller.getFinancialMovementSummaryV2(query);
+    await controller.getFinancialMovementPageV2(query);
+
+    expect(legado.findFinancialMovementSummary).toHaveBeenCalledWith(query);
+    expect(legado.findFinancialMovementPage).toHaveBeenCalledWith(query);
+    expect(summaryService.findSummary).not.toHaveBeenCalled();
   });
 });

@@ -247,7 +247,7 @@ function resolveFiltroFavorecido(perfil: Perfil, filter: BasePagamentoFilter): {
 // precedencia sobre consorcioNome, e os dois exigem o papel de guardador - a linha de pagamento
 // da propria associacao nunca entra. Sem filtro nao ha restricao de papel aqui (ordem sem usuario
 // continua visivel); o legado exige o papel sempre, divergencia registrada.
-// $9 so entra na lista de parametros quando o SQL o referencia.
+// $10 so entra na lista de parametros quando o SQL o referencia.
 function resolveFiltroAssociacao(perfil: Perfil, filter: BasePagamentoFilter): { sql: string; params: unknown[] } {
   if (perfil !== 'guardador') return { sql: '', params: [] };
   if (filter.todosConsorcios) {
@@ -255,7 +255,7 @@ function resolveFiltroAssociacao(perfil: Perfil, filter: BasePagamentoFilter): {
   }
   if (filter.consorcioNome?.length) {
     return {
-      sql: `AND pu."roleId" = ${GUARDADOR_ROLE_ID} AND assoc."nomesUpper" && $9::text[]`,
+      sql: `AND pu."roleId" = ${GUARDADOR_ROLE_ID} AND assoc."nomesUpper" && $10::text[]`,
       params: [filter.consorcioNome.map((nome) => nome.trim().toUpperCase())],
     };
   }
@@ -481,7 +481,7 @@ export class BasePagamentoRepository {
             (op."ordemPagamentoAgrupadoId" IS NULL AND NOT ${resolveCondicaoPendenteOrdemSolta(perfil)})
             OR (op."ordemPagamentoAgrupadoId" IS NOT NULL AND da.id IS NULL)
           )
-          AND op."${dataCapturaColumn}"::date BETWEEN $10::date AND $2::date
+          AND op."${dataCapturaColumn}"::date BETWEEN $9::date AND $2::date
           ${filtroFavorecido}
       ),
       combinado AS (
@@ -503,16 +503,15 @@ export class BasePagamentoRepository {
         FROM combinado
         WHERE ($3::text[] IS NULL OR status = ANY($3))
           -- Um lote rejeitado elegivel vem de pendencia_pagamento e de pendentes: conta uma vez so.
+          -- Com Pendentes no filtro (ou sem filtro de status), fica como Pendentes, como no legado.
           AND NOT (
-            "chaveLinha" LIKE 'pendentes_rejeitado:%'
+            ("chaveLinha" LIKE 'pendencia_pagamento_intervalo:%'
+              OR "chaveLinha" LIKE 'pendencia_pagamento_familia:%'
+              OR "chaveLinha" LIKE 'pendencia_pagamento_propria:%')
+            AND ($3::text[] IS NULL OR '${StatusPagamento.PENDENTES}' = ANY($3))
             AND EXISTS (
               SELECT 1 FROM combinado outra
-              WHERE outra."chaveLinha" IN (
-                'pendencia_pagamento_intervalo:' || split_part(combinado."chaveLinha", ':', 2),
-                'pendencia_pagamento_familia:' || split_part(combinado."chaveLinha", ':', 2),
-                'pendencia_pagamento_propria:' || split_part(combinado."chaveLinha", ':', 2)
-              )
-              AND ($3::text[] IS NULL OR outra.status = ANY($3))
+              WHERE outra."chaveLinha" = 'pendentes_rejeitado:' || split_part(combinado."chaveLinha", ':', 2)
             )
           )
           AND ($7::text[] IS NULL OR UPPER(TRIM("nomeConsorcio")) = ANY($7))
@@ -536,8 +535,8 @@ export class BasePagamentoRepository {
         filter.userIds?.length ? filter.userIds : null,
         nomeConsorcioList,
         excludeInstitutional ? [...INSTITUTIONAL_CPF_CNPJ] : null,
-        ...paramsAssociacao,
         perfil === 'permissionario' ? resolveInicioAPagar(filter.dataInicio) : filter.dataInicio,
+        ...paramsAssociacao,
       ],
     };
   }
