@@ -200,20 +200,28 @@ function resolveConsorcioFilter(perfil: Perfil, filter: BasePagamentoFilter): { 
   if (perfil === 'guardador') {
     return { nomeConsorcioList: null, excludeInstitutional: false };
   }
-  if (filter.consorcioNome?.length) {
-    return { nomeConsorcioList: filter.consorcioNome.map((nome) => nome.trim().toUpperCase()), excludeInstitutional: false };
-  }
-  if (filter.todosConsorcios) {
-    // CONSORCIOS tem grafia mista (ex. "Internorte") - uppercase aqui para casar com o
-    // UPPER(TRIM(...)) aplicado na coluna (igual ao filtro de consorcioNome especifico acima;
-    // achado de T3: o legado so faz UPPER(TRIM()) no branch de consorcio especifico, nao no de
-    // "Todos os consorcios" - aqui os dois branches sao tratados de forma consistente).
-    return { nomeConsorcioList: CONSORCIOS.map((nome) => nome.toUpperCase()), excludeInstitutional: false };
+  const consorciosSelecionados = resolveConsorciosSelecionados(filter);
+  if (consorciosSelecionados) {
+    return { nomeConsorcioList: consorciosSelecionados, excludeInstitutional: false };
   }
   if (filter.userIds?.length) {
     return { nomeConsorcioList: null, excludeInstitutional: false };
   }
   return { nomeConsorcioList: MODAIS.map((nome) => nome.toUpperCase()), excludeInstitutional: true };
+}
+
+// Lista de consorcios pedida explicitamente (consorcioNome, senao todosConsorcios), ja em
+// uppercase para casar com o UPPER(TRIM(...)) da coluna; null quando nenhum foi pedido.
+function resolveConsorciosSelecionados(filter: Pick<BasePagamentoFilter, 'consorcioNome' | 'todosConsorcios'>): string[] | null {
+  if (filter.consorcioNome?.length) {
+    return filter.consorcioNome.map((nome) => nome.trim().toUpperCase());
+  }
+  if (filter.todosConsorcios) {
+    // CONSORCIOS tem grafia mista (ex. "Internorte") - o legado so faz UPPER(TRIM()) no branch
+    // de consorcio especifico, aqui os dois sao tratados igual.
+    return CONSORCIOS.map((nome) => nome.toUpperCase());
+  }
+  return null;
 }
 
 function condicaoBloqueado(filter: Pick<BasePagamentoFilter, 'desativados'>): string {
@@ -523,7 +531,7 @@ export class BasePagamentoRepository {
   // status disponivel (buildEleicaoStatusPagamentoCaseSql, restrito por ADR 0004 - sem
   // Pendencia Paga/Pendentes) coincidem com o resto de findGroupedRows. Por isso e' um metodo
   // separado, nao uma nova fonte na CTE "combinado" (decisao documentada no relatorio da task).
-  async findEleicaoRows(filter: Pick<BasePagamentoFilter, 'dataInicio' | 'dataFim' | 'statuses' | 'valorMin' | 'valorMax' | 'consorcioNome' | 'todosConsorcios' | 'desativados'>): Promise<BasePagamentoRow[]> {
+  async findEleicaoRows(filter: Pick<BasePagamentoFilter, 'dataInicio' | 'dataFim' | 'statuses' | 'valorMin' | 'valorMax' | 'userIds' | 'consorcioNome' | 'todosConsorcios' | 'desativados'>): Promise<BasePagamentoRow[]> {
     const eleicaoStatusCase = buildEleicaoStatusPagamentoCaseSql('oph');
     const chaveDoTotal = filter.consorcioNome?.length || filter.todosConsorcios ? '"nomeConsorcio"' : 'nomes';
 
@@ -533,13 +541,15 @@ export class BasePagamentoRepository {
           da."dataVencimento"::date AS "dataReferencia",
           pu."fullName" AS nomes,
           pu."cpfCnpj" AS "cpfCnpj",
-          opu."consorcio" AS "nomeConsorcio",
+          ${buildConsorcioCaseSql('pu', 'consorcio_opu')} AS "nomeConsorcio",
           da."valorLancamento" AS valor,
           ${eleicaoStatusCase} AS status
         FROM ordem_pagamento_agrupado opa
         INNER JOIN ordem_pagamento_agrupado_historico oph ON oph."ordemPagamentoAgrupadoId" = opa.id
         INNER JOIN detalhe_a da ON da."ordemPagamentoAgrupadoHistoricoId" = oph.id
         INNER JOIN ordem_pagamento_unico opu ON opu."idOrdemPagamento" = opa.id::varchar
+        -- ordem_pagamento_unico chama a coluna de "consorcio"; o alias casa com o CASE compartilhado.
+        CROSS JOIN LATERAL (SELECT opu."consorcio" AS "nomeConsorcio") consorcio_opu
         -- permitCode/idOperadora e' a ligacao principal, nunca cpfCnpj diretamente: "user".
         -- "cpfCnpj" nao e' unico (achado contra stag, 19/10/2026) - ligar por ele faria
         -- fan-out, dobrando o valor da mesma ordem. Fallback por operadoraCpfCnpj (ADR 0019)
@@ -557,6 +567,7 @@ export class BasePagamentoRepository {
           AND u."cpfCnpj" = opu."operadoraCpfCnpj"
         ) pu ON true
         WHERE da."dataVencimento"::date BETWEEN $1::date AND $2::date
+          AND ($6::integer[] IS NULL OR pu.id = ANY($6))
           ${condicaoBloqueado(filter)}
       )
       , filtrado AS (
@@ -564,6 +575,7 @@ export class BasePagamentoRepository {
           SUM(valor) OVER (PARTITION BY ${chaveDoTotal}) AS "totalDoGrupo"
         FROM eleicao
         WHERE ($3::text[] IS NULL OR status = ANY($3))
+          AND ($7::text[] IS NULL OR UPPER(TRIM("nomeConsorcio")) = ANY($7))
       )
       SELECT "dataReferencia", nomes, "cpfCnpj", "nomeConsorcio", valor, status
       FROM filtrado
@@ -578,6 +590,8 @@ export class BasePagamentoRepository {
       filter.statuses?.length ? filter.statuses : null,
       filter.valorMin ?? null,
       filter.valorMax ?? null,
+      filter.userIds?.length ? filter.userIds : null,
+      resolveConsorciosSelecionados(filter),
     ]);
   }
 

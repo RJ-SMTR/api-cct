@@ -13,6 +13,7 @@ import { CustomLogger } from 'src/utils/custom-logger';
 import { StatusPagamento } from '../../enum/statusRemessafinancial-movement';
 import { RelatorioGuardadorFinancialMovementRepository } from '../../movimentacao-financeira/relatorio-guardador-financial-movement.repository';
 import { RelatorioNovoRemessaFinancialMovementService } from '../../movimentacao-financeira/relatorio-novo-remessa-financial-movement.service';
+import { RelatorioNovoRemessaConsolidadoRepository } from '../../novo-remessa/relatorio-novo-remessa-consolidado.repository';
 import { BasePagamentoRepository } from './base-pagamento.repository';
 import { resolveCursorFromQuery } from '../summary/financial-movement-v2-query.mapper';
 
@@ -1633,8 +1634,7 @@ suite('BasePagamentoRepository (PostgreSQL)', () => {
       // userIds (em vez de todosVanzeiros) evita o MODAIS_FILTER/NOT_CPF_FILTER do legado (so'
       // pensado para "Favorecido = Todos" sem nenhum usuario especifico, restrito a
       // permitCode LIKE '4%'/'81%'/'7%' - nao se aplica aos permitCodes sinteticos deste
-      // fixture). findEleicaoRows (v2) nao filtra por userIds ainda (fora do escopo de T7, ver
-      // Decisions do relatorio) - a lista so' serve para o lado legado.
+      // fixture).
       const filter = {
         dataInicio: new Date('2098-12-01T00:00:00.000Z'),
         dataFim: new Date('2098-12-31T00:00:00.000Z'),
@@ -2393,6 +2393,105 @@ suite('BasePagamentoRepository (PostgreSQL)', () => {
 
         expect(sumByStatus(novo)[StatusPagamento.A_PAGAR] ?? 0).toBe(legado.valorAPagar);
       }, 30000);
+    });
+
+    describe('A4: findEleicaoRows', () => {
+      const U_MODAL = A_BASE + 400;
+      const U_COMUM = A_BASE + 401;
+      const U_BLOQ = A_BASE + 402;
+
+      async function seedEleicao(params: { base: number; idOperadora: string; cpf: string; consorcio: string; valor: number }): Promise<void> {
+        await dataSource.query(
+          `INSERT INTO ordem_pagamento_agrupado (id, "dataPagamento", "valorTotal", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt")
+           VALUES ($1, DATE '2098-03-10', $2, NULL, now(), now())`,
+          [params.base, params.valor],
+        );
+        await dataSource.query(
+          `INSERT INTO ordem_pagamento_agrupado_historico (id, "ordemPagamentoAgrupadoId", "dataReferencia", "userBankCode", "userBankAgency", "userBankAccount", "userBankAccountDigit", "statusRemessa")
+           VALUES ($1, $2, DATE '2098-03-10', '104', '0001', '99990002', '1', 3)`,
+          [params.base + 1, params.base],
+        );
+        await dataSource.query(
+          `INSERT INTO detalhe_a (id, "ordemPagamentoAgrupadoHistoricoId", "numeroDocumentoEmpresa", "dataVencimento", "valorLancamento", "valorRealEfetivado", nsr, "createdAt", "updatedAt")
+           OVERRIDING SYSTEM VALUE VALUES ($1, $2, $1, DATE '2098-03-10', $3, $3, $1, now(), now())`,
+          [params.base + 2, params.base + 1, params.valor],
+        );
+        await dataSource.query(
+          `INSERT INTO ordem_pagamento_unico (id, "idOrdemPagamento", "idOperadora", "operadoraCpfCnpj", "consorcio", "dataOrdem")
+           VALUES ($1, $2, $3, $4, $5, DATE '2098-03-10')`,
+          [params.base + 3, String(params.base), params.idOperadora, params.cpf, params.consorcio],
+        );
+      }
+
+      beforeAll(async () => {
+        await dataSource.query(`
+          CREATE TABLE IF NOT EXISTS ordem_pagamento_unico (
+            id SERIAL PRIMARY KEY, "idOrdemPagamento" VARCHAR, "idOperadora" VARCHAR, "operadoraCpfCnpj" VARCHAR,
+            "operadora" VARCHAR, "consorcio" VARCHAR, "dataOrdem" DATE, "quantidadeTransacaoGratuidade" INTEGER, "valorTotalTransacaoLiquido" NUMERIC
+          )
+        `);
+      });
+
+      beforeEach(async () => {
+        await seedUsuario({ id: U_MODAL, nome: 'RV2 ELEICAO MODAL', cpf: '98500000400', permitCode: '4RV2001' });
+        await seedUsuario({ id: U_COMUM, nome: 'RV2 ELEICAO COMUM', cpf: '98500000401', permitCode: 'RV2-E-COMUM' });
+        await seedUsuario({ id: U_BLOQ, nome: 'RV2 ELEICAO BLOQ', cpf: '98500000402', permitCode: 'RV2-E-BLOQ', bloqueado: true });
+        await seedEleicao({ base: A_BASE + 410, idOperadora: '4RV2001', cpf: '98500000400', consorcio: 'RV2 RAW', valor: 100 });
+        await seedEleicao({ base: A_BASE + 420, idOperadora: 'RV2-E-COMUM', cpf: '98500000401', consorcio: 'Internorte', valor: 200 });
+        await seedEleicao({ base: A_BASE + 430, idOperadora: 'RV2-E-BLOQ', cpf: '98500000402', consorcio: 'Internorte', valor: 300 });
+      });
+
+      it('resolves the consorcio by permitCode first, matching the legacy consolidado for a permitCode starting with 4', async () => {
+        const legacyConsolidado = new RelatorioNovoRemessaConsolidadoRepository(dataSource);
+
+        const [linhas, legado] = await Promise.all([
+          repository.findEleicaoRows({ ...periodo, consorcioNome: ['STPC'] }),
+          legacyConsolidado.findConsolidado({ ...periodo, eleicao: true, consorcioNome: ['STPC'] }),
+        ]);
+
+        expect(linhas.map((linha) => linha.nomeConsorcio)).toEqual(['STPC']);
+        expect(legado.data.reduce((total, linha) => total + Number(linha.valor), 0)).toBe(100);
+      }, 30000);
+
+      it('filters by the CASE-resolved consorcio, unlike the legacy Movimentacao that compares the raw column (documented divergence)', async () => {
+        const [v2Stpc, legadoStpc, v2Raw, legadoRaw] = await Promise.all([
+          repository.findEleicaoRows({ ...periodo, consorcioNome: ['STPC'] }),
+          legacyPermissionarioService.findFinancialMovementSummary({ ...periodo, eleicao: true, consorcioNome: ['STPC'] }),
+          repository.findEleicaoRows({ ...periodo, consorcioNome: ['RV2 RAW'] }),
+          legacyPermissionarioService.findFinancialMovementSummary({ ...periodo, eleicao: true, consorcioNome: ['RV2 RAW'] }),
+        ]);
+
+        expect(v2Stpc.reduce((total, linha) => total + Number(linha.valor), 0)).toBe(100);
+        expect(legadoStpc.valorPago).toBe(0);
+        expect(v2Raw).toHaveLength(0);
+        expect(legadoRaw.valorPago).toBe(100);
+      }, 30000);
+
+      it('todosConsorcios keeps the fixed CONSORCIOS list, resolved by the CASE (legacy compares the raw column: documented divergence)', async () => {
+        await seedEleicao({ base: A_BASE + 440, idOperadora: 'RV2-E-COMUM', cpf: '98500000401', consorcio: 'RV2 FORA DA LISTA', valor: 50 });
+        const legacyConsolidado = new RelatorioNovoRemessaConsolidadoRepository(dataSource);
+
+        const [linhas, legado] = await Promise.all([
+          repository.findEleicaoRows({ ...periodo, todosConsorcios: true }),
+          legacyConsolidado.findConsolidado({ ...periodo, eleicao: true, todosConsorcios: true }),
+        ]);
+
+        expect(linhas.map((linha) => Number(linha.valor)).sort((a, b) => a - b)).toEqual([100, 200]);
+        expect(legado.data.reduce((total, linha) => total + Number(linha.valor), 0)).toBe(200);
+      }, 30000);
+
+      it('restricts by userIds', async () => {
+        const linhas = await repository.findEleicaoRows({ ...periodo, userIds: [U_COMUM] });
+
+        expect(linhas.map((linha) => linha.nomes)).toEqual(['RV2 ELEICAO COMUM']);
+      });
+
+      it('excludes a blocked favorecido by default and shows only blocked ones under desativados', async () => {
+        const [padrao, desativados] = await Promise.all([repository.findEleicaoRows(periodo), repository.findEleicaoRows({ ...periodo, desativados: true })]);
+
+        expect(padrao.map((linha) => linha.nomes)).not.toContain('RV2 ELEICAO BLOQ');
+        expect(desativados.map((linha) => linha.nomes)).toEqual(['RV2 ELEICAO BLOQ']);
+      });
     });
   });
 });
