@@ -13,6 +13,7 @@ import { RelatorioGuardadorConsolidadoRepository } from './consolidado/relatorio
 import { RelatorioGuardadorFinancialMovementRepository } from './movimentacao-financeira/relatorio-guardador-financial-movement.repository';
 import { RelatorioController } from './relatorio.controller';
 import { ConsolidadoV2Controller } from './consolidado-v2/consolidado-v2.controller';
+import { ConsolidadoCombinadoService } from './consolidado-v2/consolidado-combinado.service';
 import { ConsorcioAggregatorService } from './consolidado-v2/consorcio-aggregator.service';
 import { EleicaoAggregatorService } from './consolidado-v2/eleicao-aggregator.service';
 import { VanzeiroAggregatorService } from './consolidado-v2/vanzeiro-aggregator.service';
@@ -49,6 +50,7 @@ import { RelatorioNovoRemessaV2Controller } from './novo-remessa-v2/relatorio-no
     ConsorcioAggregatorService,
     EleicaoAggregatorService,
     StucGratuidadeAggregatorService,
+    ConsolidadoCombinadoService,
   ],
   exports: [
     RelatorioNovoRemessaFinancialMovementService,

@@ -6,6 +6,7 @@ import { ParseBooleanPipe } from 'src/utils/pipes/parse-boolean.pipe';
 import { ParseDatePipe } from 'src/utils/pipes/parse-date.pipe';
 import { ParseNumberPipe } from 'src/utils/pipes/parse-number.pipe';
 import { StatusPagamento } from '../enum/statusRemessafinancial-movement';
+import { ConsolidadoCombinadoService } from './consolidado-combinado.service';
 import { ConsorcioAggregatorService } from './consorcio-aggregator.service';
 import { EleicaoAggregatorService } from './eleicao-aggregator.service';
 import { StucGratuidadeAggregatorService } from './stuc-gratuidade-aggregator.service';
@@ -56,6 +57,7 @@ export class ConsolidadoV2Controller {
     private readonly consorcioAggregatorService: ConsorcioAggregatorService,
     private readonly eleicaoAggregatorService: EleicaoAggregatorService,
     private readonly stucGratuidadeAggregatorService: StucGratuidadeAggregatorService,
+    private readonly consolidadoCombinadoService: ConsolidadoCombinadoService,
   ) {}
 
   @ApiQuery({ name: 'dataInicio', description: 'Data da Ordem de Pagamento Inicial', required: true, type: String })
@@ -167,6 +169,10 @@ export class ConsolidadoV2Controller {
     // Mesma regra implicita do legado (temFiltroConsorcio/temFiltroVanzeiros em
     // findConsolidado, relatorio-novo-remessa-consolidado.repository.ts:881-886): um filtro de
     // consorcio explicito direciona para a visao por consorcio; senao, por favorecido.
+    if (todosVanzeiros && todosConsorcios) {
+      return this.consolidadoCombinadoService.aggregate(filter);
+    }
+
     if (temFiltroConsorcio) {
       return this.consorcioAggregatorService.aggregate(filter, { consorcioNome, todosConsorcios });
     }

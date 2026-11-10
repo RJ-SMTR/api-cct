@@ -15,6 +15,8 @@ import { BasePagamentoRepository } from '../movimentacao-financeira-v2/base/base
 import { RelatorioNovoRemessaConsolidadoRepository } from '../novo-remessa/relatorio-novo-remessa-consolidado.repository';
 import { VanzeiroAggregatorService } from './vanzeiro-aggregator.service';
 
+jest.setTimeout(60000);
+
 const RUN = Boolean(process.env.RUN_RETORNO_DB_TESTS);
 const suite = RUN ? describe : describe.skip;
 

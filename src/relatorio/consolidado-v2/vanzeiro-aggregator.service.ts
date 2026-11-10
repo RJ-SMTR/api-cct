@@ -9,6 +9,11 @@ interface FavorecidoAccumulator {
   valor: number;
 }
 
+export interface VanzeiroAggregatorOptions {
+  // So pessoas fisicas: mesmo recorte de length(operadoraCpfCnpj)<=11 do "todosVanzeiros" legado.
+  somenteIndividuais?: boolean;
+}
+
 @Injectable()
 export class VanzeiroAggregatorService {
   constructor(private readonly basePagamentoRepository: BasePagamentoRepository) {}
@@ -16,11 +21,16 @@ export class VanzeiroAggregatorService {
   // Agrega por "nomes" (nome completo do favorecido), replicando GROUP BY "nome" de
   // getQueryVanzeiros (relatorio-novo-remessa-consolidado.repository.ts) - nao por cpfCnpj, que
   // nao e unico (ADR 0019). Nao inventa correcao para esse caso aqui (fora de escopo da fatia).
-  async aggregate(filter: BasePagamentoFilter, perfil: Perfil = 'permissionario'): Promise<RelatorioConsolidadoNovoRemessaDto> {
+  async aggregate(
+    filter: BasePagamentoFilter,
+    perfil: Perfil = 'permissionario',
+    options: VanzeiroAggregatorOptions = {},
+  ): Promise<RelatorioConsolidadoNovoRemessaDto> {
     // valorMin/valorMax valem sobre o total do favorecido no periodo e sao aplicados abaixo, depois
     // da soma, porque valorAPagar so considera os favorecidos que ficam dentro dos limites.
     const { valorMin, valorMax, ...baseFilter } = filter;
-    const rows = await this.basePagamentoRepository.findGroupedRows(perfil, baseFilter);
+    const allRows = await this.basePagamentoRepository.findGroupedRows(perfil, baseFilter);
+    const rows = options.somenteIndividuais ? allRows.filter((row) => row.cpfCnpj && row.cpfCnpj.length <= 11) : allRows;
 
     const totalsByFavorecido = new Map<string, FavorecidoAccumulator>();
 

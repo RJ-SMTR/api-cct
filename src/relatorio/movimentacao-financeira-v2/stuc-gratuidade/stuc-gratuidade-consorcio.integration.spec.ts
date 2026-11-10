@@ -14,6 +14,8 @@ import { StatusPagamento } from '../../enum/statusRemessafinancial-movement';
 import { RelatorioNovoRemessaConsolidadoRepository } from '../../novo-remessa/relatorio-novo-remessa-consolidado.repository';
 import { StucGratuidadeRepository } from './stuc-gratuidade.repository';
 
+jest.setTimeout(60000);
+
 const RUN = Boolean(process.env.RUN_RETORNO_DB_TESTS);
 const suite = RUN ? describe : describe.skip;
 

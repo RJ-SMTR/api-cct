@@ -2,6 +2,7 @@ import { GUARDS_METADATA } from '@nestjs/common/constants';
 import { HttpException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { StatusPagamento } from '../enum/statusRemessafinancial-movement';
+import { ConsolidadoCombinadoService } from './consolidado-combinado.service';
 import { ConsolidadoV2Controller } from './consolidado-v2.controller';
 import { ConsorcioAggregatorService } from './consorcio-aggregator.service';
 import { EleicaoAggregatorService } from './eleicao-aggregator.service';
@@ -14,6 +15,7 @@ describe('ConsolidadoV2Controller', () => {
   let consorcioAggregatorService: ConsorcioAggregatorService;
   let eleicaoAggregatorService: EleicaoAggregatorService;
   let stucGratuidadeAggregatorService: StucGratuidadeAggregatorService;
+  let consolidadoCombinadoService: ConsolidadoCombinadoService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -23,6 +25,7 @@ describe('ConsolidadoV2Controller', () => {
         { provide: ConsorcioAggregatorService, useValue: { aggregate: jest.fn().mockResolvedValue({ count: 0, valor: 0, valorAPagar: 0, data: [] }) } },
         { provide: EleicaoAggregatorService, useValue: { aggregateByFavorecido: jest.fn().mockResolvedValue({ count: 0, valor: 0, valorAPagar: 0, data: [] }), aggregateByConsorcio: jest.fn().mockResolvedValue({ count: 0, valor: 0, valorAPagar: 0, data: [] }) } },
         { provide: StucGratuidadeAggregatorService, useValue: { aggregate: jest.fn().mockResolvedValue({ count: 0, valor: 0, valorAPagar: 0, data: [] }) } },
+        { provide: ConsolidadoCombinadoService, useValue: { aggregate: jest.fn().mockResolvedValue({ count: 0, valor: 0, valorAPagar: 0, data: [] }) } },
       ],
     }).compile();
 
@@ -31,6 +34,7 @@ describe('ConsolidadoV2Controller', () => {
     consorcioAggregatorService = module.get(ConsorcioAggregatorService);
     eleicaoAggregatorService = module.get(EleicaoAggregatorService);
     stucGratuidadeAggregatorService = module.get(StucGratuidadeAggregatorService);
+    consolidadoCombinadoService = module.get(ConsolidadoCombinadoService);
   });
 
   const dataInicio = new Date('2098-01-01');
@@ -98,6 +102,23 @@ describe('ConsolidadoV2Controller', () => {
       expect.objectContaining({ todosConsorcios: true }),
     );
     expect(vanzeiroAggregatorService.aggregate).not.toHaveBeenCalled();
+  });
+
+  it('routes to the combined view when todosVanzeiros and todosConsorcios are both true', async () => {
+    await callController({ todosVanzeiros: true, todosConsorcios: true, pago: true, valorMax: 10 });
+
+    expect(consolidadoCombinadoService.aggregate).toHaveBeenCalledWith(expect.objectContaining({ dataInicio, dataFim, valorMax: 10, statuses: [StatusPagamento.PAGO] }));
+    expect(consorcioAggregatorService.aggregate).not.toHaveBeenCalled();
+    expect(vanzeiroAggregatorService.aggregate).not.toHaveBeenCalled();
+  });
+
+  it('does not use the combined view for STUC or Eleicao with both flags', async () => {
+    await callController({ todosVanzeiros: true, todosConsorcios: true, stucGratuidade: true });
+    await callController({ todosVanzeiros: true, todosConsorcios: true, eleicao: true });
+
+    expect(stucGratuidadeAggregatorService.aggregate).toHaveBeenCalledTimes(1);
+    expect(eleicaoAggregatorService.aggregateByConsorcio).toHaveBeenCalledTimes(1);
+    expect(consolidadoCombinadoService.aggregate).not.toHaveBeenCalled();
   });
 
   // AuthGuard('jwt') enforcement itself (a real 401 without a token) is an HTTP-level concern,
