@@ -164,14 +164,18 @@ suite('Consolidado v2 - perfil Guardador (PostgreSQL)', () => {
     );
   });
 
-  // Por intervalo: em dia unico, com Pendencia Paga sozinha, a query legada falha com
-  // "could not determine data type of parameter $6" (bug do legado, fora do escopo desta fatia).
   // O vencimento do detalhe fica dentro do periodo porque, em intervalo, o legado de Guardador
   // filtra Pendencia Paga por dataVencimento, enquanto a base v2 usa sempre a data do pai.
   it('matches the legacy total for Pendencia Paga (familia pai/filha)', async () => {
     await seedPendenciaPagaFamilia();
 
     await expectParidade(periodo('2095-05-01', '2095-05-31'), [StatusPagamento.PENDENCIA_PAGA], { pendenciaPaga: true }, 500);
+  });
+
+  it('matches the legacy total for Pendencia Paga alone on a single day', async () => {
+    await seedPendenciaPagaFamilia();
+
+    await expectParidade(periodo('2095-05-10', '2095-05-10'), [StatusPagamento.PENDENCIA_PAGA], { pendenciaPaga: true }, 500);
   });
 
   it('matches the legacy total for Rejeitado sem pai (dia unico)', async () => {
