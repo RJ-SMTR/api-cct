@@ -27,6 +27,9 @@ export interface BasePagamentoFilter {
   userIds?: number[];
   consorcioNome?: string[];
   todosConsorcios?: boolean;
+  // Sem o flag, favorecido bloqueado fica de fora; com ele, so os bloqueados. Ordem sem usuario
+  // (pu NULL) continua visivel no modo padrao e nunca aparece em desativados.
+  desativados?: boolean;
 }
 
 export interface BasePagamentoRow {
@@ -189,6 +192,17 @@ function resolveConsorcioFilter(perfil: Perfil, filter: BasePagamentoFilter): { 
   return { nomeConsorcioList: MODAIS.map((nome) => nome.toUpperCase()), excludeInstitutional: true };
 }
 
+function condicaoBloqueado(filter: Pick<BasePagamentoFilter, 'desativados'>): string {
+  return filter.desativados ? 'AND pu.bloqueado = true' : 'AND pu.bloqueado IS NOT TRUE';
+}
+
+// Filtro por favorecido comum a todas as fontes de "combinado" - um unico fragmento para nenhum
+// ramo de UNION ficar sem a condicao de bloqueado.
+function resolveFiltroFavorecido(filter: BasePagamentoFilter): string {
+  return `AND ($6::integer[] IS NULL OR pu.id = ANY($6))
+          ${condicaoBloqueado(filter)}`;
+}
+
 @Injectable()
 export class BasePagamentoRepository {
   constructor(private readonly dataSource: DataSource) {}
@@ -273,6 +287,7 @@ export class BasePagamentoRepository {
     const statusCase = buildStatusPagamentoCaseSql('oph');
     const { nomeConsorcioList, excludeInstitutional } = resolveConsorcioFilter(perfil, filter);
     const lateral = representanteLateral(perfil, ordemTable);
+    const filtroFavorecido = resolveFiltroFavorecido(filter);
     // ADR 0001/0020: Pendencia Paga (5) e Rejeitado/Estorno (4) nunca vem desta fonte, que
     // filtra por data de VENCIMENTO - as duas tem data/regra propria (pendencia_paga*,
     // pendencia_pagamento abaixo), filtradas por data de PAGAMENTO.
@@ -302,7 +317,7 @@ export class BasePagamentoRepository {
         ${lateral}
         WHERE da."dataVencimento"::date BETWEEN $1::date AND $2::date
           AND oph."statusRemessa" NOT IN (4, 5)
-          AND ($6::integer[] IS NULL OR pu.id = ANY($6))
+          ${filtroFavorecido}
       ),
       pendencia_paga AS (
         -- Pendencia Paga (status 5, ADR 0001): sem gate de dia unico - sempre pela data de
@@ -338,7 +353,7 @@ export class BasePagamentoRepository {
             ORDER BY (ROUND(da_filha."valorLancamento"::numeric, 2) = ROUND(opa."valorTotal"::numeric, 2)) DESC, da_filha.id DESC
             LIMIT 1
           )
-          AND ($6::integer[] IS NULL OR pu.id = ANY($6))
+          ${filtroFavorecido}
       ),
       pendencia_paga_passo0 AS (
         -- PASSO 0: filha paga nunca enviada em arquivo proprio (nenhum historico dela tem
@@ -367,13 +382,13 @@ export class BasePagamentoRepository {
             INNER JOIN detalhe_a da_qualquer ON da_qualquer."ordemPagamentoAgrupadoHistoricoId" = oph_qualquer.id
             WHERE oph_qualquer."ordemPagamentoAgrupadoId" = opa.id
           )
-          AND ($6::integer[] IS NULL OR pu.id = ANY($6))
+          ${filtroFavorecido}
       ),
       pendencia_pagamento AS (
-        ${isSingleDate ? this.buildPendenciaPagamentoDiaUnicoSql(perfil, lateral) : this.buildPendenciaPagamentoIntervaloSql(perfil, lateral)}
+        ${isSingleDate ? this.buildPendenciaPagamentoDiaUnicoSql(perfil, lateral, filtroFavorecido) : this.buildPendenciaPagamentoIntervaloSql(perfil, lateral, filtroFavorecido)}
       ),
       pendentes AS (
-        ${this.buildPendentesSql(perfil, lateral)}
+        ${this.buildPendentesSql(perfil, lateral, filtroFavorecido)}
       ),
       agrupada_somada AS (
         -- Soma lotes distintos (agrupamentos diferentes) do mesmo favorecido/dia/status - unico
@@ -407,7 +422,7 @@ export class BasePagamentoRepository {
             OR (op."ordemPagamentoAgrupadoId" IS NOT NULL AND da.id IS NULL)
           )
           AND op."${dataCapturaColumn}"::date BETWEEN $1::date AND $2::date
-          AND ($6::integer[] IS NULL OR pu.id = ANY($6))
+          ${filtroFavorecido}
       ),
       combinado AS (
         SELECT * FROM agrupada_somada
@@ -458,7 +473,7 @@ export class BasePagamentoRepository {
   // status disponivel (buildEleicaoStatusPagamentoCaseSql, restrito por ADR 0004 - sem
   // Pendencia Paga/Pendentes) coincidem com o resto de findGroupedRows. Por isso e' um metodo
   // separado, nao uma nova fonte na CTE "combinado" (decisao documentada no relatorio da task).
-  async findEleicaoRows(filter: Pick<BasePagamentoFilter, 'dataInicio' | 'dataFim' | 'statuses' | 'valorMin' | 'valorMax' | 'consorcioNome' | 'todosConsorcios'>): Promise<BasePagamentoRow[]> {
+  async findEleicaoRows(filter: Pick<BasePagamentoFilter, 'dataInicio' | 'dataFim' | 'statuses' | 'valorMin' | 'valorMax' | 'consorcioNome' | 'todosConsorcios' | 'desativados'>): Promise<BasePagamentoRow[]> {
     const eleicaoStatusCase = buildEleicaoStatusPagamentoCaseSql('oph');
     const chaveDoTotal = filter.consorcioNome?.length || filter.todosConsorcios ? '"nomeConsorcio"' : 'nomes';
 
@@ -492,6 +507,7 @@ export class BasePagamentoRepository {
           AND u."cpfCnpj" = opu."operadoraCpfCnpj"
         ) pu ON true
         WHERE da."dataVencimento"::date BETWEEN $1::date AND $2::date
+          ${condicaoBloqueado(filter)}
       )
       , filtrado AS (
         SELECT "dataReferencia", nomes, "cpfCnpj", "nomeConsorcio", valor, status,
@@ -518,7 +534,7 @@ export class BasePagamentoRepository {
   // Dia unico (ADR 0008/nota do ADR 0001): a familia pai define status (historico mais recente
   // do pai) e data de referencia; o valor e' da propria filha. Sem filtro de elegibilidade (ADR
   // 0020) - esta consulta dedicada nunca teve esse filtro no legado, so o caminho de intervalo.
-  private buildPendenciaPagamentoDiaUnicoSql(perfil: Perfil, lateral: string): string {
+  private buildPendenciaPagamentoDiaUnicoSql(perfil: Perfil, lateral: string, filtroFavorecido: string): string {
     const statusPai = buildStatusPagamentoCaseSql('oph_pai');
     const statusPropria = buildStatusPagamentoCaseSql('oph');
     const statusRejeitado = `'${StatusPagamento.ERRO_ESTORNO}', '${StatusPagamento.ERRO_REJEITADO}'`;
@@ -542,7 +558,7 @@ export class BasePagamentoRepository {
         WHERE op_pai."dataPagamento"::date BETWEEN $1::date AND $2::date
           AND ${statusPai} IN (${statusRejeitado})
           AND (oph_pai."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph_pai."motivoStatusRemessa" IS NULL)
-          AND ($6::integer[] IS NULL OR pu.id = ANY($6))
+          ${filtroFavorecido}
 
         UNION ALL
 
@@ -563,14 +579,14 @@ export class BasePagamentoRepository {
           AND opa."dataPagamento"::date BETWEEN $1::date AND $2::date
           AND ${statusPropria} IN (${statusRejeitado})
           AND (oph."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph."motivoStatusRemessa" IS NULL)
-          AND ($6::integer[] IS NULL OR pu.id = ANY($6))
+          ${filtroFavorecido}
     `;
   }
 
   // Intervalo maior que um dia: orientado pela propria filha (data de vencimento), com o
   // filtro de elegibilidade do ADR 0020 - so mostra o que ainda seria pago de novo, mesma regra
   // da procedure real (reusada de regras-pendencia.ts, nunca reescrita).
-  private buildPendenciaPagamentoIntervaloSql(perfil: Perfil, lateral: string): string {
+  private buildPendenciaPagamentoIntervaloSql(perfil: Perfil, lateral: string, filtroFavorecido: string): string {
     const statusPropria = buildStatusPagamentoCaseSql('oph');
     return `
         SELECT
@@ -588,7 +604,7 @@ export class BasePagamentoRepository {
         WHERE da."dataVencimento"::date BETWEEN $1::date AND $2::date
           AND ${AGRUPAMENTO_SEM_FILHAS('opa')}
           AND ${resolveElegibilidadeRejeitado(perfil)}
-          AND ($6::integer[] IS NULL OR pu.id = ANY($6))
+          ${filtroFavorecido}
     `;
   }
 
@@ -599,7 +615,7 @@ export class BasePagamentoRepository {
   // resolveElegibilidadeRejeitado) e, so' para Guardador, agrupamento criado e nunca enviado
   // (PASSO 1, 3o ramo - nao existe funcao equivalente em regras-pendencia.ts para
   // Permissionario; achado a reportar, nao uma lacuna desta task).
-  private buildPendentesSql(perfil: Perfil, lateral: string): string {
+  private buildPendentesSql(perfil: Perfil, lateral: string, filtroFavorecido: string): string {
     const ordemTable = ORDEM_TABLE[perfil];
     const dataCapturaColumn = DATA_CAPTURA_COLUMN[perfil];
     const valorColumn = VALOR_COLUMN[perfil];
@@ -619,7 +635,7 @@ export class BasePagamentoRepository {
         ${lateral}
         WHERE opa."dataPagamento"::date BETWEEN $1::date AND $2::date
           AND ${pendenciaAgrupamentoNuncaEnviadoGuardador('opa', 'pu')}
-          AND ($6::integer[] IS NULL OR pu.id = ANY($6))
+          ${filtroFavorecido}
       `
       : '';
 
@@ -637,7 +653,7 @@ export class BasePagamentoRepository {
         WHERE op."${dataCapturaColumn}"::date BETWEEN $1::date AND $2::date
           AND op."ordemPagamentoAgrupadoId" IS NULL
           ${resolveElegibilidadePendenteOrdemSolta(perfil)}
-          AND ($6::integer[] IS NULL OR pu.id = ANY($6))
+          ${filtroFavorecido}
 
         UNION ALL
 
@@ -656,7 +672,7 @@ export class BasePagamentoRepository {
         WHERE da."dataVencimento"::date BETWEEN $1::date AND $2::date
           AND ${AGRUPAMENTO_SEM_FILHAS('opa')}
           AND ${resolveElegibilidadeRejeitado(perfil)}
-          AND ($6::integer[] IS NULL OR pu.id = ANY($6))
+          ${filtroFavorecido}
         ${nuncaEnviadoGuardador}
     `;
   }

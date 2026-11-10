@@ -2049,6 +2049,8 @@ suite('BasePagamentoRepository (PostgreSQL)', () => {
       await dataSource.query(`DELETE FROM ordem_pagamento_agrupado_historico WHERE id BETWEEN $1 AND $2`, [A_BASE, A_BASE + 999]);
       await dataSource.query(`DELETE FROM ordem_pagamento WHERE id BETWEEN $1 AND $2`, [A_BASE, A_BASE + 999]);
       await dataSource.query(`DELETE FROM ordem_pagamento_guardador WHERE id BETWEEN $1 AND $2`, [A_BASE, A_BASE + 999]);
+      await dataSource.query(`DELETE FROM ordem_pagamento_unico WHERE id BETWEEN $1 AND $2`, [A_BASE, A_BASE + 999]);
+      await dataSource.query(`UPDATE ordem_pagamento_agrupado SET "ordemPagamentoAgrupadoId" = NULL WHERE id BETWEEN $1 AND $2`, [A_BASE, A_BASE + 999]);
       await dataSource.query(`DELETE FROM ordem_pagamento_agrupado WHERE id BETWEEN $1 AND $2`, [A_BASE, A_BASE + 999]);
       await dataSource.query(`DELETE FROM user_relationships WHERE user_id BETWEEN $1 AND $2 OR related_user_id BETWEEN $1 AND $2`, [A_BASE, A_BASE + 999]);
       await dataSource.query(`DELETE FROM public."user" WHERE id BETWEEN $1 AND $2`, [A_BASE, A_BASE + 999]);
@@ -2075,6 +2077,44 @@ suite('BasePagamentoRepository (PostgreSQL)', () => {
         `INSERT INTO ordem_pagamento (id, "dataOrdem", "dataCaptura", valor, "bqUpdatedAt", "userId", "nomeConsorcio", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt")
          VALUES ($1, $2::date, $2::date, $3, now(), $4, $5, NULL, now(), now())`,
         [params.id, data, params.valor, params.userId, params.consorcio ?? 'RV2 CONSORCIO'],
+      );
+    }
+
+    // Agrupamento com historico e detalhe_a; a ordem filha liga o favorecido (ou o guardador).
+    async function seedAgrupado(params: { base: number; userId: number; statusRemessa: number; motivo?: string | null; valor: number; data?: string; perfil?: 'permissionario' | 'guardador' }): Promise<void> {
+      const data = params.data ?? '2098-03-10';
+      await dataSource.query(
+        `INSERT INTO ordem_pagamento_agrupado (id, "dataPagamento", "valorTotal", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt")
+         VALUES ($1, $2::date, $3, NULL, now(), now())`,
+        [params.base, data, params.valor],
+      );
+      if (params.perfil === 'guardador') {
+        await seedOrdemGuardador({ id: params.base + 1, valor: params.valor, userId: params.userId, data, opaId: params.base });
+      } else {
+        await dataSource.query(
+          `INSERT INTO ordem_pagamento (id, "dataOrdem", "dataCaptura", valor, "bqUpdatedAt", "userId", "nomeConsorcio", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt")
+           VALUES ($1, $2::date, $2::date, $3, now(), $4, 'RV2 CONSORCIO', $5, now(), now())`,
+          [params.base + 1, data, params.valor, params.userId, params.base],
+        );
+      }
+      await dataSource.query(
+        `INSERT INTO ordem_pagamento_agrupado_historico (id, "ordemPagamentoAgrupadoId", "dataReferencia", "userBankCode", "userBankAgency", "userBankAccount", "userBankAccountDigit", "statusRemessa", "motivoStatusRemessa")
+         VALUES ($1, $2, $3::date, '104', '0001', '99990002', '1', $4, $5)`,
+        [params.base + 2, params.base, data, params.statusRemessa, params.motivo ?? null],
+      );
+      await dataSource.query(
+        `INSERT INTO detalhe_a (id, "ordemPagamentoAgrupadoHistoricoId", "numeroDocumentoEmpresa", "dataVencimento", "valorLancamento", "valorRealEfetivado", nsr, "createdAt", "updatedAt")
+         OVERRIDING SYSTEM VALUE VALUES ($1, $2, $1, $3::date, $4, $4, $1, now(), now())`,
+        [params.base + 3, params.base + 2, data, params.valor],
+      );
+    }
+
+    async function seedOrdemGuardador(params: { id: number; valor: number; userId: number | null; data?: string; opaId?: number | null }): Promise<void> {
+      const data = params.data ?? '2098-03-10';
+      await dataSource.query(
+        `INSERT INTO ordem_pagamento_guardador (id, "dataOrdem", "dataInclusao", "valorRepasseGuardador", "userId", "tipoOrdemPagamento", "ordemPagamentoAgrupadoId", "qtdVerificacaoTotal", "qtdVerificacaoValida", "qtdVerificacaoInvalida", "createdAt", "updatedAt")
+         VALUES ($1, $2::date, $2::date, $3, $4, 'AUTOMATICA', $5, 0, 0, 0, now(), now())`,
+        [params.id, data, params.valor, params.userId, params.opaId ?? null],
       );
     }
 
@@ -2172,6 +2212,111 @@ suite('BasePagamentoRepository (PostgreSQL)', () => {
         expect(segunda.rows).toHaveLength(1);
         expect(segunda.rows[0].chaveLinha).not.toBe(primeira.rows[0].chaveLinha);
       });
+    });
+
+    describe('A2: favorecido bloqueado', () => {
+      const BLOQUEADO = A_BASE + 200;
+      const ATIVO = A_BASE + 201;
+
+      beforeEach(async () => {
+        await seedUsuario({ id: BLOQUEADO, nome: 'RV2 BLOQUEADO', cpf: '98500000200', bloqueado: true });
+        await seedUsuario({ id: ATIVO, nome: 'RV2 ATIVO', cpf: '98500000201' });
+      });
+
+      const noPeriodo = (desativados?: boolean) => ({ ...periodo, consorcioNome: ['RV2 CONSORCIO'], desativados });
+
+      it('hides a blocked favorecido by default and shows only blocked ones under desativados (never-grouped A Pagar)', async () => {
+        await seedOrdemSolta({ id: A_BASE + 210, valor: 11, userId: BLOQUEADO });
+        await seedOrdemSolta({ id: A_BASE + 211, valor: 22, userId: ATIVO });
+
+        const padrao = await repository.findGroupedRows('permissionario', noPeriodo());
+        const desativados = await repository.findGroupedRows('permissionario', noPeriodo(true));
+
+        expect(padrao.map((linha) => linha.nomes)).toEqual(['RV2 ATIVO']);
+        expect(desativados.map((linha) => linha.nomes)).toEqual(['RV2 BLOQUEADO']);
+      });
+
+      it.each([
+        ['Pago', 3, null],
+        ['Pendencia Paga', 5, null],
+        ['Rejeitado (dia unico)', 4, 'XX'],
+      ])('applies to the %s source', async (_nome, statusRemessa, motivo) => {
+        await seedAgrupado({ base: A_BASE + 220, userId: BLOQUEADO, statusRemessa, motivo, valor: 33 });
+
+        const padrao = await repository.findGroupedRows('permissionario', { ...periodo, userIds: [BLOQUEADO] });
+        const desativados = await repository.findGroupedRows('permissionario', { ...periodo, userIds: [BLOQUEADO], desativados: true });
+
+        expect(padrao).toHaveLength(0);
+        expect(desativados).toHaveLength(1);
+      });
+
+      it('applies to the Pendentes source (loose order older than 10 days, past date)', async () => {
+        const hoje = new Date();
+        const data = new Date(hoje.getTime() - 20 * 86400000).toISOString().slice(0, 10);
+        const janela = { dataInicio: new Date(`${data}T00:00:00.000Z`), dataFim: new Date(`${data}T00:00:00.000Z`), userIds: [BLOQUEADO], statuses: [StatusPagamento.PENDENTES] };
+        await seedOrdemSolta({ id: A_BASE + 230, valor: 44, userId: BLOQUEADO, data });
+
+        const padrao = await repository.findGroupedRows('permissionario', janela);
+        const desativados = await repository.findGroupedRows('permissionario', { ...janela, desativados: true });
+
+        expect(padrao).toHaveLength(0);
+        expect(desativados.map((linha) => Number(linha.valor))).toEqual([44]);
+      });
+
+      it('applies to Guardador', async () => {
+        await seedUsuario({ id: A_BASE + 202, nome: 'RV2 GUARDADOR BLOQUEADO', cpf: '98500000202', bloqueado: true, roleId: 6 });
+        await seedOrdemGuardador({ id: A_BASE + 240, valor: 55, userId: A_BASE + 202 });
+
+        const padrao = await repository.findGroupedRows('guardador', { ...periodo, userIds: [A_BASE + 202] });
+        const desativados = await repository.findGroupedRows('guardador', { ...periodo, userIds: [A_BASE + 202], desativados: true });
+
+        expect(padrao).toHaveLength(0);
+        expect(desativados).toHaveLength(1);
+      });
+
+      it('keeps orders with no user visible by default and out of desativados', async () => {
+        await seedOrdemSolta({ id: A_BASE + 250, valor: 66, userId: null });
+
+        const padrao = await repository.findGroupedRows('permissionario', noPeriodo());
+        const desativados = await repository.findGroupedRows('permissionario', noPeriodo(true));
+
+        expect(padrao).toHaveLength(1);
+        expect(desativados).toHaveLength(0);
+      });
+
+      it('matches the legacy totals for a blocked favorecido on a grouped source (default and desativados)', async () => {
+        await seedAgrupado({ base: A_BASE + 260, userId: BLOQUEADO, statusRemessa: 3, valor: 12 });
+        const filtro = { ...periodo, userIds: [BLOQUEADO] };
+
+        const [novoPadrao, legadoPadrao, novoDesativados, legadoDesativados] = await Promise.all([
+          repository.findGroupedRows('permissionario', filtro),
+          legacyPermissionarioService.findFinancialMovementSummary(filtro),
+          repository.findGroupedRows('permissionario', { ...filtro, desativados: true }),
+          legacyPermissionarioService.findFinancialMovementSummary({ ...filtro, desativados: true }),
+        ]);
+
+        expect(sumByStatus(novoPadrao)[StatusPagamento.PAGO] ?? 0).toBe(legadoPadrao.valorPago);
+        expect(sumByStatus(novoDesativados)[StatusPagamento.PAGO] ?? 0).toBe(legadoDesativados.valorPago);
+        expect(legadoDesativados.valorPago).toBe(12);
+      }, 30000);
+
+      // Divergencia documentada: buildAPagarNuncaEnviadoQuery do legado exclui bloqueado sempre,
+      // mesmo em desativados; a v2 segue a regra "desativados mostra so os bloqueados".
+      it('shows a blocked never-grouped order under desativados, where the legacy never does', async () => {
+        await seedOrdemSolta({ id: A_BASE + 210, valor: 11, userId: BLOQUEADO });
+        const filtro = { ...periodo, userIds: [BLOQUEADO] };
+
+        const [novoPadrao, legadoPadrao, novoDesativados, legadoDesativados] = await Promise.all([
+          repository.findGroupedRows('permissionario', filtro),
+          legacyPermissionarioService.findFinancialMovementSummary(filtro),
+          repository.findGroupedRows('permissionario', { ...filtro, desativados: true }),
+          legacyPermissionarioService.findFinancialMovementSummary({ ...filtro, desativados: true }),
+        ]);
+
+        expect(sumByStatus(novoPadrao)[StatusPagamento.A_PAGAR] ?? 0).toBe(legadoPadrao.valorAPagar);
+        expect(sumByStatus(novoDesativados)[StatusPagamento.A_PAGAR]).toBe(11);
+        expect(legadoDesativados.valorAPagar).toBe(0);
+      }, 30000);
     });
   });
 });

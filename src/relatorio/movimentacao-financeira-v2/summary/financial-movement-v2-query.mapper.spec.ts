@@ -31,6 +31,12 @@ describe('mapQueryToFinancialMovementV2Filter', () => {
 
     expect(filtro.cursorChaveLinha).toBe('agrupada:9');
   });
+
+  it('forwards desativados', () => {
+    const filtro = mapQueryToFinancialMovementV2Filter({ ...periodo, desativados: true } as FinancialMovementQueryDto);
+
+    expect(filtro.desativados).toBe(true);
+  });
 });
 
 describe('toExportRow', () => {
