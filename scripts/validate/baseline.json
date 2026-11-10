@@ -37,6 +37,7 @@
     "src/relatorio/consolidado-v2/consolidado-v2.controller.spec.ts",
     "src/relatorio/consolidado/relatorio-guardador-consolidado.repository.spec.ts",
     "src/relatorio/extrato-bancario/relatorio-extrato-bancario.repository.spec.ts",
+    "src/relatorio/movimentacao-financeira-v2/export/financial-movement-v2-export.service.spec.ts",
     "src/relatorio/movimentacao-financeira-v2/status/consorcio-resolver.spec.ts",
     "src/relatorio/movimentacao-financeira-v2/status/status-resolver.spec.ts",
     "src/relatorio/movimentacao-financeira/financial-movement-pdf.spec.ts",
