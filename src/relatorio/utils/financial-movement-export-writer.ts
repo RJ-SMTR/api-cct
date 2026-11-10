@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
@@ -72,7 +73,7 @@ const csvEscape = (value: unknown): string => `"${String(value ?? '').replace(/"
 async function writeCsv(prefix: string, streamRows: StreamRows, stuc: boolean): Promise<FinancialMovementExportResult> {
   const columns = stuc ? STUC_COLUMNS : BASE_COLUMNS;
   const fileName = `${prefix}-${Date.now()}.csv`;
-  const filePath = path.join(os.tmpdir(), fileName);
+  const filePath = path.join(os.tmpdir(), `${randomUUID()}-${fileName}`);
   const ws = fs.createWriteStream(filePath, { encoding: 'utf8' });
   ws.write(columns.map((c) => c.key).join(';') + '\n');
   await streamRows((row) => {
@@ -94,7 +95,7 @@ async function writeCsv(prefix: string, streamRows: StreamRows, stuc: boolean): 
 async function writeXlsx(prefix: string, streamRows: StreamRows, stuc: boolean): Promise<FinancialMovementExportResult> {
   const columns = stuc ? STUC_COLUMNS : BASE_COLUMNS;
   const fileName = `${prefix}-${Date.now()}.xlsx`;
-  const filePath = path.join(os.tmpdir(), fileName);
+  const filePath = path.join(os.tmpdir(), `${randomUUID()}-${fileName}`);
   const rows: Array<Array<string | number>> = [columns.map((c) => c.label)];
   await streamRows((row) => {
     rows.push(columns.map((c) => row[c.key] ?? ''));
@@ -117,7 +118,7 @@ async function writeXlsx(prefix: string, streamRows: StreamRows, stuc: boolean):
 async function writePdf(prefix: string, streamRows: StreamRows, meta: FinancialMovementExportMeta = {}, stuc = false): Promise<FinancialMovementExportResult> {
   const columns = stuc ? STUC_COLUMNS : BASE_COLUMNS;
   const fileName = `${prefix}-${Date.now()}.pdf`;
-  const filePath = path.join(os.tmpdir(), fileName);
+  const filePath = path.join(os.tmpdir(), `${randomUUID()}-${fileName}`);
 
   const writer = new FinancialMovementPdfWriter({
     filePath,

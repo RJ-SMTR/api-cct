@@ -86,3 +86,17 @@ describe('writeFinancialMovementExport - colunas do filtro STUC - Gratuidade', (
     fs.unlinkSync(filePath);
   });
 });
+
+describe('writeFinancialMovementExport temp files', () => {
+  it('never reuses a temp file when two exports start in the same millisecond', async () => {
+    jest.spyOn(Date, 'now').mockReturnValue(1);
+    const first = await writeFinancialMovementExport('csv', 'test', streamOneRow, undefined, false);
+    const second = await writeFinancialMovementExport('csv', 'test', streamOneRow, undefined, false);
+    jest.restoreAllMocks();
+
+    expect(first.filePath).not.toBe(second.filePath);
+    expect(first.fileName).toBe(second.fileName);
+    fs.unlinkSync(first.filePath);
+    fs.unlinkSync(second.filePath);
+  });
+});
