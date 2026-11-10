@@ -135,18 +135,10 @@ export class ConsolidadoV2Controller {
 
     // STUC vem antes de Eleicao: no legado (findConsolidado), stucGratuidade tem prioridade sobre
     // os demais tipos de consulta.
-    // STUC - Gratuidade (T3 do ADR 0021, fatia 2): sem visao por consorcio - o legado tambem nao
-    // tem uma agregacao por consorcio de verdade para STUC (StucGratuidadeRepository nao
-    // implementa esse filtro, OQ-1 do PRD) - rejeitar explicitamente em vez de rotear para a
-    // visao de consorcio ou ignorar o parametro silenciosamente.
+    // STUC - Gratuidade: o filtro de consorcio vai para o repositorio; a resposta segue com uma
+    // linha por favorecido, como o legado.
     if (stucGratuidade) {
-      if (consorcioNome?.length || todosConsorcios) {
-        throw new HttpException(
-          { error: '"stucGratuidade" não suporta filtro de consórcio ("consorcioNome"/"todosConsorcios") nesta rota' },
-          HttpStatus.BAD_REQUEST,
-        );
-      }
-      return this.stucGratuidadeAggregatorService.aggregate(filter);
+      return this.stucGratuidadeAggregatorService.aggregate({ ...filter, consorcioNome, todosConsorcios });
     }
 
     // Eleicao: todosConsorcios seleciona a visao por consorcio; consorcio especifico segue sem

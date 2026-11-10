@@ -8,9 +8,8 @@ import { StucGratuidadeFilter, StucGratuidadeRepository } from '../movimentacao-
 // ConsorcioAggregatorService, nao agrega "um favorecido somando o periodo" - cada linha da
 // resposta e' uma janela de pagamento (StucGratuidadeRepository.findRows + pivotStucGratuidadeRows,
 // T8 do ADR 0021, ja' faz o pivot e aplica valorMin/valorMax pos-pivot). Este servico so' mapeia
-// o shape pivotado para RelatorioConsolidadoNovoRemessaDto - sem view por consorcio (ver OQ-1 do
-// PRD/Current Behavior em docs/tasks-consolidado-v2-fatia2/T3.md: StucGratuidadeRepository nao
-// implementa filtro de consorcio, a rejeicao explicita fica no controller).
+// o shape pivotado para RelatorioConsolidadoNovoRemessaDto. O filtro de consorcio vai para o
+// repositorio e continua devolvendo uma linha por favorecido, como o ramo STUC do legado.
 export type StucGratuidadeAggregatorFilter = Omit<StucGratuidadeFilter, 'userIds'>;
 
 @Injectable()

@@ -212,8 +212,7 @@ describe('ConsolidadoV2Controller', () => {
     });
   });
 
-  // T3 do ADR 0021 (fatia 2): stucGratuidade sai de OUT_OF_SCOPE_FLAGS e passa a ter roteamento
-  // proprio, sem view por consorcio (StucGratuidadeRepository nao implementa esse filtro).
+  // STUC tem roteamento proprio; o filtro de consorcio vai para o repositorio.
   it('calls the STUC-Gratuidade aggregator when "stucGratuidade" is true', async () => {
     await callController({ stucGratuidade: true, pago: true });
 
@@ -225,19 +224,12 @@ describe('ConsolidadoV2Controller', () => {
   });
 
   it.each([{ consorcioNome: ['CONSORCIO TESTE'] }, { todosConsorcios: true }])(
-    'rejects with 400 when "stucGratuidade" is combined with a consórcio filter (%j)',
+    'forwards the consórcio filter (%j) to the STUC-Gratuidade aggregator',
     async (consorcioOverrides) => {
-      await expect(callController({ stucGratuidade: true, ...consorcioOverrides })).rejects.toThrow(HttpException);
+      await callController({ stucGratuidade: true, ...consorcioOverrides });
 
-      try {
-        await callController({ stucGratuidade: true, ...consorcioOverrides });
-        fail('expected HttpException');
-      } catch (e) {
-        expect(e).toBeInstanceOf(HttpException);
-        expect(e.getStatus()).toBe(400);
-      }
-
-      expect(stucGratuidadeAggregatorService.aggregate).not.toHaveBeenCalled();
+      expect(stucGratuidadeAggregatorService.aggregate).toHaveBeenCalledWith(expect.objectContaining(consorcioOverrides));
+      expect(consorcioAggregatorService.aggregate).not.toHaveBeenCalled();
     },
   );
 
