@@ -102,7 +102,7 @@ describe('ConsolidadoV2Controller', () => {
     expect(guards.length).toBeGreaterThan(0);
   });
 
-  it.each(['eleicao', 'desativados', 'pendentes', 'rejeitado', 'estorno', 'pendenciaPaga', 'stucGratuidade', 'erro'])(
+  it.each(['eleicao', 'desativados', 'pendentes', 'stucGratuidade'])(
     'rejects with 400 when "%s" is sent as true (out of scope for this slice)',
     async (flag) => {
       await expect(callController({ [flag]: true })).rejects.toThrow(HttpException);
@@ -119,5 +119,58 @@ describe('ConsolidadoV2Controller', () => {
 
   it('rejects with 400 when userIds is sent (not supported until ADR 0021 T3 lands)', async () => {
     await expect(callController({ userIds: [1] })).rejects.toThrow(HttpException);
+  });
+
+  // T1 (fatia 2): pendenciaPaga/rejeitado/estorno/erro deixam de ser rejeitados e passam a
+  // mapear para o StatusPagamento correspondente, mesma semantica do getSelectedStatuses legado.
+  it('maps pendenciaPaga to StatusPagamento.PENDENCIA_PAGA', async () => {
+    await callController({ pendenciaPaga: true });
+
+    expect(vanzeiroAggregatorService.aggregate).toHaveBeenCalledWith(
+      expect.objectContaining({ statuses: [StatusPagamento.PENDENCIA_PAGA] }),
+    );
+  });
+
+  it('maps rejeitado to StatusPagamento.ERRO_REJEITADO', async () => {
+    await callController({ rejeitado: true });
+
+    expect(vanzeiroAggregatorService.aggregate).toHaveBeenCalledWith(
+      expect.objectContaining({ statuses: [StatusPagamento.ERRO_REJEITADO] }),
+    );
+  });
+
+  it('maps estorno to StatusPagamento.ERRO_ESTORNO', async () => {
+    await callController({ estorno: true });
+
+    expect(vanzeiroAggregatorService.aggregate).toHaveBeenCalledWith(
+      expect.objectContaining({ statuses: [StatusPagamento.ERRO_ESTORNO] }),
+    );
+  });
+
+  it('maps erro=true to the combo ERRO_ESTORNO + ERRO_REJEITADO', async () => {
+    await callController({ erro: true });
+
+    const calledFilter = (vanzeiroAggregatorService.aggregate as jest.Mock).mock.calls[0][0];
+    expect(calledFilter.statuses).toHaveLength(2);
+    expect(calledFilter.statuses).toEqual(
+      expect.arrayContaining([StatusPagamento.ERRO_ESTORNO, StatusPagamento.ERRO_REJEITADO]),
+    );
+  });
+
+  it('does not duplicate statuses when erro=true is combined with rejeitado/estorno individually', async () => {
+    await callController({ erro: true, rejeitado: true, estorno: true });
+
+    const calledFilter = (vanzeiroAggregatorService.aggregate as jest.Mock).mock.calls[0][0];
+    expect(calledFilter.statuses).toHaveLength(2);
+  });
+
+  it('combines pendenciaPaga with pago/aPagar in the same filter without rejecting', async () => {
+    await callController({ pendenciaPaga: true, pago: true, aPagar: true });
+
+    expect(vanzeiroAggregatorService.aggregate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        statuses: expect.arrayContaining([StatusPagamento.PENDENCIA_PAGA, StatusPagamento.PAGO, StatusPagamento.A_PAGAR]),
+      }),
+    );
   });
 });

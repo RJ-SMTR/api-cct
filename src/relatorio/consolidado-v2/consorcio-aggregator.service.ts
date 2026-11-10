@@ -2,7 +2,6 @@ import { Injectable } from '@nestjs/common';
 import { RelatorioConsolidadoNovoRemessaData, RelatorioConsolidadoNovoRemessaDto } from '../dtos/relatorio-consolidado-novo-remessa.dto';
 import { StatusPagamento } from '../enum/statusRemessafinancial-movement';
 import { BasePagamentoFilter, BasePagamentoRepository } from '../movimentacao-financeira-v2/base/base-pagamento.repository';
-import { CONSORCIOS } from '../movimentacao-financeira-v2/status/consorcio-resolver';
 
 interface ConsorcioAccumulator {
   nomeConsorcio: string;
@@ -27,17 +26,19 @@ export class ConsorcioAggregatorService {
     // valorMin/valorMax: mesma razao do VanzeiroAggregatorService (T3) - o legado filtra com
     // HAVING SUM(valor) depois do GROUP BY "nome" final, nao linha a linha antes de somar.
     const { valorMin, valorMax, ...baseFilter } = filter;
-    const rows = await this.basePagamentoRepository.findGroupedRows('permissionario', baseFilter);
-
-    const consorcioFilter = options.consorcioNome?.length ? options.consorcioNome : options.todosConsorcios ? CONSORCIOS : undefined;
+    // consorcioNome/todosConsorcios precisam chegar a findGroupedRows: sem nenhum dos dois, a base
+    // restringe aos modais (STPC/STPL/TEC) e exclui os CNPJs institucionais, o que esvaziaria a
+    // visao por consorcio. A base tambem faz a comparacao sem diferenciar maiusculas, como o legado.
+    const rows = await this.basePagamentoRepository.findGroupedRows('permissionario', {
+      ...baseFilter,
+      consorcioNome: options.consorcioNome,
+      todosConsorcios: options.todosConsorcios,
+    });
 
     const totalsByConsorcio = new Map<string, ConsorcioAccumulator>();
 
     for (const row of rows) {
       if (row.nomeConsorcio === null) {
-        continue;
-      }
-      if (consorcioFilter && !consorcioFilter.includes(row.nomeConsorcio)) {
         continue;
       }
 

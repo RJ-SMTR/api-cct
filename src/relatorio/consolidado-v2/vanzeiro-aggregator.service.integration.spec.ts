@@ -107,7 +107,7 @@ suite('VanzeiroAggregatorService (PostgreSQL)', () => {
     await dataSource.query(
       `INSERT INTO ordem_pagamento (
         id, "dataOrdem", "dataCaptura", valor, "bqUpdatedAt", "userId", "nomeConsorcio", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt"
-      ) VALUES ($1, DATE '2097-07-10', DATE '2097-07-10', 321, now(), $2, 'CONSORCIO TESTE', NULL, now(), now())`,
+      ) VALUES ($1, DATE '2097-07-10', DATE '2097-07-10', 321, now(), $2, 'STPC', NULL, now(), now())`,
       [neverGroupedOrderId, USER_ID],
     );
 
@@ -121,7 +121,7 @@ suite('VanzeiroAggregatorService (PostgreSQL)', () => {
     await dataSource.query(
       `INSERT INTO ordem_pagamento (
         id, "dataOrdem", valor, "bqUpdatedAt", "userId", "nomeConsorcio", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt"
-      ) VALUES ($1, DATE '2097-07-05', 150, now(), $2, 'CONSORCIO TESTE', $3, now(), now())`,
+      ) VALUES ($1, DATE '2097-07-05', 150, now(), $2, 'STPC', $3, now(), now())`,
       [sentOrderId, USER_ID, sentOpaId],
     );
 
@@ -177,7 +177,7 @@ suite('VanzeiroAggregatorService (PostgreSQL)', () => {
       await dataSource.query(
         `INSERT INTO ordem_pagamento (
           id, "dataOrdem", valor, "bqUpdatedAt", "userId", "nomeConsorcio", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt"
-        ) VALUES ($1, DATE '2097-09-05', 1849.60, now(), $2, 'CONSORCIO TESTE', $3, now(), now())`,
+        ) VALUES ($1, DATE '2097-09-05', 1849.60, now(), $2, 'STPC', $3, now(), now())`,
         [childOrderId, USER_ID, opaId],
       );
     }
@@ -302,7 +302,7 @@ suite('VanzeiroAggregatorService (PostgreSQL)', () => {
     await dataSource.query(
       `INSERT INTO ordem_pagamento (
         id, "dataOrdem", valor, "bqUpdatedAt", "userId", "nomeConsorcio", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt"
-      ) VALUES ($1, DATE '2097-10-05', 777, now(), $2, 'CONSORCIO TESTE', $3, now(), now())`,
+      ) VALUES ($1, DATE '2097-10-05', 777, now(), $2, 'STPC', $3, now(), now())`,
       [orderId, USER_ID, opaId],
     );
 
@@ -354,5 +354,312 @@ suite('VanzeiroAggregatorService (PostgreSQL)', () => {
 
     expect(result.data).toHaveLength(1);
     expect(result.data[0].valor).toBe(471 + 5548.8 + 777);
+  });
+
+  // T1 (fatia 2, ADR 0022): Pendencia Paga / Pendencia de Pagamento, now unblocked at the
+  // controller/aggregator level - findGroupedRows already exposes these sources since T5 of
+  // ADR 0021 (no change there), these tests cover the aggregator consuming them.
+
+  // 1 pai (dataPagamento = D) + 1 filha (dataPagamento = outra data, para provar que a consulta
+  // usa a data do PAI, nao da filha), filha com status 5 (Pendencia Paga) e seu proprio
+  // detalhe_a/valor - mesmo shape do fixture de T5 (base-pagamento.repository.integration.spec.ts).
+  async function seedPendenciaPagaFamily(): Promise<void> {
+    const opaPaiId = BASE_ID + 500;
+    const opaFilhaId = BASE_ID + 501;
+    const orderId = BASE_ID + 502;
+    const historyId = BASE_ID + 503;
+    const detailId = BASE_ID + 504;
+
+    await dataSource.query(
+      `INSERT INTO ordem_pagamento_agrupado (id, "dataPagamento", "valorTotal", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt")
+       VALUES ($1, DATE '2097-11-10', 500, NULL, now(), now())`,
+      [opaPaiId],
+    );
+    await dataSource.query(
+      `INSERT INTO ordem_pagamento_agrupado (id, "dataPagamento", "valorTotal", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt")
+       VALUES ($1, DATE '2097-01-01', 500, $2, now(), now())`,
+      [opaFilhaId, opaPaiId],
+    );
+    await dataSource.query(
+      `INSERT INTO ordem_pagamento (id, "dataOrdem", valor, "bqUpdatedAt", "userId", "nomeConsorcio", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt")
+       VALUES ($1, DATE '2097-01-01', 500, now(), $2, 'STPC', $3, now(), now())`,
+      [orderId, USER_ID, opaFilhaId],
+    );
+    await dataSource.query(
+      `INSERT INTO ordem_pagamento_agrupado_historico (id, "ordemPagamentoAgrupadoId", "dataReferencia", "userBankCode", "userBankAgency", "userBankAccount", "userBankAccountDigit", "statusRemessa")
+       VALUES ($1, $2, DATE '2097-01-01', '104', '0001', '99990002', '1', 5)`,
+      [historyId, opaFilhaId],
+    );
+    await dataSource.query(
+      `INSERT INTO detalhe_a (id, "ordemPagamentoAgrupadoHistoricoId", "numeroDocumentoEmpresa", "dataVencimento", "valorLancamento", "valorRealEfetivado", nsr, "createdAt", "updatedAt")
+       OVERRIDING SYSTEM VALUE VALUES ($1, $2, 995500, DATE '2097-01-01', 500, 500, 995500, now(), now())`,
+      [detailId, historyId],
+    );
+  }
+
+  it('Pendencia Paga (familia pai/filha): total bate com a data de pagamento do pai', async () => {
+    await seedUser();
+    await seedPendenciaPagaFamily();
+
+    const result = await aggregator.aggregate({
+      dataInicio: new Date('2097-11-10T00:00:00.000Z'),
+      dataFim: new Date('2097-11-10T00:00:00.000Z'),
+      statuses: [StatusPagamento.PENDENCIA_PAGA],
+    });
+
+    expect(result.data).toHaveLength(1);
+    expect(result.data[0].valor).toBe(500);
+  });
+
+  // PASSO 0: filha paga (status 5) nunca enviada em arquivo proprio (nenhum historico dela tem
+  // detalhe_a) - valor = valorTotal da propria filha, data = pagamento do pai.
+  async function seedPendenciaPagaPasso0Family(): Promise<void> {
+    const opaPaiId = BASE_ID + 510;
+    const opaFilhaId = BASE_ID + 511;
+    const orderId = BASE_ID + 512;
+    const historyId = BASE_ID + 513;
+
+    await dataSource.query(
+      `INSERT INTO ordem_pagamento_agrupado (id, "dataPagamento", "valorTotal", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt")
+       VALUES ($1, DATE '2097-11-20', 650, NULL, now(), now())`,
+      [opaPaiId],
+    );
+    await dataSource.query(
+      `INSERT INTO ordem_pagamento_agrupado (id, "dataPagamento", "valorTotal", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt")
+       VALUES ($1, DATE '2097-01-01', 650, $2, now(), now())`,
+      [opaFilhaId, opaPaiId],
+    );
+    await dataSource.query(
+      `INSERT INTO ordem_pagamento (id, "dataOrdem", valor, "bqUpdatedAt", "userId", "nomeConsorcio", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt")
+       VALUES ($1, DATE '2097-01-01', 650, now(), $2, 'STPC', $3, now(), now())`,
+      [orderId, USER_ID, opaFilhaId],
+    );
+    // So' o historico, sem nenhum detalhe_a - nunca foi enviada em arquivo proprio.
+    await dataSource.query(
+      `INSERT INTO ordem_pagamento_agrupado_historico (id, "ordemPagamentoAgrupadoId", "dataReferencia", "userBankCode", "userBankAgency", "userBankAccount", "userBankAccountDigit", "statusRemessa")
+       VALUES ($1, $2, DATE '2097-01-01', '104', '0001', '99990002', '1', 5)`,
+      [historyId, opaFilhaId],
+    );
+  }
+
+  it('Pendencia Paga PASSO 0 (filha nunca enviada em lote proprio) aparece com o valor da propria filha', async () => {
+    await seedUser();
+    await seedPendenciaPagaPasso0Family();
+
+    const result = await aggregator.aggregate({
+      dataInicio: new Date('2097-11-20T00:00:00.000Z'),
+      dataFim: new Date('2097-11-20T00:00:00.000Z'),
+      statuses: [StatusPagamento.PENDENCIA_PAGA],
+    });
+
+    expect(result.data).toHaveLength(1);
+    expect(result.data[0].valor).toBe(650);
+  });
+
+  // Familia pai/filha, dia unico: pai rejeitado (status 4, motivo != '02') define status/data;
+  // valor vem da filha.
+  async function seedRejeitadoFamiliaDiaUnico(): Promise<void> {
+    const opaPaiId = BASE_ID + 520;
+    const opaFilhaId = BASE_ID + 521;
+    const orderId = BASE_ID + 522;
+    const historyPaiId = BASE_ID + 523;
+    const historyFilhaId = BASE_ID + 524;
+    const detailId = BASE_ID + 525;
+
+    await dataSource.query(
+      `INSERT INTO ordem_pagamento_agrupado (id, "dataPagamento", "valorTotal", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt")
+       VALUES ($1, DATE '2097-12-10', 300, NULL, now(), now())`,
+      [opaPaiId],
+    );
+    await dataSource.query(
+      `INSERT INTO ordem_pagamento_agrupado (id, "dataPagamento", "valorTotal", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt")
+       VALUES ($1, DATE '2097-01-01', 300, $2, now(), now())`,
+      [opaFilhaId, opaPaiId],
+    );
+    await dataSource.query(
+      `INSERT INTO ordem_pagamento (id, "dataOrdem", valor, "bqUpdatedAt", "userId", "nomeConsorcio", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt")
+       VALUES ($1, DATE '2097-01-01', 300, now(), $2, 'STPC', $3, now(), now())`,
+      [orderId, USER_ID, opaFilhaId],
+    );
+    await dataSource.query(
+      `INSERT INTO ordem_pagamento_agrupado_historico (id, "ordemPagamentoAgrupadoId", "dataReferencia", "userBankCode", "userBankAgency", "userBankAccount", "userBankAccountDigit", "statusRemessa", "motivoStatusRemessa")
+       VALUES ($1, $2, DATE '2097-01-01', '104', '0001', '99990002', '1', 4, 'AR')`,
+      [historyPaiId, opaPaiId],
+    );
+    await dataSource.query(
+      `INSERT INTO ordem_pagamento_agrupado_historico (id, "ordemPagamentoAgrupadoId", "dataReferencia", "userBankCode", "userBankAgency", "userBankAccount", "userBankAccountDigit", "statusRemessa")
+       VALUES ($1, $2, DATE '2097-01-01', '104', '0001', '99990002', '1', 0)`,
+      [historyFilhaId, opaFilhaId],
+    );
+    await dataSource.query(
+      `INSERT INTO detalhe_a (id, "ordemPagamentoAgrupadoHistoricoId", "numeroDocumentoEmpresa", "dataVencimento", "valorLancamento", "valorRealEfetivado", nsr, "createdAt", "updatedAt")
+       OVERRIDING SYSTEM VALUE VALUES ($1, $2, 995520, DATE '2097-01-01', 300, 300, 995520, now(), now())`,
+      [detailId, historyFilhaId],
+    );
+  }
+
+  it('Rejeitado (familia, dia unico): total bate com o status/data do historico mais recente do pai', async () => {
+    await seedUser();
+    await seedRejeitadoFamiliaDiaUnico();
+
+    const result = await aggregator.aggregate({
+      dataInicio: new Date('2097-12-10T00:00:00.000Z'),
+      dataFim: new Date('2097-12-10T00:00:00.000Z'),
+      statuses: [StatusPagamento.ERRO_REJEITADO],
+    });
+
+    expect(result.data).toHaveLength(1);
+    expect(result.data[0].valor).toBe(300);
+  });
+
+  // Estorno sem agrupamento pai (ADR 0008), consulta de dia unico.
+  async function seedEstornoSemPai(dataPagamento = '2098-01-10'): Promise<void> {
+    const opaId = BASE_ID + 530;
+    const orderId = BASE_ID + 531;
+    const historyId = BASE_ID + 532;
+    const detailId = BASE_ID + 533;
+
+    await dataSource.query(
+      `INSERT INTO ordem_pagamento_agrupado (id, "dataPagamento", "valorTotal", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt")
+       VALUES ($1, DATE '${dataPagamento}', 400, NULL, now(), now())`,
+      [opaId],
+    );
+    await dataSource.query(
+      `INSERT INTO ordem_pagamento (id, "dataOrdem", valor, "bqUpdatedAt", "userId", "nomeConsorcio", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt")
+       VALUES ($1, DATE '2098-01-01', 400, now(), $2, 'STPC', $3, now(), now())`,
+      [orderId, USER_ID, opaId],
+    );
+    await dataSource.query(
+      `INSERT INTO ordem_pagamento_agrupado_historico (id, "ordemPagamentoAgrupadoId", "dataReferencia", "userBankCode", "userBankAgency", "userBankAccount", "userBankAccountDigit", "statusRemessa", "motivoStatusRemessa")
+       VALUES ($1, $2, DATE '2098-01-01', '104', '0001', '99990002', '1', 4, '02')`,
+      [historyId, opaId],
+    );
+    await dataSource.query(
+      `INSERT INTO detalhe_a (id, "ordemPagamentoAgrupadoHistoricoId", "numeroDocumentoEmpresa", "dataVencimento", "valorLancamento", "valorRealEfetivado", nsr, "createdAt", "updatedAt")
+       OVERRIDING SYSTEM VALUE VALUES ($1, $2, 995530, DATE '2098-01-01', 400, 400, 995530, now(), now())`,
+      [detailId, historyId],
+    );
+  }
+
+  it('Estorno sem agrupamento pai (ADR 0008) aparece no filtro de dia unico', async () => {
+    await seedUser();
+    await seedEstornoSemPai();
+
+    const result = await aggregator.aggregate({
+      dataInicio: new Date('2098-01-10T00:00:00.000Z'),
+      dataFim: new Date('2098-01-10T00:00:00.000Z'),
+      statuses: [StatusPagamento.ERRO_ESTORNO],
+    });
+
+    expect(result.data).toHaveLength(1);
+    expect(result.data[0].valor).toBe(400);
+  });
+
+  it('combo erro (Estorno + Rejeitado) uniao sem duplicar nem somar duas vezes a mesma ordem', async () => {
+    await seedUser();
+    await seedRejeitadoFamiliaDiaUnico();
+    await seedEstornoSemPai('2097-12-10');
+
+    const result = await aggregator.aggregate({
+      dataInicio: new Date('2097-12-10T00:00:00.000Z'),
+      dataFim: new Date('2097-12-10T00:00:00.000Z'),
+      statuses: [StatusPagamento.ERRO_ESTORNO, StatusPagamento.ERRO_REJEITADO],
+    });
+
+    // Mesmo favorecido (mesmo USER_ID) nas duas fixtures - uma unica linha, soma exata das duas
+    // (300 Rejeitado + 400 Estorno), nunca o dobro de qualquer uma delas.
+    expect(result.data).toHaveLength(1);
+    expect(result.data[0].valor).toBe(300 + 400);
+  });
+
+  it('valorAPagar nao inclui Pendencia Paga quando combinada com aPagar no mesmo filtro', async () => {
+    await seedUser();
+    await seedAPagarFamily();
+    await seedPendenciaPagaFamily();
+
+    const result = await aggregator.aggregate({
+      dataInicio: new Date('2097-07-01T00:00:00.000Z'),
+      dataFim: new Date('2097-11-30T00:00:00.000Z'),
+      statuses: [StatusPagamento.A_PAGAR, StatusPagamento.PENDENCIA_PAGA],
+    });
+
+    // Mesmo favorecido - uma linha com o total combinado, mas valorAPagar so conta o bucket A
+    // Pagar (471), nunca os 500 de Pendencia Paga.
+    expect(result.data).toHaveLength(1);
+    expect(result.data[0].valor).toBe(471 + 500);
+    expect(result.valorAPagar).toBe(471);
+  });
+
+  // Paridade: mesmo filtro/fixture, contra o findConsolidado legado (pendenciaPaga/rejeitado
+  // isolados, para nao arrastar as outras fontes do UNION legado).
+  it('matches the legacy Consolidado total for Pendencia Paga (favorecido)', async () => {
+    await seedUser();
+    await seedPendenciaPagaFamily();
+
+    const filter = {
+      dataInicio: new Date('2097-11-01T00:00:00.000Z'),
+      dataFim: new Date('2097-11-30T00:00:00.000Z'),
+      userIds: [USER_ID],
+      pendenciaPaga: true,
+    };
+
+    const [newResult, legacyResult] = await Promise.all([
+      aggregator.aggregate({ ...filter, statuses: [StatusPagamento.PENDENCIA_PAGA] }),
+      legacyConsolidadoRepository.findConsolidado(filter),
+    ]);
+
+    expect(newResult.data).toHaveLength(1);
+    expect(legacyResult.data).toHaveLength(1);
+    expect(newResult.data[0].valor).toBe(legacyResult.data[0].valor);
+  });
+
+  // Rejeitado sem pai: unico formato em que a base v2 e o Consolidado legado usam a mesma linha.
+  // Em familia, a base segue o status/data do pai (regra da Movimentacao Financeira) e o legado
+  // usa o status/dataVencimento da propria filha - divergencia conhecida, ainda sem decisao.
+  async function seedRejeitadoSemPai(): Promise<void> {
+    const opaId = BASE_ID + 540;
+    const historyId = BASE_ID + 542;
+
+    await dataSource.query(
+      `INSERT INTO ordem_pagamento_agrupado (id, "dataPagamento", "valorTotal", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt")
+       VALUES ($1, DATE '2098-02-10', 300, NULL, now(), now())`,
+      [opaId],
+    );
+    await dataSource.query(
+      `INSERT INTO ordem_pagamento (id, "dataOrdem", valor, "bqUpdatedAt", "userId", "nomeConsorcio", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt")
+       VALUES ($1, DATE '2098-02-01', 300, now(), $2, 'STPC', $3, now(), now())`,
+      [BASE_ID + 541, USER_ID, opaId],
+    );
+    await dataSource.query(
+      `INSERT INTO ordem_pagamento_agrupado_historico (id, "ordemPagamentoAgrupadoId", "dataReferencia", "userBankCode", "userBankAgency", "userBankAccount", "userBankAccountDigit", "statusRemessa", "motivoStatusRemessa")
+       VALUES ($1, $2, DATE '2098-02-10', '104', '0001', '99990002', '1', 4, 'AR')`,
+      [historyId, opaId],
+    );
+    await dataSource.query(
+      `INSERT INTO detalhe_a (id, "ordemPagamentoAgrupadoHistoricoId", "numeroDocumentoEmpresa", "dataVencimento", "valorLancamento", "valorRealEfetivado", nsr, "createdAt", "updatedAt")
+       OVERRIDING SYSTEM VALUE VALUES ($1, $2, 995540, DATE '2098-02-10', 300, 300, 995540, now(), now())`,
+      [BASE_ID + 543, historyId],
+    );
+  }
+
+  it('matches the legacy Consolidado total for Rejeitado (favorecido)', async () => {
+    await seedUser();
+    await seedRejeitadoSemPai();
+
+    const filter = {
+      dataInicio: new Date('2098-02-10T00:00:00.000Z'),
+      dataFim: new Date('2098-02-10T00:00:00.000Z'),
+      userIds: [USER_ID],
+      rejeitado: true,
+    };
+
+    const [newResult, legacyResult] = await Promise.all([
+      aggregator.aggregate({ ...filter, statuses: [StatusPagamento.ERRO_REJEITADO] }),
+      legacyConsolidadoRepository.findConsolidado(filter),
+    ]);
+
+    expect(newResult.data).toHaveLength(1);
+    expect(legacyResult.data).toHaveLength(1);
+    expect(newResult.data[0].valor).toBe(legacyResult.data[0].valor);
   });
 });

@@ -12,6 +12,7 @@ import { TypeOrmConfigService } from 'src/database/typeorm-config.service';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { BasePagamentoRepository } from '../movimentacao-financeira-v2/base/base-pagamento.repository';
 import { RelatorioNovoRemessaConsolidadoRepository } from '../novo-remessa/relatorio-novo-remessa-consolidado.repository';
+import { StatusPagamento } from '../enum/statusRemessafinancial-movement';
 import { ConsorcioAggregatorService } from './consorcio-aggregator.service';
 
 const RUN = Boolean(process.env.RUN_RETORNO_DB_TESTS);
@@ -121,10 +122,13 @@ suite('ConsorcioAggregatorService (PostgreSQL)', () => {
     await seedPlainUser();
     await seedAPagarOrder(PLAIN_USER_ID, BASE_ID + 40, '2096-07-10', 321, 'CONSORCIO TESTE');
 
-    const result = await aggregator.aggregate({
-      dataInicio: new Date('2096-07-10T00:00:00.000Z'),
-      dataFim: new Date('2096-07-10T00:00:00.000Z'),
-    });
+    const result = await aggregator.aggregate(
+      {
+        dataInicio: new Date('2096-07-10T00:00:00.000Z'),
+        dataFim: new Date('2096-07-10T00:00:00.000Z'),
+      },
+      { consorcioNome: ['CONSORCIO TESTE'] },
+    );
 
     expect(result.data).toHaveLength(1);
     expect(result.data[0].nomefavorecido).toBe('CONSORCIO TESTE');
@@ -135,10 +139,13 @@ suite('ConsorcioAggregatorService (PostgreSQL)', () => {
     await seedVltUser();
     await seedAPagarOrder(VLT_USER_ID, BASE_ID + 41, '2096-07-11', 888, 'CONSORCIO BRUTO DIVERGENTE');
 
-    const result = await aggregator.aggregate({
-      dataInicio: new Date('2096-07-11T00:00:00.000Z'),
-      dataFim: new Date('2096-07-11T00:00:00.000Z'),
-    });
+    const result = await aggregator.aggregate(
+      {
+        dataInicio: new Date('2096-07-11T00:00:00.000Z'),
+        dataFim: new Date('2096-07-11T00:00:00.000Z'),
+      },
+      { consorcioNome: ['VLT'] },
+    );
 
     expect(result.data).toHaveLength(1);
     expect(result.data[0].nomefavorecido).toBe('VLT');
@@ -190,10 +197,13 @@ suite('ConsorcioAggregatorService (PostgreSQL)', () => {
     await seedPlainUser();
     await seedFanOutFamily();
 
-    const result = await aggregator.aggregate({
-      dataInicio: new Date('2096-09-10T00:00:00.000Z'),
-      dataFim: new Date('2096-09-10T00:00:00.000Z'),
-    });
+    const result = await aggregator.aggregate(
+      {
+        dataInicio: new Date('2096-09-10T00:00:00.000Z'),
+        dataFim: new Date('2096-09-10T00:00:00.000Z'),
+      },
+      { consorcioNome: ['CONSORCIO TESTE'] },
+    );
 
     expect(result.data).toHaveLength(1);
     expect(result.data[0].nomefavorecido).toBe('CONSORCIO TESTE');
@@ -246,5 +256,153 @@ suite('ConsorcioAggregatorService (PostgreSQL)', () => {
 
     expect(result.data).toHaveLength(1);
     expect(result.data[0].nomefavorecido).toBe('VLT');
+  });
+
+  it('consorcioNome ignores case, like the legacy Consolidado', async () => {
+    await seedVltUser();
+    await seedAPagarOrder(VLT_USER_ID, BASE_ID + 41, '2096-07-13', 888, 'CONSORCIO BRUTO DIVERGENTE');
+
+    const result = await aggregator.aggregate(
+      {
+        dataInicio: new Date('2096-07-13T00:00:00.000Z'),
+        dataFim: new Date('2096-07-13T00:00:00.000Z'),
+      },
+      { consorcioNome: ['vlt'] },
+    );
+
+    expect(result.data).toHaveLength(1);
+    expect(result.data[0].nomefavorecido).toBe('VLT');
+  });
+
+  // Pai + filha com status 5: data do pai, valor da filha (mesmo shape do spec de favorecido).
+  async function seedPendenciaPagaFamily(): Promise<void> {
+    const opaPaiId = BASE_ID + 500;
+    const opaFilhaId = BASE_ID + 501;
+
+    await dataSource.query(
+      `INSERT INTO ordem_pagamento_agrupado (id, "dataPagamento", "valorTotal", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt")
+       VALUES ($1, DATE '2096-11-10', 500, NULL, now(), now())`,
+      [opaPaiId],
+    );
+    await dataSource.query(
+      `INSERT INTO ordem_pagamento_agrupado (id, "dataPagamento", "valorTotal", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt")
+       VALUES ($1, DATE '2096-01-01', 500, $2, now(), now())`,
+      [opaFilhaId, opaPaiId],
+    );
+    await dataSource.query(
+      `INSERT INTO ordem_pagamento (id, "dataOrdem", valor, "bqUpdatedAt", "userId", "nomeConsorcio", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt")
+       VALUES ($1, DATE '2096-01-01', 500, now(), $2, 'CONSORCIO TESTE', $3, now(), now())`,
+      [BASE_ID + 502, PLAIN_USER_ID, opaFilhaId],
+    );
+    await dataSource.query(
+      `INSERT INTO ordem_pagamento_agrupado_historico (id, "ordemPagamentoAgrupadoId", "dataReferencia", "userBankCode", "userBankAgency", "userBankAccount", "userBankAccountDigit", "statusRemessa")
+       VALUES ($1, $2, DATE '2096-01-01', '104', '0001', '99990002', '1', 5)`,
+      [BASE_ID + 503, opaFilhaId],
+    );
+    await dataSource.query(
+      `INSERT INTO detalhe_a (id, "ordemPagamentoAgrupadoHistoricoId", "numeroDocumentoEmpresa", "dataVencimento", "valorLancamento", "valorRealEfetivado", nsr, "createdAt", "updatedAt")
+       OVERRIDING SYSTEM VALUE VALUES ($1, $2, 994500, DATE '2096-01-01', 500, 500, 994500, now(), now())`,
+      [BASE_ID + 504, BASE_ID + 503],
+    );
+  }
+
+  // Filha paga nunca enviada em lote proprio: so o historico, sem detalhe_a.
+  async function seedPendenciaPagaPasso0Family(): Promise<void> {
+    const opaPaiId = BASE_ID + 510;
+    const opaFilhaId = BASE_ID + 511;
+
+    await dataSource.query(
+      `INSERT INTO ordem_pagamento_agrupado (id, "dataPagamento", "valorTotal", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt")
+       VALUES ($1, DATE '2096-11-20', 650, NULL, now(), now())`,
+      [opaPaiId],
+    );
+    await dataSource.query(
+      `INSERT INTO ordem_pagamento_agrupado (id, "dataPagamento", "valorTotal", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt")
+       VALUES ($1, DATE '2096-01-01', 650, $2, now(), now())`,
+      [opaFilhaId, opaPaiId],
+    );
+    await dataSource.query(
+      `INSERT INTO ordem_pagamento (id, "dataOrdem", valor, "bqUpdatedAt", "userId", "nomeConsorcio", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt")
+       VALUES ($1, DATE '2096-01-01', 650, now(), $2, 'CONSORCIO TESTE', $3, now(), now())`,
+      [BASE_ID + 512, PLAIN_USER_ID, opaFilhaId],
+    );
+    await dataSource.query(
+      `INSERT INTO ordem_pagamento_agrupado_historico (id, "ordemPagamentoAgrupadoId", "dataReferencia", "userBankCode", "userBankAgency", "userBankAccount", "userBankAccountDigit", "statusRemessa")
+       VALUES ($1, $2, DATE '2096-01-01', '104', '0001', '99990002', '1', 5)`,
+      [BASE_ID + 513, opaFilhaId],
+    );
+  }
+
+  // Rejeitado sem pai: unico formato em que a base v2 e o Consolidado legado usam a mesma linha.
+  // Em familia, a base segue o status/data do pai (regra da Movimentacao Financeira) e o legado
+  // usa o status/dataVencimento da propria filha - divergencia conhecida, ainda sem decisao.
+  async function seedRejeitadoSemPai(): Promise<void> {
+    const opaId = BASE_ID + 520;
+
+    await dataSource.query(
+      `INSERT INTO ordem_pagamento_agrupado (id, "dataPagamento", "valorTotal", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt")
+       VALUES ($1, DATE '2096-12-10', 300, NULL, now(), now())`,
+      [opaId],
+    );
+    await dataSource.query(
+      `INSERT INTO ordem_pagamento (id, "dataOrdem", valor, "bqUpdatedAt", "userId", "nomeConsorcio", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt")
+       VALUES ($1, DATE '2096-12-01', 300, now(), $2, 'CONSORCIO TESTE', $3, now(), now())`,
+      [BASE_ID + 522, PLAIN_USER_ID, opaId],
+    );
+    await dataSource.query(
+      `INSERT INTO ordem_pagamento_agrupado_historico (id, "ordemPagamentoAgrupadoId", "dataReferencia", "userBankCode", "userBankAgency", "userBankAccount", "userBankAccountDigit", "statusRemessa", "motivoStatusRemessa")
+       VALUES ($1, $2, DATE '2096-12-10', '104', '0001', '99990002', '1', 4, 'AR')`,
+      [BASE_ID + 523, opaId],
+    );
+    await dataSource.query(
+      `INSERT INTO detalhe_a (id, "ordemPagamentoAgrupadoHistoricoId", "numeroDocumentoEmpresa", "dataVencimento", "valorLancamento", "valorRealEfetivado", nsr, "createdAt", "updatedAt")
+       OVERRIDING SYSTEM VALUE VALUES ($1, $2, 994520, DATE '2096-12-10', 300, 300, 994520, now(), now())`,
+      [BASE_ID + 525, BASE_ID + 523],
+    );
+  }
+
+  it('matches the legacy Consolidado total for Pendencia Paga, including PASSO 0 (consorcio)', async () => {
+    await seedPlainUser();
+    await seedPendenciaPagaFamily();
+    await seedPendenciaPagaPasso0Family();
+
+    const filter = {
+      dataInicio: new Date('2096-11-01T00:00:00.000Z'),
+      dataFim: new Date('2096-11-30T00:00:00.000Z'),
+      consorcioNome: ['CONSORCIO TESTE'],
+      pendenciaPaga: true,
+    };
+
+    const [newResult, legacyResult] = await Promise.all([
+      aggregator.aggregate({ dataInicio: filter.dataInicio, dataFim: filter.dataFim, statuses: [StatusPagamento.PENDENCIA_PAGA] }, { consorcioNome: filter.consorcioNome }),
+      legacyConsolidadoRepository.findConsolidado(filter),
+    ]);
+
+    expect(newResult.data).toHaveLength(1);
+    expect(newResult.data[0].valor).toBe(500 + 650);
+    expect(legacyResult.data).toHaveLength(1);
+    expect(newResult.data[0].valor).toBe(legacyResult.data[0].valor);
+  });
+
+  it('matches the legacy Consolidado total for Rejeitado (consorcio)', async () => {
+    await seedPlainUser();
+    await seedRejeitadoSemPai();
+
+    const filter = {
+      dataInicio: new Date('2096-12-10T00:00:00.000Z'),
+      dataFim: new Date('2096-12-10T00:00:00.000Z'),
+      consorcioNome: ['CONSORCIO TESTE'],
+      rejeitado: true,
+    };
+
+    const [newResult, legacyResult] = await Promise.all([
+      aggregator.aggregate({ dataInicio: filter.dataInicio, dataFim: filter.dataFim, statuses: [StatusPagamento.ERRO_REJEITADO] }, { consorcioNome: filter.consorcioNome }),
+      legacyConsolidadoRepository.findConsolidado(filter),
+    ]);
+
+    expect(newResult.data).toHaveLength(1);
+    expect(newResult.data[0].valor).toBe(300);
+    expect(legacyResult.data).toHaveLength(1);
+    expect(newResult.data[0].valor).toBe(legacyResult.data[0].valor);
   });
 });

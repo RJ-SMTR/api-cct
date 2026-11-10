@@ -9,10 +9,13 @@ import { StatusPagamento } from '../enum/statusRemessafinancial-movement';
 import { ConsorcioAggregatorService } from './consorcio-aggregator.service';
 import { VanzeiroAggregatorService } from './vanzeiro-aggregator.service';
 
-// Parametros fora do escopo da fatia 1 (ADR 0022) - eleicao, Pendencia Paga/Pendentes,
-// Erro/Rejeitado/Estorno, STUC-Gratuidade, paginacao. Enviar qualquer um deles com valor truthy
-// e' erro explicito (nunca ignorado silenciosamente - decisao do PRD-consolidado-v2.md).
-const OUT_OF_SCOPE_FLAGS = ['eleicao', 'desativados', 'pendentes', 'rejeitado', 'estorno', 'pendenciaPaga', 'stucGratuidade', 'erro'] as const;
+// Parametros fora do escopo da fatia 2 (ADR 0022) - eleicao, Pendentes, STUC-Gratuidade,
+// paginacao. Enviar qualquer um deles com valor truthy e' erro explicito (nunca ignorado
+// silenciosamente - decisao do PRD-consolidado-v2.md). Pendencia Paga/Pendencia de Pagamento
+// (pendenciaPaga/rejeitado/estorno/erro) saem desta lista em T1 da fatia 2 - BasePagamentoRepository.
+// findGroupedRows ja expoe essas fontes desde T5 do ADR 0021, so faltava desbloquear o controller
+// (ver docs/tasks-consolidado-v2-fatia2/T1.md).
+const OUT_OF_SCOPE_FLAGS = ['eleicao', 'desativados', 'pendentes', 'stucGratuidade'] as const;
 
 @ApiTags('Cnab')
 @Controller({
@@ -34,6 +37,10 @@ export class ConsolidadoV2Controller {
   @ApiQuery({ name: 'pago', required: false, type: Boolean })
   @ApiQuery({ name: 'aPagar', required: false, type: Boolean })
   @ApiQuery({ name: 'emProcessamento', required: false, type: Boolean })
+  @ApiQuery({ name: 'pendenciaPaga', required: false, type: Boolean })
+  @ApiQuery({ name: 'rejeitado', required: false, type: Boolean })
+  @ApiQuery({ name: 'estorno', required: false, type: Boolean })
+  @ApiQuery({ name: 'erro', description: 'Combo Estorno + Rejeitado', required: false, type: Boolean })
   @ApiQuery({ name: 'todosVanzeiros', required: false, type: Boolean })
   @ApiQuery({ name: 'todosConsorcios', required: false, type: Boolean })
   @ApiBearerAuth()
@@ -70,11 +77,7 @@ export class ConsolidadoV2Controller {
       eleicao,
       desativados,
       pendentes,
-      rejeitado,
-      estorno,
-      pendenciaPaga,
       stucGratuidade,
-      erro,
     };
     const offendingFlag = OUT_OF_SCOPE_FLAGS.find((flag) => outOfScope[flag]);
     if (offendingFlag) {
@@ -95,10 +98,19 @@ export class ConsolidadoV2Controller {
       );
     }
 
+    // pendenciaPaga/rejeitado/estorno/erro (T1, fatia 2): mesma semantica do getSelectedStatuses
+    // legado - erro=true e' o combo Estorno + Rejeitado; rejeitado/estorno isolados tambem
+    // funcionam sozinhos (o Set abaixo remove qualquer duplicata se os dois forem combinados).
     const statuses = [
-      ...(pago ? [StatusPagamento.PAGO] : []),
-      ...(aPagar ? [StatusPagamento.A_PAGAR] : []),
-      ...(emProcessamento ? [StatusPagamento.AGUARDANDO_PAGAMENTO] : []),
+      ...new Set([
+        ...(pago ? [StatusPagamento.PAGO] : []),
+        ...(aPagar ? [StatusPagamento.A_PAGAR] : []),
+        ...(emProcessamento ? [StatusPagamento.AGUARDANDO_PAGAMENTO] : []),
+        ...(pendenciaPaga ? [StatusPagamento.PENDENCIA_PAGA] : []),
+        ...(rejeitado ? [StatusPagamento.ERRO_REJEITADO] : []),
+        ...(estorno ? [StatusPagamento.ERRO_ESTORNO] : []),
+        ...(erro ? [StatusPagamento.ERRO_ESTORNO, StatusPagamento.ERRO_REJEITADO] : []),
+      ]),
     ];
 
     const filter = {
