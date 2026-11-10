@@ -297,7 +297,6 @@ describe('ConsolidadoV2Controller', () => {
   });
 
   it.each([
-    [{ userIds: [1], consorcioNome: ['STPC'] }, { userIds: [1], consorcioNome: ['STPC'] }],
     [{ todosVanzeiros: true, consorcioNome: ['STPC'] }, { todosVanzeiros: true, consorcioNome: ['STPC'] }],
     [{ todosVanzeiros: undefined }, undefined],
   ])('unites the favorecido and consorcio views for %j, like the legacy report', async (overrides, uniao) => {
@@ -305,5 +304,18 @@ describe('ConsolidadoV2Controller', () => {
 
     expect(consolidadoCombinadoService.aggregate).toHaveBeenCalledWith(expect.any(Object), uniao === undefined ? undefined : expect.objectContaining(uniao));
     expect(vanzeiroAggregatorService.aggregate).not.toHaveBeenCalled();
+  });
+  it.each([[{ consorcioNome: ['STPC'] }], [{ todosConsorcios: true }]])('keeps only the selected favorecido with %j, inside the consorcio filter', async (consorcio) => {
+    await callController({ userIds: [1], ...consorcio });
+
+    expect(vanzeiroAggregatorService.aggregate).toHaveBeenCalledWith(expect.objectContaining({ userIds: [1], ...consorcio }));
+    expect(consolidadoCombinadoService.aggregate).not.toHaveBeenCalled();
+    expect(consorcioAggregatorService.aggregate).not.toHaveBeenCalled();
+  });
+
+  it.each([[{ stucGratuidade: true }], [{ eleicao: true }]])('sends only the selected favorecido to the v1 implementation for %j', async (categoria) => {
+    await callController({ userIds: [1], todosConsorcios: true, consorcioNome: ['STPC'], ...categoria });
+
+    expect(relatorioNovoRemessaService.findConsolidado).toHaveBeenCalledWith(expect.objectContaining({ userIds: [1], consorcioNome: undefined, todosConsorcios: undefined }));
   });
 });
