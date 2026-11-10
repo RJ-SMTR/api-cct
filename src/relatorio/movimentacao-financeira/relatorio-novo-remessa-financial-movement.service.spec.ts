@@ -18,6 +18,7 @@ const BASE_EXPORT_ROW = {
   status: 'Pago',
   descricaoErro: '',
 };
+// Gerar PDF e XLSX passa de 5s quando as suites rodam em paralelo (hook de pre-commit).jest.setTimeout(30000);
 
 describe('RelatorioNovoRemessaFinancialMovementService', () => {
   let service: RelatorioNovoRemessaFinancialMovementService;

@@ -23,6 +23,7 @@ const ROW: RelatorioFinancialMovementNovoRemessaData = {
   dataOrdemPagamento4: null,
   valorOrdemPagamento4: null,
 };
+// Gerar PDF e XLSX passa de 5s quando as suites rodam em paralelo (hook de pre-commit).jest.setTimeout(30000);
 
 const streamOneRow = async (onRow: (row: RelatorioFinancialMovementNovoRemessaData) => Promise<void> | void) => {
   await onRow(ROW);
