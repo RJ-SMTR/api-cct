@@ -17,13 +17,8 @@ export class VanzeiroAggregatorService {
   // getQueryVanzeiros (relatorio-novo-remessa-consolidado.repository.ts) - nao por cpfCnpj, que
   // nao e unico (ADR 0019). Nao inventa correcao para esse caso aqui (fora de escopo da fatia).
   async aggregate(filter: BasePagamentoFilter, perfil: Perfil = 'permissionario'): Promise<RelatorioConsolidadoNovoRemessaDto> {
-    // valorMin/valorMax nao sao passados para findGroupedRows aqui: o legado
-    // (relatorio-novo-remessa-consolidado.repository.ts:957-966) filtra com HAVING SUM(valor)
-    // depois do GROUP BY "nome" final (soma do favorecido no PERIODO TODO) - uma granularidade
-    // mais grossa que o filtro de BasePagamentoRepository (por favorecido/dia/status dentro de
-    // cada fonte, ADR 0002). Aplicar valorMin/valorMax la filtraria linhas individuais antes
-    // desta soma, divergindo da paridade exigida; o filtro correto entra depois, sobre o total
-    // ja agregado por favorecido (ver abaixo).
+    // valorMin/valorMax valem sobre o total do favorecido no periodo e sao aplicados abaixo, depois
+    // da soma, porque valorAPagar so considera os favorecidos que ficam dentro dos limites.
     const { valorMin, valorMax, ...baseFilter } = filter;
     const rows = await this.basePagamentoRepository.findGroupedRows(perfil, baseFilter);
 

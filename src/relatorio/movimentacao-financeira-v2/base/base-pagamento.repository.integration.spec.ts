@@ -314,22 +314,53 @@ suite('BasePagamentoRepository (PostgreSQL)', () => {
     expect(Number(rows[0].valor)).toBe(5548.8);
   });
 
-  it('filters by valorMin/valorMax after grouping, not before (ADR 0002)', async () => {
-    await seedUser();
-    await seedPermissionarioAPagarFamily();
+  // valorMin/valorMax valem sobre o total do favorecido no periodo (mesma regra do Consolidado):
+  // a fixture tem duas linhas (321 e 150) do mesmo favorecido, total 471.
+  describe('filtro de valor sobre o total', () => {
+    const periodo = { dataInicio: new Date('2098-07-10T00:00:00.000Z'), dataFim: new Date('2098-07-10T00:00:00.000Z'), userIds: [USER_ID] };
 
-    // Fixture has two final lines (321 and 150). A range that only the 321 line satisfies
-    // proves the filter is applied to the already-grouped/exhibited value, not to a raw
-    // pre-grouping lancamento.
-    const rows = await repository.findGroupedRows('permissionario', {
-      dataInicio: new Date('2098-07-10T00:00:00.000Z'),
-      dataFim: new Date('2098-07-10T00:00:00.000Z'),
-      valorMin: 300,
-      userIds: [USER_ID],
+    beforeEach(async () => {
+      await seedUser();
+      await seedPermissionarioAPagarFamily();
     });
 
-    expect(rows).toHaveLength(1);
-    expect(Number(rows[0].valor)).toBe(321);
+    it.each([
+      [{ valorMin: 400 }, 2],
+      [{ valorMin: 500 }, 0],
+      [{ valorMax: 500 }, 2],
+      [{ valorMax: 400 }, 0],
+    ])('%j devolve %i linhas', async (limites, esperado) => {
+      const rows = await repository.findGroupedRows('permissionario', { ...periodo, ...limites });
+
+      expect(rows).toHaveLength(esperado);
+    });
+
+    it('keeps the favorecido total across page cuts', async () => {
+      const filtro = { ...periodo, valorMin: 400 };
+      const primeira = await repository.findGroupedRowsPage('permissionario', filtro, 1);
+      expect(primeira.rows).toHaveLength(1);
+      expect(primeira.nextCursor).not.toBeNull();
+
+      const segunda = await repository.findGroupedRowsPage('permissionario', filtro, 1, primeira.nextCursor as NonNullable<typeof primeira.nextCursor>);
+      expect(segunda.rows).toHaveLength(1);
+      expect(segunda.nextCursor).toBeNull();
+    });
+
+    it('uses the consorcio total when a consorcio filter is set, and the favorecido total otherwise', async () => {
+      await seedGuardadorUser();
+      await dataSource.query(
+        `INSERT INTO ordem_pagamento (id, "dataOrdem", "dataCaptura", valor, "bqUpdatedAt", "userId", "nomeConsorcio", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt")
+         VALUES ($1, DATE '2098-07-10', DATE '2098-07-10', 200, now(), $2, 'CONSORCIO TESTE', NULL, now(), now())`,
+        [BASE_ID + 42, GUARDADOR_USER_ID],
+      );
+      const datas = { dataInicio: periodo.dataInicio, dataFim: periodo.dataFim, valorMin: 600 };
+
+      const porConsorcio = await repository.findGroupedRows('permissionario', { ...datas, consorcioNome: ['CONSORCIO TESTE'] });
+      const porFavorecido = await repository.findGroupedRows('permissionario', { ...datas, userIds: [USER_ID, GUARDADOR_USER_ID] });
+
+      expect(porConsorcio).toHaveLength(3);
+      expect(porFavorecido).toHaveLength(0);
+    });
   });
 
   it('includes the last day of the period (ADR 0005 cast, not a timestamp boundary)', async () => {
@@ -468,28 +499,6 @@ suite('BasePagamentoRepository (PostgreSQL)', () => {
 
     const newTotals = sumByStatus(newRows);
     expect(newTotals[StatusPagamento.A_PAGAR] ?? 0).toBe(legacySummary.valorAPagar);
-  });
-
-  it('matches the legacy Permissionário service after a valorMin filter (ADR 0002)', async () => {
-    await seedUser();
-    await seedPermissionarioAPagarFamily();
-
-    const filter = {
-      dataInicio: new Date('2098-07-01T00:00:00.000Z'),
-      dataFim: new Date('2098-07-31T00:00:00.000Z'),
-      userIds: [USER_ID],
-      consorcioNome: ['CONSORCIO TESTE'],
-      valorMin: 300,
-    };
-
-    const [newRows, legacySummary] = await Promise.all([
-      repository.findGroupedRows('permissionario', filter),
-      legacyPermissionarioService.findFinancialMovementSummary(filter),
-    ]);
-
-    const newTotals = sumByStatus(newRows);
-    expect(newTotals[StatusPagamento.A_PAGAR] ?? 0).toBe(legacySummary.valorAPagar);
-    expect(legacySummary.valorAPagar).toBe(321);
   });
 
   // T2 do plano consolidado-v2 (ADR 0022): nomeConsorcio adicionado a saida, usando o resolver

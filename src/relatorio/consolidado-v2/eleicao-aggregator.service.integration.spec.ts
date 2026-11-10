@@ -156,6 +156,19 @@ suite('EleicaoAggregatorService (PostgreSQL)', () => {
     );
   }
 
+  it('applies valorMin/valorMax to the favorecido total, not to each line', async () => {
+    await seedEleicaoUser(USER_PRIMARY_ID, '99399999901', 'ELEC-V2-PC-1', 'ELEICAO AGG PRIMARY TESTE');
+    for (const [seedId, dataVencimento] of [[60, '2097-12-10'], [61, '2097-12-11']] as const) {
+      await seedEleicaoOrder({ seedId, dataVencimento, valor: 300, statusRemessa: 0, idOperadora: 'ELEC-V2-PC-1', operadoraCpfCnpj: '00000000000' });
+    }
+    const periodo = { dataInicio: new Date('2097-12-10T00:00:00.000Z'), dataFim: new Date('2097-12-11T00:00:00.000Z') };
+
+    const [dentro, fora] = await Promise.all([aggregator.aggregateByFavorecido({ ...periodo, valorMin: 500 }), aggregator.aggregateByFavorecido({ ...periodo, valorMax: 500 })]);
+
+    expect(dentro.valor).toBe(600);
+    expect(fora.data).toEqual([]);
+  });
+
   it('joins by permitCode/idOperadora and appears in both the favorecido and consorcio views with the correct value', async () => {
     await seedEleicaoUser(USER_PRIMARY_ID, '99399999901', 'ELEC-V2-PC-1', 'ELEICAO AGG PRIMARY TESTE');
     await seedEleicaoOrder({

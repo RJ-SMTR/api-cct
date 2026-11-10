@@ -266,6 +266,11 @@ export class BasePagamentoRepository {
     // filtra por data de VENCIMENTO - as duas tem data/regra propria (pendencia_paga*,
     // pendencia_pagamento abaixo), filtradas por data de PAGAMENTO.
     const isSingleDate = dateOnly(filter.dataInicio) === dateOnly(filter.dataFim);
+    // valorMin/valorMax valem sobre o total do periodo, como no Consolidado: por consorcio quando
+    // ha filtro de consorcio, senao por favorecido. A janela roda antes do cursor, entao o total
+    // nao muda entre paginas.
+    const temFiltroConsorcio = perfil === 'permissionario' && (Boolean(filter.consorcioNome?.length) || Boolean(filter.todosConsorcios));
+    const chaveDoTotal = temFiltroConsorcio ? '"nomeConsorcio"' : 'nomes';
 
     const sql = `
       WITH agrupada AS (
@@ -399,14 +404,19 @@ export class BasePagamentoRepository {
         SELECT * FROM pendencia_pagamento
         UNION ALL
         SELECT * FROM pendentes
+      ),
+      filtrado AS (
+        SELECT "dataReferencia", nomes, "cpfCnpj", "nomeConsorcio", valor, status,
+          SUM(valor) OVER (PARTITION BY ${chaveDoTotal}) AS "totalDoGrupo"
+        FROM combinado
+        WHERE ($3::text[] IS NULL OR status = ANY($3))
+          AND ($7::text[] IS NULL OR UPPER(TRIM("nomeConsorcio")) = ANY($7))
+          AND ($8::text[] IS NULL OR NOT ("cpfCnpj" = ANY($8)))
       )
       SELECT "dataReferencia", nomes, "cpfCnpj", "nomeConsorcio", valor, status
-      FROM combinado
-      WHERE ($3::text[] IS NULL OR status = ANY($3))
-        AND ($4::numeric IS NULL OR valor >= $4)
-        AND ($5::numeric IS NULL OR valor <= $5)
-        AND ($7::text[] IS NULL OR UPPER(TRIM("nomeConsorcio")) = ANY($7))
-        AND ($8::text[] IS NULL OR NOT ("cpfCnpj" = ANY($8)))
+      FROM filtrado
+      WHERE ($4::numeric IS NULL OR "totalDoGrupo" >= $4)
+        AND ($5::numeric IS NULL OR "totalDoGrupo" <= $5)
     `;
 
     return {
@@ -465,11 +475,16 @@ export class BasePagamentoRepository {
         ) pu ON true
         WHERE da."dataVencimento"::date BETWEEN $1::date AND $2::date
       )
+      , filtrado AS (
+        SELECT "dataReferencia", nomes, "cpfCnpj", "nomeConsorcio", valor, status,
+          SUM(valor) OVER (PARTITION BY nomes) AS "totalDoGrupo"
+        FROM eleicao
+        WHERE ($3::text[] IS NULL OR status = ANY($3))
+      )
       SELECT "dataReferencia", nomes, "cpfCnpj", "nomeConsorcio", valor, status
-      FROM eleicao
-      WHERE ($3::text[] IS NULL OR status = ANY($3))
-        AND ($4::numeric IS NULL OR valor >= $4)
-        AND ($5::numeric IS NULL OR valor <= $5)
+      FROM filtrado
+      WHERE ($4::numeric IS NULL OR "totalDoGrupo" >= $4)
+        AND ($5::numeric IS NULL OR "totalDoGrupo" <= $5)
       ORDER BY "dataReferencia", nomes
     `;
 
