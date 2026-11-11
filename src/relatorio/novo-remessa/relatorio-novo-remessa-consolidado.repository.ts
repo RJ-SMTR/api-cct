@@ -174,14 +174,28 @@ export class RelatorioNovoRemessaConsolidadoRepository {
   private readonly fromQueryPrincipalComPai = this.fromQueryPrincipal +
     ` left join ordem_pagamento_agrupado op_pai on op_pai."id"=opafi."ordemPagamentoAgrupadoId" `;
 
+  // Usuario por permitCode, com fallback por CPF so quando ninguem tem esse permitCode - mesma regra
+  // de buildEleicaoQuery (Movimentacao Financeira). So por CPF, um CPF com dois cadastros dobrava o valor.
   private readonly fromQueryEleicaoAPagar = ` from ordem_pagamento_unico op 
-                                             left join public.user pu on pu."cpfCnpj"=op."operadoraCpfCnpj" `
+                                             left join lateral (
+                                               select u.* from public.user u where u."permitCode" = op."idOperadora"
+                                               union all
+                                               select u.* from public.user u
+                                               where not exists (select 1 from public.user u2 where u2."permitCode" = op."idOperadora")
+                                                 and u."cpfCnpj" = op."operadoraCpfCnpj"
+                                             ) pu on true `
 
   private readonly fromQueryEleicao = ` from detalhe_a da
                                         left join ordem_pagamento_agrupado_historico oph on oph."id"=da."ordemPagamentoAgrupadoHistoricoId"
                                         left join ordem_pagamento_agrupado opa on opa."id"=oph."ordemPagamentoAgrupadoId"
                                         left join ordem_pagamento_unico op on op."idOrdemPagamento"=opa."id"::varchar
-                                        left join public.user pu on pu."cpfCnpj"=op."operadoraCpfCnpj" `;
+                                        left join lateral (
+                                               select u.* from public.user u where u."permitCode" = op."idOperadora"
+                                               union all
+                                               select u.* from public.user u
+                                               where not exists (select 1 from public.user u2 where u2."permitCode" = op."idOperadora")
+                                                 and u."cpfCnpj" = op."operadoraCpfCnpj"
+                                             ) pu on true `;
 
 
   constructor(

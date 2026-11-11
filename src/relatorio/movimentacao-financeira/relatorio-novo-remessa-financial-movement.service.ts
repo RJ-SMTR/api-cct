@@ -8,6 +8,7 @@ import { pivotStucGratuidadeRows } from '../utils/stuc-gratuidade-pivot';
 import { StatusPagamento } from '../enum/statusRemessafinancial-movement';
 import {
   buildBaseQuery,
+  buildEleicaoAPagarQuery,
   buildEleicaoQuery,
   buildPendentesQuery,
   buildPendenciaPagamentoSingleDateQuery,
@@ -622,9 +623,13 @@ export class RelatorioNovoRemessaFinancialMovementService {
   private buildBaseQuery(filter: NormalizedFilter): string {
     return `${buildBaseQuery({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5, hasConsorcioFilter: this.hasConsorcioFilter(filter) }).trim()} ${filter.desativados ? 'AND pu.bloqueado = true' : 'AND (pu.bloqueado IS NULL OR pu.bloqueado = false)'}`;
   }
+  // Eleicao paga/enviada e Eleicao "A Pagar" (ordem ainda nao agrupada), cada uma com a condicao de
+  // bloqueado no proprio ramo da uniao.
   private buildEleicaoQuery(filter: NormalizedFilter): string {
-    return `${buildEleicaoQuery({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5, hasConsorcioFilter: this.hasConsorcioFilter(filter) }).trim()} ${filter.desativados ? 'AND pu.bloqueado = true' : 'AND (pu.bloqueado IS NULL OR pu.bloqueado = false)'}`;
+    const params = { todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5, hasConsorcioFilter: this.hasConsorcioFilter(filter) };
+    return [buildEleicaoQuery(params), buildEleicaoAPagarQuery(params)].map((query) => `${query.trim()} ${filter.desativados ? 'AND pu.bloqueado = true' : 'AND (pu.bloqueado IS NULL OR pu.bloqueado = false)'}`).join('\nUNION ALL\n');
   }
+
   private buildStucGratuidadeQuery(filter: NormalizedFilter): string {
     return `${buildStucGratuidadeQuery({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5, hasConsorcioFilter: this.hasConsorcioFilter(filter) }).trim()} ${filter.desativados ? 'AND pu.bloqueado = true' : 'AND (pu.bloqueado IS NULL OR pu.bloqueado = false)'}`;
   }

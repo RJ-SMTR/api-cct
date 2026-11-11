@@ -12,6 +12,7 @@ import { ConsorcioAggregatorService } from './consorcio-aggregator.service';
 import { EleicaoAggregatorService } from './eleicao-aggregator.service';
 import { StucGratuidadeAggregatorService } from './stuc-gratuidade-aggregator.service';
 import { VanzeiroAggregatorService } from './vanzeiro-aggregator.service';
+import { agruparStucPorFavorecido } from './stuc-por-favorecido';
 
 
 interface StatusFlags {
@@ -107,12 +108,16 @@ export class ConsolidadoV2Controller {
   ) {
     // STUC-Gratuidade e Eleicao: mesmo resultado da rota v1 (decisao de Rayanne, 2026-11-10), pela
     // propria implementacao do legado.
+    // Favorecido especifico selecionado: o relatorio traz so ele (regra de Rayanne, 2026-11-10), nunca a
+    // uniao com as linhas de consorcio que o legado fazia.
+    const favorecidoUnico = !todosVanzeiros && Boolean(userIds?.length);
+
     if (stucGratuidade || eleicao) {
-      return this.relatorioNovoRemessaService.findConsolidado({
+      const resultado = await this.relatorioNovoRemessaService.findConsolidado({
         dataInicio,
         dataFim,
         userIds,
-        consorcioNome,
+        consorcioNome: favorecidoUnico ? undefined : consorcioNome,
         valorMin,
         valorMax,
         pago,
@@ -120,7 +125,7 @@ export class ConsolidadoV2Controller {
         emProcessamento,
         erro,
         todosVanzeiros,
-        todosConsorcios,
+        todosConsorcios: favorecidoUnico ? undefined : todosConsorcios,
         eleicao,
         desativados,
         pendentes,
@@ -129,6 +134,7 @@ export class ConsolidadoV2Controller {
         pendenciaPaga,
         stucGratuidade,
       });
+      return stucGratuidade ? agruparStucPorFavorecido(resultado) : resultado;
     }
 
     // Como no legado, todosVanzeiros tem prioridade sobre o favorecido especifico.
@@ -146,7 +152,12 @@ export class ConsolidadoV2Controller {
 
     // Como no legado: so favorecido ou so consorcio selecionado mostra uma visao; os dois juntos, ou
     // nenhum, unem as visoes de favorecido e de consorcio.
-    const temFiltroFavorecido = Boolean(favorecidos?.length) || Boolean(todosVanzeiros);
+    // Favorecido especifico: so ele, dentro do filtro de consorcio, como a Movimentacao Financeira.
+    if (favorecidoUnico) {
+      return this.vanzeiroAggregatorService.aggregate({ ...filter, userIds: favorecidos, consorcioNome, todosConsorcios });
+    }
+
+    const temFiltroFavorecido = Boolean(todosVanzeiros);
     if (temFiltroConsorcio === temFiltroFavorecido) {
       return this.consolidadoCombinadoService.aggregate(
         filter,
