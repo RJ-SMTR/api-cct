@@ -85,7 +85,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
                                               WHEN pu."permitCode" LIKE '7%' THEN 'TEC'
                                               ELSE op."consorcio" 
                                             END AS "nome2", 
-                                            op."valorTotalTransacaoLiquido" AS valor, op."id" AS "idLinha"`;
+                                            ROUND(op."valorTotalTransacaoLiquido"::numeric, 2) AS valor, op."id" AS "idLinha"`;
 
 
   private readonly headerQueryEleicaoConsorcioApagar = ` select distinct 
@@ -96,7 +96,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
                                               WHEN pu."permitCode" LIKE '7%' THEN 'TEC'
                                               ELSE op."consorcio" 
                                             END AS "nome",pu."fullName" AS "nome2",                                             
-                                            op."valorTotalTransacaoLiquido" AS valor, op."id" AS "idLinha"`;
+                                            ROUND(op."valorTotalTransacaoLiquido"::numeric, 2) AS valor, op."id" AS "idLinha"`;
 
   private readonly headerQueryEleicaoVanzeiro = ` select distinct pu."fullName" AS "nome",
                                             CASE
@@ -106,7 +106,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
                                               WHEN pu."permitCode" LIKE '7%' THEN 'TEC'
                                               ELSE op."consorcio" 
                                             END AS "nome2",                                           
-                                            da."valorLancamento" AS valor, da."id" AS "idLinha"	`;
+                                            ROUND(da."valorLancamento"::numeric, 2) AS valor, da."id" AS "idLinha"	`;
 
   private readonly headerQueryEleicaoConsorcio = ` select distinct 
                                             CASE
@@ -117,7 +117,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
                                               ELSE op."consorcio" 
                                             END AS "nome",
                                             pu."fullName" AS "nome2",                                                                                       
-                                            da."valorLancamento" AS valor, da."id" AS "idLinha"	`;
+                                            ROUND(da."valorLancamento"::numeric, 2) AS valor, da."id" AS "idLinha"	`;
 
   private readonly fromQueryApagar = ` from ordem_pagamento op
                                         left join ordem_pagamento_agrupado opa  on op."ordemPagamentoAgrupadoId"=opa.id
