@@ -52,6 +52,19 @@ export const CONSORCIO_CASE = `
   END
 `;
 
+// Consórcio da Eleição pelo permitCode do favorecido, igual ao Consolidado (consorcioCaseEleicao)
+// - regra de Rayanne, 2026-11-11. O "consorcio" gravado em ordem_pagamento_unico muitas vezes não
+// é o do favorecido, e filtrar por ele fazia STPC/STPL/TEC divergirem entre os dois relatórios.
+export const ELEICAO_CONSORCIO_CASE = `
+  CASE
+    WHEN pu."permitCode" = '8' THEN 'VLT'
+    WHEN pu."permitCode" LIKE '4%' THEN 'STPC'
+    WHEN pu."permitCode" LIKE '81%' THEN 'STPL'
+    WHEN pu."permitCode" LIKE '7%' THEN 'TEC'
+    ELSE opu."consorcio"
+  END
+`;
+
 export const STATUS_CASE = `
   CASE
     WHEN oph."statusRemessa" = 5 THEN 'Pendencia Paga'
@@ -462,7 +475,7 @@ export const buildEleicaoQuery = (params: NovoRemessaBaseParams) => {
       pu."bankCode" AS "codBanco",
       bc.name AS "nomeBanco",
       pu."cpfCnpj",
-      opu."consorcio" AS "nomeConsorcio",
+      ${ELEICAO_CONSORCIO_CASE} AS "nomeConsorcio",
       da."valorLancamento" AS valor,
       da."dataVencimento" AS "dataPagamento",
       ${ELEICAO_STATUS_CASE} AS status,
@@ -501,7 +514,7 @@ export const buildEleicaoQuery = (params: NovoRemessaBaseParams) => {
       da."dataVencimento"::date BETWEEN $1::date AND $2::date
       AND ($3::integer[] IS NULL OR pu."id" = ANY($3))
       AND ${ELEICAO_STATUS_FILTER}
-      AND (${consorcioParam}::text[] IS NULL OR TRIM(UPPER(opu."consorcio")) = ANY(${consorcioParam}))
+      AND (${consorcioParam}::text[] IS NULL OR UPPER(TRIM(${ELEICAO_CONSORCIO_CASE})) = ANY(${consorcioParam}))
       ${buildTodosVanzeirosFilter(params)}
   `;
 };
@@ -520,7 +533,7 @@ export const buildEleicaoAPagarQuery = (params: NovoRemessaBaseParams) => {
       pu."bankCode" AS "codBanco",
       bc.name AS "nomeBanco",
       pu."cpfCnpj",
-      opu."consorcio" AS "nomeConsorcio",
+      ${ELEICAO_CONSORCIO_CASE} AS "nomeConsorcio",
       opu."valorTotalTransacaoLiquido" AS valor,
       NULL::timestamp AS "dataPagamento",
       'A Pagar' AS status,
@@ -543,7 +556,7 @@ export const buildEleicaoAPagarQuery = (params: NovoRemessaBaseParams) => {
       AND opu."idOrdemPagamento" IS NULL
       AND ($3::integer[] IS NULL OR pu."id" = ANY($3))
       AND ($4::text[] IS NULL OR 'A Pagar' = ANY($4))
-      AND (${consorcioParam}::text[] IS NULL OR TRIM(UPPER(opu."consorcio")) = ANY(${consorcioParam}))
+      AND (${consorcioParam}::text[] IS NULL OR UPPER(TRIM(${ELEICAO_CONSORCIO_CASE})) = ANY(${consorcioParam}))
       ${buildTodosVanzeirosFilter(params)}
   `;
 };
