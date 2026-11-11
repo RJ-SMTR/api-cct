@@ -27,6 +27,8 @@ export interface LinhaPagamentoIndevido {
   /** O que o guardador ainda deve. */
   saldoDevedor: string;
   situacao: SituacaoIndevido;
+  /** Dias (AAAA-MM-DD) das ordens do guardador que foram pagas em duplicidade. */
+  ordensDuplicadas?: string[];
 }
 
 export interface TotaisPagamentosIndevidos {
@@ -163,6 +165,10 @@ export class PagamentosIndevidosGuardadoresService {
        LIMIT ${pageSize} OFFSET ${(page - 1) * pageSize}`,
       params,
     );
+    const ordensPorUsuario = await this.ordensComPagamentos([...new Set<number>(itens.map((i: LinhaPagamentoIndevido) => i.userId).filter((id: number | null): id is number => id != null))]);
+    for (const item of itens as LinhaPagamentoIndevido[]) {
+      item.ordensDuplicadas = PagamentosIndevidosGuardadoresService.diasDasOrdensDuplicadas(ordensPorUsuario.get(item.userId as number) ?? []);
+    }
     return { total, page, pageSize, totais, itens };
   }
 
@@ -212,22 +218,7 @@ export class PagamentosIndevidosGuardadoresService {
       params,
     );
 
-    // Cada ordem do guardador com TODAS as datas em que foi paga (agrupamento da ordem ou do pai, pago/efetivado).
-    const ordens: OrdemComPagamentos[] = await this.dataSource.query(
-      `SELECT to_char(g."dataOrdem", 'YYYY-MM-DD') AS dia, g."valorRepasseGuardador"::numeric(18,2)::text AS valor,
-              ARRAY(SELECT DISTINCT to_char(da."dataVencimento", 'YYYY-MM-DD')
-                      FROM ordem_pagamento_agrupado_historico h
-                      JOIN detalhe_a da ON da."ordemPagamentoAgrupadoHistoricoId" = h.id
-                     WHERE h."statusRemessa" IN (3, 5)
-                       -- Status 5 com ocorrência 02 (crédito cancelado) é a ordem que só virou "paga" quando a pendência do pai foi quitada;
-                       -- o banco não pagou aquele lançamento, então não conta como pagamento (nem como duplicidade).
-                       AND NOT (h."statusRemessa" = 5 AND h."motivoStatusRemessa" = '02')
-                       AND h."ordemPagamentoAgrupadoId" IN (g."ordemPagamentoAgrupadoId", a."ordemPagamentoAgrupadoId")) AS pagamentos
-         FROM ordem_pagamento_guardador g
-         JOIN ordem_pagamento_agrupado a ON a.id = g."ordemPagamentoAgrupadoId"
-        WHERE g."userId" = $1`,
-      params,
-    );
+    const ordens = (await this.ordensComPagamentos([userId])).get(userId) ?? [];
 
     return {
       totais,
@@ -265,6 +256,40 @@ export class PagamentosIndevidosGuardadoresService {
     const repetidas = new Set<string>();
     for (const d of PagamentosIndevidosGuardadoresService.duplicidadesDeOrdens(ordens)) d.repetidoEm.forEach((x) => repetidas.add(x));
     return [...repetidas].sort();
+  }
+
+  /**
+   * Cada ordem dos guardadores com TODAS as datas em que foi paga (agrupamento da ordem ou do pai, pago/efetivado), por usuário.
+   * Status 5 com ocorrência 02 (crédito cancelado) é a ordem que só virou "paga" quando a pendência do pai foi quitada: o banco
+   * não pagou aquele lançamento, então não conta como pagamento (nem como duplicidade).
+   */
+  private async ordensComPagamentos(userIds: number[]): Promise<Map<number, OrdemComPagamentos[]>> {
+    const porUsuario = new Map<number, OrdemComPagamentos[]>();
+    if (userIds.length === 0) return porUsuario;
+    const linhas: Array<OrdemComPagamentos & { userId: number }> = await this.dataSource.query(
+      `SELECT g."userId" AS "userId", to_char(g."dataOrdem", 'YYYY-MM-DD') AS dia, g."valorRepasseGuardador"::numeric(18,2)::text AS valor,
+              ARRAY(SELECT DISTINCT to_char(da."dataVencimento", 'YYYY-MM-DD')
+                      FROM ordem_pagamento_agrupado_historico h
+                      JOIN detalhe_a da ON da."ordemPagamentoAgrupadoHistoricoId" = h.id
+                     WHERE h."statusRemessa" IN (3, 5)
+                       AND NOT (h."statusRemessa" = 5 AND h."motivoStatusRemessa" = '02')
+                       AND h."ordemPagamentoAgrupadoId" IN (g."ordemPagamentoAgrupadoId", a."ordemPagamentoAgrupadoId")) AS pagamentos
+         FROM ordem_pagamento_guardador g
+         JOIN ordem_pagamento_agrupado a ON a.id = g."ordemPagamentoAgrupadoId"
+        WHERE g."userId" = ANY($1::int[])`,
+      [userIds],
+    );
+    for (const { userId, ...ordem } of linhas) {
+      const lista = porUsuario.get(userId) ?? [];
+      lista.push(ordem);
+      porUsuario.set(userId, lista);
+    }
+    return porUsuario;
+  }
+
+  /** Dias das ordens pagas em duplicidade (sem repetir, em ordem). */
+  static diasDasOrdensDuplicadas(ordens: OrdemComPagamentos[]): string[] {
+    return [...new Set(PagamentosIndevidosGuardadoresService.duplicidadesDeOrdens(ordens).map((d) => d.dataOrdem))].sort();
   }
 
   /** Todas as linhas do filtro (até o limite), para a exportação em Excel. */
