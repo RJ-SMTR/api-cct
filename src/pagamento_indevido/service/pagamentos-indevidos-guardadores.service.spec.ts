@@ -4,7 +4,7 @@ describe('PagamentosIndevidosGuardadoresService.porUsuario', () => {
   const totaisComSaldo = { quantidade: 1, devendo: 1, valorIndevido: '877.80', valorDebitado: '238.00', saldoDevedor: '639.80' };
   const totaisSemSaldo = { quantidade: 1, devendo: 0, valorIndevido: '56.00', valorDebitado: '56.00', saldoDevedor: '0.00' };
   const lancamentos = [{ data: '2026-10-16', valorDevido: '238.00', valorPago: '0.00', diferenca: '-238.00', statusRemessa: 3 }];
-  const ordens = [
+  const ordensSemUsuario = [
     { dia: '2026-07-28', valor: '114.80', pagamentos: ['2026-08-12'] },
     { dia: '2026-07-28', valor: '114.80', pagamentos: ['2026-09-03'] },
     { dia: '2026-07-28', valor: '114.80', pagamentos: ['2026-09-23'] },
@@ -12,6 +12,8 @@ describe('PagamentosIndevidosGuardadoresService.porUsuario', () => {
     { dia: '2026-07-31', valor: '177.80', pagamentos: ['2026-09-03'] },
     { dia: '2026-10-20', valor: '18.20', pagamentos: ['2026-10-21'] },
   ];
+  // A consulta de ordens traz o usuário de cada linha (ela serve tanto a tela do guardador quanto a lista).
+  const ordens = ordensSemUsuario.map((o) => ({ userId: 2456, ...o }));
 
   const duplicidades = [
     { dataOrdem: '2026-07-28', valor: '114.80', pagoEm: '2026-08-12', repetidoEm: ['2026-09-03', '2026-09-23'] },
@@ -63,7 +65,7 @@ describe('PagamentosIndevidosGuardadoresService.porUsuario', () => {
     for (const [sql, params] of query.mock.calls) {
       expect(sql).toContain('$1');
       expect(sql).not.toContain('2456');
-      expect(params).toEqual([2456]);
+      expect([[2456], [[2456]]]).toContainEqual(params);
     }
   });
 
@@ -126,5 +128,33 @@ describe('PagamentosIndevidosGuardadoresService.duplicidadesDeOrdens / datasDeDu
         { dia: '2026-07-31', valor: '20.00', pagamentos: ['2026-09-03'] },
       ]),
     ).toEqual(['2026-09-03', '2026-09-23']);
+  });
+});
+
+describe('PagamentosIndevidosGuardadoresService.listar: ordens duplicadas', () => {
+  it('cada linha traz os dias das ordens pagas em duplicidade do guardador', async () => {
+    const query = jest
+      .fn()
+      .mockResolvedValueOnce([{ quantidade: 2 }]) // totais
+      .mockResolvedValueOnce([{ total: 2 }])
+      .mockResolvedValueOnce([
+        { id: 1, userId: 2550, guardador: 'A' },
+        { id: 2, userId: 10, guardador: 'B' },
+        { id: 3, userId: null, guardador: 'C' },
+      ])
+      .mockResolvedValueOnce([
+        { userId: 2550, dia: '2026-08-14', valor: '204.40', pagamentos: ['2026-09-03'] },
+        { userId: 2550, dia: '2026-08-14', valor: '204.40', pagamentos: ['2026-10-01'] },
+        { userId: 2550, dia: '2026-08-18', valor: '119.00', pagamentos: ['2026-09-03'] },
+        { userId: 2550, dia: '2026-08-18', valor: '119.00', pagamentos: ['2026-10-01'] },
+        { userId: 2550, dia: '2026-09-15', valor: '361.20', pagamentos: ['2026-10-01'] },
+        { userId: 10, dia: '2026-09-04', valor: '10.00', pagamentos: ['2026-09-04'] },
+      ]);
+    const service = new PagamentosIndevidosGuardadoresService({ query } as any);
+
+    const { itens } = await service.listar({});
+
+    expect(itens.map((i) => i.ordensDuplicadas)).toEqual([['2026-08-14', '2026-08-18'], [], []]);
+    expect(query.mock.calls[3][1]).toEqual([[2550, 10]]);
   });
 });
