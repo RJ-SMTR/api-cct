@@ -592,8 +592,9 @@ export class RelatorioNovoRemessaConsolidadoRepository {
         const consorcioPlaceholders = this.CONSORCIOS.join(`','`);
         queryAPagarConsorcios = anexar(queryAPagarConsorcios, ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') `);
         queryConsorcios = anexar(queryConsorcios, ` AND (op."nomeConsorcio" IN('${consorcioPlaceholders}') or opp."nomeConsorcio" IN('${consorcioPlaceholders}')) ${this.excluiCnpjConsorcioInstitucional} `);
-        queryAPagarEleicaoConsorcio = anexar(queryAPagarEleicaoConsorcio, ` AND op."consorcio" IN('${consorcioPlaceholders}') `);
-        queryEleicaoConsorcio = anexar(queryEleicaoConsorcio, ` AND op."consorcio" IN('${consorcioPlaceholders}') `);
+        // Eleição + "Todos": o total da Eleição, sem cortar pela lista (regra de Rayanne, 2026-11-11),
+        // igual à Movimentação Financeira. O "consorcio" gravado na ordem de Eleição muitas vezes não é
+        // o do favorecido (STPC/STPL/TEC vêm do permitCode) e a lista deixava esses pagamentos de fora.
         queryPendentesConsorcio = anexar(queryPendentesConsorcio, ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') `);
         queryPendenciaPagaConsorcios = anexar(queryPendenciaPagaConsorcios, ` AND (op."nomeConsorcio" IN('${consorcioPlaceholders}') or opp."nomeConsorcio" IN('${consorcioPlaceholders}')) ${this.excluiCnpjConsorcioInstitucional} `);
         // PASSO 0 não tem "opp" (ver comentário acima).

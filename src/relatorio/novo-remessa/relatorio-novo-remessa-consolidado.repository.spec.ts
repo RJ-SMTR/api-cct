@@ -821,6 +821,24 @@ describe('RelatorioNovoRemessaConsolidadoRepository.findConsolidado — filtros'
     expect(semTrechoSolto(sql)).toBe(true);
   });
 
+  it('Eleição + todos os consórcios: traz o total da Eleição, sem cortar pela lista de consórcios', async () => {
+    const sql = await executar({ eleicao: true, todosVanzeiros: undefined });
+    expect(sql).toContain('ordem_pagamento_unico');
+    expect(sql).not.toContain(`op."consorcio" IN`);
+    expect(semTrechoSolto(sql)).toBe(true);
+    expect(parentesesBalanceados(sql)).toBe(true);
+  });
+
+  it('Eleição + consórcio específico continua filtrando pelo consórcio', async () => {
+    const sql = await executar({ eleicao: true, todosConsorcios: undefined, todosVanzeiros: undefined, consorcioNome: ['STPC'] });
+    expect(sql).toContain(`IN('STPC')`);
+  });
+
+  it('sem Eleição, todos os consórcios continua usando a lista de consórcios', async () => {
+    const sql = await executar({ pago: true, todosVanzeiros: undefined });
+    expect(sql).toContain(`op."nomeConsorcio" IN('VLT'`);
+  });
+
   it('Eleição "A Pagar" também soma o histórico statusRemessa IN (0,1), não só as ordens nunca enviadas (ADR 0017)', async () => {
     const sql = await executar({ eleicao: true, aPagar: true, userIds: [7], todosConsorcios: undefined, todosVanzeiros: undefined });
     expect(sql).toContain('ordem_pagamento_agrupado_historico');

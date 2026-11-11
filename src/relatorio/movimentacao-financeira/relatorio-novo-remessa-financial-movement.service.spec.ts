@@ -592,6 +592,32 @@ describe('RelatorioNovoRemessaFinancialMovementService', () => {
       );
     });
 
+    it('Eleição + todos os consórcios: traz o total da Eleição, sem cortar pela lista nem pelos modais', async () => {
+      await service.findFinancialMovementSummary({
+        dataInicio: new Date('2026-10-01'),
+        dataFim: new Date('2026-10-31'),
+        eleicao: true,
+        todosConsorcios: true,
+      } as any);
+
+      const [countQuery, params] = dataSource.query.mock.calls[0];
+      expect(countQuery).toContain('ordem_pagamento_unico');
+      expect(countQuery).not.toContain(MODAIS_FILTER_MARKER);
+      expect(params[4]).toBeNull();
+    });
+
+    it('Eleição + consórcio específico continua filtrando pelo consórcio', async () => {
+      await service.findFinancialMovementSummary({
+        dataInicio: new Date('2026-10-01'),
+        dataFim: new Date('2026-10-31'),
+        eleicao: true,
+        consorcioNome: ['STPC'],
+      } as any);
+
+      const [, params] = dataSource.query.mock.calls[0];
+      expect(params[4]).toEqual(['STPC']);
+    });
+
     it('does not restrict to modais when a specific non-modal consórcio is selected', async () => {
       await service.findFinancialMovementSummary({
         dataInicio: new Date('2026-10-19'),

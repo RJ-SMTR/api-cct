@@ -681,9 +681,13 @@ export class RelatorioNovoRemessaFinancialMovementService {
     // Consolidado (this.CONSORCIOS, com GTU) em vez de ficar NULL (sem filtro nenhum) - NULL
     // deixava "Consórcio = Todos" indistinguível de "nenhum consórcio selecionado" e sujeito a
     // MODAIS_FILTER (ver buildTodosVanzeirosFilter em novo-remessa-query-builder.ts).
+    // Eleição + "Todos": o total da Eleição, sem cortar pela lista (regra de Rayanne, 2026-11-11).
+    // O "consorcio" gravado na ordem de Eleição muitas vezes não é o do favorecido (STPC/STPL/TEC
+    // vêm do permitCode), e a lista deixava cerca de R$ 304 mil de fora em out/2026 nos dois relatórios.
+    // hasConsorcioFilter continua verdadeiro, então MODAIS_FILTER/NOT_CPF_FILTER seguem fora.
     const consorcioNome = filter.consorcioNome?.length
       ? filter.consorcioNome.map((n) => n.toUpperCase().trim())
-      : filter.todosConsorcios
+      : filter.todosConsorcios && !filter.eleicao
       ? this.CONSORCIOS.map((n) => n.toUpperCase().trim())
       : null;
     return [this.toQueryDate(filter.dataInicio), this.toQueryDate(filter.dataFim), filter.userIds?.length? filter.userIds : null, selectedStatuses, consorcioNome];
