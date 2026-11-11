@@ -586,10 +586,13 @@ describe('RelatorioNovoRemessaConsolidadoRepository', () => {
       expect(result.valor).toBe(30);
     });
 
-    it('filters by the window total (Vlr Min/Max), not by the favorecido grand total', async () => {
+    // Regra de Rayanne, 2026-11-11 (substitui o filtro por janela da ADR 0012): Vlr Min/Max vale
+    // sobre o total do favorecido no periodo, igual a Movimentacao Financeira.
+    it('filters by the favorecido total (Vlr Min/Max), not by each window', async () => {
       (mockQueryRunner.query as jest.Mock).mockResolvedValue([
         { nome: 'Fulano', cpfCnpj: '1', dataReferencia: '23/10/2026', valor: '10' },
         { nome: 'Fulano', cpfCnpj: '1', dataReferencia: '27/10/2026', valor: '200' },
+        { nome: 'Beltrano', cpfCnpj: '2', dataReferencia: '23/10/2026', valor: '50' },
       ]);
 
       const result = await repository.findConsolidado({
@@ -600,8 +603,7 @@ describe('RelatorioNovoRemessaConsolidadoRepository', () => {
         valorMax: 300,
       } as any);
 
-      expect(result.data).toHaveLength(1);
-      expect((result.data[0] as any).valor).toBe(200);
+      expect(result.data.map((linha: any) => linha.valor)).toEqual([10, 200]);
     });
 
     it('paginates the pivoted rows in memory without dropping or duplicating windows across pages', async () => {
@@ -827,6 +829,40 @@ describe('RelatorioNovoRemessaConsolidadoRepository.findConsolidado — filtros'
     expect(sql).not.toContain(`op."consorcio" IN`);
     expect(semTrechoSolto(sql)).toBe(true);
     expect(parentesesBalanceados(sql)).toBe(true);
+  });
+
+  it('Eleição + favorecido + consórcio: só o favorecido, dentro do consórcio (sem a visão de consórcio)', async () => {
+    const sql = await executar({ eleicao: true, todosConsorcios: undefined, todosVanzeiros: undefined, userIds: [7], consorcioNome: ['STPL'], favorecidoNoConsorcio: true });
+    expect(sql).toContain(`pu."id" IN('7')`);
+    expect(sql).toMatch(/AND pu\."id" IN\('7'\)\s+AND UPPER\(TRIM\(CASE[\s\S]*?END\)\) IN\('STPL'\)/);
+    // A visão de consórcio (rotulada pelo CASE em "nome") não entra.
+    expect(sql).not.toMatch(/END AS "nome",pu\."fullName" AS "nome2"/);
+    expect(sql).not.toMatch(/END AS "nome",\s*pu\."fullName" AS "nome2"/);
+  });
+
+  it('Eleição + favorecido + todos os consórcios: só o favorecido, sem cortar pela lista', async () => {
+    const sql = await executar({ eleicao: true, todosConsorcios: true, todosVanzeiros: undefined, userIds: [7], favorecidoNoConsorcio: true });
+    expect(sql).toContain(`pu."id" IN('7')`);
+    expect(sql).not.toContain(`op."consorcio" IN`);
+  });
+
+  it('Eleição + desativados: só favorecidos bloqueados', async () => {
+    const sql = await executar({ eleicao: true, todosVanzeiros: undefined, desativados: true });
+    expect(sql).toContain(`pu."bloqueado" = true`);
+    expect(sql).not.toContain(`(pu."bloqueado" is null OR pu."bloqueado" = false)`);
+  });
+
+  it('STUC: exclui bloqueados por padrão e traz só eles com desativados, como a Movimentação Financeira', async () => {
+    const padrao = await executar({ stucGratuidade: true, todosVanzeiros: undefined });
+    expect(padrao).toContain(`(pu."bloqueado" IS NULL OR pu."bloqueado" = false)`);
+    const desativados = await executar({ stucGratuidade: true, todosVanzeiros: undefined, desativados: true });
+    expect(desativados).toContain(`AND pu."bloqueado" = true`);
+  });
+
+  it('STUC + favorecido + consórcio: só o favorecido, dentro do consórcio', async () => {
+    const sql = await executar({ stucGratuidade: true, todosConsorcios: undefined, todosVanzeiros: undefined, userIds: [7], consorcioNome: ['Internorte'], favorecidoNoConsorcio: true });
+    expect(sql).toMatch(/AND pu\."id" IN\('7'\)\s+AND UPPER\(TRIM\(CASE[\s\S]*?END\)\) IN\('INTERNORTE'\)/);
+    expect(sql.match(/UNION ALL/g) ?? []).toHaveLength(0);
   });
 
   it('Eleição + consórcio específico continua filtrando pelo consórcio', async () => {
