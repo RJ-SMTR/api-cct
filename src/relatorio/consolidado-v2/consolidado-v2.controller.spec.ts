@@ -302,6 +302,22 @@ describe('ConsolidadoV2Controller', () => {
     expect(eleicaoAggregatorService.aggregateByFavorecido).not.toHaveBeenCalled();
   });
 
+  it('returns STUC-Gratuidade per payment window with each day, like the Movimentacao Financeira', async () => {
+    const janela = {
+      nomefavorecido: 'FULANO',
+      cpfCnpj: '12345678901',
+      valor: 30,
+      dataOrdemPagamento1: '01/01/2098',
+      valorOrdemPagamento1: 10,
+      dataOrdemPagamento2: '02/01/2098',
+      valorOrdemPagamento2: 20,
+    };
+    const legado = { count: 2, valor: 45, data: [janela, { ...janela, valor: 15, valorOrdemPagamento2: 5 }] };
+    (relatorioNovoRemessaService.findConsolidado as jest.Mock).mockResolvedValueOnce(legado);
+
+    await expect(callController({ stucGratuidade: true })).resolves.toEqual(legado);
+  });
+
   it.each([
     [{ todosVanzeiros: true, consorcioNome: ['STPC'] }, { todosVanzeiros: true, consorcioNome: ['STPC'] }],
     [{ todosVanzeiros: undefined }, undefined],
