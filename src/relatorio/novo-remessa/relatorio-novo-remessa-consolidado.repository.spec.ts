@@ -604,6 +604,8 @@ describe('RelatorioNovoRemessaConsolidadoRepository', () => {
       } as any);
 
       expect(result.data.map((linha: any) => linha.valor)).toEqual([10, 200]);
+      // O total também respeita o filtro de valor (Beltrano, abaixo do mínimo, fica de fora).
+      expect(result.valor).toBe(210);
     });
 
     it('paginates the pivoted rows in memory without dropping or duplicating windows across pages', async () => {
@@ -834,7 +836,7 @@ describe('RelatorioNovoRemessaConsolidadoRepository.findConsolidado — filtros'
   it('Eleição + favorecido + consórcio: só o favorecido, dentro do consórcio (sem a visão de consórcio)', async () => {
     const sql = await executar({ eleicao: true, todosConsorcios: undefined, todosVanzeiros: undefined, userIds: [7], consorcioNome: ['STPL'], favorecidoNoConsorcio: true });
     expect(sql).toContain(`pu."id" IN('7')`);
-    expect(sql).toMatch(/AND pu\."id" IN\('7'\)\s+AND UPPER\(TRIM\(CASE[\s\S]*?END\)\) IN\('STPL'\)/);
+    expect(sql).toMatch(/AND pu\."id" IN\('7'\)\s+AND UPPER\(TRIM\(\s*CASE\s*WHEN op\."idOperadora" = '8'[\s\S]*?END\s*\)\) IN\('STPL'\)/);
     // A visão de consórcio (rotulada pelo CASE em "nome") não entra.
     expect(sql).not.toMatch(/END AS "nome",pu\."fullName" AS "nome2"/);
     expect(sql).not.toMatch(/END AS "nome",\s*pu\."fullName" AS "nome2"/);

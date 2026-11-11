@@ -632,7 +632,7 @@ describe('RelatorioNovoRemessaFinancialMovementService', () => {
       } as any);
 
       const [countQuery] = dataSource.query.mock.calls[0];
-      expect(countQuery).toContain('SUM(valor) OVER (PARTITION BY nomes, "cpfCnpj") AS "totalDoGrupo"');
+      expect(countQuery).toContain('SUM(valor) OVER (PARTITION BY nomes) AS "totalDoGrupo"');
       expect(countQuery).toContain('grouped."totalDoGrupo" <= $7::numeric');
     });
 
