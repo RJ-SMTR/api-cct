@@ -277,11 +277,17 @@ describe('ConsolidadoV2Controller', () => {
     it.each([
       [{ eleicao: true }],
       [{ stucGratuidade: true }],
-      [{ desativados: true }],
-      [{ pendentes: true }],
     ])('rejects %j with 400 instead of ignoring it', async (overrides) => {
       await expect(callGuardador(overrides)).rejects.toMatchObject({ status: 400 });
       expect(vanzeiroAggregatorService.aggregate).not.toHaveBeenCalled();
+    });
+
+    it('forwards desativados and pendentes, like the Guardador Movimentacao Financeira', async () => {
+      await callGuardador({ desativados: true, pendentes: true });
+
+      const calledFilter = (vanzeiroAggregatorService.aggregate as jest.Mock).mock.calls[0][0];
+      expect(calledFilter.desativados).toBe(true);
+      expect(calledFilter.statuses).toEqual([StatusPagamento.PENDENTES]);
     });
   });
   it.each([
@@ -313,9 +319,19 @@ describe('ConsolidadoV2Controller', () => {
     expect(consorcioAggregatorService.aggregate).not.toHaveBeenCalled();
   });
 
-  it.each([[{ stucGratuidade: true }], [{ eleicao: true }]])('sends only the selected favorecido to the v1 implementation for %j', async (categoria) => {
-    await callController({ userIds: [1], todosConsorcios: true, consorcioNome: ['STPC'], ...categoria });
+  it.each([[{ stucGratuidade: true }], [{ eleicao: true }]])('sends the selected favorecido inside the consorcio to the v1 implementation for %j', async (categoria) => {
+    await callController({ userIds: [1], consorcioNome: ['STPC'], ...categoria });
 
-    expect(relatorioNovoRemessaService.findConsolidado).toHaveBeenCalledWith(expect.objectContaining({ userIds: [1], consorcioNome: undefined, todosConsorcios: undefined }));
+    expect(relatorioNovoRemessaService.findConsolidado).toHaveBeenCalledWith(
+      expect.objectContaining({ userIds: [1], consorcioNome: ['STPC'], favorecidoNoConsorcio: true }),
+    );
+  });
+
+  it.each([[{ stucGratuidade: true }], [{ eleicao: true }]])('treats no selection as every consorcio for %j, like the Movimentacao Financeira', async (categoria) => {
+    await callController({ todosVanzeiros: undefined, ...categoria });
+
+    expect(relatorioNovoRemessaService.findConsolidado).toHaveBeenCalledWith(
+      expect.objectContaining({ todosConsorcios: true, favorecidoNoConsorcio: false }),
+    );
   });
 });

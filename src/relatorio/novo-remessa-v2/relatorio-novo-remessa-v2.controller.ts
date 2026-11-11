@@ -13,6 +13,7 @@ import { FinancialMovementV2SummaryService } from '../movimentacao-financeira-v2
 import { FinancialMovementV2ExportService } from '../movimentacao-financeira-v2/export/financial-movement-v2-export.service';
 import { mapQueryToFinancialMovementV2Filter } from '../movimentacao-financeira-v2/summary/financial-movement-v2-query.mapper';
 import { RelatorioNovoRemessaFinancialMovementService } from '../movimentacao-financeira/relatorio-novo-remessa-financial-movement.service';
+import { MODAIS } from '../movimentacao-financeira-v2/status/consorcio-resolver';
 
 // Perfil nao e' importado do repository (ESLint bloqueia controller -> repository direto,
 // "Controllers must go through a service") - mesmo literal usado por BasePagamentoRepository.
@@ -22,6 +23,29 @@ type Perfil = 'permissionario' | 'guardador';
 // propria implementacao do legado. Guardador nao tem essas categorias.
 function usaLegado(perfil: Perfil, query: Pick<FinancialMovementQueryDto, 'eleicao' | 'stucGratuidade'>): boolean {
   return perfil === 'permissionario' && Boolean(query.eleicao || query.stucGratuidade);
+}
+
+type Selecao = Pick<FinancialMovementQueryDto, 'userIds' | 'todosVanzeiros' | 'consorcioNome' | 'todosConsorcios'>;
+
+// Mesma selecao de favorecido/consorcio do Consolidado (consolidado-v2.controller.ts e
+// ConsolidadoCombinadoService), para os dois relatorios darem o mesmo total (regra de Rayanne,
+// 2026-11-11). Vale para resumo, pagina e exportacao, no caminho v2 e no legado.
+export function normalizarSelecao<T extends Selecao>(perfil: Perfil, query: T): T {
+  if (perfil !== 'permissionario') return query;
+  // "Todos os favorecidos" tem prioridade sobre um favorecido escolhido, como no Consolidado.
+  const userIds = query.todosVanzeiros ? undefined : query.userIds;
+  const consorcioNome = query.consorcioNome?.length ? query.consorcioNome : undefined;
+  const nadaSelecionado = !userIds?.length && !query.todosVanzeiros && !consorcioNome && !query.todosConsorcios;
+  if (nadaSelecionado) {
+    // Sem favorecido nem consorcio, o Consolidado une as duas visoes, e o total e' o de todos os consorcios.
+    return { ...query, userIds: undefined, todosConsorcios: true };
+  }
+  if (query.todosVanzeiros && consorcioNome && !consorcioNome.some((nome) => MODAIS.includes(nome.trim().toUpperCase()))) {
+    // Todos os favorecidos + consorcio que nao cobre os modais: o Consolidado soma o consorcio e os
+    // individuais de modal (STPC/STPL/TEC).
+    return { ...query, userIds, consorcioNome: [...consorcioNome, ...MODAIS] };
+  }
+  return { ...query, userIds };
 }
 
 // Rotas v2 paralelas (T10, ADR 0021 item 7, decisao 2026-11-09): mesmo base path e mesmos DTOs
@@ -105,7 +129,8 @@ export class RelatorioNovoRemessaV2Controller {
     await this.handleDownload('guardador', body, response);
   }
 
-  private async handleSummary(perfil: Perfil, queryParams: FinancialMovementQueryDto) {
+  private async handleSummary(perfil: Perfil, query: FinancialMovementQueryDto) {
+    const queryParams = normalizarSelecao(perfil, query);
     try {
       if (usaLegado(perfil, queryParams)) {
         return await this.relatorioNovoRemessaFinancialMovementService.findFinancialMovementSummary(queryParams);
@@ -116,7 +141,8 @@ export class RelatorioNovoRemessaV2Controller {
     }
   }
 
-  private async handlePage(perfil: Perfil, queryParams: FinancialMovementQueryDto) {
+  private async handlePage(perfil: Perfil, query: FinancialMovementQueryDto) {
+    const queryParams = normalizarSelecao(perfil, query);
     try {
       if (usaLegado(perfil, queryParams)) {
         return await this.relatorioNovoRemessaFinancialMovementService.findFinancialMovementPage(queryParams);
@@ -127,7 +153,8 @@ export class RelatorioNovoRemessaV2Controller {
     }
   }
 
-  private async handleDownload(perfil: Perfil, body: FinancialMovementExportRequestDto, response: Response) {
+  private async handleDownload(perfil: Perfil, request: FinancialMovementExportRequestDto, response: Response) {
+    const body = normalizarSelecao(perfil, request);
     let generatedFile: Awaited<ReturnType<FinancialMovementV2ExportService['downloadFinancialMovementExport']>> | undefined;
     try {
       generatedFile = usaLegado(perfil, body)

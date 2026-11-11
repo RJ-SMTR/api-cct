@@ -67,3 +67,20 @@ export function pivotStucGratuidadeRows<T extends StucPivotInputRow>(
     };
   });
 }
+
+// valorMin/valorMax sobre o total de cada favorecido no periodo (soma das janelas dele), nao sobre
+// cada janela - a mesma regra nos dois relatorios (regra de Rayanne, 2026-11-11).
+export function filtrarPeloTotalDoFavorecido<T extends { valor: number | string }>(
+  rows: T[],
+  chave: (row: T) => string,
+  valorMin?: number,
+  valorMax?: number,
+): T[] {
+  if (valorMin === undefined && valorMax === undefined) return rows;
+  const totais = new Map<string, number>();
+  for (const row of rows) totais.set(chave(row), (totais.get(chave(row)) ?? 0) + Number(row.valor));
+  return rows.filter((row) => {
+    const total = totais.get(chave(row)) ?? 0;
+    return (valorMin === undefined || total >= valorMin) && (valorMax === undefined || total <= valorMax);
+  });
+}

@@ -10,7 +10,7 @@ import {
   RelatorioConsolidadoNovoRemessaData,
   RelatorioConsolidadoNovoRemessaDto,
 } from '../dtos/relatorio-consolidado-novo-remessa.dto';
-import { pivotStucGratuidadeRows } from '../utils/stuc-gratuidade-pivot';
+import { filtrarPeloTotalDoFavorecido, pivotStucGratuidadeRows } from '../utils/stuc-gratuidade-pivot';
 import { pendenciaOrdemSoltaPermissionario, pendenciaRejeitadaPermissionario } from './queries/regras-pendencia';
 
 
@@ -469,6 +469,21 @@ export class RelatorioNovoRemessaConsolidadoRepository {
     const dataInicio = filter.dataInicio.toISOString().split('T')[0];
     const dataFim = filter.dataFim.toISOString().split('T')[0];
 
+    // Favorecido escolhido + consorcio (regra de Rayanne, 2026-11-11): so o favorecido, dentro do
+    // consorcio, como a Movimentacao Financeira - nao a uniao das visoes de favorecido e consorcio.
+    const favorecidoNoConsorcio = Boolean(filter.favorecidoNoConsorcio) && !filter.todosVanzeiros && Boolean(filter.userIds?.length)
+      && (Boolean(filter.consorcioNome?.length) || Boolean(filter.todosConsorcios));
+    const consorciosEscolhidos = (filter.consorcioNome ?? []).map((c) => c.trim().toUpperCase().replace(/'/g, `''`)).join(`','`);
+    // Eleicao + todos os consorcios nao corta pela lista (ver o filtro de consorcio abaixo).
+    const consorcioDoFavorecidoEleicao = favorecidoNoConsorcio && !filter.todosConsorcios
+      ? ` AND UPPER(TRIM(${this.consorcioCaseEleicao})) IN('${consorciosEscolhidos}') ` : ``;
+    // STUC: mesmo CASE e mesma lista da Movimentacao Financeira (CONSORCIO_CASE, CONSORCIOS em maiusculas).
+    const consorcioDoFavorecidoStuc = !favorecidoNoConsorcio ? `` : filter.todosConsorcios
+      ? ` AND UPPER(TRIM(${this.consorcioCaseSimples})) IN('${this.CONSORCIOS.map((c) => c.toUpperCase()).join(`','`)}') `
+      : ` AND UPPER(TRIM(${this.consorcioCaseSimples})) IN('${consorciosEscolhidos}') `;
+    // Desativados no STUC, como a Movimentacao Financeira: sem o flag, bloqueado fica de fora; com ele, so bloqueados.
+    const condicaoBloqueadoStuc = filter.desativados ? ` AND pu."bloqueado" = true ` : ` AND (pu."bloqueado" IS NULL OR pu."bloqueado" = false) `;
+
     let queryAPagarConsorcios = ``;
 
     let queryAPagarVanzeiros = ``;
@@ -556,7 +571,8 @@ export class RelatorioNovoRemessaConsolidadoRepository {
         queryAPagarVanzeiros = anexar(queryAPagarVanzeiros, usersVanzeiros);
         queryAPagarEleicaoVanzeiro = anexar(queryAPagarEleicaoVanzeiro, usersVanzeiros);
         queryPendentesVanzeiro = anexar(queryPendentesVanzeiro, usersVanzeiros);
-        queryEleicaoVanzeiro = anexar(queryEleicaoVanzeiro, usersVanzeiros);
+        queryEleicaoVanzeiro = anexar(queryEleicaoVanzeiro, usersVanzeiros + consorcioDoFavorecidoEleicao);
+        queryAPagarEleicaoVanzeiro = anexar(queryAPagarEleicaoVanzeiro, consorcioDoFavorecidoEleicao);
         queryPendenciaPagaVanzeiros = anexar(queryPendenciaPagaVanzeiros, usersVanzeiros);
         queryPendenciaPagaPasso0Vanzeiros = anexar(queryPendenciaPagaPasso0Vanzeiros, usersVanzeiros);
       } else {
@@ -592,8 +608,9 @@ export class RelatorioNovoRemessaConsolidadoRepository {
         const consorcioPlaceholders = this.CONSORCIOS.join(`','`);
         queryAPagarConsorcios = anexar(queryAPagarConsorcios, ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') `);
         queryConsorcios = anexar(queryConsorcios, ` AND (op."nomeConsorcio" IN('${consorcioPlaceholders}') or opp."nomeConsorcio" IN('${consorcioPlaceholders}')) ${this.excluiCnpjConsorcioInstitucional} `);
-        queryAPagarEleicaoConsorcio = anexar(queryAPagarEleicaoConsorcio, ` AND op."consorcio" IN('${consorcioPlaceholders}') `);
-        queryEleicaoConsorcio = anexar(queryEleicaoConsorcio, ` AND op."consorcio" IN('${consorcioPlaceholders}') `);
+        // Eleição + "Todos": o total da Eleição, sem cortar pela lista (regra de Rayanne, 2026-11-11),
+        // igual à Movimentação Financeira. O "consorcio" gravado na ordem de Eleição muitas vezes não é
+        // o do favorecido (STPC/STPL/TEC vêm do permitCode) e a lista deixava esses pagamentos de fora.
         queryPendentesConsorcio = anexar(queryPendentesConsorcio, ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') `);
         queryPendenciaPagaConsorcios = anexar(queryPendenciaPagaConsorcios, ` AND (op."nomeConsorcio" IN('${consorcioPlaceholders}') or opp."nomeConsorcio" IN('${consorcioPlaceholders}')) ${this.excluiCnpjConsorcioInstitucional} `);
         // PASSO 0 não tem "opp" (ver comentário acima).
@@ -721,7 +738,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
           .replace(/\$2/g, `'${dataFim}'`)
           .replace(/\$3/g, 'NULL::integer[]')
           .replace(/\$4/g, 'NULL::text[]')
-          .replace(/\$5/g, 'NULL::text[]');
+          .replace(/\$5/g, 'NULL::text[]') + condicaoBloqueadoStuc;
         // Mesma combinação OR do fluxo normal (condicoesStatus/filtroStatus acima) - usar AND aqui
         // tornava "Pendência de Pagamento" (Todos) bem mais restritivo para STUC do que para o
         // fluxo normal, e divergia da Movimentação Financeira (que classifica pelo status
@@ -758,7 +775,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
         let literal = buildStucGratuidadeLiteral();
         if (!filter.todosVanzeiros) {
           const userPlaceholders = filter.userIds?.join(`','`);
-          literal += ` AND pu."id" IN('${userPlaceholders}') `;
+          literal += ` AND pu."id" IN('${userPlaceholders}') ${consorcioDoFavorecidoStuc}`;
         } else {
           const consorcioPlaceholders = this.MODAIS.join(`','`);
           literal += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') AND length(op."operadoraCpfCnpj")<=11 `;
@@ -766,7 +783,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
         queryStucGratuidadeVanzeiro = `SELECT nomes AS "nome", "nomeConsorcio" AS "nome2", "dataReferencia", "dataPagamento", "cpfCnpj", valor AS valor FROM (${literal}) q`;
       }
 
-      if ((filter.consorcioNome && filter.consorcioNome.length > 0) || filter.todosConsorcios) {
+      if (((filter.consorcioNome && filter.consorcioNome.length > 0) || filter.todosConsorcios) && !favorecidoNoConsorcio) {
         let literal = buildStucGratuidadeLiteral();
         if (!filter.todosConsorcios) {
           // filter.consorcioNome vem direto da query string (sem validação de charset) e é
@@ -797,13 +814,13 @@ export class RelatorioNovoRemessaConsolidadoRepository {
             .replace(/\$2/g, `'${dataFim}'`)
             .replace(/\$3/g, 'NULL::integer[]')
             .replace(/\$4/g, 'NULL::text[]')
-            .replace(/\$5/g, 'NULL::text[]');
+            .replace(/\$5/g, 'NULL::text[]') + condicaoBloqueadoStuc;
 
         if ((filter.userIds && filter.userIds.length > 0) || filter.todosVanzeiros) {
           let literal = buildStucPendenciaPagaLiteral();
           if (!filter.todosVanzeiros) {
             const userPlaceholders = filter.userIds?.join(`','`);
-            literal += ` AND pu."id" IN('${userPlaceholders}') `;
+            literal += ` AND pu."id" IN('${userPlaceholders}') ${consorcioDoFavorecidoStuc}`;
           } else {
             const consorcioPlaceholders = this.MODAIS.join(`','`);
             literal += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') AND length(op."operadoraCpfCnpj")<=11 `;
@@ -811,7 +828,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
           queryStucPendenciaPagaVanzeiro = `SELECT nomes AS "nome", "nomeConsorcio" AS "nome2", "dataReferencia", "dataPagamento", "cpfCnpj", valor AS valor FROM (${literal}) q`;
         }
 
-        if ((filter.consorcioNome && filter.consorcioNome.length > 0) || filter.todosConsorcios) {
+        if (((filter.consorcioNome && filter.consorcioNome.length > 0) || filter.todosConsorcios) && !favorecidoNoConsorcio) {
           let literal = buildStucPendenciaPagaLiteral();
           if (!filter.todosConsorcios) {
             const consorcioPlaceholders = filter.consorcioNome?.map((c) => c.trim().toUpperCase().replace(/'/g, `''`)).join(`','`);
@@ -843,13 +860,13 @@ export class RelatorioNovoRemessaConsolidadoRepository {
             .replace(/\$2/g, `'${dataFim}'`)
             .replace(/\$3/g, 'NULL::integer[]')
             .replace(/\$4/g, 'NULL::text[]')
-            .replace(/\$5/g, 'NULL::text[]');
+            .replace(/\$5/g, 'NULL::text[]') + condicaoBloqueadoStuc;
 
         if ((filter.userIds && filter.userIds.length > 0) || filter.todosVanzeiros) {
           let literal = buildStucPendenciaPagamentoLiteral();
           if (!filter.todosVanzeiros) {
             const userPlaceholders = filter.userIds?.join(`','`);
-            literal += ` AND pu."id" IN('${userPlaceholders}') `;
+            literal += ` AND pu."id" IN('${userPlaceholders}') ${consorcioDoFavorecidoStuc}`;
           } else {
             const consorcioPlaceholders = this.MODAIS.join(`','`);
             literal += ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') AND length(op."operadoraCpfCnpj")<=11 `;
@@ -857,7 +874,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
           queryStucPendenciaPagamentoVanzeiro = `SELECT nomes AS "nome", "nomeConsorcio" AS "nome2", "dataReferencia", "dataPagamento", "cpfCnpj", valor AS valor FROM (${literal}) q`;
         }
 
-        if ((filter.consorcioNome && filter.consorcioNome.length > 0) || filter.todosConsorcios) {
+        if (((filter.consorcioNome && filter.consorcioNome.length > 0) || filter.todosConsorcios) && !favorecidoNoConsorcio) {
           let literal = buildStucPendenciaPagamentoLiteral();
           if (!filter.todosConsorcios) {
             const consorcioPlaceholders = filter.consorcioNome?.map((c) => c.trim().toUpperCase().replace(/'/g, `''`)).join(`','`);
@@ -873,6 +890,15 @@ export class RelatorioNovoRemessaConsolidadoRepository {
           queryStucPendenciaPagamentoConsorcio = `SELECT nomes AS "nome", "nomeConsorcio" AS "nome2", "dataReferencia", "dataPagamento", "cpfCnpj", valor AS valor FROM (${literal}) q`;
         }
       }
+    }
+
+    // Desativados na Eleicao, como a Movimentacao Financeira: so os favorecidos bloqueados.
+    if (filter.desativados) {
+      const soBloqueados = (query: string) => query.split(`(pu."bloqueado" is null OR pu."bloqueado" = false)`).join(`pu."bloqueado" = true`);
+      queryEleicaoConsorcio = soBloqueados(queryEleicaoConsorcio);
+      queryEleicaoVanzeiro = soBloqueados(queryEleicaoVanzeiro);
+      queryAPagarEleicaoConsorcio = soBloqueados(queryAPagarEleicaoConsorcio);
+      queryAPagarEleicaoVanzeiro = soBloqueados(queryAPagarEleicaoVanzeiro);
     }
 
     const hasQuery = queryAPagarConsorcios !== `` || queryAPagarVanzeiros !== `` || queryConsorcios !== `` || queryVanzeiros !== ``
@@ -900,7 +926,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
     const temFiltroVanzeiros = (filter.userIds && filter.userIds.length > 0) || filter.todosVanzeiros;
 
     // Se não marcou nenhum dos dois, é busca geral = busca os dois
-    const buscarConsorcio = temFiltroConsorcio || !temFiltroVanzeiros;
+    const buscarConsorcio = (temFiltroConsorcio || !temFiltroVanzeiros) && !favorecidoNoConsorcio;
     const buscarVanzeiro = temFiltroVanzeiros || !temFiltroConsorcio;
 
     if (filter.stucGratuidade) {
@@ -1101,14 +1127,9 @@ export class RelatorioNovoRemessaConsolidadoRepository {
 
     let pivoted = pivotStucGratuidadeRows(dayRows, (row) => `${row.nome}::${row.cpfCnpj}`);
 
-    const { valorMin, valorMax } = filter;
-    if (valorMin !== undefined && valorMax !== undefined) {
-      pivoted = pivoted.filter((row) => row.valor >= valorMin && row.valor <= valorMax);
-    } else if (valorMin !== undefined) {
-      pivoted = pivoted.filter((row) => row.valor >= valorMin);
-    } else if (valorMax !== undefined) {
-      pivoted = pivoted.filter((row) => row.valor <= valorMax);
-    }
+    // valorMin/valorMax sobre o total do favorecido no periodo, nao sobre cada janela (regra de
+    // Rayanne, 2026-11-11) - mesma regra da Movimentacao Financeira (filtrarPeloTotalDoFavorecido).
+    pivoted = filtrarPeloTotalDoFavorecido(pivoted, (row) => `${row.nome}::${row.cpfCnpj}`, filter.valorMin, filter.valorMax);
 
     pivoted = [...pivoted].sort((a, b) => {
       const porNome = a.nome.localeCompare(b.nome);
