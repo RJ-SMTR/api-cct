@@ -606,6 +606,51 @@ describe('RelatorioNovoRemessaFinancialMovementService', () => {
       expect(params[4]).toBeNull();
     });
 
+    it('valor mínimo/máximo vale sobre o total do consórcio quando há filtro de consórcio', async () => {
+      await service.findFinancialMovementSummary({
+        dataInicio: new Date('2026-10-01'),
+        dataFim: new Date('2026-10-31'),
+        eleicao: true,
+        todosConsorcios: true,
+        valorMin: 1000,
+      } as any);
+
+      const [countQuery, params] = dataSource.query.mock.calls[0];
+      expect(countQuery).toContain('SUM(valor) OVER (PARTITION BY "nomeConsorcio") AS "totalDoGrupo"');
+      expect(countQuery).toContain('grouped."totalDoGrupo" >= $6::numeric');
+      expect(countQuery).not.toContain('grouped.valor >= $6');
+      expect(params[5]).toBe(1000);
+    });
+
+    it('valor mínimo/máximo vale sobre o total do favorecido sem filtro de consórcio', async () => {
+      await service.findFinancialMovementSummary({
+        dataInicio: new Date('2026-10-01'),
+        dataFim: new Date('2026-10-31'),
+        eleicao: true,
+        todosVanzeiros: true,
+        valorMax: 500,
+      } as any);
+
+      const [countQuery] = dataSource.query.mock.calls[0];
+      expect(countQuery).toContain('SUM(valor) OVER (PARTITION BY nomes, "cpfCnpj") AS "totalDoGrupo"');
+      expect(countQuery).toContain('grouped."totalDoGrupo" <= $7::numeric');
+    });
+
+    it('STUC + estorno num intervalo continua na consulta base (só o dia único tem consulta própria)', async () => {
+      dataSource.query.mockResolvedValueOnce([]);
+      await service.findFinancialMovementSummary({
+        dataInicio: new Date('2026-10-01'),
+        dataFim: new Date('2026-10-31'),
+        stucGratuidade: true,
+        todosConsorcios: true,
+        estorno: true,
+      } as any);
+
+      const [query, params] = dataSource.query.mock.calls[0];
+      expect(query).not.toMatch(/AND FALSE\s*\)/);
+      expect(params[3]).toEqual(['Estorno']);
+    });
+
     it('Eleição + consórcio específico continua filtrando pelo consórcio', async () => {
       await service.findFinancialMovementSummary({
         dataInicio: new Date('2026-10-01'),
