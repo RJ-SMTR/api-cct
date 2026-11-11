@@ -185,10 +185,14 @@ export class RelatorioNovoRemessaConsolidadoRepository {
                                                  and u."cpfCnpj" = op."operadoraCpfCnpj"
                                              ) pu on true `
 
+  // Inner joins up to ordem_pagamento_unico: only Eleicao payments enter the user lateral. With left
+  // joins every detalhe_a of the period ran it (three unindexed lookups on "user" per row) and
+  // Eleicao filtered by consorcio or favorecido took over 180 s in staging. Rows without an Eleicao
+  // order were already dropped by every consorcio/favorecido filter, so the totals do not change.
   private readonly fromQueryEleicao = ` from detalhe_a da
-                                        left join ordem_pagamento_agrupado_historico oph on oph."id"=da."ordemPagamentoAgrupadoHistoricoId"
-                                        left join ordem_pagamento_agrupado opa on opa."id"=oph."ordemPagamentoAgrupadoId"
-                                        left join ordem_pagamento_unico op on op."idOrdemPagamento"=opa."id"::varchar
+                                        inner join ordem_pagamento_agrupado_historico oph on oph."id"=da."ordemPagamentoAgrupadoHistoricoId"
+                                        inner join ordem_pagamento_agrupado opa on opa."id"=oph."ordemPagamentoAgrupadoId"
+                                        inner join ordem_pagamento_unico op on op."idOrdemPagamento"=opa."id"::varchar
                                         left join lateral (
                                                select u.* from public.user u where u."permitCode" = op."idOperadora"
                                                union all
