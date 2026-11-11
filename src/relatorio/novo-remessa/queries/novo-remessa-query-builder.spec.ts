@@ -407,8 +407,10 @@ describe('novo-remessa-query-builder Eleição: consórcio pelo permitCode, igua
     ['eleicao paga', buildEleicaoQuery(params)],
     ['eleicao a pagar', buildEleicaoAPagarQuery(params)],
   ])('%s filtra e mostra o consórcio pelo permitCode do favorecido', (_name, sql) => {
+    // Rótulo pelo cadastro do favorecido; filtro pelo permitCode da própria ordem (idOperadora),
+    // sem depender da busca de usuário (desempenho).
     expect(sql).toContain(`WHEN pu."permitCode" LIKE '4%' THEN 'STPC'`);
-    expect(sql).toMatch(/UPPER\(TRIM\(\s*CASE[\s\S]*ELSE opu\."consorcio"\s*END\s*\)\) = ANY\(\$5\)/);
+    expect(sql).toMatch(/UPPER\(TRIM\(\s*CASE\s*WHEN opu\."idOperadora" = '8'[\s\S]*ELSE opu\."consorcio"\s*END\s*\)\) = ANY\(\$5\)/);
     expect(sql).not.toContain('TRIM(UPPER(opu."consorcio"))');
     expect(sql).not.toMatch(/opu\."consorcio" AS "nomeConsorcio"/);
   });

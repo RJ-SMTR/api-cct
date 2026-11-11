@@ -4,7 +4,7 @@ import { DataSource } from 'typeorm';
 
 import { format, parse } from 'date-fns';
 import { CustomLogger } from 'src/utils/custom-logger';
-import { agrupamentoSemFilhas, buildStucGratuidadeQuery, buildStucGratuidadePendenciaPagaSingleDateQuery, buildStucGratuidadePendenciaPagamentoSingleDateQuery } from './queries/novo-remessa-query-builder';
+import { agrupamentoSemFilhas, buildStucGratuidadeQuery, eleicaoConsorcioFiltroCase, buildStucGratuidadePendenciaPagaSingleDateQuery, buildStucGratuidadePendenciaPagamentoSingleDateQuery } from './queries/novo-remessa-query-builder';
 import { IFindPublicacaoRelatorioNovoRemessa } from '../interfaces/find-publicacao-relatorio-novo-remessa.interface';
 import {
   RelatorioConsolidadoNovoRemessaData,
@@ -41,14 +41,6 @@ export class RelatorioNovoRemessaConsolidadoRepository {
     WHEN pu."permitCode" LIKE '81%' OR puu."permitCode" LIKE '81%' THEN 'STPL'
     WHEN pu."permitCode" LIKE '7%' OR puu."permitCode" LIKE '7%' THEN 'TEC'
     ELSE COALESCE(op."nomeConsorcio", opp."nomeConsorcio")
-  END`;
-
-  private readonly consorcioCaseEleicao = `CASE
-    WHEN pu."permitCode" = '8' THEN 'VLT'
-    WHEN pu."permitCode" LIKE '4%' THEN 'STPC'
-    WHEN pu."permitCode" LIKE '81%' THEN 'STPL'
-    WHEN pu."permitCode" LIKE '7%' THEN 'TEC'
-    ELSE op."consorcio"
   END`;
 
   private readonly headerQueryConsorciosApagar = ` select distinct CASE
@@ -476,7 +468,7 @@ export class RelatorioNovoRemessaConsolidadoRepository {
     const consorciosEscolhidos = (filter.consorcioNome ?? []).map((c) => c.trim().toUpperCase().replace(/'/g, `''`)).join(`','`);
     // Eleicao + todos os consorcios nao corta pela lista (ver o filtro de consorcio abaixo).
     const consorcioDoFavorecidoEleicao = favorecidoNoConsorcio && !filter.todosConsorcios
-      ? ` AND UPPER(TRIM(${this.consorcioCaseEleicao})) IN('${consorciosEscolhidos}') ` : ``;
+      ? ` AND UPPER(TRIM(${eleicaoConsorcioFiltroCase('op')})) IN('${consorciosEscolhidos}') ` : ``;
     // STUC: mesmo CASE e mesma lista da Movimentacao Financeira (CONSORCIO_CASE, CONSORCIOS em maiusculas).
     const consorcioDoFavorecidoStuc = !favorecidoNoConsorcio ? `` : filter.todosConsorcios
       ? ` AND UPPER(TRIM(${this.consorcioCaseSimples})) IN('${this.CONSORCIOS.map((c) => c.toUpperCase()).join(`','`)}') `
@@ -599,8 +591,8 @@ export class RelatorioNovoRemessaConsolidadoRepository {
         const consorcioPlaceholders = filter.consorcioNome?.map((c) => c.trim().toUpperCase()).join(`','`);
         queryAPagarConsorcios = anexar(queryAPagarConsorcios, ` AND UPPER(TRIM(${this.consorcioCaseSimples})) IN('${consorcioPlaceholders}') `);
         queryConsorcios = anexar(queryConsorcios, ` AND UPPER(TRIM(${this.consorcioCaseDuplo})) IN('${consorcioPlaceholders}') `);
-        queryAPagarEleicaoConsorcio = anexar(queryAPagarEleicaoConsorcio, ` AND UPPER(TRIM(${this.consorcioCaseEleicao})) IN('${consorcioPlaceholders}') `);
-        queryEleicaoConsorcio = anexar(queryEleicaoConsorcio, ` AND UPPER(TRIM(${this.consorcioCaseEleicao})) IN('${consorcioPlaceholders}') `);
+        queryAPagarEleicaoConsorcio = anexar(queryAPagarEleicaoConsorcio, ` AND UPPER(TRIM(${eleicaoConsorcioFiltroCase('op')})) IN('${consorcioPlaceholders}') `);
+        queryEleicaoConsorcio = anexar(queryEleicaoConsorcio, ` AND UPPER(TRIM(${eleicaoConsorcioFiltroCase('op')})) IN('${consorcioPlaceholders}') `);
         queryPendentesConsorcio = anexar(queryPendentesConsorcio, ` AND UPPER(TRIM(${this.consorcioCaseSimples})) IN('${consorcioPlaceholders}') `);
         queryPendenciaPagaConsorcios = anexar(queryPendenciaPagaConsorcios, ` AND UPPER(TRIM(${this.consorcioCaseDuplo})) IN('${consorcioPlaceholders}') `);
         queryPendenciaPagaPasso0Consorcios = anexar(queryPendenciaPagaPasso0Consorcios, ` AND UPPER(TRIM(${this.consorcioCaseSimples})) IN('${consorcioPlaceholders}') `);
@@ -1110,8 +1102,6 @@ export class RelatorioNovoRemessaConsolidadoRepository {
       await queryRunner.release();
     }
 
-    const valorTotal = rawRows.reduce((acc: number, r: any) => acc + parseFloat(String(r.valor)), 0);
-
     const dayRows = rawRows.map((r: any) => ({
       nome: r.nome as string,
       cpfCnpj: (r.cpfCnpj ?? null) as string | null,
@@ -1130,6 +1120,8 @@ export class RelatorioNovoRemessaConsolidadoRepository {
     // valorMin/valorMax sobre o total do favorecido no periodo, nao sobre cada janela (regra de
     // Rayanne, 2026-11-11) - mesma regra da Movimentacao Financeira (filtrarPeloTotalDoFavorecido).
     pivoted = filtrarPeloTotalDoFavorecido(pivoted, (row) => `${row.nome}::${row.cpfCnpj}`, filter.valorMin, filter.valorMax);
+    // Total depois do filtro de valor, como a lista (antes somava as linhas brutas e ignorava o filtro).
+    const valorTotal = pivoted.reduce((acc, row) => acc + Number(row.valor), 0);
 
     pivoted = [...pivoted].sort((a, b) => {
       const porNome = a.nome.localeCompare(b.nome);

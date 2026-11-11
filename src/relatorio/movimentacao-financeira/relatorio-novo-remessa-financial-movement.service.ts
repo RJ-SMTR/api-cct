@@ -299,7 +299,7 @@ export class RelatorioNovoRemessaFinancialMovementService {
   // 2026-11-11): por consorcio quando ha filtro de consorcio, senao por favorecido - a mesma chave
   // da Movimentacao Financeira v2 (BasePagamentoRepository, "totalDoGrupo").
   private buildGroupedCte(finalBaseQuery: string, filter: NormalizedFilter) {
-    const chaveDoTotal = this.hasConsorcioFilter(filter) ? '"nomeConsorcio"' : 'nomes, "cpfCnpj"';
+    const chaveDoTotal = this.hasConsorcioFilter(filter) ? '"nomeConsorcio"' : 'nomes';
     return `${this.buildBaseCte(finalBaseQuery)}, agrupado AS (SELECT "dataReferencia", nomes, email, "codBanco", "nomeBanco", "cpfCnpj", "nomeConsorcio", status, "dataPagamento", "codigoErro", SUM(valor) AS valor FROM base GROUP BY "dataReferencia", nomes, email, "codBanco", "nomeBanco", "cpfCnpj", "nomeConsorcio", status, "dataPagamento", "codigoErro"), grouped AS (SELECT agrupado.*, SUM(valor) OVER (PARTITION BY ${chaveDoTotal}) AS "totalDoGrupo" FROM agrupado)`;
   }
 

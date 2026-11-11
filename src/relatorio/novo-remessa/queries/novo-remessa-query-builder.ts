@@ -65,6 +65,21 @@ export const ELEICAO_CONSORCIO_CASE = `
   END
 `;
 
+// Filtro de consorcio da Eleicao: o mesmo permitCode, lido da propria ordem ("idOperadora" e' o
+// permitCode do operador dono da ordem - ver buildEleicaoQuery), sem depender do usuario. Filtrar
+// pelo CASE de "pu" obrigava a busca de usuario (LATERAL) a rodar antes do filtro e levou a
+// consulta de STPC/STPL de 3-5 s para mais de 180 s em homologacao (2026-11-11). Ordens antigas sem
+// "idOperadora" ficam com o "consorcio" da ordem. O Consolidado usa o mesmo filtro.
+export const eleicaoConsorcioFiltroCase = (ordem: string) => `
+  CASE
+    WHEN ${ordem}."idOperadora" = '8' THEN 'VLT'
+    WHEN ${ordem}."idOperadora" LIKE '4%' THEN 'STPC'
+    WHEN ${ordem}."idOperadora" LIKE '81%' THEN 'STPL'
+    WHEN ${ordem}."idOperadora" LIKE '7%' THEN 'TEC'
+    ELSE ${ordem}."consorcio"
+  END
+`;
+
 export const STATUS_CASE = `
   CASE
     WHEN oph."statusRemessa" = 5 THEN 'Pendencia Paga'
@@ -514,7 +529,7 @@ export const buildEleicaoQuery = (params: NovoRemessaBaseParams) => {
       da."dataVencimento"::date BETWEEN $1::date AND $2::date
       AND ($3::integer[] IS NULL OR pu."id" = ANY($3))
       AND ${ELEICAO_STATUS_FILTER}
-      AND (${consorcioParam}::text[] IS NULL OR UPPER(TRIM(${ELEICAO_CONSORCIO_CASE})) = ANY(${consorcioParam}))
+      AND (${consorcioParam}::text[] IS NULL OR UPPER(TRIM(${eleicaoConsorcioFiltroCase('opu')})) = ANY(${consorcioParam}))
       ${buildTodosVanzeirosFilter(params)}
   `;
 };
@@ -556,7 +571,7 @@ export const buildEleicaoAPagarQuery = (params: NovoRemessaBaseParams) => {
       AND opu."idOrdemPagamento" IS NULL
       AND ($3::integer[] IS NULL OR pu."id" = ANY($3))
       AND ($4::text[] IS NULL OR 'A Pagar' = ANY($4))
-      AND (${consorcioParam}::text[] IS NULL OR UPPER(TRIM(${ELEICAO_CONSORCIO_CASE})) = ANY(${consorcioParam}))
+      AND (${consorcioParam}::text[] IS NULL OR UPPER(TRIM(${eleicaoConsorcioFiltroCase('opu')})) = ANY(${consorcioParam}))
       ${buildTodosVanzeirosFilter(params)}
   `;
 };
