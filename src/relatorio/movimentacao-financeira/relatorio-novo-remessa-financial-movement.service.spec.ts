@@ -18,6 +18,7 @@ const BASE_EXPORT_ROW = {
   status: 'Pago',
   descricaoErro: '',
 };
+// Gerar PDF e XLSX passa de 5s quando as suites rodam em paralelo (hook de pre-commit).jest.setTimeout(30000);
 
 describe('RelatorioNovoRemessaFinancialMovementService', () => {
   let service: RelatorioNovoRemessaFinancialMovementService;
@@ -591,6 +592,77 @@ describe('RelatorioNovoRemessaFinancialMovementService', () => {
       );
     });
 
+    it('Eleição + todos os consórcios: traz o total da Eleição, sem cortar pela lista nem pelos modais', async () => {
+      await service.findFinancialMovementSummary({
+        dataInicio: new Date('2026-10-01'),
+        dataFim: new Date('2026-10-31'),
+        eleicao: true,
+        todosConsorcios: true,
+      } as any);
+
+      const [countQuery, params] = dataSource.query.mock.calls[0];
+      expect(countQuery).toContain('ordem_pagamento_unico');
+      expect(countQuery).not.toContain(MODAIS_FILTER_MARKER);
+      expect(params[4]).toBeNull();
+    });
+
+    it('valor mínimo/máximo vale sobre o total do consórcio quando há filtro de consórcio', async () => {
+      await service.findFinancialMovementSummary({
+        dataInicio: new Date('2026-10-01'),
+        dataFim: new Date('2026-10-31'),
+        eleicao: true,
+        todosConsorcios: true,
+        valorMin: 1000,
+      } as any);
+
+      const [countQuery, params] = dataSource.query.mock.calls[0];
+      expect(countQuery).toContain('SUM(valor) OVER (PARTITION BY "nomeConsorcio") AS "totalDoGrupo"');
+      expect(countQuery).toContain('grouped."totalDoGrupo" >= $6::numeric');
+      expect(countQuery).not.toContain('grouped.valor >= $6');
+      expect(params[5]).toBe(1000);
+    });
+
+    it('valor mínimo/máximo vale sobre o total do favorecido sem filtro de consórcio', async () => {
+      await service.findFinancialMovementSummary({
+        dataInicio: new Date('2026-10-01'),
+        dataFim: new Date('2026-10-31'),
+        eleicao: true,
+        todosVanzeiros: true,
+        valorMax: 500,
+      } as any);
+
+      const [countQuery] = dataSource.query.mock.calls[0];
+      expect(countQuery).toContain('SUM(valor) OVER (PARTITION BY nomes) AS "totalDoGrupo"');
+      expect(countQuery).toContain('grouped."totalDoGrupo" <= $7::numeric');
+    });
+
+    it('STUC + estorno num intervalo continua na consulta base (só o dia único tem consulta própria)', async () => {
+      dataSource.query.mockResolvedValueOnce([]);
+      await service.findFinancialMovementSummary({
+        dataInicio: new Date('2026-10-01'),
+        dataFim: new Date('2026-10-31'),
+        stucGratuidade: true,
+        todosConsorcios: true,
+        estorno: true,
+      } as any);
+
+      const [query, params] = dataSource.query.mock.calls[0];
+      expect(query).not.toMatch(/AND FALSE\s*\)/);
+      expect(params[3]).toEqual(['Estorno']);
+    });
+
+    it('Eleição + consórcio específico continua filtrando pelo consórcio', async () => {
+      await service.findFinancialMovementSummary({
+        dataInicio: new Date('2026-10-01'),
+        dataFim: new Date('2026-10-31'),
+        eleicao: true,
+        consorcioNome: ['STPC'],
+      } as any);
+
+      const [, params] = dataSource.query.mock.calls[0];
+      expect(params[4]).toEqual(['STPC']);
+    });
+
     it('does not restrict to modais when a specific non-modal consórcio is selected', async () => {
       await service.findFinancialMovementSummary({
         dataInicio: new Date('2026-10-19'),
@@ -976,6 +1048,75 @@ describe('RelatorioNovoRemessaFinancialMovementService', () => {
       } as any);
 
       expect((page.data as any[]).map((r) => r.cpfCnpj)).toEqual(['2']);
+    });
+  });
+
+  // ADR 0017 only covered the "nunca enviada" sub-query (which already filtered bloqueado);
+  // every other status bucket here never excluded a blocked favorecido outside "Desativados"
+  // mode (found 2026-11-06, auditing the report right after the ADR 0017 fix).
+  describe('Favorecido bloqueado não aparece fora do modo Desativados', () => {
+    const BLOQUEADO_FALSE_MARKER = 'AND (pu.bloqueado IS NULL OR pu.bloqueado = false)';
+    const BLOQUEADO_TRUE_MARKER = 'AND pu.bloqueado = true';
+
+    it.each([
+      ['Pago', { pago: true }],
+      ['A Pagar', { aPagar: true }],
+      ['Rejeitado', { rejeitado: true }],
+      ['Pendência Paga', { pendenciaPaga: true }],
+      ['Pendentes', { pendentes: true }],
+      ['Eleição', { eleicao: true, aPagar: true }],
+    ])('excludes bloqueado favorecidos for status %s', async (_name, statusFilter) => {
+      await service.findFinancialMovementSummary({
+        dataInicio: new Date('2026-11-05'),
+        dataFim: new Date('2026-11-05'),
+        ...statusFilter,
+      } as any);
+
+      const [countQuery] = dataSource.query.mock.calls[0];
+      expect(countQuery).toContain(BLOQUEADO_FALSE_MARKER);
+      expect(countQuery).not.toContain(BLOQUEADO_TRUE_MARKER);
+    });
+
+    it('excludes bloqueado favorecidos for STUC-Gratuidade', async () => {
+      dataSource.query.mockResolvedValueOnce([]);
+      await service.findFinancialMovementSummary({
+        dataInicio: new Date('2026-11-05'),
+        dataFim: new Date('2026-11-05'),
+        stucGratuidade: true,
+        pago: true,
+      } as any);
+
+      const [dataQuery] = dataSource.query.mock.calls[0];
+      expect(dataQuery).toContain(BLOQUEADO_FALSE_MARKER);
+      expect(dataQuery).not.toContain(BLOQUEADO_TRUE_MARKER);
+    });
+
+    it('shows only bloqueado favorecidos when desativados is set', async () => {
+      await service.findFinancialMovementSummary({
+        dataInicio: new Date('2026-11-05'),
+        dataFim: new Date('2026-11-05'),
+        pago: true,
+        desativados: true,
+      } as any);
+
+      const [countQuery] = dataSource.query.mock.calls[0];
+      expect(countQuery).toContain(BLOQUEADO_TRUE_MARKER);
+      expect(countQuery).not.toContain(BLOQUEADO_FALSE_MARKER);
+    });
+
+    // buildPendenciaPagamentoTemplate has an internal UNION ALL of two SELECTs (rejected/estornado
+    // with a parent attempt vs. first-level, never retried) - appending the filter once after
+    // .trim() only reaches the second SELECT. Both must carry it.
+    it('excludes bloqueado favorecidos in both branches of the Rejeitado/Estorno UNION ALL', async () => {
+      await service.findFinancialMovementSummary({
+        dataInicio: new Date('2026-11-05'),
+        dataFim: new Date('2026-11-05'),
+        rejeitado: true,
+      } as any);
+
+      const [countQuery] = dataSource.query.mock.calls[0];
+      const occurrences = countQuery.split(BLOQUEADO_FALSE_MARKER).length - 1;
+      expect(occurrences).toBe(2);
     });
   });
 });

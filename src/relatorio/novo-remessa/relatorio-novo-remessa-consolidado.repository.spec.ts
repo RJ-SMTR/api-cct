@@ -121,6 +121,22 @@ describe('RelatorioNovoRemessaConsolidadoRepository', () => {
     });
   });
 
+  // Eleição era a única variante do Consolidado Permissionário sem nenhum guard de bloqueado -
+  // as 4 funções (A Pagar e histórico, Consórcio e Vanzeiro) não filtravam pu."bloqueado" (achado
+  // 2026-11-06, auditoria após o fix do ADR 0017).
+  describe('getQueryApagarEleicaoConsorcio/Vanzeiro/getQueryEleicaoConsorcio/Vanzeiro - exclui favorecido bloqueado', () => {
+    it.each([
+      ['getQueryApagarEleicaoConsorcio', () => (repository as any).getQueryApagarEleicaoConsorcio('2026-01-01', '2026-01-05')],
+      ['getQueryApagarEleicaoVanzeiro', () => (repository as any).getQueryApagarEleicaoVanzeiro('2026-01-01', '2026-01-05')],
+      ['getQueryEleicaoConsorcio', () => (repository as any).getQueryEleicaoConsorcio('2026-01-01', '2026-01-05')],
+      ['getQueryEleicaoVanzeiro', () => (repository as any).getQueryEleicaoVanzeiro('2026-01-01', '2026-01-05')],
+    ])('%s excludes pu.bloqueado', (_name, build) => {
+      const sql: string = build();
+
+      expect(sql).toContain(`pu."bloqueado" is null OR pu."bloqueado" = false`);
+    });
+  });
+
   // ADR 0016: fromQueryPrincipal trazia TODAS as ordem_pagamento internas de um agrupamento (join
   // sem restrição), multiplicando cada linha de detalhe_a pelo número de ordens internas antes do
   // SELECT DISTINCT colapsar de volta. Confirmado com dado real: um agrupamento com 55 ordens
@@ -570,10 +586,13 @@ describe('RelatorioNovoRemessaConsolidadoRepository', () => {
       expect(result.valor).toBe(30);
     });
 
-    it('filters by the window total (Vlr Min/Max), not by the favorecido grand total', async () => {
+    // Regra de Rayanne, 2026-11-11 (substitui o filtro por janela da ADR 0012): Vlr Min/Max vale
+    // sobre o total do favorecido no periodo, igual a Movimentacao Financeira.
+    it('filters by the favorecido total (Vlr Min/Max), not by each window', async () => {
       (mockQueryRunner.query as jest.Mock).mockResolvedValue([
         { nome: 'Fulano', cpfCnpj: '1', dataReferencia: '23/10/2026', valor: '10' },
         { nome: 'Fulano', cpfCnpj: '1', dataReferencia: '27/10/2026', valor: '200' },
+        { nome: 'Beltrano', cpfCnpj: '2', dataReferencia: '23/10/2026', valor: '50' },
       ]);
 
       const result = await repository.findConsolidado({
@@ -584,8 +603,9 @@ describe('RelatorioNovoRemessaConsolidadoRepository', () => {
         valorMax: 300,
       } as any);
 
-      expect(result.data).toHaveLength(1);
-      expect((result.data[0] as any).valor).toBe(200);
+      expect(result.data.map((linha: any) => linha.valor)).toEqual([10, 200]);
+      // O total também respeita o filtro de valor (Beltrano, abaixo do mínimo, fica de fora).
+      expect(result.valor).toBe(210);
     });
 
     it('paginates the pivoted rows in memory without dropping or duplicating windows across pages', async () => {
@@ -798,11 +818,72 @@ describe('RelatorioNovoRemessaConsolidadoRepository.findConsolidado — filtros'
     expect(parentesesBalanceados(sql)).toBe(true);
   });
 
-  it('Eleição a pagar por vanzeiros usa a coluna consorcio de ordem_pagamento_unico', async () => {
-    const sql = await executar({ eleicao: true, aPagar: true, todosVanzeiros: true });
-    expect(sql).toContain(`op."consorcio" IN`);
+  it('Eleição + todos os favorecidos: mesmos filtros da Movimentação Financeira (permitCode modal, sem CNPJ institucional) no pago e no a pagar', async () => {
+    const sql = await executar({ eleicao: true, todosVanzeiros: true, todosConsorcios: undefined });
+    const modais = sql.split(`pu."permitCode" LIKE '4%' OR pu."permitCode" LIKE '81%' OR pu."permitCode" LIKE '7%'`).length - 1;
+    expect(modais).toBe(2);
+    expect(sql).toContain(`pu."cpfCnpj" NOT IN (`);
+    expect(sql).not.toContain(`op."consorcio" IN`);
     expect(sql).not.toContain(`op."nomeConsorcio"`);
     expect(semTrechoSolto(sql)).toBe(true);
+  });
+
+  it('Eleição + todos os consórcios: traz o total da Eleição, sem cortar pela lista de consórcios', async () => {
+    const sql = await executar({ eleicao: true, todosVanzeiros: undefined });
+    expect(sql).toContain('ordem_pagamento_unico');
+    expect(sql).not.toContain(`op."consorcio" IN`);
+    expect(semTrechoSolto(sql)).toBe(true);
+    expect(parentesesBalanceados(sql)).toBe(true);
+  });
+
+  it('Eleição + favorecido + consórcio: só o favorecido, dentro do consórcio (sem a visão de consórcio)', async () => {
+    const sql = await executar({ eleicao: true, todosConsorcios: undefined, todosVanzeiros: undefined, userIds: [7], consorcioNome: ['STPL'], favorecidoNoConsorcio: true });
+    expect(sql).toContain(`pu."id" IN('7')`);
+    expect(sql).toMatch(/AND pu\."id" IN\('7'\)\s+AND UPPER\(TRIM\(\s*CASE\s*WHEN op\."idOperadora" = '8'[\s\S]*?END\s*\)\) IN\('STPL'\)/);
+    // A visão de consórcio (rotulada pelo CASE em "nome") não entra.
+    expect(sql).not.toMatch(/END AS "nome",pu\."fullName" AS "nome2"/);
+    expect(sql).not.toMatch(/END AS "nome",\s*pu\."fullName" AS "nome2"/);
+  });
+
+  it('Eleição + favorecido + todos os consórcios: só o favorecido, sem cortar pela lista', async () => {
+    const sql = await executar({ eleicao: true, todosConsorcios: true, todosVanzeiros: undefined, userIds: [7], favorecidoNoConsorcio: true });
+    expect(sql).toContain(`pu."id" IN('7')`);
+    expect(sql).not.toContain(`op."consorcio" IN`);
+  });
+
+  it('Eleição soma os valores em numeric (pago e a pagar), sem ponto flutuante', async () => {
+    const sql = await executar({ eleicao: true, todosVanzeiros: undefined });
+    expect(sql).toContain('ROUND(da."valorLancamento"::numeric, 2) AS valor');
+    expect(sql).toContain('ROUND(op."valorTotalTransacaoLiquido"::numeric, 2) AS valor');
+  });
+
+  it('Eleição + desativados: só favorecidos bloqueados', async () => {
+    const sql = await executar({ eleicao: true, todosVanzeiros: undefined, desativados: true });
+    expect(sql).toContain(`pu."bloqueado" = true`);
+    expect(sql).not.toContain(`(pu."bloqueado" is null OR pu."bloqueado" = false)`);
+  });
+
+  it('STUC: exclui bloqueados por padrão e traz só eles com desativados, como a Movimentação Financeira', async () => {
+    const padrao = await executar({ stucGratuidade: true, todosVanzeiros: undefined });
+    expect(padrao).toContain(`(pu."bloqueado" IS NULL OR pu."bloqueado" = false)`);
+    const desativados = await executar({ stucGratuidade: true, todosVanzeiros: undefined, desativados: true });
+    expect(desativados).toContain(`AND pu."bloqueado" = true`);
+  });
+
+  it('STUC + favorecido + consórcio: só o favorecido, dentro do consórcio', async () => {
+    const sql = await executar({ stucGratuidade: true, todosConsorcios: undefined, todosVanzeiros: undefined, userIds: [7], consorcioNome: ['Internorte'], favorecidoNoConsorcio: true });
+    expect(sql).toMatch(/AND pu\."id" IN\('7'\)\s+AND UPPER\(TRIM\(CASE[\s\S]*?END\)\) IN\('INTERNORTE'\)/);
+    expect(sql.match(/UNION ALL/g) ?? []).toHaveLength(0);
+  });
+
+  it('Eleição + consórcio específico continua filtrando pelo consórcio', async () => {
+    const sql = await executar({ eleicao: true, todosConsorcios: undefined, todosVanzeiros: undefined, consorcioNome: ['STPC'] });
+    expect(sql).toContain(`IN('STPC')`);
+  });
+
+  it('sem Eleição, todos os consórcios continua usando a lista de consórcios', async () => {
+    const sql = await executar({ pago: true, todosVanzeiros: undefined });
+    expect(sql).toContain(`op."nomeConsorcio" IN('VLT'`);
   });
 
   it('Eleição "A Pagar" também soma o histórico statusRemessa IN (0,1), não só as ordens nunca enviadas (ADR 0017)', async () => {

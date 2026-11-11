@@ -10,6 +10,7 @@ export class RelatorioConsolidadoNovoRemessaDto {
   count: number;
   valor: number;
   valorAPagar: number;
+  valorSemFavorecido?: number;
   data: RelatorioConsolidadoNovoRemessaData[];
 
 }

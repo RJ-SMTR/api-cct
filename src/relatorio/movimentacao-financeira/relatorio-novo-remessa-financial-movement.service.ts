@@ -4,10 +4,11 @@ import { DataSource } from 'typeorm';
 import * as fs from 'fs';
 import { format, parse } from 'date-fns';
 import { CustomLogger } from 'src/utils/custom-logger';
-import { pivotStucGratuidadeRows } from '../utils/stuc-gratuidade-pivot';
+import { filtrarPeloTotalDoFavorecido, pivotStucGratuidadeRows } from '../utils/stuc-gratuidade-pivot';
 import { StatusPagamento } from '../enum/statusRemessafinancial-movement';
 import {
   buildBaseQuery,
+  buildEleicaoAPagarQuery,
   buildEleicaoQuery,
   buildPendentesQuery,
   buildPendenciaPagamentoSingleDateQuery,
@@ -141,7 +142,7 @@ export class RelatorioNovoRemessaFinancialMovementService {
     const statuses = this.resolveStatuses(safeFilter);
     const innerParams = this.getInnerQueryParameters(safeFilter, safeFilter.eleicao ? statuses.allStatuses : statuses.baseStatuses);
     const finalBaseQuery = this.buildFinalBaseQuery(safeFilter, statuses);
-    const { countQuery, aggregatesQuery } = this.buildSummaryQueries(finalBaseQuery);
+    const { countQuery, aggregatesQuery } = this.buildSummaryQueries(finalBaseQuery, safeFilter);
     const outerParams = [safeFilter.valorMin?? null, safeFilter.valorMax?? null];
     const params = [...innerParams,...outerParams];
     const [countRows, aggregateRows] = await Promise.all([
@@ -294,15 +295,19 @@ export class RelatorioNovoRemessaFinancialMovementService {
   }
 
   private buildBaseCte(finalBaseQuery: string) { return `WITH base AS ( ${finalBaseQuery} )`; }
-  private buildGroupedCte(finalBaseQuery: string) {
-    return `${this.buildBaseCte(finalBaseQuery)}, grouped AS (SELECT "dataReferencia", nomes, email, "codBanco", "nomeBanco", "cpfCnpj", "nomeConsorcio", status, "dataPagamento", "codigoErro", SUM(valor) AS valor FROM base GROUP BY "dataReferencia", nomes, email, "codBanco", "nomeBanco", "cpfCnpj", "nomeConsorcio", status, "dataPagamento", "codigoErro")`;
+  // valorMin/valorMax valem sobre o total do periodo, como no Consolidado (regra de Rayanne,
+  // 2026-11-11): por consorcio quando ha filtro de consorcio, senao por favorecido - a mesma chave
+  // da Movimentacao Financeira v2 (BasePagamentoRepository, "totalDoGrupo").
+  private buildGroupedCte(finalBaseQuery: string, filter: NormalizedFilter) {
+    const chaveDoTotal = this.hasConsorcioFilter(filter) ? '"nomeConsorcio"' : 'nomes';
+    return `${this.buildBaseCte(finalBaseQuery)}, agrupado AS (SELECT "dataReferencia", nomes, email, "codBanco", "nomeBanco", "cpfCnpj", "nomeConsorcio", status, "dataPagamento", "codigoErro", SUM(valor) AS valor FROM base GROUP BY "dataReferencia", nomes, email, "codBanco", "nomeBanco", "cpfCnpj", "nomeConsorcio", status, "dataPagamento", "codigoErro"), grouped AS (SELECT agrupado.*, SUM(valor) OVER (PARTITION BY ${chaveDoTotal}) AS "totalDoGrupo" FROM agrupado)`;
   }
 
-  private buildSummaryQueries(finalBaseQuery: string) {
-    const groupedCte = this.buildGroupedCte(finalBaseQuery);
+  private buildSummaryQueries(finalBaseQuery: string, filter: NormalizedFilter) {
+    const groupedCte = this.buildGroupedCte(finalBaseQuery, filter);
     return {
-      countQuery: `${groupedCte} SELECT COUNT(*)::int AS count FROM grouped WHERE 1=1 AND ($6::numeric IS NULL OR grouped.valor >= $6::numeric) AND ($7::numeric IS NULL OR grouped.valor <= $7::numeric)`,
-      aggregatesQuery: `${groupedCte} SELECT COALESCE(SUM(valor),0) AS "valorTotal", COALESCE(SUM(CASE WHEN status='Pago' THEN valor ELSE 0 END),0) AS "valorPago", COALESCE(SUM(CASE WHEN status='Estorno' THEN valor ELSE 0 END),0) AS "valorEstornado", COALESCE(SUM(CASE WHEN status='Rejeitado' THEN valor ELSE 0 END),0) AS "valorRejeitado", COALESCE(SUM(CASE WHEN status='Aguardando Pagamento' THEN valor ELSE 0 END),0) AS "valorAguardandoPagamento", COALESCE(SUM(CASE WHEN status='A Pagar' THEN valor ELSE 0 END),0) AS "valorAPagar", COALESCE(SUM(CASE WHEN status='Pendentes' THEN valor ELSE 0 END),0) AS "valorPendente", COALESCE(SUM(CASE WHEN status='Pendencia Paga' THEN valor ELSE 0 END),0) AS "valorPendenciaPaga" FROM grouped WHERE 1=1 AND ($6::numeric IS NULL OR grouped.valor >= $6::numeric) AND ($7::numeric IS NULL OR grouped.valor <= $7::numeric)`,
+      countQuery: `${groupedCte} SELECT COUNT(*)::int AS count FROM grouped WHERE 1=1 AND ($6::numeric IS NULL OR grouped."totalDoGrupo" >= $6::numeric) AND ($7::numeric IS NULL OR grouped."totalDoGrupo" <= $7::numeric)`,
+      aggregatesQuery: `${groupedCte} SELECT COALESCE(SUM(valor),0) AS "valorTotal", COALESCE(SUM(CASE WHEN status='Pago' THEN valor ELSE 0 END),0) AS "valorPago", COALESCE(SUM(CASE WHEN status='Estorno' THEN valor ELSE 0 END),0) AS "valorEstornado", COALESCE(SUM(CASE WHEN status='Rejeitado' THEN valor ELSE 0 END),0) AS "valorRejeitado", COALESCE(SUM(CASE WHEN status='Aguardando Pagamento' THEN valor ELSE 0 END),0) AS "valorAguardandoPagamento", COALESCE(SUM(CASE WHEN status='A Pagar' THEN valor ELSE 0 END),0) AS "valorAPagar", COALESCE(SUM(CASE WHEN status='Pendentes' THEN valor ELSE 0 END),0) AS "valorPendente", COALESCE(SUM(CASE WHEN status='Pendencia Paga' THEN valor ELSE 0 END),0) AS "valorPendenciaPaga" FROM grouped WHERE 1=1 AND ($6::numeric IS NULL OR grouped."totalDoGrupo" >= $6::numeric) AND ($7::numeric IS NULL OR grouped."totalDoGrupo" <= $7::numeric)`,
     };
   }
 
@@ -311,7 +316,7 @@ export class RelatorioNovoRemessaFinancialMovementService {
     const innerParams = this.getInnerQueryParameters(filter, filter.eleicao ? statuses.allStatuses : statuses.baseStatuses);
     const params = [...innerParams, filter.valorMin?? null, filter.valorMax?? null];
     const finalBaseQuery = this.buildFinalBaseQuery(filter, statuses);
-    const groupedCte = this.buildGroupedCte(finalBaseQuery);
+    const groupedCte = this.buildGroupedCte(finalBaseQuery, filter);
     // STUC - Gratuidade usa DATE(op."dataOrdem") como dataReferencia (ver AGRUPAMENTO_GRATUIDADE
     // em novo-remessa-query-builder.ts) - uma coluna "date" pura, sem hora nem timezone. Girar
     // essa meia-noite por AT TIME ZONE 'America/Sao_Paulo' a empurra para o dia anterior (achado
@@ -324,7 +329,7 @@ export class RelatorioNovoRemessaFinancialMovementService {
       : `to_char(g."dataReferencia" AT TIME ZONE 'America/Sao_Paulo','DD/MM/YYYY') AS "dataReferencia"`;
     return {
       params,
-      query: `${groupedCte} SELECT ${dataReferenciaSelect}, to_char(g."dataPagamento" AT TIME ZONE 'America/Sao_Paulo','DD/MM/YYYY') AS "dataPagamento", g.nomes, g.email, g."codBanco", g."nomeBanco", g."cpfCnpj", g."nomeConsorcio" AS consorcio, g.valor, g.status, g."codigoErro", to_char(g."dataPagamento", 'YYYY-MM-DD"T"HH24:MI:SS') AS "dataPagamentoCursor" FROM grouped g WHERE 1=1 AND ($6::numeric IS NULL OR g.valor >= $6::numeric) AND ($7::numeric IS NULL OR g.valor <= $7::numeric)`,
+      query: `${groupedCte} SELECT ${dataReferenciaSelect}, to_char(g."dataPagamento" AT TIME ZONE 'America/Sao_Paulo','DD/MM/YYYY') AS "dataPagamento", g.nomes, g.email, g."codBanco", g."nomeBanco", g."cpfCnpj", g."nomeConsorcio" AS consorcio, g.valor, g.status, g."codigoErro", to_char(g."dataPagamento", 'YYYY-MM-DD"T"HH24:MI:SS') AS "dataPagamentoCursor" FROM grouped g WHERE 1=1 AND ($6::numeric IS NULL OR g."totalDoGrupo" >= $6::numeric) AND ($7::numeric IS NULL OR g."totalDoGrupo" <= $7::numeric)`,
     };
   }
 
@@ -345,14 +350,9 @@ export class RelatorioNovoRemessaFinancialMovementService {
       dayRows.map((row: any) => ({ ...row, dataReferencia: parse(row.dataReferencia, 'dd/MM/yyyy', new Date()) })),
       groupKeyFn,
     );
-    const { valorMin, valorMax } = filter;
-    if (valorMin !== undefined && valorMax !== undefined) {
-      pivoted = pivoted.filter((row) => row.valor >= valorMin && row.valor <= valorMax);
-    } else if (valorMin !== undefined) {
-      pivoted = pivoted.filter((row) => row.valor >= valorMin);
-    } else if (valorMax !== undefined) {
-      pivoted = pivoted.filter((row) => row.valor <= valorMax);
-    }
+    // valorMin/valorMax sobre o total do favorecido no periodo, como no Consolidado do STUC (regra
+    // de Rayanne, 2026-11-11), nao sobre cada janela.
+    pivoted = filtrarPeloTotalDoFavorecido(pivoted, (row: any) => `${row.nomes}::${row.cpfCnpj}`, filter.valorMin, filter.valorMax);
     pivoted = [...pivoted].sort((a: any, b: any) => {
       const porNome = String(a.nomes ?? '').localeCompare(String(b.nomes ?? ''));
       if (porNome !== 0) return porNome;
@@ -478,7 +478,11 @@ export class RelatorioNovoRemessaFinancialMovementService {
     let baseStatuses = all.filter((s) => s!== StatusPagamento.PENDENTES);
     // Pendencia Paga nunca pertence à base por vencimento (ela é identificada pela data de pagamento).
     baseStatuses = baseStatuses.filter((s) => s!== StatusPagamento.PENDENCIA_PAGA);
-    baseStatuses = baseStatuses.filter((s) => !parentErrorStatusesAlways.includes(s as StatusPagamento.ERRO_ESTORNO | StatusPagamento.ERRO_REJEITADO));
+    // Sai da base so o que outra consulta cobre. No STUC, Estorno/Rejeitado so tem consulta propria
+    // em dia unico; num intervalo eles continuam na base, como o Consolidado do STUC (sem isso o
+    // relatorio ficava vazio para Estorno/Rejeitado de mais de um dia - achado 2026-11-11).
+    const tratadosForaDaBase = filter.stucGratuidade ? parentErrorStatusesSingleDate : parentErrorStatusesAlways;
+    baseStatuses = baseStatuses.filter((s) => !tratadosForaDaBase.includes(s as StatusPagamento.ERRO_ESTORNO | StatusPagamento.ERRO_REJEITADO));
     return { baseStatuses: baseStatuses.length? baseStatuses : null, allStatuses: all, includePendentes, includeBase: baseStatuses.length > 0, includePendenciaPaga, parentErrorStatusesSingleDate, parentErrorStatusesAlways, includeAPagarNuncaEnviado };
   }
 
@@ -613,32 +617,42 @@ export class RelatorioNovoRemessaFinancialMovementService {
       return data;
     }
   }
+  // ADR 0017 cobriu só a sub-query "nunca enviada" (buildAPagarNuncaEnviadoQuery, que já filtra
+  // pu."bloqueado"); as demais aqui nunca excluíam favorecido bloqueado fora do modo
+  // "Desativados" - bloqueado aparecia em Pago, Aguardando, A Pagar (metade statusRemessa 0/1),
+  // Rejeitado/Estorno, Pendência Paga, STUC-Gratuidade, Eleição e Pendentes (achado 2026-11-06,
+  // auditoria após o fix do ADR 0017). Mesmo padrão já usado pelo modo "Desativados": o
+  // service anexa a condição de bloqueado ao final do SQL de cada consulta.
   private buildBaseQuery(filter: NormalizedFilter): string {
-    return `${buildBaseQuery({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5, hasConsorcioFilter: this.hasConsorcioFilter(filter) }).trim()} ${filter.desativados? 'AND pu.bloqueado = true' : ''}`;
+    return `${buildBaseQuery({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5, hasConsorcioFilter: this.hasConsorcioFilter(filter) }).trim()} ${filter.desativados ? 'AND pu.bloqueado = true' : 'AND (pu.bloqueado IS NULL OR pu.bloqueado = false)'}`;
   }
+  // Eleicao paga/enviada e Eleicao "A Pagar" (ordem ainda nao agrupada), cada uma com a condicao de
+  // bloqueado no proprio ramo da uniao.
   private buildEleicaoQuery(filter: NormalizedFilter): string {
-    return `${buildEleicaoQuery({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5, hasConsorcioFilter: this.hasConsorcioFilter(filter) }).trim()} ${filter.desativados? 'AND pu.bloqueado = true' : ''}`;
+    const params = { todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5, hasConsorcioFilter: this.hasConsorcioFilter(filter) };
+    return [buildEleicaoQuery(params), buildEleicaoAPagarQuery(params)].map((query) => `${query.trim()} ${filter.desativados ? 'AND pu.bloqueado = true' : 'AND (pu.bloqueado IS NULL OR pu.bloqueado = false)'}`).join('\nUNION ALL\n');
   }
+
   private buildStucGratuidadeQuery(filter: NormalizedFilter): string {
-    return `${buildStucGratuidadeQuery({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5, hasConsorcioFilter: this.hasConsorcioFilter(filter) }).trim()} ${filter.desativados? 'AND pu.bloqueado = true' : ''}`;
+    return `${buildStucGratuidadeQuery({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5, hasConsorcioFilter: this.hasConsorcioFilter(filter) }).trim()} ${filter.desativados ? 'AND pu.bloqueado = true' : 'AND (pu.bloqueado IS NULL OR pu.bloqueado = false)'}`;
   }
   private buildStucGratuidadePendenciaPagaSingleDateQuery(filter: NormalizedFilter): string {
-    return `${buildStucGratuidadePendenciaPagaSingleDateQuery({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5, hasConsorcioFilter: this.hasConsorcioFilter(filter) }).trim()} ${filter.desativados? 'AND pu.bloqueado = true' : ''}`;
+    return `${buildStucGratuidadePendenciaPagaSingleDateQuery({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5, hasConsorcioFilter: this.hasConsorcioFilter(filter) }).trim()} ${filter.desativados ? 'AND pu.bloqueado = true' : 'AND (pu.bloqueado IS NULL OR pu.bloqueado = false)'}`;
   }
   private buildStucGratuidadePendenciaPagamentoSingleDateQuery(filter: NormalizedFilter, statuses: Array<StatusPagamento.ERRO_ESTORNO | StatusPagamento.ERRO_REJEITADO>): string {
-    return `${buildStucGratuidadePendenciaPagamentoSingleDateQuery({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5, parentErrorStatuses: statuses, hasConsorcioFilter: this.hasConsorcioFilter(filter) }).trim()} ${filter.desativados ? 'AND pu.bloqueado = true' : ''}`;
+    return `${buildStucGratuidadePendenciaPagamentoSingleDateQuery({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5, parentErrorStatuses: statuses, hasConsorcioFilter: this.hasConsorcioFilter(filter), desativados: filter.desativados }).trim()}`;
   }
   private buildPendentesQuery(filter: NormalizedFilter): string {
-    return `${buildPendentesQuery({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5 } as any).trim()} ${filter.desativados? 'AND pu.bloqueado = true' : ''}`;
+    return `${buildPendentesQuery({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5 } as any).trim()} ${filter.desativados ? 'AND pu.bloqueado = true' : 'AND (pu.bloqueado IS NULL OR pu.bloqueado = false)'}`;
   }
   private buildPendenciaPagaSingleDateQuery(filter: NormalizedFilter): string {
-    return `${buildPendenciaPagaSingleDateQuery({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5, hasConsorcioFilter: this.hasConsorcioFilter(filter) }).trim()} ${filter.desativados? 'AND pu.bloqueado = true' : ''}`;
+    return `${buildPendenciaPagaSingleDateQuery({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5, hasConsorcioFilter: this.hasConsorcioFilter(filter) }).trim()} ${filter.desativados ? 'AND pu.bloqueado = true' : 'AND (pu.bloqueado IS NULL OR pu.bloqueado = false)'}`;
   }
   private buildPendenciaPagaPasso0Query(filter: NormalizedFilter): string {
-    return `${buildPendenciaPagaPasso0Query({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5, hasConsorcioFilter: this.hasConsorcioFilter(filter) }).trim()} ${filter.desativados ? 'AND pu.bloqueado = true' : ''}`;
+    return `${buildPendenciaPagaPasso0Query({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5, hasConsorcioFilter: this.hasConsorcioFilter(filter) }).trim()} ${filter.desativados ? 'AND pu.bloqueado = true' : 'AND (pu.bloqueado IS NULL OR pu.bloqueado = false)'}`;
   }
   private buildPendenciaPagamentoSingleDateQuery(filter: NormalizedFilter, statuses: Array<StatusPagamento.ERRO_ESTORNO | StatusPagamento.ERRO_REJEITADO>): string {
-    return `${buildPendenciaPagamentoSingleDateQuery({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5, parentErrorStatuses: statuses, hasConsorcioFilter: this.hasConsorcioFilter(filter) }).trim()} ${filter.desativados ? 'AND pu.bloqueado = true' : ''}`;
+    return `${buildPendenciaPagamentoSingleDateQuery({ todosVanzeiros: filter.todosVanzeiros, consorcioFilterParamIndex: 5, parentErrorStatuses: statuses, hasConsorcioFilter: this.hasConsorcioFilter(filter), desativados: filter.desativados }).trim()}`;
   }
   private isSingleDate(filter: NormalizedFilter): boolean { return this.toQueryDate(filter.dataInicio) === this.toQueryDate(filter.dataFim); }
   private resolvePagination(filter: NormalizedFilter) {
@@ -670,9 +684,13 @@ export class RelatorioNovoRemessaFinancialMovementService {
     // Consolidado (this.CONSORCIOS, com GTU) em vez de ficar NULL (sem filtro nenhum) - NULL
     // deixava "Consórcio = Todos" indistinguível de "nenhum consórcio selecionado" e sujeito a
     // MODAIS_FILTER (ver buildTodosVanzeirosFilter em novo-remessa-query-builder.ts).
+    // Eleição + "Todos": o total da Eleição, sem cortar pela lista (regra de Rayanne, 2026-11-11).
+    // O "consorcio" gravado na ordem de Eleição muitas vezes não é o do favorecido (STPC/STPL/TEC
+    // vêm do permitCode), e a lista deixava cerca de R$ 304 mil de fora em out/2026 nos dois relatórios.
+    // hasConsorcioFilter continua verdadeiro, então MODAIS_FILTER/NOT_CPF_FILTER seguem fora.
     const consorcioNome = filter.consorcioNome?.length
       ? filter.consorcioNome.map((n) => n.toUpperCase().trim())
-      : filter.todosConsorcios
+      : filter.todosConsorcios && !filter.eleicao
       ? this.CONSORCIOS.map((n) => n.toUpperCase().trim())
       : null;
     return [this.toQueryDate(filter.dataInicio), this.toQueryDate(filter.dataFim), filter.userIds?.length? filter.userIds : null, selectedStatuses, consorcioNome];

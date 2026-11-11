@@ -6,6 +6,9 @@ import {
   buildGuardadorPendenteNaoEnviadoQuery,
 } from './guardador-novo-remessa-query-builder';
 
+const BLOQUEADO_FALSE_MARKER = 'AND (pu.bloqueado IS NULL OR pu.bloqueado = false)';
+const BLOQUEADO_TRUE_MARKER = 'AND pu.bloqueado = true';
+
 const builders = {
   base: buildGuardadorBaseQuery,
   aPagar: buildGuardadorAPagarQuery,
@@ -275,6 +278,57 @@ describe('guardador-novo-remessa-query-builder', () => {
     it('A Pagar deixa de listar as ordens soltas que já entram como pendência quando pedido', () => {
       expect(buildGuardadorAPagarQuery({ excluirPendentes: true })).toContain('AND NOT (opg."ordemPagamentoAgrupadoId" IS NULL');
       expect(buildGuardadorAPagarQuery()).not.toContain('AND NOT (opg."ordemPagamentoAgrupadoId" IS NULL');
+    });
+  });
+
+  // None of the 6 Guardador queries excluded a bloqueado favorecido outside "Desativados" mode
+  // (found 2026-11-06, auditing the report right after the ADR 0017 fix) - every status of both
+  // Guardador screens (Movimentação Financeira and Consolidado) showed blocked guardadores.
+  describe('favorecido bloqueado não aparece fora do modo Desativados', () => {
+    it.each([
+      ['base', () => buildGuardadorBaseQuery()],
+      ['aPagar', () => buildGuardadorAPagarQuery()],
+      ['pendenteNaoEnviado', () => buildGuardadorPendenteNaoEnviadoQuery()],
+    ])('%s query excludes bloqueado favorecidos by default', (_name, build) => {
+      const sql = build();
+
+      expect(sql).toContain(BLOQUEADO_FALSE_MARKER);
+      expect(sql).not.toContain(BLOQUEADO_TRUE_MARKER);
+    });
+
+    it.each([
+      ['base', () => buildGuardadorBaseQuery({ desativados: true })],
+      ['aPagar', () => buildGuardadorAPagarQuery({ desativados: true })],
+      ['pendenteNaoEnviado', () => buildGuardadorPendenteNaoEnviadoQuery({ desativados: true })],
+    ])('%s query shows only bloqueado favorecidos when desativados is set', (_name, build) => {
+      const sql = build();
+
+      expect(sql).toContain(BLOQUEADO_TRUE_MARKER);
+      expect(sql).not.toContain(BLOQUEADO_FALSE_MARKER);
+    });
+
+    // pendenciaPagaSingleDate and pendenciaPagamentoSingleDate each have an internal UNION ALL of
+    // two SELECTs - the filter has to be written into both, not appended once externally.
+    it.each([
+      ['pendenciaPagaSingleDate', () => buildGuardadorPendenciaPagaSingleDateQuery()],
+      ['pendenciaPagamentoSingleDate', () => buildGuardadorPendenciaPagamentoSingleDateQuery()],
+    ])('%s query excludes bloqueado favorecidos in both branches of its UNION ALL', (_name, build) => {
+      const sql = build();
+
+      expect(sql).toMatch(/UNION ALL/);
+      const occurrences = sql.split(BLOQUEADO_FALSE_MARKER).length - 1;
+      expect(occurrences).toBe(2);
+    });
+
+    it.each([
+      ['pendenciaPagaSingleDate', () => buildGuardadorPendenciaPagaSingleDateQuery({ desativados: true })],
+      ['pendenciaPagamentoSingleDate', () => buildGuardadorPendenciaPagamentoSingleDateQuery({ desativados: true })],
+    ])('%s query shows only bloqueado favorecidos in both branches when desativados is set', (_name, build) => {
+      const sql = build();
+
+      const occurrences = sql.split(BLOQUEADO_TRUE_MARKER).length - 1;
+      expect(occurrences).toBe(2);
+      expect(sql).not.toContain(BLOQUEADO_FALSE_MARKER);
     });
   });
 });

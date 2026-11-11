@@ -99,6 +99,8 @@ export class RelatorioGuardadorConsolidadoRepository {
       FROM (
         ${finalBaseQuery}
       ) base
+      WHERE ($6::numeric IS NULL OR valor >= $6::numeric)
+        AND ($7::numeric IS NULL OR valor <= $7::numeric)
       GROUP BY nomes
       ORDER BY nomes ASC
     `;

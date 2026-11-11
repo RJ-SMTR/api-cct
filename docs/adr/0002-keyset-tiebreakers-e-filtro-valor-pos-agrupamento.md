@@ -93,3 +93,11 @@ incidente relatado por usuária até o momento desta decisão.
   recebe nenhuma das duas correções: é código morto confirmado, fora do
   escopo tanto da correção quanto de qualquer decisão futura de remoção
   (que continua não tomada).
+
+## Atualização (2026-11-10): rotas v2
+
+Nas rotas v2 da Movimentação Financeira e do Consolidado, `valorMin`/`valorMax` valem sobre o
+total do período, não sobre cada linha agrupada: por consórcio quando há filtro de consórcio, senão
+por favorecido. Decisão de negócio de Rayanne, para os dois relatórios usarem a mesma regra. A rota
+legada da Movimentação Financeira segue filtrando por linha, então v2 e legado divergem quando esse
+filtro é usado. Em STUC-Gratuidade cada linha já é a janela de pagamento, e o filtro continua sobre ela.
