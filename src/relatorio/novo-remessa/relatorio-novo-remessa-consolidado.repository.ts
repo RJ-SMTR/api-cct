@@ -4,7 +4,7 @@ import { DataSource } from 'typeorm';
 
 import { format, parse } from 'date-fns';
 import { CustomLogger } from 'src/utils/custom-logger';
-import { agrupamentoSemFilhas, buildStucGratuidadeQuery, eleicaoConsorcioFiltroCase, buildStucGratuidadePendenciaPagaSingleDateQuery, buildStucGratuidadePendenciaPagamentoSingleDateQuery } from './queries/novo-remessa-query-builder';
+import { agrupamentoSemFilhas, buildStucGratuidadeQuery, eleicaoConsorcioFiltroCase, MODAIS_FILTER, NOT_CPF_FILTER, buildStucGratuidadePendenciaPagaSingleDateQuery, buildStucGratuidadePendenciaPagamentoSingleDateQuery } from './queries/novo-remessa-query-builder';
 import { IFindPublicacaoRelatorioNovoRemessa } from '../interfaces/find-publicacao-relatorio-novo-remessa.interface';
 import {
   RelatorioConsolidadoNovoRemessaData,
@@ -573,8 +573,12 @@ export class RelatorioNovoRemessaConsolidadoRepository {
         queryVanzeiros = anexar(queryVanzeiros, ` AND (op."nomeConsorcio" IN('${consorcioPlaceholders}') or opp."nomeConsorcio" IN('${consorcioPlaceholders}'))
                             AND (length(op."operadoraCpfCnpj")<=11  or length(opp."operadoraCpfCnpj")<=11) `);
         queryAPagarVanzeiros = anexar(queryAPagarVanzeiros, ` AND op."nomeConsorcio" IN('${consorcioPlaceholders}') AND length(op."operadoraCpfCnpj")<=11`);
-        // ordem_pagamento_unico (Eleição) não tem "nomeConsorcio": a coluna é "consorcio".
-        queryAPagarEleicaoVanzeiro = anexar(queryAPagarEleicaoVanzeiro, ` AND op."consorcio" IN('${consorcioPlaceholders}') AND length(op."operadoraCpfCnpj")<=11 `);
+        // Eleição + todos os favorecidos: os mesmos filtros da Movimentação Financeira (MODAIS_FILTER
+        // pelo permitCode do favorecido e NOT_CPF_FILTER), no pago e no a pagar - regra de Rayanne,
+        // 2026-11-11. Pela coluna "consorcio" da ordem, um a pagar de favorecido modal com outro
+        // consórcio gravado ficava fora só do Consolidado (R$ 340 em ago-out/2026 em homologação).
+        queryEleicaoVanzeiro = anexar(queryEleicaoVanzeiro, `${MODAIS_FILTER}${NOT_CPF_FILTER}`);
+        queryAPagarEleicaoVanzeiro = anexar(queryAPagarEleicaoVanzeiro, `${MODAIS_FILTER}${NOT_CPF_FILTER}`);
         queryPendenciaPagaVanzeiros = anexar(queryPendenciaPagaVanzeiros, ` AND (op."nomeConsorcio" IN('${consorcioPlaceholders}') or opp."nomeConsorcio" IN('${consorcioPlaceholders}'))
                             AND (length(op."operadoraCpfCnpj")<=11  or length(opp."operadoraCpfCnpj")<=11) `);
         // PASSO 0 não tem "opp" (a filha, por definição, não tem filhas próprias - agrupamentoSemFilhas).
