@@ -412,6 +412,9 @@ describe('novo-remessa-query-builder Eleição: consórcio pelo permitCode, igua
     expect(sql).toContain(`WHEN pu."permitCode" LIKE '4%' THEN 'STPC'`);
     expect(sql).toMatch(/UPPER\(TRIM\(\s*CASE\s*WHEN opu\."idOperadora" = '8'[\s\S]*ELSE opu\."consorcio"\s*END\s*\)\) = ANY\(\$5\)/);
     expect(sql).not.toContain('TRIM(UPPER(opu."consorcio"))');
+    // Valor em numeric nos dois ramos: "valorTotalTransacaoLiquido" vem de uma tabela carregada de
+    // fora e, misturada no UNION com o numeric do detalhe_a, levava a soma para ponto flutuante.
+    expect(sql).toMatch(/ROUND\((da\."valorLancamento"|opu\."valorTotalTransacaoLiquido")::numeric, 2\) AS valor/);
     expect(sql).not.toMatch(/opu\."consorcio" AS "nomeConsorcio"/);
   });
 });

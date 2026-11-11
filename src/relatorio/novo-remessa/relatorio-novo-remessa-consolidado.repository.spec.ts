@@ -848,6 +848,12 @@ describe('RelatorioNovoRemessaConsolidadoRepository.findConsolidado — filtros'
     expect(sql).not.toContain(`op."consorcio" IN`);
   });
 
+  it('Eleição soma os valores em numeric (pago e a pagar), sem ponto flutuante', async () => {
+    const sql = await executar({ eleicao: true, todosVanzeiros: undefined });
+    expect(sql).toContain('ROUND(da."valorLancamento"::numeric, 2) AS valor');
+    expect(sql).toContain('ROUND(op."valorTotalTransacaoLiquido"::numeric, 2) AS valor');
+  });
+
   it('Eleição + desativados: só favorecidos bloqueados', async () => {
     const sql = await executar({ eleicao: true, todosVanzeiros: undefined, desativados: true });
     expect(sql).toContain(`pu."bloqueado" = true`);

@@ -491,7 +491,7 @@ export const buildEleicaoQuery = (params: NovoRemessaBaseParams) => {
       bc.name AS "nomeBanco",
       pu."cpfCnpj",
       ${ELEICAO_CONSORCIO_CASE} AS "nomeConsorcio",
-      da."valorLancamento" AS valor,
+      ROUND(da."valorLancamento"::numeric, 2) AS valor,
       da."dataVencimento" AS "dataPagamento",
       ${ELEICAO_STATUS_CASE} AS status,
       ${buildCodigoErroSql(ELEICAO_STATUS_CASE)} AS "codigoErro"
@@ -549,7 +549,7 @@ export const buildEleicaoAPagarQuery = (params: NovoRemessaBaseParams) => {
       bc.name AS "nomeBanco",
       pu."cpfCnpj",
       ${ELEICAO_CONSORCIO_CASE} AS "nomeConsorcio",
-      opu."valorTotalTransacaoLiquido" AS valor,
+      ROUND(opu."valorTotalTransacaoLiquido"::numeric, 2) AS valor,
       NULL::timestamp AS "dataPagamento",
       'A Pagar' AS status,
       NULL::text AS "codigoErro"
