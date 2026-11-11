@@ -818,9 +818,12 @@ describe('RelatorioNovoRemessaConsolidadoRepository.findConsolidado — filtros'
     expect(parentesesBalanceados(sql)).toBe(true);
   });
 
-  it('Eleição a pagar por vanzeiros usa a coluna consorcio de ordem_pagamento_unico', async () => {
-    const sql = await executar({ eleicao: true, aPagar: true, todosVanzeiros: true });
-    expect(sql).toContain(`op."consorcio" IN`);
+  it('Eleição + todos os favorecidos: mesmos filtros da Movimentação Financeira (permitCode modal, sem CNPJ institucional) no pago e no a pagar', async () => {
+    const sql = await executar({ eleicao: true, todosVanzeiros: true, todosConsorcios: undefined });
+    const modais = sql.split(`pu."permitCode" LIKE '4%' OR pu."permitCode" LIKE '81%' OR pu."permitCode" LIKE '7%'`).length - 1;
+    expect(modais).toBe(2);
+    expect(sql).toContain(`pu."cpfCnpj" NOT IN (`);
+    expect(sql).not.toContain(`op."consorcio" IN`);
     expect(sql).not.toContain(`op."nomeConsorcio"`);
     expect(semTrechoSolto(sql)).toBe(true);
   });
