@@ -219,6 +219,9 @@ export class PagamentosIndevidosGuardadoresService {
                       FROM ordem_pagamento_agrupado_historico h
                       JOIN detalhe_a da ON da."ordemPagamentoAgrupadoHistoricoId" = h.id
                      WHERE h."statusRemessa" IN (3, 5)
+                       -- Status 5 com ocorrência 02 (crédito cancelado) é a ordem que só virou "paga" quando a pendência do pai foi quitada;
+                       -- o banco não pagou aquele lançamento, então não conta como pagamento (nem como duplicidade).
+                       AND NOT (h."statusRemessa" = 5 AND h."motivoStatusRemessa" = '02')
                        AND h."ordemPagamentoAgrupadoId" IN (g."ordemPagamentoAgrupadoId", a."ordemPagamentoAgrupadoId")) AS pagamentos
          FROM ordem_pagamento_guardador g
          JOIN ordem_pagamento_agrupado a ON a.id = g."ordemPagamentoAgrupadoId"
