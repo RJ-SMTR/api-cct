@@ -513,7 +513,7 @@ export const buildEleicaoAPagarQuery = (params: NovoRemessaBaseParams) => {
   const consorcioParam = `$${params.consorcioFilterParamIndex}`;
   return `
     SELECT DISTINCT
-      opu."dataOrdem"::timestamp AS "dataReferencia",
+      opu."dataOrdem"::date::timestamp AS "dataReferencia",
       opu.id,
       pu."fullName" AS nomes,
       pu.email,
@@ -539,7 +539,7 @@ export const buildEleicaoAPagarQuery = (params: NovoRemessaBaseParams) => {
     LEFT JOIN bank bc
       ON bc.code = pu."bankCode"
     WHERE
-      opu."dataOrdem" BETWEEN $1::date AND $2::date
+      opu."dataOrdem"::date BETWEEN $1::date AND $2::date
       AND opu."idOrdemPagamento" IS NULL
       AND ($3::integer[] IS NULL OR pu."id" = ANY($3))
       AND ($4::text[] IS NULL OR 'A Pagar' = ANY($4))
