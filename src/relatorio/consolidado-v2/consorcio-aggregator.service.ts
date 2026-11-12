@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { RelatorioConsolidadoNovoRemessaData, RelatorioConsolidadoNovoRemessaDto } from '../dtos/relatorio-consolidado-novo-remessa.dto';
 import { StatusPagamento } from '../enum/statusRemessafinancial-movement';
 import { BasePagamentoFilter, BasePagamentoRepository } from '../movimentacao-financeira-v2/base/base-pagamento.repository';
-import { somarSemFavorecido } from './vanzeiro-aggregator.service';
+import { ordenarPorNome, somarSemFavorecido } from './vanzeiro-aggregator.service';
 
 interface ConsorcioAccumulator {
   nomeConsorcio: string;
@@ -63,12 +63,14 @@ export class ConsorcioAggregatorService {
       return true;
     });
 
-    const data = filtered.map(
-      (consorcio) =>
-        new RelatorioConsolidadoNovoRemessaData({
-          valor: consorcio.valor,
-          nomefavorecido: consorcio.nomeConsorcio,
-        }),
+    const data = ordenarPorNome(
+      filtered.map(
+        (consorcio) =>
+          new RelatorioConsolidadoNovoRemessaData({
+            valor: consorcio.valor,
+            nomefavorecido: consorcio.nomeConsorcio,
+          }),
+      ),
     );
 
     const consorciosFiltrados = new Set(filtered.map((consorcio) => consorcio.nomeConsorcio));

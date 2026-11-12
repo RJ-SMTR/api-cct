@@ -12,7 +12,6 @@ import { ConsorcioAggregatorService } from './consorcio-aggregator.service';
 import { EleicaoAggregatorService } from './eleicao-aggregator.service';
 import { StucGratuidadeAggregatorService } from './stuc-gratuidade-aggregator.service';
 import { VanzeiroAggregatorService } from './vanzeiro-aggregator.service';
-import { agruparStucPorFavorecido } from './stuc-por-favorecido';
 import { rethrowRelatorioTimeoutAsHttp } from '../utils/relatorio-timeout.error';
 
 
@@ -109,17 +108,23 @@ export class ConsolidadoV2Controller {
   ) {
     try {
       // STUC-Gratuidade e Eleicao: mesmo resultado da rota v1 (decisao de Rayanne, 2026-11-10), pela
-      // propria implementacao do legado.
+      // propria implementacao do legado. STUC sai uma linha por janela de pagamento, com a data e o
+      // valor de cada dia, como a Movimentacao Financeira (regra de Rayanne, 2026-11-11).
       // Favorecido especifico selecionado: o relatorio traz so ele (regra de Rayanne, 2026-11-10), nunca a
-      // uniao com as linhas de consorcio que o legado fazia.
+      // uniao com as linhas de consorcio que o legado fazia; com consorcio junto, so ele dentro do
+      // consorcio, como a Movimentacao Financeira (regra de Rayanne, 2026-11-11).
       const favorecidoUnico = !todosVanzeiros && Boolean(userIds?.length);
+      // Nada selecionado: vale como todos os consorcios, a mesma selecao da Movimentacao Financeira
+      // (normalizarSelecao em relatorio-novo-remessa-v2.controller.ts).
+      const nadaSelecionado = !favorecidoUnico && !todosVanzeiros && !consorcioNome?.length && !todosConsorcios;
 
       if (stucGratuidade || eleicao) {
-        const resultado = await this.relatorioNovoRemessaService.findConsolidado({
+        return await this.relatorioNovoRemessaService.findConsolidado({
           dataInicio,
           dataFim,
           userIds,
-          consorcioNome: favorecidoUnico ? undefined : consorcioNome,
+          consorcioNome,
+          favorecidoNoConsorcio: favorecidoUnico,
           valorMin,
           valorMax,
           pago,
@@ -127,7 +132,7 @@ export class ConsolidadoV2Controller {
           emProcessamento,
           erro,
           todosVanzeiros,
-          todosConsorcios: favorecidoUnico ? undefined : todosConsorcios,
+          todosConsorcios: nadaSelecionado ? true : todosConsorcios,
           eleicao,
           desativados,
           pendentes,
@@ -136,7 +141,6 @@ export class ConsolidadoV2Controller {
           pendenciaPaga,
           stucGratuidade,
         });
-        return stucGratuidade ? agruparStucPorFavorecido(resultado) : resultado;
       }
 
       // Como no legado, todosVanzeiros tem prioridade sobre o favorecido especifico.
@@ -220,12 +224,11 @@ export class ConsolidadoV2Controller {
   ) {
     try {
       // Guardador nao tem visao por consorcio, Eleicao nem STUC-Gratuidade (PRD, AC-8/AC-9): erro
-      // explicito, nunca ignorado silenciosamente.
+      // explicito, nunca ignorado silenciosamente. Desativados e Pendentes valem como na Movimentacao
+      // Financeira do Guardador, que le a mesma fonte (regra de Rayanne, 2026-11-11).
       const naoSuportados: Record<string, boolean> = {
         eleicao: Boolean(eleicao),
         stucGratuidade: Boolean(stucGratuidade),
-        desativados: Boolean(desativados),
-        pendentes: Boolean(pendentes),
       };
       const parametroInvalido = Object.keys(naoSuportados).find((parametro) => naoSuportados[parametro]);
       if (parametroInvalido) {
@@ -237,10 +240,11 @@ export class ConsolidadoV2Controller {
         dataFim,
         valorMin,
         valorMax,
-        statuses: mapStatuses({ pago, aPagar, emProcessamento, pendenciaPaga, rejeitado, estorno, erro }),
+        statuses: mapStatuses({ pago, aPagar, emProcessamento, pendentes, pendenciaPaga, rejeitado, estorno, erro }),
         userIds,
         consorcioNome,
         todosConsorcios,
+        desativados,
       };
 
       return await this.vanzeiroAggregatorService.aggregate(filter, 'guardador');

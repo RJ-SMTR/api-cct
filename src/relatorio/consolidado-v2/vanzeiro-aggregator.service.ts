@@ -14,6 +14,12 @@ export interface VanzeiroAggregatorOptions {
   somenteIndividuais?: boolean;
 }
 
+// Lista do Consolidado em ordem alfabetica do nome, em qualquer combinacao de filtro (consorcios,
+// favorecidos ou a uniao das duas visoes).
+export function ordenarPorNome(data: RelatorioConsolidadoNovoRemessaData[]): RelatorioConsolidadoNovoRemessaData[] {
+  return [...data].sort((a, b) => (a.nomefavorecido ?? '').localeCompare(b.nomefavorecido ?? '', 'pt-BR'));
+}
+
 export function somarSemFavorecido(rows: BasePagamentoRow[]): number {
   return rows.filter((row) => row.nomes === null).reduce((total, row) => total + Number(row.valor), 0);
 }
@@ -61,13 +67,15 @@ export class VanzeiroAggregatorService {
       return true;
     });
 
-    const data = filtered.map(
-      (favorecido) =>
-        new RelatorioConsolidadoNovoRemessaData({
-          valor: favorecido.valor,
-          nomefavorecido: favorecido.nome,
-          cpfCnpj: favorecido.cpfCnpj,
-        }),
+    const data = ordenarPorNome(
+      filtered.map(
+        (favorecido) =>
+          new RelatorioConsolidadoNovoRemessaData({
+            valor: favorecido.valor,
+            nomefavorecido: favorecido.nome,
+            cpfCnpj: favorecido.cpfCnpj,
+          }),
+      ),
     );
 
     // valorAPagar: soma das linhas A Pagar, restrita aos favorecidos que sobreviveram ao

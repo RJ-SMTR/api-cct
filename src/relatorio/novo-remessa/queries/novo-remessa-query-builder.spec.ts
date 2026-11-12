@@ -1,5 +1,6 @@
 import {
   buildBaseQuery,
+  buildEleicaoAPagarQuery,
   buildEleicaoQuery,
   buildPendentesQuery,
   buildPendenciaPagamentoSingleDateQuery,
@@ -396,5 +397,24 @@ describe('novo-remessa-query-builder - agrupamento sem filhas', () => {
     expect(sql).toContain('opa.id NOT IN (');
     expect(sql).toContain('WHERE filha."ordemPagamentoAgrupadoId" IS NOT NULL');
     expect(sql).not.toMatch(/ordem_pagamento_agrupado filha\s+WHERE filha\."ordemPagamentoAgrupadoId" = opa\.id/);
+  });
+});
+
+describe('novo-remessa-query-builder Eleição: consórcio pelo permitCode, igual ao Consolidado', () => {
+  const params = { consorcioFilterParamIndex: 5 };
+
+  it.each([
+    ['eleicao paga', buildEleicaoQuery(params)],
+    ['eleicao a pagar', buildEleicaoAPagarQuery(params)],
+  ])('%s filtra e mostra o consórcio pelo permitCode do favorecido', (_name, sql) => {
+    // Rótulo pelo cadastro do favorecido; filtro pelo permitCode da própria ordem (idOperadora),
+    // sem depender da busca de usuário (desempenho).
+    expect(sql).toContain(`WHEN pu."permitCode" LIKE '4%' THEN 'STPC'`);
+    expect(sql).toMatch(/UPPER\(TRIM\(\s*CASE\s*WHEN opu\."idOperadora" = '8'[\s\S]*ELSE opu\."consorcio"\s*END\s*\)\) = ANY\(\$5\)/);
+    expect(sql).not.toContain('TRIM(UPPER(opu."consorcio"))');
+    // Valor em numeric nos dois ramos: "valorTotalTransacaoLiquido" vem de uma tabela carregada de
+    // fora e, misturada no UNION com o numeric do detalhe_a, levava a soma para ponto flutuante.
+    expect(sql).toMatch(/ROUND\((da\."valorLancamento"|opu\."valorTotalTransacaoLiquido")::numeric, 2\) AS valor/);
+    expect(sql).not.toMatch(/opu\."consorcio" AS "nomeConsorcio"/);
   });
 });

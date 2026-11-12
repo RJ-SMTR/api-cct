@@ -81,23 +81,23 @@ suite('Eleicao: Consolidado e Movimentacao Financeira legados (PostgreSQL)', () 
     await dataSource.query(`DELETE FROM public."user" WHERE id IN ($1, $2)`, [USER_A, USER_B]);
   }
 
-  async function seedEleicaoPaga(valor: number): Promise<void> {
-    const opa = BASE_ID + 10;
+  async function seedEleicaoPaga(valor: number, consorcio = 'STPC', offset = 0): Promise<void> {
+    const opa = BASE_ID + 10 + offset;
     await dataSource.query(`INSERT INTO ordem_pagamento_agrupado (id, "dataPagamento", "valorTotal", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt") VALUES ($1, DATE '2093-03-10', $2, NULL, now(), now())`, [opa, valor]);
     await dataSource.query(
       `INSERT INTO ordem_pagamento_agrupado_historico (id, "ordemPagamentoAgrupadoId", "dataReferencia", "userBankCode", "userBankAgency", "userBankAccount", "userBankAccountDigit", "statusRemessa", "motivoStatusRemessa")
        VALUES ($1, $2, DATE '2093-03-10', '104', '0001', '99990002', '1', 3, '00')`,
-      [BASE_ID + 11, opa],
+      [BASE_ID + 11 + offset, opa],
     );
     await dataSource.query(
       `INSERT INTO detalhe_a (id, "ordemPagamentoAgrupadoHistoricoId", "numeroDocumentoEmpresa", "dataVencimento", "valorLancamento", "valorRealEfetivado", nsr, "createdAt", "updatedAt")
        OVERRIDING SYSTEM VALUE VALUES ($1, $2, $1, DATE '2093-03-10', $3, $3, $1, now(), now())`,
-      [BASE_ID + 12, BASE_ID + 11, valor],
+      [BASE_ID + 12 + offset, BASE_ID + 11 + offset, valor],
     );
     await dataSource.query(
       `INSERT INTO ordem_pagamento_unico (id, "idOrdemPagamento", "idOperadora", "operadoraCpfCnpj", "consorcio", "dataOrdem", "valorTotalTransacaoLiquido")
-       VALUES ($1, $2, $3, $4, 'STPC', DATE '2093-03-05', $5)`,
-      [BASE_ID + 13, String(opa), PERMIT_A, CPF, valor],
+       VALUES ($1, $2, $3, $4, $6, DATE '2093-03-05', $5)`,
+      [BASE_ID + 13 + offset, String(opa), PERMIT_A, CPF, valor, consorcio],
     );
   }
 
@@ -130,5 +130,13 @@ suite('Eleicao: Consolidado e Movimentacao Financeira legados (PostgreSQL)', () 
     expect(await totais({})).toEqual({ consolidado: 1282.67, movimentacao: 1282.67 });
     expect(await totais({ aPagar: true })).toEqual({ consolidado: 1197.67, movimentacao: 1197.67 });
     expect(await totais({ pago: true })).toEqual({ consolidado: 85, movimentacao: 85 });
+  });
+
+  it('todos os consórcios traz o total da Eleição, mesmo com o consórcio da ordem fora da lista', async () => {
+    await seedEleicaoPaga(85);
+    // Mesmo favorecido STPC pelo permitCode, mas a ordem de Eleição gravou outro consórcio (caso de homologação).
+    await seedEleicaoPaga(40, 'CONSORCIO FORA DA LISTA', 100);
+
+    expect(await totais({ todosVanzeiros: undefined, todosConsorcios: true })).toEqual({ consolidado: 125, movimentacao: 125 });
   });
 });

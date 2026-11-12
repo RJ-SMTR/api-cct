@@ -18,6 +18,9 @@ export interface IFindPublicacaoRelatorioNovoRemessa {
   pendenciaPaga?: boolean;
   rejeitado?: boolean;
   estorno?: boolean;
+  // Favorecido escolhido + consorcio: so o favorecido, dentro do consorcio (como a Movimentacao
+  // Financeira), em vez de unir as visoes de favorecido e de consorcio.
+  favorecidoNoConsorcio?: boolean;
   page?: number;
   pageSize?: number;
 }

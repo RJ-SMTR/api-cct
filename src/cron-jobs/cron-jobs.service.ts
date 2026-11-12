@@ -113,6 +113,7 @@ export class CronJobsService {
   }
 
   async onModuleLoad() {
+    await this.remessaModalExec(true, false);    
     const THIS_CLASS_WITH_METHOD = 'CronJobsService.onModuleLoad';
     this.jobsConfig.push(
       {
@@ -830,7 +831,7 @@ export class CronJobsService {
       await this.geradorRemessaGratuidadeExec(dataInicio, dataFim, today, consorcios, HeaderName.MODAL);
       return;
     }
-    await this.limparAgrupamentos(dataInicio, dataFim, consorcios);
+   // await this.limparAgrupamentos(dataInicio, dataFim, consorcios);
     await this.geradorRemessaExec(dataInicio, dataFim, today,
       consorcios, HeaderName.MODAL, pagamentoUnico);
   }

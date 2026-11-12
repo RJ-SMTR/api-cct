@@ -1,4 +1,4 @@
-import { pivotStucGratuidadeRows } from './stuc-gratuidade-pivot';
+import { filtrarPeloTotalDoFavorecido, pivotStucGratuidadeRows } from './stuc-gratuidade-pivot';
 
 type Row = { dataReferencia: Date; valor: number; favorecido: string };
 
@@ -14,6 +14,22 @@ const segunda = new Date(2026, 9, 26);
 const terca = new Date(2026, 9, 27);
 const quarta = new Date(2026, 9, 28);
 const quinta = new Date(2026, 9, 29);
+
+describe('filtrarPeloTotalDoFavorecido', () => {
+  const janelas = [row(sexta, 600, 'Ana'), row(terca, 600, 'Ana'), row(sexta, 900, 'Bia')];
+
+  it('valor mínimo compara o total do favorecido, não cada janela', () => {
+    expect(filtrarPeloTotalDoFavorecido(janelas, porFavorecido, 1000)).toEqual([janelas[0], janelas[1]]);
+  });
+
+  it('valor máximo compara o total do favorecido, não cada janela', () => {
+    expect(filtrarPeloTotalDoFavorecido(janelas, porFavorecido, undefined, 1000)).toEqual([janelas[2]]);
+  });
+
+  it('sem filtro de valor devolve as mesmas linhas', () => {
+    expect(filtrarPeloTotalDoFavorecido(janelas, porFavorecido)).toBe(janelas);
+  });
+});
 
 describe('pivotStucGratuidadeRows', () => {
   it('com uma única linha, preenche a 1ª posição com o valor e as demais da janela com 0 na data real do dia', () => {

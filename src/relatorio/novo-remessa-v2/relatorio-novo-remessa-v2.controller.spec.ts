@@ -4,7 +4,7 @@ import { join } from 'path';
 import { PassThrough } from 'stream';
 import { GUARDS_METADATA } from '@nestjs/common/constants';
 import { Test, TestingModule } from '@nestjs/testing';
-import { RelatorioNovoRemessaV2Controller } from './relatorio-novo-remessa-v2.controller';
+import { normalizarSelecao, RelatorioNovoRemessaV2Controller } from './relatorio-novo-remessa-v2.controller';
 import { FinancialMovementV2SummaryService } from '../movimentacao-financeira-v2/summary/financial-movement-v2-summary.service';
 import { FinancialMovementV2ExportService } from '../movimentacao-financeira-v2/export/financial-movement-v2-export.service';
 import { RelatorioNovoRemessaFinancialMovementService } from '../movimentacao-financeira/relatorio-novo-remessa-financial-movement.service';
@@ -208,8 +208,9 @@ describe('RelatorioNovoRemessaV2Controller', () => {
     await controller.getFinancialMovementSummaryV2(query);
     await controller.getFinancialMovementPageV2(query);
 
-    expect(legado.findFinancialMovementSummary).toHaveBeenCalledWith(query);
-    expect(legado.findFinancialMovementPage).toHaveBeenCalledWith(query);
+    // Sem favorecido nem consorcio, a selecao vira "todos os consorcios" (normalizarSelecao).
+    expect(legado.findFinancialMovementSummary).toHaveBeenCalledWith({ ...query, userIds: undefined, todosConsorcios: true });
+    expect(legado.findFinancialMovementPage).toHaveBeenCalledWith({ ...query, userIds: undefined, todosConsorcios: true });
     expect(summaryService.findSummary).not.toHaveBeenCalled();
   });
 
@@ -253,5 +254,32 @@ describe('RelatorioNovoRemessaV2Controller', () => {
       expect(response.status).toHaveBeenCalledWith(504);
       expect(response.json).toHaveBeenCalledWith({ error: RELATORIO_TIMEOUT_MESSAGE });
     });
+  });
+});
+
+describe('normalizarSelecao (mesma selecao do Consolidado)', () => {
+  it('sem favorecido nem consorcio: vale como todos os consorcios', () => {
+    expect(normalizarSelecao('permissionario', {})).toEqual({ userIds: undefined, todosConsorcios: true });
+  });
+
+  it('todos os favorecidos tem prioridade sobre um favorecido escolhido', () => {
+    expect(normalizarSelecao('permissionario', { todosVanzeiros: true, userIds: [7] })).toEqual({ todosVanzeiros: true, userIds: undefined });
+  });
+
+  it('todos os favorecidos + consorcio sem modais: inclui os individuais de modal', () => {
+    expect(normalizarSelecao('permissionario', { todosVanzeiros: true, consorcioNome: ['Internorte'] }).consorcioNome).toEqual(['Internorte', 'STPC', 'STPL', 'TEC']);
+  });
+
+  it('todos os favorecidos + consorcio que ja cobre os modais: mantem o consorcio', () => {
+    expect(normalizarSelecao('permissionario', { todosVanzeiros: true, consorcioNome: ['stpc'] }).consorcioNome).toEqual(['stpc']);
+  });
+
+  it('favorecido especifico + consorcio: mantem os dois', () => {
+    expect(normalizarSelecao('permissionario', { userIds: [7], consorcioNome: ['STPL'] })).toEqual({ userIds: [7], consorcioNome: ['STPL'] });
+  });
+
+  it('nao mexe no Guardador', () => {
+    const query = { userIds: [7], todosVanzeiros: true };
+    expect(normalizarSelecao('guardador', query)).toBe(query);
   });
 });
