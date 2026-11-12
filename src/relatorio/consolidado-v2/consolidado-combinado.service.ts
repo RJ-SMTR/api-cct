@@ -3,7 +3,7 @@ import { RelatorioConsolidadoNovoRemessaDto } from '../dtos/relatorio-consolidad
 import { BasePagamentoFilter } from '../movimentacao-financeira-v2/base/base-pagamento.repository';
 import { MODAIS } from '../movimentacao-financeira-v2/status/consorcio-resolver';
 import { ConsorcioAggregatorService } from './consorcio-aggregator.service';
-import { VanzeiroAggregatorService } from './vanzeiro-aggregator.service';
+import { ordenarPorNome, VanzeiroAggregatorService } from './vanzeiro-aggregator.service';
 
 export interface ConsolidadoUniaoOptions {
   userIds?: number[];
@@ -37,7 +37,7 @@ export class ConsolidadoCombinadoService {
     const consorcioCobreModais = Boolean(todosConsorcios) || Boolean(consorcioNome?.some((nome) => MODAIS.includes(nome.trim().toUpperCase())));
     const podeTerDuplicidade = Boolean(todosVanzeiros) && consorcioCobreModais;
     const fonteDoTotal = podeTerDuplicidade ? (consorcios.data.length > 0 ? consorcios : favorecidos) : undefined;
-    const data = [...consorcios.data, ...favorecidos.data].sort((a, b) => a.nomefavorecido.localeCompare(b.nomefavorecido));
+    const data = ordenarPorNome([...consorcios.data, ...favorecidos.data]);
 
     return new RelatorioConsolidadoNovoRemessaDto({
       count: data.length,
