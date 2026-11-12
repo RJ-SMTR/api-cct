@@ -1,5 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import { DataSource } from 'typeorm';
+import { isQueryCanceledError, RelatorioTimeoutError } from '../../utils/relatorio-timeout.error';
 import { StatusPagamento } from '../../enum/statusRemessafinancial-movement';
 import {
   pendenciaAgrupamentoNuncaEnviadoGuardador,
@@ -262,13 +263,57 @@ function resolveFiltroAssociacao(perfil: Perfil, filter: BasePagamentoFilter): {
   return { sql: '', params: [] };
 }
 
+// ADR 0023: report queries stop after this limit (Postgres statement_timeout) instead of holding a
+// connection indefinitely after the user gives up. Overridable by env and, in tests, by the constructor.
+export const DEFAULT_REPORT_STATEMENT_TIMEOUT_MS = 120_000;
+
+export interface BasePagamentoRepositoryOptions {
+  statementTimeoutMs?: number;
+}
+
+export function resolveReportStatementTimeoutMs(value: unknown): number {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : DEFAULT_REPORT_STATEMENT_TIMEOUT_MS;
+}
+
 @Injectable()
 export class BasePagamentoRepository {
-  constructor(private readonly dataSource: DataSource) {}
+  private readonly statementTimeoutMs: number;
+
+  // The options argument is not injected by Nest (only DataSource is); specs build the repository directly.
+  constructor(
+    private readonly dataSource: DataSource,
+    @Optional() options?: BasePagamentoRepositoryOptions,
+  ) {
+    this.statementTimeoutMs = resolveReportStatementTimeoutMs(options?.statementTimeoutMs ?? process.env.RELATORIO_STATEMENT_TIMEOUT_MS);
+  }
+
+  // Runs a report query in its own read-only transaction with SET LOCAL statement_timeout, so the limit
+  // never outlives the transaction on the pooled connection. SET cannot take a bind parameter: the value is
+  // an integer validated by resolveReportStatementTimeoutMs.
+  async runReportQuery<T = any>(sql: string, params: unknown[]): Promise<T[]> {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    try {
+      await queryRunner.query('START TRANSACTION READ ONLY');
+      await queryRunner.query(`SET LOCAL statement_timeout = ${this.statementTimeoutMs}`);
+      const rows: T[] = await queryRunner.query(sql, params);
+      await queryRunner.query('COMMIT');
+      return rows;
+    } catch (error) {
+      await queryRunner.query('ROLLBACK').catch(() => undefined);
+      if (isQueryCanceledError(error)) {
+        throw new RelatorioTimeoutError(this.statementTimeoutMs);
+      }
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
+  }
 
   async findGroupedRows(perfil: Perfil, filter: BasePagamentoFilter): Promise<BasePagamentoRow[]> {
     const { sql, params } = this.buildCombinadoSql(perfil, filter);
-    return this.dataSource.query(`${sql}\n      ORDER BY ${CURSOR_ORDER_BY}`, params);
+    return this.runReportQuery(`${sql}\n      ORDER BY ${CURSOR_ORDER_BY}`, params);
   }
 
   // Keyset-cursor pagination (T4, AC-19/ADR 0002) over the same "combinado" result as
@@ -305,7 +350,7 @@ export class BasePagamentoRepository {
       LIMIT $${base + 7}
     `;
 
-    const rows: BasePagamentoRow[] = await this.dataSource.query(pagedSql, [
+    const rows: BasePagamentoRow[] = await this.runReportQuery(pagedSql, [
       ...params,
       cursor?.dataReferencia ?? null,
       cursor?.nomes ?? null,
@@ -601,7 +646,7 @@ export class BasePagamentoRepository {
       ORDER BY "dataReferencia", nomes
     `;
 
-    return this.dataSource.query(sql, [
+    return this.runReportQuery(sql, [
       filter.dataInicio,
       filter.dataFim,
       filter.statuses?.length ? filter.statuses : null,
