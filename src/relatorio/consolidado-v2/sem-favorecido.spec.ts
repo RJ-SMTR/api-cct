@@ -18,7 +18,20 @@ const row = (nomes: string | null, valor: string, cpfCnpj: string | null = '1111
 });
 
 const linhas = [row('FAVORECIDO', '100'), row(null, '40', null), row(null, '2', null)];
-const repository = { findGroupedRows: jest.fn().mockResolvedValue(linhas), findEleicaoRows: jest.fn().mockResolvedValue(linhas) } as unknown as BasePagamentoRepository;
+// Same grouping BasePagamentoRepository.findTotaisPorFavorecido does in SQL (ADR 0023), over the fake rows.
+const totaisPorFavorecido = (rows: BasePagamentoRow[]) => {
+  const grupos = new Map<string, { nome: string; cpfCnpj: string | null; valor: number; valorAPagar: number }>();
+  for (const r of rows.filter((linha) => linha.nomes !== null)) {
+    const grupo = grupos.get(r.nomes) ?? { nome: r.nomes, cpfCnpj: r.cpfCnpj, valor: 0, valorAPagar: 0 };
+    grupo.valor += Number(r.valor);
+    grupo.valorAPagar += r.status === StatusPagamento.A_PAGAR ? Number(r.valor) : 0;
+    grupos.set(r.nomes, grupo);
+  }
+  const valorSemFavorecido = rows.filter((linha) => linha.nomes === null).reduce((total, linha) => total + Number(linha.valor), 0);
+  return { grupos: [...grupos.values()], valorSemFavorecido };
+};
+
+const repository = { findGroupedRows: jest.fn().mockResolvedValue(linhas), findTotaisPorFavorecido: jest.fn().mockResolvedValue(totaisPorFavorecido(linhas)), findEleicaoRows: jest.fn().mockResolvedValue(linhas) } as unknown as BasePagamentoRepository;
 const periodo = { dataInicio: new Date('2098-01-10'), dataFim: new Date('2098-01-10') };
 
 describe('ordens sem favorecido', () => {

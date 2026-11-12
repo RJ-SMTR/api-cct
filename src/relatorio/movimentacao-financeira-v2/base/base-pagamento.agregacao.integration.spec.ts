@@ -12,7 +12,8 @@ import { TypeOrmConfigService } from 'src/database/typeorm-config.service';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { StatusPagamento } from '../../enum/statusRemessafinancial-movement';
 import { buildSummaryFromRows } from '../export/financial-movement-v2-export.service';
-import { BasePagamentoFilter, BasePagamentoRepository, Perfil } from './base-pagamento.repository';
+import { BasePagamentoFilter, BasePagamentoRepository, BasePagamentoRow, Perfil } from './base-pagamento.repository';
+import { VanzeiroAggregatorService } from '../../consolidado-v2/vanzeiro-aggregator.service';
 
 const RUN = Boolean(process.env.RUN_RETORNO_DB_TESTS);
 const suite = RUN ? describe : describe.skip;
@@ -31,6 +32,27 @@ function expectSameSummary(actual: Record<string, unknown>, expected: Record<str
   for (const key of Object.keys(expected)) {
     expect([key, Number(actual[key])]).toEqual([key, expect.closeTo(Number(expected[key]), 2)]);
   }
+}
+
+// Reference: the in-memory Consolidado-by-favorecido algorithm that T5 replaces (VanzeiroAggregatorService before
+// ADR 0023), kept here verbatim so the database version is compared against it.
+function agregarPorFavorecidoEmMemoria(allRows: BasePagamentoRow[], valorMin?: number, valorMax?: number, somenteIndividuais?: boolean) {
+  const comFavorecido = allRows.filter((row) => row.nomes !== null);
+  const rows = somenteIndividuais ? comFavorecido.filter((row) => row.cpfCnpj && row.cpfCnpj.length <= 11) : comFavorecido;
+  const valorSemFavorecido = allRows.filter((row) => row.nomes === null).reduce((total, row) => total + Number(row.valor), 0);
+  const totais = new Map<string, { nome: string; cpfCnpj: string | null; valor: number }>();
+  for (const row of rows) {
+    const existente = totais.get(row.nomes);
+    if (existente) existente.valor += Number(row.valor);
+    else totais.set(row.nomes, { nome: row.nomes, cpfCnpj: row.cpfCnpj, valor: Number(row.valor) });
+  }
+  const filtrados = [...totais.values()].filter((f) => !(valorMin !== undefined && f.valor < valorMin) && !(valorMax !== undefined && f.valor > valorMax));
+  const nomes = new Set(filtrados.map((f) => f.nome));
+  const valorAPagar = rows.filter((row) => row.status === StatusPagamento.A_PAGAR && nomes.has(row.nomes)).reduce((t, row) => t + Number(row.valor), 0);
+  const data = filtrados
+    .map((f) => ({ nomefavorecido: f.nome, cpfCnpj: f.cpfCnpj, valor: f.valor }))
+    .sort((a, b) => a.nomefavorecido.localeCompare(b.nomefavorecido, 'pt-BR'));
+  return { count: data.length, valor: data.reduce((t, f) => t + f.valor, 0), valorAPagar, valorSemFavorecido, data };
 }
 
 suite('BasePagamentoRepository database aggregation parity (PostgreSQL)', () => {
@@ -195,6 +217,47 @@ suite('BasePagamentoRepository database aggregation parity (PostgreSQL)', () => 
       const noBanco = await repository.findSummaryTotals('permissionario', filter);
 
       expectSameSummary({ ...noBanco }, { ...buildSummaryFromRows([]) });
+    });
+  });
+
+  describe('VanzeiroAggregatorService no banco (T5)', () => {
+    const casosFavorecido: [string, Perfil, Partial<BasePagamentoFilter>, boolean][] = [
+      ['permissionario, todos os favorecidos (so pessoas fisicas)', 'permissionario', {}, true],
+      ['permissionario, sem recorte de pessoa fisica', 'permissionario', {}, false],
+      ['permissionario, todos os consorcios por favorecido', 'permissionario', { todosConsorcios: true }, false],
+      ['permissionario, favorecido especifico', 'permissionario', { userIds: [U_STPC_A] }, false],
+      ['permissionario, so A Pagar', 'permissionario', { statuses: [StatusPagamento.A_PAGAR] }, false],
+      ['permissionario, valor minimo sobre o total do favorecido', 'permissionario', { valorMin: 300 }, false],
+      ['permissionario, valor maximo sobre o total do favorecido', 'permissionario', { todosConsorcios: true, valorMax: 500 }, false],
+      ['guardador, sem filtro', 'guardador', {}, false],
+      ['guardador, valor maximo', 'guardador', { valorMax: 100 }, false],
+    ];
+
+    it.each(casosFavorecido)('%s', async (_nome, perfil, extra, somenteIndividuais) => {
+      const aggregator = new VanzeiroAggregatorService(repository);
+      const { valorMin, valorMax, ...semValor } = { ...PERIODO, ...extra } as BasePagamentoFilter;
+
+      const [linhas, noBanco] = await Promise.all([
+        repository.findGroupedRows(perfil, semValor),
+        aggregator.aggregate({ ...PERIODO, ...extra } as BasePagamentoFilter, perfil, { somenteIndividuais }),
+      ]);
+      const emMemoria = agregarPorFavorecidoEmMemoria(linhas, valorMin, valorMax, somenteIndividuais);
+
+      expect(noBanco.count).toBe(emMemoria.count);
+      expect(noBanco.valor).toBeCloseTo(emMemoria.valor, 2);
+      expect(noBanco.valorAPagar).toBeCloseTo(emMemoria.valorAPagar, 2);
+      expect(noBanco.valorSemFavorecido).toBeCloseTo(emMemoria.valorSemFavorecido, 2);
+      expect(noBanco.data.map((d) => [d.nomefavorecido, d.cpfCnpj, Number(d.valor.toFixed(2))])).toEqual(
+        emMemoria.data.map((d) => [d.nomefavorecido, d.cpfCnpj, Number(d.valor.toFixed(2))]),
+      );
+    });
+
+    it('does not load every row of the period (aggregates in the database)', async () => {
+      const spy = jest.spyOn(repository, 'findGroupedRows');
+      await new VanzeiroAggregatorService(repository).aggregate({ ...PERIODO }, 'permissionario');
+
+      expect(spy).not.toHaveBeenCalled();
+      spy.mockRestore();
     });
   });
 });
