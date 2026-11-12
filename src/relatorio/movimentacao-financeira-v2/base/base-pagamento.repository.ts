@@ -49,6 +49,20 @@ export interface BasePagamentoRow {
   chaveLinha?: string;
 }
 
+// Totals by status bucket, same shape as RelatorioFinancialMovementNovoRemessaSummaryDto.
+export interface BasePagamentoSummaryTotals {
+  count: number;
+  valorTotal: number;
+  valorPago: number;
+  valorRejeitado: number;
+  valorEstornado: number;
+  valorAguardandoPagamento: number;
+  valorAPagar: number;
+  valorPendente: number;
+  valorPendenciaPaga: number;
+  valorSemFavorecido: number;
+}
+
 // Keyset cursor (T4, AC-19/ADR 0002): every field of BasePagamentoRow doubles as a
 // tie-breaker, in the exact order used by CURSOR_ORDER_BY/CURSOR_TUPLE_COMPARE below - not
 // opaque to the frontend (ADR 0021 decision 6), same as the legacy Guardador cursor shape. Not
@@ -314,6 +328,33 @@ export class BasePagamentoRepository {
   async findGroupedRows(perfil: Perfil, filter: BasePagamentoFilter): Promise<BasePagamentoRow[]> {
     const { sql, params } = this.buildCombinadoSql(perfil, filter);
     return this.runReportQuery(`${sql}\n      ORDER BY ${CURSOR_ORDER_BY}`, params);
+  }
+
+  // Summary totals by status bucket computed in Postgres (ADR 0023): same result as summing the rows of
+  // findGroupedRows in JS (buildSummaryFromRows), without bringing tens of thousands of rows to Node. Rows
+  // without favorecido stay out of count/valorTotal and only feed valorSemFavorecido.
+  async findSummaryTotals(perfil: Perfil, filter: BasePagamentoFilter): Promise<BasePagamentoSummaryTotals> {
+    const { sql, params } = this.buildCombinadoSql(perfil, filter);
+    const somaPorStatus = (status: StatusPagamento) =>
+      `COALESCE(SUM(valor) FILTER (WHERE nomes IS NOT NULL AND status = '${status}'), 0)::float8`;
+    const [totais] = await this.runReportQuery<BasePagamentoSummaryTotals>(
+      `
+      SELECT
+        COUNT(*) FILTER (WHERE nomes IS NOT NULL)::int AS count,
+        COALESCE(SUM(valor) FILTER (WHERE nomes IS NOT NULL), 0)::float8 AS "valorTotal",
+        ${somaPorStatus(StatusPagamento.PAGO)} AS "valorPago",
+        ${somaPorStatus(StatusPagamento.ERRO_REJEITADO)} AS "valorRejeitado",
+        ${somaPorStatus(StatusPagamento.ERRO_ESTORNO)} AS "valorEstornado",
+        ${somaPorStatus(StatusPagamento.AGUARDANDO_PAGAMENTO)} AS "valorAguardandoPagamento",
+        ${somaPorStatus(StatusPagamento.A_PAGAR)} AS "valorAPagar",
+        ${somaPorStatus(StatusPagamento.PENDENTES)} AS "valorPendente",
+        ${somaPorStatus(StatusPagamento.PENDENCIA_PAGA)} AS "valorPendenciaPaga",
+        COALESCE(SUM(valor) FILTER (WHERE nomes IS NULL), 0)::float8 AS "valorSemFavorecido"
+      FROM (${sql}) linhas
+      `,
+      params,
+    );
+    return totais;
   }
 
   // Keyset-cursor pagination (T4, AC-19/ADR 0002) over the same "combinado" result as
