@@ -325,4 +325,26 @@ suite('BasePagamentoRepository database aggregation parity (PostgreSQL)', () => 
       spy.mockRestore();
     });
   });
+
+  describe('Consolidado de Guardador por status em uma consulta (T11)', () => {
+    const STATUS = [StatusPagamento.PAGO, StatusPagamento.A_PAGAR, StatusPagamento.AGUARDANDO_PAGAMENTO, StatusPagamento.PENDENCIA_PAGA, StatusPagamento.ERRO_REJEITADO, StatusPagamento.ERRO_ESTORNO];
+
+    it.each([
+      ['guardador, todos os status', 'guardador' as Perfil, {}],
+      ['guardador, todos os status com valor maximo', 'guardador' as Perfil, { valorMax: 100 }],
+      ['permissionario, todos os status', 'permissionario' as Perfil, {}],
+    ])('%s: one query gives the same blocks as one query per status', async (_nome, perfil, extra) => {
+      const aggregator = new VanzeiroAggregatorService(repository);
+
+      const umaConsulta = await aggregator.aggregatePorStatus({ ...PERIODO, ...extra, statuses: STATUS } as BasePagamentoFilter, perfil);
+      const porStatus = await Promise.all(STATUS.map((status) => aggregator.aggregate({ ...PERIODO, ...extra, statuses: [status] } as BasePagamentoFilter, perfil)));
+
+      expect(umaConsulta.map((bloco) => bloco.status)).toEqual(STATUS);
+      umaConsulta.forEach((bloco, i) => {
+        expect(bloco.count).toBe(porStatus[i].count);
+        expect(bloco.valor).toBeCloseTo(porStatus[i].valor, 2);
+        expect(bloco.data.map((d) => [d.nomefavorecido, Number(d.valor.toFixed(2))])).toEqual(porStatus[i].data.map((d) => [d.nomefavorecido, Number(d.valor.toFixed(2))]));
+      });
+    });
+  });
 });

@@ -195,6 +195,7 @@ export class ConsolidadoV2Controller {
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'))
   @ApiQuery({ name: 'userIds', description: 'Pesquisa o id dos usuários.', required: false, type: [Number] })
+  @ApiQuery({ name: 'porStatus', description: 'Um bloco por status selecionado, em uma consulta (ADR 0023).', required: false, type: Boolean })
   @Get('guardador/consolidado')
   async getGuardadorConsolidado(
     @Query('dataInicio', new ParseDatePipe({ dateOnly: true }))
@@ -221,6 +222,7 @@ export class ConsolidadoV2Controller {
     @Query('pendenciaPaga', new ParseBooleanPipe({ optional: true })) pendenciaPaga: boolean | undefined,
     @Query('stucGratuidade', new ParseBooleanPipe({ optional: true })) stucGratuidade: boolean | undefined,
     @Query('erro', new ParseBooleanPipe({ optional: true })) erro: boolean | undefined,
+    @Query('porStatus', new ParseBooleanPipe({ optional: true })) porStatus: boolean | undefined,
   ) {
     try {
       // Guardador nao tem visao por consorcio, Eleicao nem STUC-Gratuidade (PRD, AC-8/AC-9): erro
@@ -246,6 +248,12 @@ export class ConsolidadoV2Controller {
         todosConsorcios,
         desativados,
       };
+
+      // ADR 0023 (T11): porStatus answers one block per selected status from a single query; the screen used to
+      // send one request per status.
+      if (porStatus && filter.statuses?.length) {
+        return await this.vanzeiroAggregatorService.aggregatePorStatus(filter, 'guardador');
+      }
 
       return await this.vanzeiroAggregatorService.aggregate(filter, 'guardador');
     } catch (e) {

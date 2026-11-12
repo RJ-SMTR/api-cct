@@ -395,6 +395,29 @@ export class BasePagamentoRepository {
     };
   }
 
+  // Consolidado by favorecido and status in one query (ADR 0023, T11): the Guardador screen shows one block per
+  // status and used to send one request per status, each running the whole combined query.
+  async findTotaisPorFavorecidoEStatus(
+    perfil: Perfil,
+    filter: BasePagamentoFilter,
+  ): Promise<(BasePagamentoTotalPorGrupo & { nome: string; status: StatusPagamento })[]> {
+    const { sql, params } = this.buildCombinadoSql(perfil, filter);
+    return this.runReportQuery(
+      `
+      SELECT
+        nomes AS nome,
+        status,
+        (array_agg("cpfCnpj" ORDER BY ${CURSOR_ORDER_BY}))[1] AS "cpfCnpj",
+        SUM(valor)::float8 AS valor,
+        COALESCE(SUM(valor) FILTER (WHERE status = '${StatusPagamento.A_PAGAR}'), 0)::float8 AS "valorAPagar"
+      FROM (${sql}) linhas
+      WHERE nomes IS NOT NULL
+      GROUP BY nomes, status
+      `,
+      params,
+    );
+  }
+
   // Consolidado by consorcio computed in Postgres (ADR 0023), Permissionario only: one row per "nomeConsorcio"
   // among rows with favorecido, same grouping ConsorcioAggregatorService used to do in JS. Rows with favorecido
   // but no resolved consorcio stay out; the value without favorecido is summed over every row of the filter.
@@ -506,6 +529,10 @@ export class BasePagamentoRepository {
     // nao muda entre paginas.
     const temFiltroConsorcio = perfil === 'permissionario' && (Boolean(filter.consorcioNome?.length) || Boolean(filter.todosConsorcios));
     const chaveDoTotal = temFiltroConsorcio ? '"nomeConsorcio"' : 'nomes';
+    // ADR 0023 (T9): the per-group total only matters for valorMin/valorMax. Without them, skip the window
+    // function, which forces Postgres to sort and partition every row of the period.
+    const temFiltroValor = filter.valorMin != null || filter.valorMax != null;
+    const totalDoGrupo = temFiltroValor ? `SUM(valor) FILTER (WHERE nomes IS NOT NULL) OVER (PARTITION BY ${chaveDoTotal})` : 'NULL::numeric';
 
     const sql = `
       WITH ${ASSOCIACAO_CTE[perfil]} agrupada AS (
@@ -649,7 +676,7 @@ export class BasePagamentoRepository {
       ),
       filtrado AS (
         SELECT "dataReferencia", nomes, "cpfCnpj", "nomeConsorcio", valor, status, "chaveLinha",
-          SUM(valor) FILTER (WHERE nomes IS NOT NULL) OVER (PARTITION BY ${chaveDoTotal}) AS "totalDoGrupo"
+          ${totalDoGrupo} AS "totalDoGrupo"
         FROM combinado
         WHERE ($3::text[] IS NULL OR status = ANY($3))
           -- Um lote rejeitado elegivel vem de pendencia_pagamento e de pendentes: conta uma vez so.

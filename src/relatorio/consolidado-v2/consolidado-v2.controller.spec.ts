@@ -23,7 +23,7 @@ describe('ConsolidadoV2Controller', () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [ConsolidadoV2Controller],
       providers: [
-        { provide: VanzeiroAggregatorService, useValue: { aggregate: jest.fn().mockResolvedValue({ count: 0, valor: 0, valorAPagar: 0, data: [] }) } },
+        { provide: VanzeiroAggregatorService, useValue: { aggregate: jest.fn().mockResolvedValue({ count: 0, valor: 0, valorAPagar: 0, data: [] }), aggregatePorStatus: jest.fn().mockResolvedValue([]) } },
         { provide: ConsorcioAggregatorService, useValue: { aggregate: jest.fn().mockResolvedValue({ count: 0, valor: 0, valorAPagar: 0, data: [] }) } },
         { provide: EleicaoAggregatorService, useValue: { aggregateByFavorecido: jest.fn().mockResolvedValue({ count: 0, valor: 0, valorAPagar: 0, data: [] }), aggregateByConsorcio: jest.fn().mockResolvedValue({ count: 0, valor: 0, valorAPagar: 0, data: [] }) } },
         { provide: StucGratuidadeAggregatorService, useValue: { aggregate: jest.fn().mockResolvedValue({ count: 0, valor: 0, valorAPagar: 0, data: [] }) } },
@@ -379,6 +379,31 @@ describe('ConsolidadoV2Controller', () => {
       jest.spyOn(vanzeiroAggregatorService, 'aggregate').mockRejectedValue(original);
 
       await expect(callController()).rejects.toBe(original);
+    });
+  });
+
+  // ADR 0023 (T11): porStatus answers every selected status from one aggregation call.
+  describe('getGuardadorConsolidado porStatus', () => {
+    const chamar = (args: Record<string, unknown>) => {
+      const ordem = ['userIds', 'consorcioNome', 'valorMin', 'valorMax', 'pago', 'aPagar', 'emProcessamento', 'todosConsorcios', 'eleicao', 'desativados', 'pendentes', 'rejeitado', 'estorno', 'pendenciaPaga', 'stucGratuidade', 'erro', 'porStatus'];
+      return (controller.getGuardadorConsolidado as (...a: unknown[]) => Promise<unknown>).call(controller, dataInicio, dataFim, ...ordem.map((k) => args[k]));
+    };
+
+    it('uses aggregatePorStatus with every selected status when porStatus is set', async () => {
+      await chamar({ pago: true, aPagar: true, estorno: true, porStatus: true });
+
+      expect(vanzeiroAggregatorService.aggregatePorStatus).toHaveBeenCalledWith(
+        expect.objectContaining({ statuses: [StatusPagamento.PAGO, StatusPagamento.A_PAGAR, StatusPagamento.ERRO_ESTORNO] }),
+        'guardador',
+      );
+      expect(vanzeiroAggregatorService.aggregate).not.toHaveBeenCalled();
+    });
+
+    it('keeps the single aggregate without porStatus', async () => {
+      await chamar({ pago: true });
+
+      expect(vanzeiroAggregatorService.aggregate).toHaveBeenCalled();
+      expect(vanzeiroAggregatorService.aggregatePorStatus).not.toHaveBeenCalled();
     });
   });
 });
