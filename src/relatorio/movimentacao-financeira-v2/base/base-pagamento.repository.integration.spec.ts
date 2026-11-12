@@ -1822,6 +1822,16 @@ suite('BasePagamentoRepository (PostgreSQL)', () => {
       expect(rows.reduce((total, r) => total + Number(r.valor), 0)).toBe(233);
     });
 
+    // ADR 0023 (T10): sem Pendentes no filtro, o lote rejeitado elegivel continua aparecendo como Rejeitado.
+    it('keeps an eligible rejected lot as Rejeitado when Pendentes is not selected', async () => {
+      await seedT6User();
+      await seedPermissionarioRejeitado('AR', 234);
+
+      const rows = await repository.findGroupedRows('permissionario', { ...wideFilterWindow(), userIds: [T6_USER_ID], statuses: [StatusPagamento.ERRO_REJEITADO] });
+
+      expect(rows.map((r) => [r.status, Number(r.valor)])).toEqual([[StatusPagamento.ERRO_REJEITADO, 234]]);
+    });
+
     // Behavior 3 (permissionario): mesma rejeicao, mas com motivo em AM/00/BD (nao e' rejeicao
     // real) -> NAO aparece em Pendentes.
     it('a rejected order whose reason IS in AM/00/BD does NOT appear as Pendentes, for Permissionario', async () => {
