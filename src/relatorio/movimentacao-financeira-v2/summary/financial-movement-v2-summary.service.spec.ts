@@ -126,6 +126,27 @@ describe('FinancialMovementV2SummaryService', () => {
       expect(basePagamentoRepository.findGroupedRowsPage).toHaveBeenCalledWith('permissionario', expect.objectContaining(baseFilter), 10, undefined);
     });
 
+    // ADR 0023 (T4): the summary is computed once, on the first page (no cursor); later pages bring only rows.
+    it('computes the summary on the first page (no cursor)', async () => {
+      (basePagamentoRepository.findSummaryTotals as jest.Mock).mockResolvedValue({ count: 3, valorTotal: 30 });
+
+      const page = await service.findPage('permissionario', baseFilter);
+
+      expect(basePagamentoRepository.findSummaryTotals).toHaveBeenCalledWith('permissionario', expect.objectContaining(baseFilter));
+      expect(page.count).toBe(3);
+      expect(page.valorTotal).toBe(30);
+    });
+
+    it('skips the summary on later pages (with cursor) and leaves its fields out', async () => {
+      const page = await service.findPage('guardador', { ...baseFilter, cursorDataReferencia: '2026-04-02', cursorStatus: 'Pago' });
+
+      expect(basePagamentoRepository.findSummaryTotals).not.toHaveBeenCalled();
+      expect(basePagamentoRepository.findGroupedRowsPage).toHaveBeenCalledWith('guardador', expect.anything(), 50, expect.objectContaining({ dataReferencia: '2026-04-02' }));
+      expect(page).not.toHaveProperty('count');
+      expect(page).not.toHaveProperty('valorTotal');
+      expect(page).toEqual(expect.objectContaining({ currentPage: 1, pageSize: 50, data: [], nextCursor: null }));
+    });
+
     it('defaults page/pageSize when not provided (edge case: minimal filter)', async () => {
       const page = await service.findPage('permissionario', baseFilter);
 
