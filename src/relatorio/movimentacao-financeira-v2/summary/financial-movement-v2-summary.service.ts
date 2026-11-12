@@ -54,8 +54,8 @@ export class FinancialMovementV2SummaryService {
       const rows = await this.basePagamentoRepository.findEleicaoRows(filter);
       return buildSummaryFromRows(rows);
     }
-    const rows = await this.basePagamentoRepository.findGroupedRows(perfil, filter);
-    return buildSummaryFromRows(rows);
+    // ADR 0023: totals computed in Postgres instead of loading every row of the period.
+    return new RelatorioFinancialMovementNovoRemessaSummaryDto(await this.basePagamentoRepository.findSummaryTotals(perfil, filter));
   }
 
   async findPage(perfil: Perfil, filter: FinancialMovementV2Filter): Promise<RelatorioFinancialMovementNovoRemessaPageDto> {

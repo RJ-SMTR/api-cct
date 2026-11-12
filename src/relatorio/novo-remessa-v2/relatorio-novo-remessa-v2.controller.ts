@@ -14,6 +14,7 @@ import { FinancialMovementV2ExportService } from '../movimentacao-financeira-v2/
 import { mapQueryToFinancialMovementV2Filter } from '../movimentacao-financeira-v2/summary/financial-movement-v2-query.mapper';
 import { RelatorioNovoRemessaFinancialMovementService } from '../movimentacao-financeira/relatorio-novo-remessa-financial-movement.service';
 import { MODAIS } from '../movimentacao-financeira-v2/status/consorcio-resolver';
+import { relatorioTimeoutHttpException, RelatorioTimeoutError } from '../utils/relatorio-timeout.error';
 
 // Perfil nao e' importado do repository (ESLint bloqueia controller -> repository direto,
 // "Controllers must go through a service") - mesmo literal usado por BasePagamentoRepository.
@@ -137,6 +138,9 @@ export class RelatorioNovoRemessaV2Controller {
       }
       return await this.financialMovementV2SummaryService.findSummary(perfil, mapQueryToFinancialMovementV2Filter(queryParams));
     } catch (e) {
+      if (e instanceof RelatorioTimeoutError) {
+        throw relatorioTimeoutHttpException();
+      }
       throw new HttpException({ error: e.message }, HttpStatus.BAD_REQUEST);
     }
   }
@@ -149,6 +153,9 @@ export class RelatorioNovoRemessaV2Controller {
       }
       return await this.financialMovementV2SummaryService.findPage(perfil, mapQueryToFinancialMovementV2Filter(queryParams));
     } catch (e) {
+      if (e instanceof RelatorioTimeoutError) {
+        throw relatorioTimeoutHttpException();
+      }
       throw new HttpException({ error: e.message }, HttpStatus.BAD_REQUEST);
     }
   }
@@ -172,7 +179,7 @@ export class RelatorioNovoRemessaV2Controller {
       await pipeline(createReadStream(file.filePath), response);
     } catch (e) {
       if (!response.headersSent) {
-        response.status(HttpStatus.BAD_REQUEST).json({ error: e.message });
+        response.status(e instanceof RelatorioTimeoutError ? HttpStatus.GATEWAY_TIMEOUT : HttpStatus.BAD_REQUEST).json({ error: e.message });
       }
     } finally {
       if (generatedFile) {
