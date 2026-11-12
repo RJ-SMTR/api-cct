@@ -8,17 +8,17 @@ describe('RemessaService - indevido no preparo dos pagamentos', () => {
   const build = (extra: Record<string, any> = {}) => {
     const salvos: any[] = [];
     const pagamentoIndevidoService = {
-      findByNome: jest.fn(async (nome: string) => [{ nome, saldoDevedor: 150, dataReferencia: null }]),
-      save: jest.fn(async (p: any) => { salvos.push({ ...p }); }),
+      findByNome: jest.fn((nome: string) => Promise.resolve([{ nome, saldoDevedor: 150, dataReferencia: null }])),
+      save: jest.fn((p: any) => { salvos.push({ ...p }); return Promise.resolve(); }),
     };
     const detalheAService = {
       existsDetalheA: jest.fn().mockResolvedValue([]),
       getNextNumeroDocumento: jest.fn().mockResolvedValue(1),
-      save: jest.fn(async (d: any) => ({ ...d, id: 1 })),
+      save: jest.fn((d: any) => Promise.resolve({ ...d, id: 1 })),
       ...extra,
     };
     const service = new RemessaService(
-      { getHistoricoUnico: jest.fn() } as any, {} as any, {} as any, detalheAService as any, { findDetalheBDetalheAId: jest.fn().mockResolvedValue(null), save: jest.fn(async (d: any) => d) } as any,
+      { getHistoricoUnico: jest.fn() } as any, {} as any, {} as any, detalheAService as any, { findDetalheBDetalheAId: jest.fn().mockResolvedValue(null), save: jest.fn((d: any) => Promise.resolve(d)) } as any,
       {} as any, {} as any, {} as any, {} as any, pagamentoIndevidoService as any,
     );
     return { service, pagamentoIndevidoService, detalheAService, salvos };
