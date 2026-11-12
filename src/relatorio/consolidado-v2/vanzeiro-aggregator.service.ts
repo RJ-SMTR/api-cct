@@ -1,6 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { RelatorioConsolidadoNovoRemessaData, RelatorioConsolidadoNovoRemessaDto } from '../dtos/relatorio-consolidado-novo-remessa.dto';
+import { StatusPagamento } from '../enum/statusRemessafinancial-movement';
 import { BasePagamentoFilter, BasePagamentoRepository, BasePagamentoRow, Perfil } from '../movimentacao-financeira-v2/base/base-pagamento.repository';
+
+// One Consolidado block per status (T11): same content as aggregate() called with that single status.
+export type ConsolidadoPorStatus = RelatorioConsolidadoNovoRemessaDto & { status: StatusPagamento };
 
 export interface VanzeiroAggregatorOptions {
   // So pessoas fisicas: mesmo recorte de length(operadoraCpfCnpj)<=11 do "todosVanzeiros" legado.
@@ -69,6 +73,32 @@ export class VanzeiroAggregatorService {
       valorAPagar,
       valorSemFavorecido,
       data,
+    });
+  }
+
+  // ADR 0023 (T11): every selected status in one query, one block per status in the order of filter.statuses.
+  // valorMin/valorMax apply to each favorecido's total inside its status block, as when each status was a
+  // separate request.
+  async aggregatePorStatus(filter: BasePagamentoFilter, perfil: Perfil = 'guardador'): Promise<ConsolidadoPorStatus[]> {
+    const { valorMin, valorMax, ...baseFilter } = filter;
+    const linhas = await this.basePagamentoRepository.findTotaisPorFavorecidoEStatus(perfil, baseFilter);
+
+    return (filter.statuses ?? []).map((status) => {
+      const grupos = linhas.filter(
+        (linha) => linha.status === status && !(valorMin !== undefined && linha.valor < valorMin) && !(valorMax !== undefined && linha.valor > valorMax),
+      );
+      const data = ordenarPorNome(
+        grupos.map((grupo) => new RelatorioConsolidadoNovoRemessaData({ valor: grupo.valor, nomefavorecido: grupo.nome, cpfCnpj: grupo.cpfCnpj })),
+      );
+      return Object.assign(
+        new RelatorioConsolidadoNovoRemessaDto({
+          count: data.length,
+          valor: data.reduce((total, item) => total + item.valor, 0),
+          valorAPagar: grupos.reduce((total, grupo) => total + grupo.valorAPagar, 0),
+          data,
+        }),
+        { status },
+      );
     });
   }
 }
