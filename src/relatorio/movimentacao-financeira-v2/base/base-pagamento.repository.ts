@@ -1,4 +1,4 @@
-import { Injectable, Optional } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { isQueryCanceledError, RelatorioTimeoutError } from '../../utils/relatorio-timeout.error';
 import { StatusPagamento } from '../../enum/statusRemessafinancial-movement';
@@ -291,7 +291,12 @@ export const DEFAULT_REPORT_STATEMENT_TIMEOUT_MS = 120_000;
 
 export interface BasePagamentoRepositoryOptions {
   statementTimeoutMs?: number;
+  // T12: extra time the API waits for Postgres to cancel before answering the timeout itself.
+  appTimeoutGraceMs?: number;
 }
+
+// T12: the load balancer cuts the connection at ~180 s; the API answers the 504 well before that.
+export const DEFAULT_REPORT_APP_TIMEOUT_GRACE_MS = 5_000;
 
 export function resolveReportStatementTimeoutMs(value: unknown): number {
   const parsed = Number(value);
@@ -301,6 +306,8 @@ export function resolveReportStatementTimeoutMs(value: unknown): number {
 @Injectable()
 export class BasePagamentoRepository {
   private readonly statementTimeoutMs: number;
+  private readonly appTimeoutGraceMs: number;
+  private readonly logger = new Logger(BasePagamentoRepository.name);
 
   // The options argument is not injected by Nest (only DataSource is); specs build the repository directly.
   constructor(
@@ -308,28 +315,63 @@ export class BasePagamentoRepository {
     @Optional() options?: BasePagamentoRepositoryOptions,
   ) {
     this.statementTimeoutMs = resolveReportStatementTimeoutMs(options?.statementTimeoutMs ?? process.env.RELATORIO_STATEMENT_TIMEOUT_MS);
+    this.appTimeoutGraceMs = options?.appTimeoutGraceMs ?? DEFAULT_REPORT_APP_TIMEOUT_GRACE_MS;
   }
 
   // Runs a report query in its own read-only transaction with SET LOCAL statement_timeout, so the limit
   // never outlives the transaction on the pooled connection. SET cannot take a bind parameter: the value is
   // an integer validated by resolveReportStatementTimeoutMs.
+  //
+  // T12 (ADR 0023): on homolog a 1-year query was cut by the load balancer at ~184 s without the 504, although
+  // Postgres honors the limit. The API keeps its own timer (limit + appTimeoutGraceMs): when it fires, it cancels
+  // the query in Postgres (pg_cancel_backend), logs it and answers RelatorioTimeoutError right away. The
+  // connection is released only when the abandoned query really ends, never while it is still busy.
   async runReportQuery<T = any>(sql: string, params: unknown[]): Promise<T[]> {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
-    try {
-      await queryRunner.query('START TRANSACTION READ ONLY');
-      await queryRunner.query(`SET LOCAL statement_timeout = ${this.statementTimeoutMs}`);
-      const rows: T[] = await queryRunner.query(sql, params);
-      await queryRunner.query('COMMIT');
-      return rows;
-    } catch (error) {
-      await queryRunner.query('ROLLBACK').catch(() => undefined);
-      if (isQueryCanceledError(error)) {
-        throw new RelatorioTimeoutError(this.statementTimeoutMs);
+    const inicio = Date.now();
+    let pid: number | undefined;
+
+    const execucao = (async (): Promise<T[]> => {
+      try {
+        await queryRunner.query('START TRANSACTION READ ONLY');
+        await queryRunner.query(`SET LOCAL statement_timeout = ${this.statementTimeoutMs}`);
+        const [backend] = await queryRunner.query('SELECT pg_backend_pid() AS pid');
+        pid = backend?.pid;
+        const rows: T[] = await queryRunner.query(sql, params);
+        await queryRunner.query('COMMIT');
+        return rows;
+      } catch (error) {
+        await queryRunner.query('ROLLBACK').catch(() => undefined);
+        if (isQueryCanceledError(error)) {
+          this.logger.warn(`Consulta de relatorio cancelada pelo Postgres apos ${Date.now() - inicio} ms (limite ${this.statementTimeoutMs} ms)`);
+          throw new RelatorioTimeoutError(this.statementTimeoutMs);
+        }
+        throw error;
+      } finally {
+        await queryRunner.release();
       }
-      throw error;
+    })();
+
+    let timer: NodeJS.Timeout | undefined;
+    const limiteDaApi = new Promise<never>((_resolve, reject) => {
+      timer = setTimeout(() => {
+        this.logger.warn(
+          `Consulta de relatorio sem resposta apos ${Date.now() - inicio} ms (limite ${this.statementTimeoutMs} ms): cancelando no Postgres (pid ${pid ?? 'desconhecido'})`,
+        );
+        if (pid !== undefined) {
+          this.dataSource.query('SELECT pg_cancel_backend($1)', [pid]).catch(() => undefined);
+        }
+        reject(new RelatorioTimeoutError(this.statementTimeoutMs));
+      }, this.statementTimeoutMs + this.appTimeoutGraceMs);
+    });
+
+    try {
+      return await Promise.race([execucao, limiteDaApi]);
     } finally {
-      await queryRunner.release();
+      clearTimeout(timer);
+      // The abandoned query still settles later; its error must not become an unhandled rejection.
+      execucao.catch(() => undefined);
     }
   }
 
