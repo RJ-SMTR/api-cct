@@ -686,8 +686,10 @@ export class BasePagamentoRepository {
               OR "chaveLinha" LIKE 'pendencia_pagamento_familia:%'
               OR "chaveLinha" LIKE 'pendencia_pagamento_propria:%')
             AND ($3::text[] IS NULL OR '${StatusPagamento.PENDENTES}' = ANY($3))
+            -- ADR 0023 (T10): so a CTE pendentes gera 'pendentes_rejeitado:'; procurar nela, e nao em combinado, evita
+            -- materializar o combinado inteiro (cerca de 195 mil linhas em 1 ano em homologacao) so para esta checagem.
             AND EXISTS (
-              SELECT 1 FROM combinado outra
+              SELECT 1 FROM pendentes outra
               WHERE outra."chaveLinha" = 'pendentes_rejeitado:' || split_part(combinado."chaveLinha", ':', 2)
             )
           )
