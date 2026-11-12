@@ -11,6 +11,7 @@ import { RelatorioNovoRemessaFinancialMovementService } from '../movimentacao-fi
 import { FinancialMovementExportFormat } from '../dtos/financial-movement-export-request.dto';
 import { RolesGuard } from 'src/roles/roles.guard';
 import { RoleEnum } from 'src/roles/roles.enum';
+import { RELATORIO_TIMEOUT_MESSAGE, RelatorioTimeoutError } from '../utils/relatorio-timeout.error';
 
 describe('RelatorioNovoRemessaV2Controller', () => {
   let controller: RelatorioNovoRemessaV2Controller;
@@ -210,5 +211,47 @@ describe('RelatorioNovoRemessaV2Controller', () => {
     expect(legado.findFinancialMovementSummary).toHaveBeenCalledWith(query);
     expect(legado.findFinancialMovementPage).toHaveBeenCalledWith(query);
     expect(summaryService.findSummary).not.toHaveBeenCalled();
+  });
+
+  // ADR 0023 (T2): a report query cancelled by statement_timeout answers 504, never the generic 400.
+  describe('Timeout', () => {
+    const timeoutError = () => new RelatorioTimeoutError(120000);
+
+    it.each([
+      ['getFinancialMovementSummaryV2', 'findSummary'],
+      ['getFinancialMovementPageV2', 'findPage'],
+      ['getGuardadorFinancialMovementSummaryV2', 'findSummary'],
+      ['getGuardadorFinancialMovementPageV2', 'findPage'],
+    ] as const)('%s answers 504 with the timeout message', async (handler, method) => {
+      jest.spyOn(summaryService, method).mockRejectedValue(timeoutError());
+
+      const error = await (controller as any)[handler]({ ...baseQuery }).catch((e: any) => e);
+
+      expect(error.getStatus()).toBe(504);
+      expect(error.getResponse()).toEqual({ error: RELATORIO_TIMEOUT_MESSAGE });
+    });
+
+    it('keeps 400 for errors that are not timeouts', async () => {
+      jest.spyOn(summaryService, 'findPage').mockRejectedValue(new Error('filtro invalido'));
+
+      const error = await controller.getFinancialMovementPageV2({ ...baseQuery }).catch((e: any) => e);
+
+      expect(error.getStatus()).toBe(400);
+      expect(error.getResponse()).toEqual({ error: 'filtro invalido' });
+    });
+
+    it('export answers 504 with the timeout message when headers were not sent', async () => {
+      const response = new PassThrough() as PassThrough & { headersSent: boolean; setHeader: jest.Mock; status: jest.Mock; json: jest.Mock };
+      response.headersSent = false;
+      response.setHeader = jest.fn();
+      response.status = jest.fn().mockReturnThis();
+      response.json = jest.fn();
+      jest.spyOn(exportService, 'downloadFinancialMovementExport').mockRejectedValue(timeoutError());
+
+      await controller.downloadFinancialMovementReportV2({ ...baseQuery, format: FinancialMovementExportFormat.CSV } as any, response as any);
+
+      expect(response.status).toHaveBeenCalledWith(504);
+      expect(response.json).toHaveBeenCalledWith({ error: RELATORIO_TIMEOUT_MESSAGE });
+    });
   });
 });

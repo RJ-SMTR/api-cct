@@ -8,6 +8,7 @@ import { ConsorcioAggregatorService } from './consorcio-aggregator.service';
 import { EleicaoAggregatorService } from './eleicao-aggregator.service';
 import { StucGratuidadeAggregatorService } from './stuc-gratuidade-aggregator.service';
 import { VanzeiroAggregatorService } from './vanzeiro-aggregator.service';
+import { RELATORIO_TIMEOUT_MESSAGE, RelatorioTimeoutError } from '../utils/relatorio-timeout.error';
 
 describe('ConsolidadoV2Controller', () => {
   let controller: ConsolidadoV2Controller;
@@ -317,5 +318,35 @@ describe('ConsolidadoV2Controller', () => {
     await callController({ userIds: [1], todosConsorcios: true, consorcioNome: ['STPC'], ...categoria });
 
     expect(relatorioNovoRemessaService.findConsolidado).toHaveBeenCalledWith(expect.objectContaining({ userIds: [1], consorcioNome: undefined, todosConsorcios: undefined }));
+  });
+
+  // ADR 0023 (T2): a report query cancelled by statement_timeout answers 504 on both Consolidado routes.
+  describe('Timeout', () => {
+    it('getConsolidado answers 504 with the timeout message', async () => {
+      jest.spyOn(vanzeiroAggregatorService, 'aggregate').mockRejectedValue(new RelatorioTimeoutError(120000));
+
+      const error = await callController().catch((e: any) => e);
+
+      expect(error.getStatus()).toBe(504);
+      expect(error.getResponse()).toEqual({ error: RELATORIO_TIMEOUT_MESSAGE });
+    });
+
+    it('getGuardadorConsolidado answers 504 with the timeout message', async () => {
+      jest.spyOn(vanzeiroAggregatorService, 'aggregate').mockRejectedValue(new RelatorioTimeoutError(120000));
+
+      // Only the dates matter here; every other query param is optional.
+      const getGuardadorConsolidado = controller.getGuardadorConsolidado.bind(controller) as (inicio: Date, fim: Date) => Promise<unknown>;
+      const error = await getGuardadorConsolidado(dataInicio, dataFim).catch((e: any) => e);
+
+      expect(error.getStatus()).toBe(504);
+      expect(error.getResponse()).toEqual({ error: RELATORIO_TIMEOUT_MESSAGE });
+    });
+
+    it('rethrows errors that are not timeouts unchanged', async () => {
+      const original = new Error('falha qualquer');
+      jest.spyOn(vanzeiroAggregatorService, 'aggregate').mockRejectedValue(original);
+
+      await expect(callController()).rejects.toBe(original);
+    });
   });
 });

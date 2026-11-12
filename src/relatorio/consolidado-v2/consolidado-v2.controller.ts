@@ -13,6 +13,7 @@ import { EleicaoAggregatorService } from './eleicao-aggregator.service';
 import { StucGratuidadeAggregatorService } from './stuc-gratuidade-aggregator.service';
 import { VanzeiroAggregatorService } from './vanzeiro-aggregator.service';
 import { agruparStucPorFavorecido } from './stuc-por-favorecido';
+import { rethrowRelatorioTimeoutAsHttp } from '../utils/relatorio-timeout.error';
 
 
 interface StatusFlags {
@@ -106,70 +107,74 @@ export class ConsolidadoV2Controller {
     @Query('stucGratuidade', new ParseBooleanPipe({ optional: true })) stucGratuidade: boolean | undefined,
     @Query('erro', new ParseBooleanPipe({ optional: true })) erro: boolean | undefined,
   ) {
-    // STUC-Gratuidade e Eleicao: mesmo resultado da rota v1 (decisao de Rayanne, 2026-11-10), pela
-    // propria implementacao do legado.
-    // Favorecido especifico selecionado: o relatorio traz so ele (regra de Rayanne, 2026-11-10), nunca a
-    // uniao com as linhas de consorcio que o legado fazia.
-    const favorecidoUnico = !todosVanzeiros && Boolean(userIds?.length);
+    try {
+      // STUC-Gratuidade e Eleicao: mesmo resultado da rota v1 (decisao de Rayanne, 2026-11-10), pela
+      // propria implementacao do legado.
+      // Favorecido especifico selecionado: o relatorio traz so ele (regra de Rayanne, 2026-11-10), nunca a
+      // uniao com as linhas de consorcio que o legado fazia.
+      const favorecidoUnico = !todosVanzeiros && Boolean(userIds?.length);
 
-    if (stucGratuidade || eleicao) {
-      const resultado = await this.relatorioNovoRemessaService.findConsolidado({
+      if (stucGratuidade || eleicao) {
+        const resultado = await this.relatorioNovoRemessaService.findConsolidado({
+          dataInicio,
+          dataFim,
+          userIds,
+          consorcioNome: favorecidoUnico ? undefined : consorcioNome,
+          valorMin,
+          valorMax,
+          pago,
+          aPagar,
+          emProcessamento,
+          erro,
+          todosVanzeiros,
+          todosConsorcios: favorecidoUnico ? undefined : todosConsorcios,
+          eleicao,
+          desativados,
+          pendentes,
+          rejeitado,
+          estorno,
+          pendenciaPaga,
+          stucGratuidade,
+        });
+        return stucGratuidade ? agruparStucPorFavorecido(resultado) : resultado;
+      }
+
+      // Como no legado, todosVanzeiros tem prioridade sobre o favorecido especifico.
+      const favorecidos = todosVanzeiros ? undefined : userIds;
+      const temFiltroConsorcio = Boolean(consorcioNome?.length) || Boolean(todosConsorcios);
+
+      const filter = {
         dataInicio,
         dataFim,
-        userIds,
-        consorcioNome: favorecidoUnico ? undefined : consorcioNome,
         valorMin,
         valorMax,
-        pago,
-        aPagar,
-        emProcessamento,
-        erro,
-        todosVanzeiros,
-        todosConsorcios: favorecidoUnico ? undefined : todosConsorcios,
-        eleicao,
+        statuses: mapStatuses({ pago, aPagar, emProcessamento, pendentes, pendenciaPaga, rejeitado, estorno, erro }),
         desativados,
-        pendentes,
-        rejeitado,
-        estorno,
-        pendenciaPaga,
-        stucGratuidade,
-      });
-      return stucGratuidade ? agruparStucPorFavorecido(resultado) : resultado;
+      };
+
+      // Como no legado: so favorecido ou so consorcio selecionado mostra uma visao; os dois juntos, ou
+      // nenhum, unem as visoes de favorecido e de consorcio.
+      // Favorecido especifico: so ele, dentro do filtro de consorcio, como a Movimentacao Financeira.
+      if (favorecidoUnico) {
+        return await this.vanzeiroAggregatorService.aggregate({ ...filter, userIds: favorecidos, consorcioNome, todosConsorcios });
+      }
+
+      const temFiltroFavorecido = Boolean(todosVanzeiros);
+      if (temFiltroConsorcio === temFiltroFavorecido) {
+        return await this.consolidadoCombinadoService.aggregate(
+          filter,
+          temFiltroConsorcio ? { userIds: favorecidos, todosVanzeiros, consorcioNome, todosConsorcios } : undefined,
+        );
+      }
+
+      if (temFiltroConsorcio) {
+        return await this.consorcioAggregatorService.aggregate(filter, { consorcioNome, todosConsorcios });
+      }
+
+      return await this.vanzeiroAggregatorService.aggregate({ ...filter, userIds: favorecidos });
+    } catch (e) {
+      rethrowRelatorioTimeoutAsHttp(e);
     }
-
-    // Como no legado, todosVanzeiros tem prioridade sobre o favorecido especifico.
-    const favorecidos = todosVanzeiros ? undefined : userIds;
-    const temFiltroConsorcio = Boolean(consorcioNome?.length) || Boolean(todosConsorcios);
-
-    const filter = {
-      dataInicio,
-      dataFim,
-      valorMin,
-      valorMax,
-      statuses: mapStatuses({ pago, aPagar, emProcessamento, pendentes, pendenciaPaga, rejeitado, estorno, erro }),
-      desativados,
-    };
-
-    // Como no legado: so favorecido ou so consorcio selecionado mostra uma visao; os dois juntos, ou
-    // nenhum, unem as visoes de favorecido e de consorcio.
-    // Favorecido especifico: so ele, dentro do filtro de consorcio, como a Movimentacao Financeira.
-    if (favorecidoUnico) {
-      return this.vanzeiroAggregatorService.aggregate({ ...filter, userIds: favorecidos, consorcioNome, todosConsorcios });
-    }
-
-    const temFiltroFavorecido = Boolean(todosVanzeiros);
-    if (temFiltroConsorcio === temFiltroFavorecido) {
-      return this.consolidadoCombinadoService.aggregate(
-        filter,
-        temFiltroConsorcio ? { userIds: favorecidos, todosVanzeiros, consorcioNome, todosConsorcios } : undefined,
-      );
-    }
-
-    if (temFiltroConsorcio) {
-      return this.consorcioAggregatorService.aggregate(filter, { consorcioNome, todosConsorcios });
-    }
-
-    return this.vanzeiroAggregatorService.aggregate({ ...filter, userIds: favorecidos });
   }
 
   @ApiQuery({ name: 'dataInicio', description: 'Data da Ordem de Pagamento Inicial', required: true, type: String })
@@ -213,30 +218,34 @@ export class ConsolidadoV2Controller {
     @Query('stucGratuidade', new ParseBooleanPipe({ optional: true })) stucGratuidade: boolean | undefined,
     @Query('erro', new ParseBooleanPipe({ optional: true })) erro: boolean | undefined,
   ) {
-    // Guardador nao tem visao por consorcio, Eleicao nem STUC-Gratuidade (PRD, AC-8/AC-9): erro
-    // explicito, nunca ignorado silenciosamente.
-    const naoSuportados: Record<string, boolean> = {
-      eleicao: Boolean(eleicao),
-      stucGratuidade: Boolean(stucGratuidade),
-      desativados: Boolean(desativados),
-      pendentes: Boolean(pendentes),
-    };
-    const parametroInvalido = Object.keys(naoSuportados).find((parametro) => naoSuportados[parametro]);
-    if (parametroInvalido) {
-      throw new HttpException({ error: `"${parametroInvalido}" não é suportado pela rota de Guardador` }, HttpStatus.BAD_REQUEST);
+    try {
+      // Guardador nao tem visao por consorcio, Eleicao nem STUC-Gratuidade (PRD, AC-8/AC-9): erro
+      // explicito, nunca ignorado silenciosamente.
+      const naoSuportados: Record<string, boolean> = {
+        eleicao: Boolean(eleicao),
+        stucGratuidade: Boolean(stucGratuidade),
+        desativados: Boolean(desativados),
+        pendentes: Boolean(pendentes),
+      };
+      const parametroInvalido = Object.keys(naoSuportados).find((parametro) => naoSuportados[parametro]);
+      if (parametroInvalido) {
+        throw new HttpException({ error: `"${parametroInvalido}" não é suportado pela rota de Guardador` }, HttpStatus.BAD_REQUEST);
+      }
+
+      const filter = {
+        dataInicio,
+        dataFim,
+        valorMin,
+        valorMax,
+        statuses: mapStatuses({ pago, aPagar, emProcessamento, pendenciaPaga, rejeitado, estorno, erro }),
+        userIds,
+        consorcioNome,
+        todosConsorcios,
+      };
+
+      return await this.vanzeiroAggregatorService.aggregate(filter, 'guardador');
+    } catch (e) {
+      rethrowRelatorioTimeoutAsHttp(e);
     }
-
-    const filter = {
-      dataInicio,
-      dataFim,
-      valorMin,
-      valorMax,
-      statuses: mapStatuses({ pago, aPagar, emProcessamento, pendenciaPaga, rejeitado, estorno, erro }),
-      userIds,
-      consorcioNome,
-      todosConsorcios,
-    };
-
-    return this.vanzeiroAggregatorService.aggregate(filter, 'guardador');
   }
 }
