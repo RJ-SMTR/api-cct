@@ -63,6 +63,14 @@ export interface BasePagamentoSummaryTotals {
   valorSemFavorecido: number;
 }
 
+// One Consolidado group (favorecido or consorcio) with its total and its A Pagar total.
+export interface BasePagamentoTotalPorGrupo {
+  nome: string | null;
+  cpfCnpj?: string | null;
+  valor: number;
+  valorAPagar: number;
+}
+
 // Keyset cursor (T4, AC-19/ADR 0002): every field of BasePagamentoRow doubles as a
 // tie-breaker, in the exact order used by CURSOR_ORDER_BY/CURSOR_TUPLE_COMPARE below - not
 // opaque to the frontend (ADR 0021 decision 6), same as the legacy Guardador cursor shape. Not
@@ -355,6 +363,62 @@ export class BasePagamentoRepository {
       params,
     );
     return totais;
+  }
+
+  // Consolidado by favorecido computed in Postgres (ADR 0023): one row per "nomes" with its total and its A Pagar
+  // total, same grouping as VanzeiroAggregatorService used to do in JS over findGroupedRows. cpfCnpj is the one of
+  // the group's first row in CURSOR_ORDER_BY (the order findGroupedRows returned). The NULL "nomes" group is the
+  // value without favorecido. somenteIndividuais keeps only CPFs (up to 11 digits) and never drops that NULL group.
+  async findTotaisPorFavorecido(
+    perfil: Perfil,
+    filter: BasePagamentoFilter,
+    options: { somenteIndividuais?: boolean } = {},
+  ): Promise<{ grupos: (BasePagamentoTotalPorGrupo & { nome: string })[]; valorSemFavorecido: number }> {
+    const { sql, params } = this.buildCombinadoSql(perfil, filter);
+    const recorteIndividual = options.somenteIndividuais ? `AND "cpfCnpj" <> '' AND length("cpfCnpj") <= 11` : '';
+    const linhas = await this.runReportQuery<BasePagamentoTotalPorGrupo>(
+      `
+      SELECT
+        nomes AS nome,
+        (array_agg("cpfCnpj" ORDER BY ${CURSOR_ORDER_BY}))[1] AS "cpfCnpj",
+        SUM(valor)::float8 AS valor,
+        COALESCE(SUM(valor) FILTER (WHERE status = '${StatusPagamento.A_PAGAR}'), 0)::float8 AS "valorAPagar"
+      FROM (${sql}) linhas
+      WHERE nomes IS NULL OR (TRUE ${recorteIndividual})
+      GROUP BY nomes
+      `,
+      params,
+    );
+    return {
+      grupos: linhas.filter((linha): linha is BasePagamentoTotalPorGrupo & { nome: string } => linha.nome !== null),
+      valorSemFavorecido: linhas.find((linha) => linha.nome === null)?.valor ?? 0,
+    };
+  }
+
+  // Consolidado by consorcio computed in Postgres (ADR 0023), Permissionario only: one row per "nomeConsorcio"
+  // among rows with favorecido, same grouping ConsorcioAggregatorService used to do in JS. Rows with favorecido
+  // but no resolved consorcio stay out; the value without favorecido is summed over every row of the filter.
+  async findTotaisPorConsorcio(filter: BasePagamentoFilter): Promise<{ grupos: (BasePagamentoTotalPorGrupo & { nome: string })[]; valorSemFavorecido: number }> {
+    const { sql, params } = this.buildCombinadoSql('permissionario', filter);
+    const linhas = await this.runReportQuery<BasePagamentoTotalPorGrupo & { semFavorecido: boolean }>(
+      `
+      SELECT
+        nomes IS NULL AS "semFavorecido",
+        CASE WHEN nomes IS NULL THEN NULL ELSE "nomeConsorcio" END AS nome,
+        SUM(valor)::float8 AS valor,
+        COALESCE(SUM(valor) FILTER (WHERE status = '${StatusPagamento.A_PAGAR}'), 0)::float8 AS "valorAPagar"
+      FROM (${sql}) linhas
+      WHERE nomes IS NULL OR "nomeConsorcio" IS NOT NULL
+      GROUP BY 1, 2
+      `,
+      params,
+    );
+    return {
+      grupos: linhas
+        .filter((linha) => !linha.semFavorecido)
+        .map(({ nome, valor, valorAPagar }) => ({ nome: nome as string, valor, valorAPagar })),
+      valorSemFavorecido: linhas.find((linha) => linha.semFavorecido)?.valor ?? 0,
+    };
   }
 
   // Keyset-cursor pagination (T4, AC-19/ADR 0002) over the same "combinado" result as

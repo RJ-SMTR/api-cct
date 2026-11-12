@@ -79,9 +79,11 @@ export class FinancialMovementV2SummaryService {
     }
 
     const cursor = resolveCursorFromQuery(filter);
+    // ADR 0023: the summary is computed once, on the first page (no cursor). Later pages bring only rows and
+    // leave the summary fields out, so the screen keeps the first page totals (mergeReportList).
     const [page, summary] = await Promise.all([
       this.basePagamentoRepository.findGroupedRowsPage(perfil, { ...filter, excluirSemFavorecido: true }, pageSize, cursor),
-      this.findSummary(perfil, filter),
+      cursor ? Promise.resolve({}) : this.findSummary(perfil, filter),
     ]);
     return new RelatorioFinancialMovementNovoRemessaPageDto({
       ...summary,
