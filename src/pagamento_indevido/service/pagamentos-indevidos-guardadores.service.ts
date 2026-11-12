@@ -272,7 +272,7 @@ export class PagamentosIndevidosGuardadoresService {
                       FROM ordem_pagamento_agrupado_historico h
                       JOIN detalhe_a da ON da."ordemPagamentoAgrupadoHistoricoId" = h.id
                      WHERE h."statusRemessa" IN (3, 5)
-                       AND NOT (h."statusRemessa" = 5 AND h."motivoStatusRemessa" = '02')
+                       AND NOT (h."statusRemessa" = 5 AND h."motivoStatusRemessa" IS NOT NULL AND h."motivoStatusRemessa" NOT IN ('00', 'AM', 'BD'))
                        AND h."ordemPagamentoAgrupadoId" IN (g."ordemPagamentoAgrupadoId", a."ordemPagamentoAgrupadoId")) AS pagamentos
          FROM ordem_pagamento_guardador g
          JOIN ordem_pagamento_agrupado a ON a.id = g."ordemPagamentoAgrupadoId"
