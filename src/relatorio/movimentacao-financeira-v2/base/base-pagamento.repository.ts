@@ -395,6 +395,32 @@ export class BasePagamentoRepository {
     };
   }
 
+  // Consolidado by consorcio computed in Postgres (ADR 0023), Permissionario only: one row per "nomeConsorcio"
+  // among rows with favorecido, same grouping ConsorcioAggregatorService used to do in JS. Rows with favorecido
+  // but no resolved consorcio stay out; the value without favorecido is summed over every row of the filter.
+  async findTotaisPorConsorcio(filter: BasePagamentoFilter): Promise<{ grupos: (BasePagamentoTotalPorGrupo & { nome: string })[]; valorSemFavorecido: number }> {
+    const { sql, params } = this.buildCombinadoSql('permissionario', filter);
+    const linhas = await this.runReportQuery<BasePagamentoTotalPorGrupo & { semFavorecido: boolean }>(
+      `
+      SELECT
+        nomes IS NULL AS "semFavorecido",
+        CASE WHEN nomes IS NULL THEN NULL ELSE "nomeConsorcio" END AS nome,
+        SUM(valor)::float8 AS valor,
+        COALESCE(SUM(valor) FILTER (WHERE status = '${StatusPagamento.A_PAGAR}'), 0)::float8 AS "valorAPagar"
+      FROM (${sql}) linhas
+      WHERE nomes IS NULL OR "nomeConsorcio" IS NOT NULL
+      GROUP BY 1, 2
+      `,
+      params,
+    );
+    return {
+      grupos: linhas
+        .filter((linha) => !linha.semFavorecido)
+        .map(({ nome, valor, valorAPagar }) => ({ nome: nome as string, valor, valorAPagar })),
+      valorSemFavorecido: linhas.find((linha) => linha.semFavorecido)?.valor ?? 0,
+    };
+  }
+
   // Keyset-cursor pagination (T4, AC-19/ADR 0002) over the same "combinado" result as
   // findGroupedRows - never OFFSET-based, so a page cut never skips/repeats rows as the
   // underlying data is captured/updated between pages. Fetches pageSize+1 rows to know whether

@@ -14,6 +14,8 @@ import { StatusPagamento } from '../../enum/statusRemessafinancial-movement';
 import { buildSummaryFromRows } from '../export/financial-movement-v2-export.service';
 import { BasePagamentoFilter, BasePagamentoRepository, BasePagamentoRow, Perfil } from './base-pagamento.repository';
 import { VanzeiroAggregatorService } from '../../consolidado-v2/vanzeiro-aggregator.service';
+import { ConsorcioAggregatorService } from '../../consolidado-v2/consorcio-aggregator.service';
+import { ConsolidadoCombinadoService } from '../../consolidado-v2/consolidado-combinado.service';
 
 const RUN = Boolean(process.env.RUN_RETORNO_DB_TESTS);
 const suite = RUN ? describe : describe.skip;
@@ -53,6 +55,25 @@ function agregarPorFavorecidoEmMemoria(allRows: BasePagamentoRow[], valorMin?: n
     .map((f) => ({ nomefavorecido: f.nome, cpfCnpj: f.cpfCnpj, valor: f.valor }))
     .sort((a, b) => a.nomefavorecido.localeCompare(b.nomefavorecido, 'pt-BR'));
   return { count: data.length, valor: data.reduce((t, f) => t + f.valor, 0), valorAPagar, valorSemFavorecido, data };
+}
+
+// Reference: the in-memory Consolidado-by-consorcio algorithm that T6 replaces (ConsorcioAggregatorService before
+// ADR 0023), kept here verbatim.
+function agregarPorConsorcioEmMemoria(todasAsLinhas: BasePagamentoRow[], valorMin?: number, valorMax?: number) {
+  const rows = todasAsLinhas.filter((row) => row.nomes !== null);
+  const totais = new Map<string, number>();
+  for (const row of rows) {
+    if (row.nomeConsorcio === null) continue;
+    totais.set(row.nomeConsorcio, (totais.get(row.nomeConsorcio) ?? 0) + Number(row.valor));
+  }
+  const filtrados = [...totais.entries()].filter(([, valor]) => !(valorMin !== undefined && valor < valorMin) && !(valorMax !== undefined && valor > valorMax));
+  const nomes = new Set(filtrados.map(([nome]) => nome));
+  const valorAPagar = rows
+    .filter((row) => row.status === StatusPagamento.A_PAGAR && row.nomeConsorcio !== null && nomes.has(row.nomeConsorcio))
+    .reduce((t, row) => t + Number(row.valor), 0);
+  const data = filtrados.map(([nome, valor]) => ({ nomefavorecido: nome, valor })).sort((a, b) => a.nomefavorecido.localeCompare(b.nomefavorecido, 'pt-BR'));
+  const valorSemFavorecido = todasAsLinhas.filter((row) => row.nomes === null).reduce((t, row) => t + Number(row.valor), 0);
+  return { count: data.length, valor: data.reduce((t, c) => t + c.valor, 0), valorAPagar, valorSemFavorecido, data };
 }
 
 suite('BasePagamentoRepository database aggregation parity (PostgreSQL)', () => {
@@ -255,6 +276,50 @@ suite('BasePagamentoRepository database aggregation parity (PostgreSQL)', () => 
     it('does not load every row of the period (aggregates in the database)', async () => {
       const spy = jest.spyOn(repository, 'findGroupedRows');
       await new VanzeiroAggregatorService(repository).aggregate({ ...PERIODO }, 'permissionario');
+
+      expect(spy).not.toHaveBeenCalled();
+      spy.mockRestore();
+    });
+  });
+
+  describe('ConsorcioAggregatorService no banco (T6)', () => {
+    const casosConsorcio: [string, Partial<BasePagamentoFilter>, { consorcioNome?: string[]; todosConsorcios?: boolean }][] = [
+      ['todos os consorcios', {}, { todosConsorcios: true }],
+      ['consorcio especifico', {}, { consorcioNome: ['Intersul'] }],
+      ['um modal', {}, { consorcioNome: ['STPL'] }],
+      ['so Pago', { statuses: [StatusPagamento.PAGO] }, { todosConsorcios: true }],
+      ['valor minimo sobre o total do consorcio', { valorMin: 1000 }, { todosConsorcios: true }],
+      ['valor maximo sobre o total do consorcio', { valorMax: 700 }, { todosConsorcios: true }],
+    ];
+
+    it.each(casosConsorcio)('%s', async (_nome, extra, opcoes) => {
+      const { valorMin, valorMax, ...semValor } = { ...PERIODO, ...extra } as BasePagamentoFilter;
+
+      const [linhas, noBanco] = await Promise.all([
+        repository.findGroupedRows('permissionario', { ...semValor, ...opcoes }),
+        new ConsorcioAggregatorService(repository).aggregate({ ...PERIODO, ...extra } as BasePagamentoFilter, opcoes),
+      ]);
+      const emMemoria = agregarPorConsorcioEmMemoria(linhas, valorMin, valorMax);
+
+      expect(noBanco.count).toBe(emMemoria.count);
+      expect(noBanco.valor).toBeCloseTo(emMemoria.valor, 2);
+      expect(noBanco.valorAPagar).toBeCloseTo(emMemoria.valorAPagar, 2);
+      expect(noBanco.valorSemFavorecido).toBeCloseTo(emMemoria.valorSemFavorecido, 2);
+      expect(noBanco.data.map((d) => [d.nomefavorecido, Number(d.valor.toFixed(2))])).toEqual(emMemoria.data.map((d) => [d.nomefavorecido, Number(d.valor.toFixed(2))]));
+    });
+
+    it('combined view (todos os favorecidos + todos os consorcios) keeps the total of the consorcio view', async () => {
+      const combinado = new ConsolidadoCombinadoService(new ConsorcioAggregatorService(repository), new VanzeiroAggregatorService(repository));
+      const linhas = await repository.findGroupedRows('permissionario', { ...PERIODO, todosConsorcios: true });
+
+      const resultado = await combinado.aggregate({ ...PERIODO }, { todosVanzeiros: true, todosConsorcios: true });
+
+      expect(resultado.valor).toBeCloseTo(agregarPorConsorcioEmMemoria(linhas).valor, 2);
+    });
+
+    it('does not load every row of the period (aggregates in the database)', async () => {
+      const spy = jest.spyOn(repository, 'findGroupedRows');
+      await new ConsorcioAggregatorService(repository).aggregate({ ...PERIODO }, { todosConsorcios: true });
 
       expect(spy).not.toHaveBeenCalled();
       spy.mockRestore();
