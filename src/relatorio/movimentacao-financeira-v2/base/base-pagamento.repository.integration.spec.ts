@@ -2397,6 +2397,26 @@ suite('BasePagamentoRepository (PostgreSQL)', () => {
         expect(singaerj.map((linha) => Number(linha.valor))).toEqual([77]);
       });
 
+      // Regra de Rayanne (2026-11-13): "Todos os guardadores" + an association filter is a union: every guardador,
+      // with or without an association, plus the association's own payment.
+      it('todosGuardadores + todosConsorcios brings every guardador and the associations own payments', async () => {
+        const linhas = await repository.findGroupedRows('guardador', { ...periodo, todosGuardadores: true, todosConsorcios: true });
+
+        expect(nomes(linhas)).toEqual(['RV2 ANGLAE', 'RV2 G ANGLAE', 'RV2 G AUTONOMO', 'RV2 G SINGAERJ']);
+      });
+
+      it('todosGuardadores + one association brings every guardador and only that association own payment', async () => {
+        const linhas = await repository.findGroupedRows('guardador', { ...periodo, todosGuardadores: true, consorcioNome: ['RV2 SINGAERJ'] });
+
+        expect(nomes(linhas)).toEqual(['RV2 G ANGLAE', 'RV2 G AUTONOMO', 'RV2 G SINGAERJ']);
+      });
+
+      it('todosGuardadores alone is the same as no filter (guardadores only)', async () => {
+        const linhas = await repository.findGroupedRows('guardador', { ...periodo, todosGuardadores: true });
+
+        expect(nomes(linhas)).toEqual(['RV2 G ANGLAE', 'RV2 G AUTONOMO', 'RV2 G SINGAERJ']);
+      });
+
       it('valorMin is by favorecido for Guardador even under an association filter (decision)', async () => {
         await seedOrdemGuardador({ id: A_BASE + 314, valor: 300, userId: G_ASSOC_A_2 });
 
@@ -2438,7 +2458,7 @@ suite('BasePagamentoRepository (PostgreSQL)', () => {
         const [novo, legado] = await Promise.all([repository.findGroupedRows('guardador', filtro), legacyGuardadorRepository.findFinancialMovementSummary(filtro)]);
 
         // The legacy never brings the association's own payment (RV2 ANGLAE, 900).
-        expect(sumByStatus(novo)[StatusPagamento.A_PAGAR] ?? 0).toBe(legado.valorAPagar + 900);
+        expect(sumByStatus(novo)[StatusPagamento.A_PAGAR] ?? 0).toBe((legado.valorAPagar ?? 0) + 900);
       }, 30000);
     });
 
