@@ -2397,14 +2397,21 @@ suite('BasePagamentoRepository (PostgreSQL)', () => {
         expect(linhas).toHaveLength(0);
       });
 
-      it('with no association filter, a guardador order with no user stays visible', async () => {
+      // "Todos os guardadores" (no association filter) is the guardadores' value only: the association's own
+      // payment row is left out, so Todos os guardadores and Todas as associacoes give different totals.
+      it('with no association filter, keeps every guardador and leaves out the association own payment', async () => {
+        const linhas = await repository.findGroupedRows('guardador', periodo);
+
+        expect(nomes(linhas)).toEqual(['RV2 G ANGLAE', 'RV2 G AUTONOMO', 'RV2 G SINGAERJ']);
+      });
+
+      it('with no association filter, a guardador order with no user is left out, as in the legacy', async () => {
         await seedOrdemGuardador({ id: A_BASE + 315, valor: 15, userId: null });
 
         const linhas = await repository.findGroupedRows('guardador', periodo);
 
-        expect(linhas.some((linha) => linha.nomes === null && Number(linha.valor) === 15)).toBe(true);
+        expect(linhas.some((linha) => linha.nomes === null)).toBe(false);
       });
-
       it.each([
         ['consorcioNome', { consorcioNome: ['RV2 ANGLAE'] }],
         ['todosConsorcios', { todosConsorcios: true }],
