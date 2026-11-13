@@ -266,19 +266,27 @@ function resolveFiltroFavorecido(perfil: Perfil, filter: BasePagamentoFilter): {
   };
 }
 
-// Guardador (legado: buildConsorcioFilter): todosConsorcios ("Todas as Associacoes") tem
-// precedencia sobre consorcioNome, e os dois exigem o papel de guardador - a linha de pagamento
-// da propria associacao nunca entra. Sem filtro tambem exige o papel, como o legado: senao o
-// pagamento da propria associacao entrava em "Todos os guardadores" (regra de Rayanne, 2026-11-13).
+// The payment row of an association itself (SINGAERJ/ANGLAE): its user is the related side of a guardador link.
+const PAGAMENTO_DA_ASSOCIACAO = `EXISTS (SELECT 1 FROM user_relationships ur_assoc WHERE ur_assoc.related_user_id = pu.id)`;
+
+// Guardador: todosConsorcios ("Todas as Associacoes") tem precedencia sobre consorcioNome. Regra de
+// Rayanne (2026-11-13): o filtro de associacao traz os guardadores vinculados E o pagamento da propria
+// associacao (o legado nunca trazia esse pagamento: divergencia registrada). Sem filtro ("Todos os
+// guardadores") so entra quem tem o papel de guardador, como no legado, sem o pagamento da associacao.
+// Associacao = usuario apontado por user_relationships.related_user_id.
 // $10 so entra na lista de parametros quando o SQL o referencia.
 function resolveFiltroAssociacao(perfil: Perfil, filter: BasePagamentoFilter): { sql: string; params: unknown[] } {
   if (perfil !== 'guardador') return { sql: '', params: [] };
   if (filter.todosConsorcios) {
-    return { sql: `AND pu."roleId" = ${GUARDADOR_ROLE_ID} AND assoc."nomesUpper" IS NOT NULL`, params: [] };
+    return {
+      sql: `AND ((pu."roleId" = ${GUARDADOR_ROLE_ID} AND assoc."nomesUpper" IS NOT NULL) OR ${PAGAMENTO_DA_ASSOCIACAO})`,
+      params: [],
+    };
   }
   if (filter.consorcioNome?.length) {
     return {
-      sql: `AND pu."roleId" = ${GUARDADOR_ROLE_ID} AND assoc."nomesUpper" && $10::text[]`,
+      sql: `AND ((pu."roleId" = ${GUARDADOR_ROLE_ID} AND assoc."nomesUpper" && $10::text[])
+             OR (${PAGAMENTO_DA_ASSOCIACAO} AND UPPER(TRIM(pu."fullName")) = ANY($10::text[])))`,
       params: [filter.consorcioNome.map((nome) => nome.trim().toUpperCase())],
     };
   }
