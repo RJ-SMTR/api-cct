@@ -50,6 +50,12 @@ export class PagamentoGuardadorService {
     return (await this.pagamentoGuardadorRepository.listarPreparados(dataPagamento, { dataInicio, dataFim })) as IPagamentoGuardadorPreparado[];
   }
 
+  /** Preparados de hoje (dataPagamento = hoje), sem depender do período usado no preparo. */
+  async listarPreparadosAtual(): Promise<IPagamentoGuardadorPreparado[]> {
+    const dataPagamento = getInicioDoDiaBrasilia();
+    return (await this.pagamentoGuardadorRepository.listarPreparados(dataPagamento)) as IPagamentoGuardadorPreparado[];
+  }
+
   async atualizarValorBi(detalheAId: number, novoValor: number, senha: string, requestUserId: number) {
     const requestUser = await this.usersService.findOne({ id: requestUserId });
     if (!requestUser) {
