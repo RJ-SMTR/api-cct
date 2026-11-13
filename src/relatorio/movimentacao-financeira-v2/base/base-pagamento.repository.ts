@@ -268,8 +268,8 @@ function resolveFiltroFavorecido(perfil: Perfil, filter: BasePagamentoFilter): {
 
 // Guardador (legado: buildConsorcioFilter): todosConsorcios ("Todas as Associacoes") tem
 // precedencia sobre consorcioNome, e os dois exigem o papel de guardador - a linha de pagamento
-// da propria associacao nunca entra. Sem filtro nao ha restricao de papel aqui (ordem sem usuario
-// continua visivel); o legado exige o papel sempre, divergencia registrada.
+// da propria associacao nunca entra. Sem filtro tambem exige o papel, como o legado: senao o
+// pagamento da propria associacao entrava em "Todos os guardadores" (regra de Rayanne, 2026-11-13).
 // $10 so entra na lista de parametros quando o SQL o referencia.
 function resolveFiltroAssociacao(perfil: Perfil, filter: BasePagamentoFilter): { sql: string; params: unknown[] } {
   if (perfil !== 'guardador') return { sql: '', params: [] };
@@ -282,7 +282,9 @@ function resolveFiltroAssociacao(perfil: Perfil, filter: BasePagamentoFilter): {
       params: [filter.consorcioNome.map((nome) => nome.trim().toUpperCase())],
     };
   }
-  return { sql: '', params: [] };
+  // "Todos os guardadores": the guardadores' value only, never the association's own payment row (same as the
+  // legacy, which requires the role always). An order with no user drops out too, as in the legacy.
+  return { sql: `AND pu."roleId" = ${GUARDADOR_ROLE_ID}`, params: [] };
 }
 
 // ADR 0023: report queries stop after this limit (Postgres statement_timeout) instead of holding a
