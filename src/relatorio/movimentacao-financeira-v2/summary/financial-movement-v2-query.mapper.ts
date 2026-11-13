@@ -37,6 +37,7 @@ export function mapQueryToFinancialMovementV2Filter(
     userIds: query.userIds,
     consorcioNome: query.consorcioNome,
     todosConsorcios: query.todosConsorcios,
+    todosGuardadores: query.todosGuardadores,
     desativados: query.desativados,
     eleicao: query.eleicao,
     stucGratuidade: query.stucGratuidade,
