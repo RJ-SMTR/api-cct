@@ -9,9 +9,10 @@ import { MailHistoryModule } from 'src/mail-history/mail-history.module';
 import { BanksModule } from 'src/banks/banks.module';
 import { UsersRepository } from './users.repository';
 import { UserRelationship } from './entities/user-relationship.entity';
+import { UserPermitCodeHistory } from './entities/user-permit-code-history.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User, UserRelationship]), MailHistoryModule, BanksModule],
+  imports: [TypeOrmModule.forFeature([User, UserRelationship, UserPermitCodeHistory]), MailHistoryModule, BanksModule],
   controllers: [UsersController],
   providers: [IsExist, IsNotExist, UsersService, UsersRepository],
   exports: [UsersService, UsersRepository],

@@ -140,6 +140,14 @@ export class UsersController {
     return this.usersService.findOneWithAssociacoes(+id);
   }
 
+  /** Códigos de permissão antigos do usuário (guardados quando o código foi alterado). */
+  @Get(':id/permit-code-history')
+  @HttpCode(HttpStatus.OK)
+  async getPermitCodeHistory(@Param('id') id: string) {
+    const historico = await this.usersService.findPermitCodeHistory(+id);
+    return historico.map((h) => ({ id: h.id, permitCode: h.permitCode, createdAt: h.createdAt }));
+  }
+
   @SerializeOptions({
     groups: ['admin', 'me'],
   })

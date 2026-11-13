@@ -103,6 +103,28 @@ describe('OrdemPagamentoService - sincronismo por período', () => {
     expect(usersService.getOne).toHaveBeenCalledTimes(1);
   });
 
+  it('associa ao usuário a ordem emitida com um código de permissão antigo (histórico)', async () => {
+    const { service, sync, usersService } = build({ bq: [ordemBq(1, { consorcio: 'Van', idConsorcio: '810001111' })], antes: 0 });
+    (usersService as any).getOne = jest.fn().mockRejectedValue(new HttpException('notFound', 404));
+    (usersService as any).findByAnyPermitCode = jest.fn().mockResolvedValue({ id: 436 });
+
+    await service.sincronizarOrdensPagamento(d('2026-10-09'), d('2026-10-09'), ['Van']);
+
+    expect((usersService as any).findByAnyPermitCode).toHaveBeenCalledWith('810001111');
+    expect(sync.aplicar.mock.calls[0][0]).toMatchObject({ userId: 436 });
+  });
+
+  it('não consulta o histórico de código para modais (resolvidos por CPF/CNPJ)', async () => {
+    const { service, sync, usersService } = build({ bq: [ordemBq(1)], antes: 0 });
+    (usersService as any).getOne = jest.fn().mockRejectedValue(new HttpException('notFound', 404));
+    (usersService as any).findByAnyPermitCode = jest.fn();
+
+    await service.sincronizarOrdensPagamento(d('2026-10-09'), d('2026-10-09'), ['STPL']);
+
+    expect((usersService as any).findByAnyPermitCode).not.toHaveBeenCalled();
+    expect(sync.aplicar.mock.calls[0][0].userId).toBeUndefined();
+  });
+
   it('ignora ordem sem CPF/CNPJ, mas sincroniza a ordem de usuário bloqueado', async () => {
     const { service, sync } = build({ bq: [ordemBq(1, { operadoraCpfCnpj: null })], antes: 0 });
     expect((await service.sincronizarOrdensPagamento(d('2026-10-09'), d('2026-10-09'), ['STPL'])).ignoradas).toBe(1);
