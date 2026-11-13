@@ -3,11 +3,8 @@ import { RelatorioConsolidadoNovoRemessaData, RelatorioConsolidadoNovoRemessaDto
 import { StatusPagamento } from '../enum/statusRemessafinancial-movement';
 import { BasePagamentoFilter, BasePagamentoRepository, BasePagamentoRow, Perfil } from '../movimentacao-financeira-v2/base/base-pagamento.repository';
 
-interface FavorecidoAccumulator {
-  nome: string;
-  cpfCnpj: string | null;
-  valor: number;
-}
+// One Consolidado block per status (T11): same content as aggregate() called with that single status.
+export type ConsolidadoPorStatus = RelatorioConsolidadoNovoRemessaDto & { status: StatusPagamento };
 
 export interface VanzeiroAggregatorOptions {
   // So pessoas fisicas: mesmo recorte de length(operadoraCpfCnpj)<=11 do "todosVanzeiros" legado.
@@ -39,25 +36,12 @@ export class VanzeiroAggregatorService {
     // valorMin/valorMax valem sobre o total do favorecido no periodo e sao aplicados abaixo, depois
     // da soma, porque valorAPagar so considera os favorecidos que ficam dentro dos limites.
     const { valorMin, valorMax, ...baseFilter } = filter;
-    const allRows = await this.basePagamentoRepository.findGroupedRows(perfil, baseFilter);
-    const comFavorecido = allRows.filter((row) => row.nomes !== null);
-    const rows = options.somenteIndividuais ? comFavorecido.filter((row) => row.cpfCnpj && row.cpfCnpj.length <= 11) : comFavorecido;
-    const valorSemFavorecido = somarSemFavorecido(allRows);
+    // ADR 0023: totals per favorecido come from the database, never every row of the period.
+    const { grupos, valorSemFavorecido } = await this.basePagamentoRepository.findTotaisPorFavorecido(perfil, baseFilter, {
+      somenteIndividuais: options.somenteIndividuais,
+    });
 
-    const totalsByFavorecido = new Map<string, FavorecidoAccumulator>();
-
-    for (const row of rows) {
-      const valor = Number(row.valor);
-
-      const existing = totalsByFavorecido.get(row.nomes);
-      if (existing) {
-        existing.valor += valor;
-      } else {
-        totalsByFavorecido.set(row.nomes, { nome: row.nomes, cpfCnpj: row.cpfCnpj, valor });
-      }
-    }
-
-    const filtered = [...totalsByFavorecido.values()].filter((favorecido) => {
+    const filtered = grupos.filter((favorecido) => {
       if (valorMin !== undefined && favorecido.valor < valorMin) {
         return false;
       }
@@ -78,12 +62,8 @@ export class VanzeiroAggregatorService {
       ),
     );
 
-    // valorAPagar: soma das linhas A Pagar, restrita aos favorecidos que sobreviveram ao
-    // filtro de valorMin/valorMax acima (nao os descartados).
-    const favorecidosFiltrados = new Set(filtered.map((favorecido) => favorecido.nome));
-    const valorAPagar = rows
-      .filter((row) => row.status === StatusPagamento.A_PAGAR && favorecidosFiltrados.has(row.nomes))
-      .reduce((total, row) => total + Number(row.valor), 0);
+    // valorAPagar: A Pagar dos favorecidos que sobreviveram ao filtro de valorMin/valorMax acima.
+    const valorAPagar = filtered.reduce((total, favorecido) => total + favorecido.valorAPagar, 0);
 
     const valor = data.reduce((total, favorecido) => total + favorecido.valor, 0);
 
@@ -93,6 +73,32 @@ export class VanzeiroAggregatorService {
       valorAPagar,
       valorSemFavorecido,
       data,
+    });
+  }
+
+  // ADR 0023 (T11): every selected status in one query, one block per status in the order of filter.statuses.
+  // valorMin/valorMax apply to each favorecido's total inside its status block, as when each status was a
+  // separate request.
+  async aggregatePorStatus(filter: BasePagamentoFilter, perfil: Perfil = 'guardador'): Promise<ConsolidadoPorStatus[]> {
+    const { valorMin, valorMax, ...baseFilter } = filter;
+    const linhas = await this.basePagamentoRepository.findTotaisPorFavorecidoEStatus(perfil, baseFilter);
+
+    return (filter.statuses ?? []).map((status) => {
+      const grupos = linhas.filter(
+        (linha) => linha.status === status && !(valorMin !== undefined && linha.valor < valorMin) && !(valorMax !== undefined && linha.valor > valorMax),
+      );
+      const data = ordenarPorNome(
+        grupos.map((grupo) => new RelatorioConsolidadoNovoRemessaData({ valor: grupo.valor, nomefavorecido: grupo.nome, cpfCnpj: grupo.cpfCnpj })),
+      );
+      return Object.assign(
+        new RelatorioConsolidadoNovoRemessaDto({
+          count: data.length,
+          valor: data.reduce((total, item) => total + item.valor, 0),
+          valorAPagar: grupos.reduce((total, grupo) => total + grupo.valorAPagar, 0),
+          data,
+        }),
+        { status },
+      );
     });
   }
 }

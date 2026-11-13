@@ -1,5 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { DataSource } from 'typeorm';
+import { isQueryCanceledError, RelatorioTimeoutError } from '../../utils/relatorio-timeout.error';
 import { StatusPagamento } from '../../enum/statusRemessafinancial-movement';
 import {
   pendenciaAgrupamentoNuncaEnviadoGuardador,
@@ -46,6 +47,28 @@ export interface BasePagamentoRow {
   // Chave estavel por linha (ver CURSOR_ORDER_BY); ausente nas linhas de Eleicao, que nao paginam
   // por cursor. Nunca vai para as colunas de saida (toExportRow escolhe os campos).
   chaveLinha?: string;
+}
+
+// Totals by status bucket, same shape as RelatorioFinancialMovementNovoRemessaSummaryDto.
+export interface BasePagamentoSummaryTotals {
+  count: number;
+  valorTotal: number;
+  valorPago: number;
+  valorRejeitado: number;
+  valorEstornado: number;
+  valorAguardandoPagamento: number;
+  valorAPagar: number;
+  valorPendente: number;
+  valorPendenciaPaga: number;
+  valorSemFavorecido: number;
+}
+
+// One Consolidado group (favorecido or consorcio) with its total and its A Pagar total.
+export interface BasePagamentoTotalPorGrupo {
+  nome: string | null;
+  cpfCnpj?: string | null;
+  valor: number;
+  valorAPagar: number;
 }
 
 // Keyset cursor (T4, AC-19/ADR 0002): every field of BasePagamentoRow doubles as a
@@ -262,13 +285,205 @@ function resolveFiltroAssociacao(perfil: Perfil, filter: BasePagamentoFilter): {
   return { sql: '', params: [] };
 }
 
+// ADR 0023: report queries stop after this limit (Postgres statement_timeout) instead of holding a
+// connection indefinitely after the user gives up. Overridable by env and, in tests, by the constructor.
+export const DEFAULT_REPORT_STATEMENT_TIMEOUT_MS = 120_000;
+
+export interface BasePagamentoRepositoryOptions {
+  statementTimeoutMs?: number;
+  // T12: extra time the API waits for Postgres to cancel before answering the timeout itself.
+  appTimeoutGraceMs?: number;
+}
+
+// T12: the load balancer cuts the connection at ~180 s; the API answers the 504 well before that.
+export const DEFAULT_REPORT_APP_TIMEOUT_GRACE_MS = 5_000;
+
+export function resolveReportStatementTimeoutMs(value: unknown): number {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : DEFAULT_REPORT_STATEMENT_TIMEOUT_MS;
+}
+
 @Injectable()
 export class BasePagamentoRepository {
-  constructor(private readonly dataSource: DataSource) {}
+  private readonly statementTimeoutMs: number;
+  private readonly appTimeoutGraceMs: number;
+  private readonly logger = new Logger(BasePagamentoRepository.name);
+
+  // The options argument is not injected by Nest (only DataSource is); specs build the repository directly.
+  constructor(
+    private readonly dataSource: DataSource,
+    @Optional() options?: BasePagamentoRepositoryOptions,
+  ) {
+    this.statementTimeoutMs = resolveReportStatementTimeoutMs(options?.statementTimeoutMs ?? process.env.RELATORIO_STATEMENT_TIMEOUT_MS);
+    this.appTimeoutGraceMs = options?.appTimeoutGraceMs ?? DEFAULT_REPORT_APP_TIMEOUT_GRACE_MS;
+  }
+
+  // Runs a report query in its own read-only transaction with SET LOCAL statement_timeout, so the limit
+  // never outlives the transaction on the pooled connection. SET cannot take a bind parameter: the value is
+  // an integer validated by resolveReportStatementTimeoutMs.
+  //
+  // T12 (ADR 0023): on homolog a 1-year query was cut by the load balancer at ~184 s without the 504, although
+  // Postgres honors the limit. The API keeps its own timer (limit + appTimeoutGraceMs): when it fires, it cancels
+  // the query in Postgres (pg_cancel_backend), logs it and answers RelatorioTimeoutError right away. The
+  // connection is released only when the abandoned query really ends, never while it is still busy.
+  async runReportQuery<T = any>(sql: string, params: unknown[]): Promise<T[]> {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    const inicio = Date.now();
+    let pid: number | undefined;
+
+    const execucao = (async (): Promise<T[]> => {
+      try {
+        await queryRunner.query('START TRANSACTION READ ONLY');
+        await queryRunner.query(`SET LOCAL statement_timeout = ${this.statementTimeoutMs}`);
+        const [backend] = await queryRunner.query('SELECT pg_backend_pid() AS pid');
+        pid = backend?.pid;
+        const rows: T[] = await queryRunner.query(sql, params);
+        await queryRunner.query('COMMIT');
+        return rows;
+      } catch (error) {
+        await queryRunner.query('ROLLBACK').catch(() => undefined);
+        if (isQueryCanceledError(error)) {
+          this.logger.warn(`Consulta de relatorio cancelada pelo Postgres apos ${Date.now() - inicio} ms (limite ${this.statementTimeoutMs} ms)`);
+          throw new RelatorioTimeoutError(this.statementTimeoutMs);
+        }
+        throw error;
+      } finally {
+        await queryRunner.release();
+      }
+    })();
+
+    let timer: NodeJS.Timeout | undefined;
+    const limiteDaApi = new Promise<never>((_resolve, reject) => {
+      timer = setTimeout(() => {
+        this.logger.warn(
+          `Consulta de relatorio sem resposta apos ${Date.now() - inicio} ms (limite ${this.statementTimeoutMs} ms): cancelando no Postgres (pid ${pid ?? 'desconhecido'})`,
+        );
+        if (pid !== undefined) {
+          this.dataSource.query('SELECT pg_cancel_backend($1)', [pid]).catch(() => undefined);
+        }
+        reject(new RelatorioTimeoutError(this.statementTimeoutMs));
+      }, this.statementTimeoutMs + this.appTimeoutGraceMs);
+    });
+
+    try {
+      return await Promise.race([execucao, limiteDaApi]);
+    } finally {
+      clearTimeout(timer);
+      // The abandoned query still settles later; its error must not become an unhandled rejection.
+      execucao.catch(() => undefined);
+    }
+  }
 
   async findGroupedRows(perfil: Perfil, filter: BasePagamentoFilter): Promise<BasePagamentoRow[]> {
     const { sql, params } = this.buildCombinadoSql(perfil, filter);
-    return this.dataSource.query(`${sql}\n      ORDER BY ${CURSOR_ORDER_BY}`, params);
+    return this.runReportQuery(`${sql}\n      ORDER BY ${CURSOR_ORDER_BY}`, params);
+  }
+
+  // Summary totals by status bucket computed in Postgres (ADR 0023): same result as summing the rows of
+  // findGroupedRows in JS (buildSummaryFromRows), without bringing tens of thousands of rows to Node. Rows
+  // without favorecido stay out of count/valorTotal and only feed valorSemFavorecido.
+  async findSummaryTotals(perfil: Perfil, filter: BasePagamentoFilter): Promise<BasePagamentoSummaryTotals> {
+    const { sql, params } = this.buildCombinadoSql(perfil, filter);
+    const somaPorStatus = (status: StatusPagamento) =>
+      `COALESCE(SUM(valor) FILTER (WHERE nomes IS NOT NULL AND status = '${status}'), 0)::float8`;
+    const [totais] = await this.runReportQuery<BasePagamentoSummaryTotals>(
+      `
+      SELECT
+        COUNT(*) FILTER (WHERE nomes IS NOT NULL)::int AS count,
+        COALESCE(SUM(valor) FILTER (WHERE nomes IS NOT NULL), 0)::float8 AS "valorTotal",
+        ${somaPorStatus(StatusPagamento.PAGO)} AS "valorPago",
+        ${somaPorStatus(StatusPagamento.ERRO_REJEITADO)} AS "valorRejeitado",
+        ${somaPorStatus(StatusPagamento.ERRO_ESTORNO)} AS "valorEstornado",
+        ${somaPorStatus(StatusPagamento.AGUARDANDO_PAGAMENTO)} AS "valorAguardandoPagamento",
+        ${somaPorStatus(StatusPagamento.A_PAGAR)} AS "valorAPagar",
+        ${somaPorStatus(StatusPagamento.PENDENTES)} AS "valorPendente",
+        ${somaPorStatus(StatusPagamento.PENDENCIA_PAGA)} AS "valorPendenciaPaga",
+        COALESCE(SUM(valor) FILTER (WHERE nomes IS NULL), 0)::float8 AS "valorSemFavorecido"
+      FROM (${sql}) linhas
+      `,
+      params,
+    );
+    return totais;
+  }
+
+  // Consolidado by favorecido computed in Postgres (ADR 0023): one row per "nomes" with its total and its A Pagar
+  // total, same grouping as VanzeiroAggregatorService used to do in JS over findGroupedRows. cpfCnpj is the one of
+  // the group's first row in CURSOR_ORDER_BY (the order findGroupedRows returned). The NULL "nomes" group is the
+  // value without favorecido. somenteIndividuais keeps only CPFs (up to 11 digits) and never drops that NULL group.
+  async findTotaisPorFavorecido(
+    perfil: Perfil,
+    filter: BasePagamentoFilter,
+    options: { somenteIndividuais?: boolean } = {},
+  ): Promise<{ grupos: (BasePagamentoTotalPorGrupo & { nome: string })[]; valorSemFavorecido: number }> {
+    const { sql, params } = this.buildCombinadoSql(perfil, filter);
+    const recorteIndividual = options.somenteIndividuais ? `AND "cpfCnpj" <> '' AND length("cpfCnpj") <= 11` : '';
+    const linhas = await this.runReportQuery<BasePagamentoTotalPorGrupo>(
+      `
+      SELECT
+        nomes AS nome,
+        (array_agg("cpfCnpj" ORDER BY ${CURSOR_ORDER_BY}))[1] AS "cpfCnpj",
+        SUM(valor)::float8 AS valor,
+        COALESCE(SUM(valor) FILTER (WHERE status = '${StatusPagamento.A_PAGAR}'), 0)::float8 AS "valorAPagar"
+      FROM (${sql}) linhas
+      WHERE nomes IS NULL OR (TRUE ${recorteIndividual})
+      GROUP BY nomes
+      `,
+      params,
+    );
+    return {
+      grupos: linhas.filter((linha): linha is BasePagamentoTotalPorGrupo & { nome: string } => linha.nome !== null),
+      valorSemFavorecido: linhas.find((linha) => linha.nome === null)?.valor ?? 0,
+    };
+  }
+
+  // Consolidado by favorecido and status in one query (ADR 0023, T11): the Guardador screen shows one block per
+  // status and used to send one request per status, each running the whole combined query.
+  async findTotaisPorFavorecidoEStatus(
+    perfil: Perfil,
+    filter: BasePagamentoFilter,
+  ): Promise<(BasePagamentoTotalPorGrupo & { nome: string; status: StatusPagamento })[]> {
+    const { sql, params } = this.buildCombinadoSql(perfil, filter);
+    return this.runReportQuery(
+      `
+      SELECT
+        nomes AS nome,
+        status,
+        (array_agg("cpfCnpj" ORDER BY ${CURSOR_ORDER_BY}))[1] AS "cpfCnpj",
+        SUM(valor)::float8 AS valor,
+        COALESCE(SUM(valor) FILTER (WHERE status = '${StatusPagamento.A_PAGAR}'), 0)::float8 AS "valorAPagar"
+      FROM (${sql}) linhas
+      WHERE nomes IS NOT NULL
+      GROUP BY nomes, status
+      `,
+      params,
+    );
+  }
+
+  // Consolidado by consorcio computed in Postgres (ADR 0023), Permissionario only: one row per "nomeConsorcio"
+  // among rows with favorecido, same grouping ConsorcioAggregatorService used to do in JS. Rows with favorecido
+  // but no resolved consorcio stay out; the value without favorecido is summed over every row of the filter.
+  async findTotaisPorConsorcio(filter: BasePagamentoFilter): Promise<{ grupos: (BasePagamentoTotalPorGrupo & { nome: string })[]; valorSemFavorecido: number }> {
+    const { sql, params } = this.buildCombinadoSql('permissionario', filter);
+    const linhas = await this.runReportQuery<BasePagamentoTotalPorGrupo & { semFavorecido: boolean }>(
+      `
+      SELECT
+        nomes IS NULL AS "semFavorecido",
+        CASE WHEN nomes IS NULL THEN NULL ELSE "nomeConsorcio" END AS nome,
+        SUM(valor)::float8 AS valor,
+        COALESCE(SUM(valor) FILTER (WHERE status = '${StatusPagamento.A_PAGAR}'), 0)::float8 AS "valorAPagar"
+      FROM (${sql}) linhas
+      WHERE nomes IS NULL OR "nomeConsorcio" IS NOT NULL
+      GROUP BY 1, 2
+      `,
+      params,
+    );
+    return {
+      grupos: linhas
+        .filter((linha) => !linha.semFavorecido)
+        .map(({ nome, valor, valorAPagar }) => ({ nome: nome as string, valor, valorAPagar })),
+      valorSemFavorecido: linhas.find((linha) => linha.semFavorecido)?.valor ?? 0,
+    };
   }
 
   // Keyset-cursor pagination (T4, AC-19/ADR 0002) over the same "combinado" result as
@@ -305,7 +520,7 @@ export class BasePagamentoRepository {
       LIMIT $${base + 7}
     `;
 
-    const rows: BasePagamentoRow[] = await this.dataSource.query(pagedSql, [
+    const rows: BasePagamentoRow[] = await this.runReportQuery(pagedSql, [
       ...params,
       cursor?.dataReferencia ?? null,
       cursor?.nomes ?? null,
@@ -356,6 +571,10 @@ export class BasePagamentoRepository {
     // nao muda entre paginas.
     const temFiltroConsorcio = perfil === 'permissionario' && (Boolean(filter.consorcioNome?.length) || Boolean(filter.todosConsorcios));
     const chaveDoTotal = temFiltroConsorcio ? '"nomeConsorcio"' : 'nomes';
+    // ADR 0023 (T9): the per-group total only matters for valorMin/valorMax. Without them, skip the window
+    // function, which forces Postgres to sort and partition every row of the period.
+    const temFiltroValor = filter.valorMin != null || filter.valorMax != null;
+    const totalDoGrupo = temFiltroValor ? `SUM(valor) FILTER (WHERE nomes IS NOT NULL) OVER (PARTITION BY ${chaveDoTotal})` : 'NULL::numeric';
 
     const sql = `
       WITH ${ASSOCIACAO_CTE[perfil]} agrupada AS (
@@ -499,7 +718,7 @@ export class BasePagamentoRepository {
       ),
       filtrado AS (
         SELECT "dataReferencia", nomes, "cpfCnpj", "nomeConsorcio", valor, status, "chaveLinha",
-          SUM(valor) FILTER (WHERE nomes IS NOT NULL) OVER (PARTITION BY ${chaveDoTotal}) AS "totalDoGrupo"
+          ${totalDoGrupo} AS "totalDoGrupo"
         FROM combinado
         WHERE ($3::text[] IS NULL OR status = ANY($3))
           -- Um lote rejeitado elegivel vem de pendencia_pagamento e de pendentes: conta uma vez so.
@@ -509,8 +728,10 @@ export class BasePagamentoRepository {
               OR "chaveLinha" LIKE 'pendencia_pagamento_familia:%'
               OR "chaveLinha" LIKE 'pendencia_pagamento_propria:%')
             AND ($3::text[] IS NULL OR '${StatusPagamento.PENDENTES}' = ANY($3))
+            -- ADR 0023 (T10): so a CTE pendentes gera 'pendentes_rejeitado:'; procurar nela, e nao em combinado, evita
+            -- materializar o combinado inteiro (cerca de 195 mil linhas em 1 ano em homologacao) so para esta checagem.
             AND EXISTS (
-              SELECT 1 FROM combinado outra
+              SELECT 1 FROM pendentes outra
               WHERE outra."chaveLinha" = 'pendentes_rejeitado:' || split_part(combinado."chaveLinha", ':', 2)
             )
           )
@@ -601,7 +822,7 @@ export class BasePagamentoRepository {
       ORDER BY "dataReferencia", nomes
     `;
 
-    return this.dataSource.query(sql, [
+    return this.runReportQuery(sql, [
       filter.dataInicio,
       filter.dataFim,
       filter.statuses?.length ? filter.statuses : null,

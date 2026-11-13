@@ -30,6 +30,8 @@ describe('Pending payment job lifecycle', () => {
       unusedDependency, unusedDependency, unusedDependency, unusedDependency,
     );
     const runPendingRemittance = jest.spyOn(service, 'remessaPendenteExec').mockResolvedValue(undefined);
+    // onModuleLoad tambem dispara a remessa de modal (geracao da Eleicao); fora do escopo deste teste.
+    jest.spyOn(service, 'remessaModalExec').mockResolvedValue(undefined);
 
     await service.onModuleLoad();
 

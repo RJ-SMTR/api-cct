@@ -33,6 +33,16 @@ export class PagamentoGuardadorController {
     return this.pagamentoGuardadorService.prepararPagamentos(parseInicioDoDia(dto.dataInicio), parseFimDoDia(dto.dataFim), opcoesIndevido);
   }
 
+  /** Pagamentos já preparados hoje (sobrevive a recarregar a tela: a lista não depende mais do POST de preparar). */
+  @Get('preparados')
+  @Roles(RoleEnum.master, RoleEnum.admin)
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  async listarPreparados() {
+    return this.pagamentoGuardadorService.listarPreparadosAtual();
+  }
+
   @Patch('valor-bi/:detalheAId')
   @Roles(RoleEnum.master, RoleEnum.admin)
   @UseGuards(AuthGuard('jwt'), RolesGuard)
