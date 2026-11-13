@@ -32,6 +32,9 @@ export interface BasePagamentoFilter {
   userIds?: number[];
   consorcioNome?: string[];
   todosConsorcios?: boolean;
+  // Guardador: "Todos os guardadores" selecionado. Com filtro de associacao vira uniao (todos os guardadores +
+  // pagamento da associacao); sozinho e' o mesmo que nenhum filtro.
+  todosGuardadores?: boolean;
   // Sem o flag, favorecido bloqueado fica de fora; com ele, so os bloqueados. Ordem sem usuario
   // (pu NULL) continua visivel no modo padrao e nunca aparece em desativados.
   desativados?: boolean;
@@ -273,19 +276,22 @@ const PAGAMENTO_DA_ASSOCIACAO = `EXISTS (SELECT 1 FROM user_relationships ur_ass
 // Rayanne (2026-11-13): o filtro de associacao traz os guardadores vinculados E o pagamento da propria
 // associacao (o legado nunca trazia esse pagamento: divergencia registrada). Sem filtro ("Todos os
 // guardadores") so entra quem tem o papel de guardador, como no legado, sem o pagamento da associacao.
+// "Todos os guardadores" + filtro de associacao (todosGuardadores) e' uniao: todo guardador, com ou sem
+// associacao, mais o pagamento da associacao selecionada.
 // Associacao = usuario apontado por user_relationships.related_user_id.
 // $10 so entra na lista de parametros quando o SQL o referencia.
 function resolveFiltroAssociacao(perfil: Perfil, filter: BasePagamentoFilter): { sql: string; params: unknown[] } {
   if (perfil !== 'guardador') return { sql: '', params: [] };
+  const guardadores = filter.todosGuardadores ? `pu."roleId" = ${GUARDADOR_ROLE_ID}` : null;
   if (filter.todosConsorcios) {
     return {
-      sql: `AND ((pu."roleId" = ${GUARDADOR_ROLE_ID} AND assoc."nomesUpper" IS NOT NULL) OR ${PAGAMENTO_DA_ASSOCIACAO})`,
+      sql: `AND (${guardadores ?? `(pu."roleId" = ${GUARDADOR_ROLE_ID} AND assoc."nomesUpper" IS NOT NULL)`} OR ${PAGAMENTO_DA_ASSOCIACAO})`,
       params: [],
     };
   }
   if (filter.consorcioNome?.length) {
     return {
-      sql: `AND ((pu."roleId" = ${GUARDADOR_ROLE_ID} AND assoc."nomesUpper" && $10::text[])
+      sql: `AND (${guardadores ?? `(pu."roleId" = ${GUARDADOR_ROLE_ID} AND assoc."nomesUpper" && $10::text[])`}
              OR (${PAGAMENTO_DA_ASSOCIACAO} AND UPPER(TRIM(pu."fullName")) = ANY($10::text[])))`,
       params: [filter.consorcioNome.map((nome) => nome.trim().toUpperCase())],
     };

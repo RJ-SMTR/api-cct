@@ -135,6 +135,15 @@ export class FinancialMovementQueryDto {
   @Transform(({ value }) => value === 'true' || value === true)
   todosConsorcios?: boolean;
 
+  @ApiPropertyOptional({
+    description: 'Guardador: "Todos os guardadores" selecionado. Com filtro de associação, soma todos os guardadores e o pagamento da associação.',
+    default: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) => value === 'true' || value === true)
+  todosGuardadores?: boolean;
+
 
   @ApiPropertyOptional({
     description: 'Pesquisa todos os pendentes.', default: false

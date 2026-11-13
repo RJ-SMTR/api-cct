@@ -37,6 +37,13 @@ describe('mapQueryToFinancialMovementV2Filter', () => {
 
     expect(filtro.desativados).toBe(true);
   });
+
+  // "Todos os guardadores" together with an association filter is a union (regra de Rayanne, 2026-11-13).
+  it('forwards todosGuardadores', () => {
+    const filtro = mapQueryToFinancialMovementV2Filter({ ...periodo, todosGuardadores: true } as FinancialMovementQueryDto);
+
+    expect(filtro.todosGuardadores).toBe(true);
+  });
 });
 
 describe('toExportRow', () => {
