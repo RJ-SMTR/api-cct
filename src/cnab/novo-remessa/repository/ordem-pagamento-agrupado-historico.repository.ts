@@ -55,7 +55,8 @@ export class OrdemPagamentoAgrupadoHistoricoRepository {
                       inner join detalhe_a da on da."ordemPagamentoAgrupadoHistoricoId"= oph.id
                       left join ordem_pagamento_agrupado opa on opa."id" = oph."ordemPagamentoAgrupadoId"
                       left join ordem_pagamento_unico ou on ou."idOrdemPagamento" = cast(opa.id as varchar)
-                      left join public.user u on u."permitCode" = ou."idOperadora" `+          
+                      left join public.user u on (u."permitCode" = ou."idOperadora"
+                        or u.id in (select h.user_id from public.user_permit_code_history h where h.permit_code = ou."idOperadora")) `+
                 ` where da."id" = ${detalheAId} `;
     } else if(isPendente){
       // resolve o usuario pela ordem "filha" (consorcio OU guardador), ou pela

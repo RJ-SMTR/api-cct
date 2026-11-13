@@ -176,7 +176,8 @@ export class RemessaService {
 
           let user
           if (pagamentoUnico) {
-            user = await this.userService.getOne({ permitCode: op.idOperadora });
+            // idOperadora é o código de permissão da época da ordem; se o código foi trocado, o dono está no histórico.
+            user = (await this.userService.findByAnyPermitCode(String(op.idOperadora))) ?? (await this.userService.getOne({ permitCode: op.idOperadora }));
           } else {
             if (consorcio && consorcio.length > 0) {
               user = await this.userService.getOne({ id: op.userId });
