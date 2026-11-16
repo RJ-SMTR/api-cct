@@ -62,6 +62,13 @@ describe('mapQueryToFinancialMovementV2Filter', () => {
 
     expect(filtro.statuses).toEqual([StatusPagamento.PAGO, StatusPagamento.ABATIMENTO_DUPLICIDADE]);
   });
+
+  it('forwards exigirTodasAssociacoes', () => {
+    const filtro = mapQueryToFinancialMovementV2Filter({ ...periodo, consorcioNome: ['ANGLAE', 'SINGAERJ'], exigirTodasAssociacoes: true } as FinancialMovementQueryDto);
+
+    expect(filtro.exigirTodasAssociacoes).toBe(true);
+    expect(filtro.consorcioNome).toEqual(['ANGLAE', 'SINGAERJ']);
+  });
 });
 
 describe('toExportRow', () => {
