@@ -63,9 +63,16 @@ export class StucGratuidadeRepository {
     // 4 dias somados), nao ao valor de um dia isolado - aplicado depois do pivot, mesma
     // abordagem do legado (findStucGratuidadePivotedRows em
     // relatorio-novo-remessa-financial-movement.service.ts).
-    return pivoted.filter(
-      (row) => (filter.valorMin === undefined || row.valor >= filter.valorMin) && (filter.valorMax === undefined || row.valor <= filter.valorMax),
-    );
+    // Sempre em ordem alfabetica do nome e, no mesmo nome, pela janela (a consulta vem por data).
+    return pivoted
+      .filter(
+        (row) => (filter.valorMin === undefined || row.valor >= filter.valorMin) && (filter.valorMax === undefined || row.valor <= filter.valorMax),
+      )
+      .sort(
+        (a, b) =>
+          (a.nomes ?? '').localeCompare(b.nomes ?? '', 'pt-BR') ||
+          (a.dataOrdemPagamento1?.getTime() ?? 0) - (b.dataOrdemPagamento1?.getTime() ?? 0),
+      );
   }
 
   private async findDayRows(filter: StucGratuidadeFilter): Promise<StucGratuidadeDayRow[]> {

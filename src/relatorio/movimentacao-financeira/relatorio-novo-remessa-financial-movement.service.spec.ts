@@ -196,6 +196,41 @@ describe('RelatorioNovoRemessaFinancialMovementService', () => {
       expect(dataParams).toContain('fulano@email.com');
     });
 
+    // Relatorios sempre em ordem alfabetica, qualquer filtro (tela e export): o nome e' a primeira
+    // chave do ORDER BY e do keyset, comparado com o nome do cursor ($9), nao com a data ($8).
+    it('orders the page alphabetically by name first, and the keyset compares the name with the cursor name', async () => {
+      dataSource.query
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([{ count: '0' }])
+        .mockResolvedValueOnce([{}]);
+
+      await service.findFinancialMovementPage({
+        dataInicio: new Date('2026-01-01'),
+        dataFim: new Date('2026-01-05'),
+        eleicao: true,
+        page: 1,
+        pageSize: 50,
+        cursorDataReferencia: '01/01/2026',
+        cursorNome: 'FULANO',
+      } as any);
+
+      const [dataQuery] = dataSource.query.mock.calls[0];
+      const orderBy = dataQuery.slice(dataQuery.lastIndexOf('ORDER BY') + 'ORDER BY'.length).trim();
+      expect(orderBy.startsWith("COALESCE(g.nomes, '')")).toBe(true);
+      const tuplaDoCursor = dataQuery.slice(dataQuery.indexOf(') > (') + 5).trim();
+      expect(tuplaDoCursor.startsWith("COALESCE($9::text, '')")).toBe(true);
+    });
+
+    it('streams the export in the same alphabetical order as the page', async () => {
+      dataSource.query.mockResolvedValueOnce([]);
+
+      await service.streamFinancialMovementRows({ dataInicio: new Date('2026-01-01'), dataFim: new Date('2026-01-05'), eleicao: true } as any, () => undefined);
+
+      const [dataQuery] = dataSource.query.mock.calls[0];
+      const orderBy = dataQuery.slice(dataQuery.lastIndexOf('ORDER BY') + 'ORDER BY'.length).trim();
+      expect(orderBy.startsWith("COALESCE(g.nomes, '')")).toBe(true);
+    });
+
     it('builds the next page cursor from the full tuple, so a tied group is not cut mid-way', async () => {
       // Two grouped rows tied on the old 4 columns (dataReferencia/nomes/status/cpfCnpj),
       // differing only by nomeConsorcio - exactly the case the old cursor would lose.

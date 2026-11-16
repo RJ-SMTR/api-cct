@@ -104,10 +104,11 @@ export interface BasePagamentoPage {
 // Mesma lista de expressoes no ORDER BY e na comparacao de tupla do keyset: com ORDER BY na
 // coluna pura, NULL ordena por ultimo mas COALESCE(nomes, '') o trata como menor valor, e a linha
 // sem favorecido sumia num corte de pagina. Row comparison do Postgres tambem nao aceita NULL, por
-// isso o COALESCE nos dois lados. Efeito visivel: linhas sem favorecido vem primeiro no seu dia.
+// isso o COALESCE nos dois lados. Efeito visivel: linhas sem favorecido vem primeiro.
+// Nome antes da data: relatorio sempre em ordem alfabetica, qualquer filtro, na tela e no export.
 const CURSOR_TUPLE = `
-  "dataReferencia",
   COALESCE(nomes, ''),
+  "dataReferencia",
   COALESCE("cpfCnpj", ''),
   COALESCE("nomeConsorcio", ''),
   COALESCE(status, ''),
@@ -520,9 +521,10 @@ export class BasePagamentoRepository {
   ): Promise<BasePagamentoPage> {
     const { sql, params } = this.buildCombinadoSql(perfil, filter);
     const base = params.length; // last positional param already used by buildCombinadoSql
+    // Mesma ordem de colunas de CURSOR_TUPLE (nome, depois data).
     const tuplaCursor = `(
-            $${base + 1}::date,
             COALESCE($${base + 2}::text, ''),
+            $${base + 1}::date,
             COALESCE($${base + 3}::text, ''),
             COALESCE($${base + 4}::text, ''),
             COALESCE($${base + 5}::text, ''),
@@ -846,7 +848,7 @@ export class BasePagamentoRepository {
       FROM filtrado
       WHERE ($4::numeric IS NULL OR "totalDoGrupo" >= $4)
         AND ($5::numeric IS NULL OR "totalDoGrupo" <= $5)
-      ORDER BY "dataReferencia", nomes
+      ORDER BY nomes, "dataReferencia"
     `;
 
     return this.runReportQuery(sql, [

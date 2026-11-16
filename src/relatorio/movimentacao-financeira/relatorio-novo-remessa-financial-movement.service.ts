@@ -77,10 +77,11 @@ type CursorValues = {
 
 // Tuple columns shared by the ORDER BY and the keyset WHERE comparison. COALESCE avoids
 // Postgres row-comparison returning NULL (and silently excluding the row) whenever a
-// tie-breaker column is NULL.
+// tie-breaker column is NULL. Name first: reports are always in alphabetical order, whatever the
+// filter, on the screen and in the export (COALESCEd now that it leads the tuple).
 const CURSOR_TUPLE_COLUMNS = `
+  COALESCE(g.nomes, ''),
   g."dataReferencia",
-  g.nomes,
   g.status,
   g."cpfCnpj",
   COALESCE(g."nomeConsorcio", ''),
@@ -175,7 +176,7 @@ export class RelatorioNovoRemessaFinancialMovementService {
       AND (
         $8::text IS NULL
         OR (${CURSOR_TUPLE_COLUMNS}) > (
-          to_date($8, 'DD/MM/YYYY'), $9::text, $10::text, $11::text,
+          COALESCE($9::text, ''), to_date($8, 'DD/MM/YYYY'), $10::text, $11::text,
           COALESCE($13::text, ''), COALESCE($14::text, ''), COALESCE($15::text, ''), COALESCE($16::text, '')
         )
       )
@@ -414,7 +415,7 @@ export class RelatorioNovoRemessaFinancialMovementService {
       AND (
         $8::text IS NULL
         OR (${CURSOR_TUPLE_COLUMNS}) > (
-          to_date($8, 'DD/MM/YYYY'), $9::text, $10::text, $11::text,
+          COALESCE($9::text, ''), to_date($8, 'DD/MM/YYYY'), $10::text, $11::text,
           COALESCE($13::text, ''), COALESCE($14::text, ''), COALESCE($15::text, ''), COALESCE($16::text, '')
         )
       )
