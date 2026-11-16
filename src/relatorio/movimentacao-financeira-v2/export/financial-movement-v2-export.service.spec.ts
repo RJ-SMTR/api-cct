@@ -175,9 +175,9 @@ describe('FinancialMovementV2ExportService', () => {
     expect(summary.valorAbatimentoDuplicidade).toBe(40);
     expect(summary.valorTotal).toBe(120);
     expect(buildSummaryLines(summary)).toEqual([
-      ['Total Pago', 'R$ 80,00'],
-      ['Total Abatimento por duplicidade', 'R$ 40,00'],
-      ['Valor Total', 'R$ 120,00'],
+      ['Total Pago', 'R$ 80,00'],
+      ['Total Abatimento por duplicidade', 'R$ 40,00'],
+      ['Valor Total', 'R$ 120,00'],
     ]);
     expect(buildStatusLabelsFromFilter([StatusPagamento.ABATIMENTO_DUPLICIDADE])).toEqual(['Abatimento por duplicidade']);
   });
