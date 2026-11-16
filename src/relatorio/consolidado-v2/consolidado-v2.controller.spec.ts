@@ -290,6 +290,20 @@ describe('ConsolidadoV2Controller', () => {
       expect(calledFilter.desativados).toBe(true);
       expect(calledFilter.statuses).toEqual([StatusPagamento.PENDENTES]);
     });
+
+    it('"Pago" brings the abatimento por duplicidade along, in its own status', async () => {
+      await callGuardador({ pago: true });
+
+      const calledFilter = (vanzeiroAggregatorService.aggregate as jest.Mock).mock.calls[0][0];
+      expect(calledFilter.statuses).toEqual([StatusPagamento.PAGO, StatusPagamento.ABATIMENTO_DUPLICIDADE]);
+    });
+
+    it('without "Pago" the abatimento stays out', async () => {
+      await callGuardador({ aPagar: true });
+
+      const calledFilter = (vanzeiroAggregatorService.aggregate as jest.Mock).mock.calls[0][0];
+      expect(calledFilter.statuses).toEqual([StatusPagamento.A_PAGAR]);
+    });
   });
   it.each([
     [{ stucGratuidade: true, consorcioNome: ['VLT'], pendentes: true }],
@@ -393,7 +407,8 @@ describe('ConsolidadoV2Controller', () => {
       await chamar({ pago: true, aPagar: true, estorno: true, porStatus: true });
 
       expect(vanzeiroAggregatorService.aggregatePorStatus).toHaveBeenCalledWith(
-        expect.objectContaining({ statuses: [StatusPagamento.PAGO, StatusPagamento.A_PAGAR, StatusPagamento.ERRO_ESTORNO] }),
+        // "Pago" traz junto o abatimento por duplicidade, no proprio bloco.
+        expect.objectContaining({ statuses: [StatusPagamento.PAGO, StatusPagamento.A_PAGAR, StatusPagamento.ERRO_ESTORNO, StatusPagamento.ABATIMENTO_DUPLICIDADE] }),
         'guardador',
       );
       expect(vanzeiroAggregatorService.aggregate).not.toHaveBeenCalled();
