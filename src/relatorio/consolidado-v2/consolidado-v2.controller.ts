@@ -197,6 +197,7 @@ export class ConsolidadoV2Controller {
   @ApiQuery({ name: 'userIds', description: 'Pesquisa o id dos usuários.', required: false, type: [Number] })
   @ApiQuery({ name: 'porStatus', description: 'Um bloco por status selecionado, em uma consulta (ADR 0023).', required: false, type: Boolean })
   @ApiQuery({ name: 'todosGuardadores', description: 'Todos os guardadores; com filtro de associação, soma os dois.', required: false, type: Boolean })
+  @ApiQuery({ name: 'exigirTodasAssociacoes', description: 'Com consorcioNome, só guardadores de todas as associações informadas.', required: false, type: Boolean })
   @Get('guardador/consolidado')
   async getGuardadorConsolidado(
     @Query('dataInicio', new ParseDatePipe({ dateOnly: true }))
@@ -225,6 +226,7 @@ export class ConsolidadoV2Controller {
     @Query('erro', new ParseBooleanPipe({ optional: true })) erro: boolean | undefined,
     @Query('porStatus', new ParseBooleanPipe({ optional: true })) porStatus: boolean | undefined,
     @Query('todosGuardadores', new ParseBooleanPipe({ optional: true })) todosGuardadores: boolean | undefined,
+    @Query('exigirTodasAssociacoes', new ParseBooleanPipe({ optional: true })) exigirTodasAssociacoes: boolean | undefined,
   ) {
     try {
       // Guardador nao tem visao por consorcio, Eleicao nem STUC-Gratuidade (PRD, AC-8/AC-9): erro
@@ -249,6 +251,7 @@ export class ConsolidadoV2Controller {
         consorcioNome,
         todosConsorcios,
         todosGuardadores,
+        exigirTodasAssociacoes,
         desativados,
       };
 

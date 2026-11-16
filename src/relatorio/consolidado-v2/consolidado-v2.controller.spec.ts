@@ -385,7 +385,7 @@ describe('ConsolidadoV2Controller', () => {
   // ADR 0023 (T11): porStatus answers every selected status from one aggregation call.
   describe('getGuardadorConsolidado porStatus', () => {
     const chamar = (args: Record<string, unknown>) => {
-      const ordem = ['userIds', 'consorcioNome', 'valorMin', 'valorMax', 'pago', 'aPagar', 'emProcessamento', 'todosConsorcios', 'eleicao', 'desativados', 'pendentes', 'rejeitado', 'estorno', 'pendenciaPaga', 'stucGratuidade', 'erro', 'porStatus'];
+      const ordem = ['userIds', 'consorcioNome', 'valorMin', 'valorMax', 'pago', 'aPagar', 'emProcessamento', 'todosConsorcios', 'eleicao', 'desativados', 'pendentes', 'rejeitado', 'estorno', 'pendenciaPaga', 'stucGratuidade', 'erro', 'porStatus', 'todosGuardadores', 'exigirTodasAssociacoes'];
       return (controller.getGuardadorConsolidado as (...a: unknown[]) => Promise<unknown>).call(controller, dataInicio, dataFim, ...ordem.map((k) => args[k]));
     };
 
@@ -397,6 +397,15 @@ describe('ConsolidadoV2Controller', () => {
         'guardador',
       );
       expect(vanzeiroAggregatorService.aggregate).not.toHaveBeenCalled();
+    });
+
+    it('forwards exigirTodasAssociacoes with the association list (ANGLAE/SINGAERJ at the same time)', async () => {
+      await chamar({ consorcioNome: ['ANGLAE', 'SINGAERJ'], exigirTodasAssociacoes: true });
+
+      expect(vanzeiroAggregatorService.aggregate).toHaveBeenCalledWith(
+        expect.objectContaining({ consorcioNome: ['ANGLAE', 'SINGAERJ'], exigirTodasAssociacoes: true }),
+        'guardador',
+      );
     });
 
     it('keeps the single aggregate without porStatus', async () => {

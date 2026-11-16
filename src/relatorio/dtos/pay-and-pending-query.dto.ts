@@ -144,6 +144,15 @@ export class FinancialMovementQueryDto {
   @Transform(({ value }) => value === 'true' || value === true)
   todosGuardadores?: boolean;
 
+  @ApiPropertyOptional({
+    description: 'Guardador: com consorcioNome, traz só quem pertence a todas as associações informadas (ex. ANGLAE e SINGAERJ).',
+    default: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) => value === 'true' || value === true)
+  exigirTodasAssociacoes?: boolean;
+
 
   @ApiPropertyOptional({
     description: 'Pesquisa todos os pendentes.', default: false
