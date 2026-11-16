@@ -14,6 +14,13 @@ import { buildCodigoErroSql } from '../../novo-remessa/queries/descricao-erro';
 import { buildConsorcioCaseSql, CONSORCIOS, INSTITUTIONAL_CPF_CNPJ, MODAIS } from '../status/consorcio-resolver';
 import { resolveInicioAPagar } from '../status/data-minima-a-pagar';
 import { buildEleicaoStatusPagamentoCaseSql, buildStatusPagamentoCaseSql } from '../status/status-resolver';
+import {
+  ABATIMENTO_DUPLICIDADE_CTES,
+  abatimentoDuplicidadeJoin,
+  abatimentoDuplicidadeJoinComPai,
+  naoEhAbatimentoDuplicidade,
+  statusComAbatimentoDuplicidade,
+} from '../status/abatimento-duplicidade';
 
 export type Perfil = 'permissionario' | 'guardador';
 
@@ -55,6 +62,8 @@ export interface BasePagamentoRow {
   // Chave estavel por linha (ver CURSOR_ORDER_BY); ausente nas linhas de Eleicao, que nao paginam
   // por cursor. Nunca vai para as colunas de saida (toExportRow escolhe os campos).
   chaveLinha?: string;
+  // Motivo do status, hoje so do "Abatimento por duplicidade" (Guardador); null nas demais linhas.
+  motivo?: string | null;
 }
 
 // Totals by status bucket, same shape as RelatorioFinancialMovementNovoRemessaSummaryDto.
@@ -68,6 +77,7 @@ export interface BasePagamentoSummaryTotals {
   valorAPagar: number;
   valorPendente: number;
   valorPendenciaPaga: number;
+  valorAbatimentoDuplicidade: number;
   valorSemFavorecido: number;
 }
 
@@ -161,6 +171,43 @@ const ASSOCIACAO_JOIN: Record<Perfil, string> = {
 const REPRESENTANTE_EXTRA_COLUMN: Record<Perfil, string> = {
   permissionario: ', rep."nomeConsorcio"',
   guardador: '',
+};
+
+// "Abatimento por duplicidade" (abatimento-duplicidade.ts) so existe para Guardador: o Permissionario
+// nao tem pagamento indevido descontado na remessa. Em cada fonte com detalhe_a ("da"), o Guardador
+// junta o abatimento da linha e o status dele prevalece; as demais fontes saem com motivo NULL.
+interface AbatimentoPerfil {
+  ctes: string;
+  join: (daAlias: string) => string;
+  // Pendencia Paga: o desconto fica no lancamento do PAI; a filha sai como abatimento quando ele o tem.
+  joinPendencia: (daAlias: string | null, paiIdSql: string) => string;
+  status: (statusSql: string) => string;
+  motivo: string;
+  // Status 4 so entra em "agrupada" quando e' o lancamento zerado pelo abatimento.
+  agrupadaStatus: string;
+  // Fora das fontes de Rejeitado/Estorno: o lancamento zerado ja sai como abatimento em "agrupada".
+  foraDoRejeitado: (daAlias: string) => string;
+}
+
+const ABATIMENTO: Record<Perfil, AbatimentoPerfil> = {
+  permissionario: {
+    ctes: '',
+    join: () => '',
+    joinPendencia: () => '',
+    status: (statusSql) => statusSql,
+    motivo: 'NULL::text',
+    agrupadaStatus: 'oph."statusRemessa" NOT IN (4, 5)',
+    foraDoRejeitado: () => '',
+  },
+  guardador: {
+    ctes: ABATIMENTO_DUPLICIDADE_CTES,
+    join: abatimentoDuplicidadeJoin,
+    joinPendencia: abatimentoDuplicidadeJoinComPai,
+    status: statusComAbatimentoDuplicidade,
+    motivo: 'ab.motivo',
+    agrupadaStatus: '(oph."statusRemessa" NOT IN (4, 5) OR (oph."statusRemessa" = 4 AND ab."detalheAId" IS NOT NULL))',
+    foraDoRejeitado: (daAlias) => `AND ${naoEhAbatimentoDuplicidade(daAlias)}`,
+  },
 };
 
 const ORDEM_TABLE: Record<Perfil, string> = {
@@ -421,6 +468,7 @@ export class BasePagamentoRepository {
         ${somaPorStatus(StatusPagamento.A_PAGAR)} AS "valorAPagar",
         ${somaPorStatus(StatusPagamento.PENDENTES)} AS "valorPendente",
         ${somaPorStatus(StatusPagamento.PENDENCIA_PAGA)} AS "valorPendenciaPaga",
+        ${somaPorStatus(StatusPagamento.ABATIMENTO_DUPLICIDADE)} AS "valorAbatimentoDuplicidade",
         COALESCE(SUM(valor) FILTER (WHERE nomes IS NULL), 0)::float8 AS "valorSemFavorecido"
       FROM (${sql}) linhas
       `,
@@ -598,27 +646,32 @@ export class BasePagamentoRepository {
     // function, which forces Postgres to sort and partition every row of the period.
     const temFiltroValor = filter.valorMin != null || filter.valorMax != null;
     const totalDoGrupo = temFiltroValor ? `SUM(valor) FILTER (WHERE nomes IS NOT NULL) OVER (PARTITION BY ${chaveDoTotal})` : 'NULL::numeric';
+    const abatimento = ABATIMENTO[perfil];
 
     const sql = `
-      WITH ${ASSOCIACAO_CTE[perfil]} agrupada AS (
+      WITH ${ASSOCIACAO_CTE[perfil]} ${abatimento.ctes} agrupada AS (
         -- Ordens ja agrupadas com detalhe_a (Pago / A Pagar enviado / Aguardando Pagamento, via
         -- resolver de status compartilhado). Dedupe de fan-out (ADR 0011): uma linha
-        -- representativa por agrupamento (LATERAL), nunca uma por ordem filha.
+        -- representativa por agrupamento (LATERAL), nunca uma por ordem filha. Guardador: o
+        -- lancamento com abatimento do pagamento indevido sai como "Abatimento por duplicidade",
+        -- inclusive o zerado pelo abatimento e rejeitado pelo banco (status 4, valor 0).
         SELECT
           da."dataVencimento"::date AS "dataReferencia",
           pu."fullName" AS nomes,
           pu."cpfCnpj" AS "cpfCnpj",
           ${NOME_CONSORCIO_AGRUPADA[perfil]} AS "nomeConsorcio",
           da."valorLancamento" AS valor,
-          ${statusCase} AS status,
+          ${abatimento.status(statusCase)} AS status,
           da.id AS "detalheAId",
-          ${buildCodigoErroSql(statusCase, 'oph')} AS "codigoErro"
+          ${buildCodigoErroSql(statusCase, 'oph')} AS "codigoErro",
+          ${abatimento.motivo} AS motivo
         FROM ordem_pagamento_agrupado opa
         INNER JOIN ordem_pagamento_agrupado_historico oph ON oph."ordemPagamentoAgrupadoId" = opa.id
         INNER JOIN detalhe_a da ON da."ordemPagamentoAgrupadoHistoricoId" = oph.id
+        ${abatimento.join('da')}
         ${lateral}
         WHERE da."dataVencimento"::date BETWEEN $1::date AND $2::date
-          AND oph."statusRemessa" NOT IN (4, 5)
+          AND ${abatimento.agrupadaStatus}
           ${filtroFavorecido}
       ),
       pendencia_paga AS (
@@ -631,13 +684,15 @@ export class BasePagamentoRepository {
           pu."cpfCnpj" AS "cpfCnpj",
           ${NOME_CONSORCIO_AGRUPADA[perfil]} AS "nomeConsorcio",
           da."valorLancamento" AS valor,
-          '${StatusPagamento.PENDENCIA_PAGA}' AS status,
+          ${abatimento.status(`'${StatusPagamento.PENDENCIA_PAGA}'`)} AS status,
           'pendencia_paga:' || da.id::text AS "chaveLinha",
-          NULL::text AS "codigoErro"
+          NULL::text AS "codigoErro",
+          ${abatimento.motivo} AS motivo
         FROM ordem_pagamento_agrupado opa
         LEFT JOIN ordem_pagamento_agrupado op_pai ON op_pai.id = opa."ordemPagamentoAgrupadoId"
         INNER JOIN ordem_pagamento_agrupado_historico oph ON oph."ordemPagamentoAgrupadoId" = opa.id
         INNER JOIN detalhe_a da ON da."ordemPagamentoAgrupadoHistoricoId" = oph.id
+        ${abatimento.joinPendencia('da', 'opa."ordemPagamentoAgrupadoId"')}
         ${lateral}
         WHERE oph."statusRemessa" = 5
           AND ${AGRUPAMENTO_SEM_FILHAS('opa')}
@@ -667,14 +722,16 @@ export class BasePagamentoRepository {
           pu."cpfCnpj" AS "cpfCnpj",
           ${NOME_CONSORCIO_AGRUPADA[perfil]} AS "nomeConsorcio",
           ROUND(opa."valorTotal"::numeric, 2) AS valor,
-          '${StatusPagamento.PENDENCIA_PAGA}' AS status,
+          ${abatimento.status(`'${StatusPagamento.PENDENCIA_PAGA}'`)} AS status,
           'pendencia_paga_passo0:' || opa.id::text AS "chaveLinha",
-          NULL::text AS "codigoErro"
+          NULL::text AS "codigoErro",
+          ${abatimento.motivo} AS motivo
         FROM ordem_pagamento_agrupado opa
         INNER JOIN ordem_pagamento_agrupado op_pai ON op_pai.id = opa."ordemPagamentoAgrupadoId"
         INNER JOIN ordem_pagamento_agrupado_historico oph ON oph.id = (
           SELECT MAX(oph_mais_recente.id) FROM ordem_pagamento_agrupado_historico oph_mais_recente WHERE oph_mais_recente."ordemPagamentoAgrupadoId" = opa.id
         )
+        ${abatimento.joinPendencia(null, 'op_pai.id')}
         ${lateral}
         WHERE ${AGRUPAMENTO_SEM_FILHAS('opa')}
           AND oph."statusRemessa" = 5
@@ -701,9 +758,10 @@ export class BasePagamentoRepository {
         -- GROUP BY mas e deterministico por favorecido/ordem (nao fragmenta totais reais).
         SELECT "dataReferencia", nomes, "cpfCnpj", "nomeConsorcio", SUM(valor) AS valor, status,
           'agrupada:' || MIN("detalheAId")::text AS "chaveLinha",
-          string_agg(DISTINCT "codigoErro", ',' ORDER BY "codigoErro") AS "codigoErro"
+          string_agg(DISTINCT "codigoErro", ',' ORDER BY "codigoErro") AS "codigoErro",
+          motivo
         FROM agrupada
-        GROUP BY "dataReferencia", nomes, "cpfCnpj", "nomeConsorcio", status
+        GROUP BY "dataReferencia", nomes, "cpfCnpj", "nomeConsorcio", status, motivo
       ),
       nunca_enviada AS (
         -- Ordens nunca agrupadas/enviadas (ADR 0017): sem valorLancamento de lote a somar, cada
@@ -717,7 +775,8 @@ export class BasePagamentoRepository {
           '${StatusPagamento.A_PAGAR}' AS status,
           -- oph.id entra na chave: uma ordem de agrupamento sem detalhe_a sai uma vez por historico.
           'nunca_enviada:' || op.id::text || ':' || COALESCE(oph.id::text, '0') AS "chaveLinha",
-          NULL::text AS "codigoErro"
+          NULL::text AS "codigoErro",
+          NULL::text AS motivo
         FROM ${ordemTable} op
         LEFT JOIN ordem_pagamento_agrupado opa ON op."ordemPagamentoAgrupadoId" = opa.id
         LEFT JOIN public."user" pu ON pu.id = op."userId"
@@ -745,7 +804,7 @@ export class BasePagamentoRepository {
         SELECT * FROM pendentes
       ),
       filtrado AS (
-        SELECT "dataReferencia", nomes, "cpfCnpj", "nomeConsorcio", valor, status, "chaveLinha", "codigoErro",
+        SELECT "dataReferencia", nomes, "cpfCnpj", "nomeConsorcio", valor, status, "chaveLinha", "codigoErro", motivo,
           ${totalDoGrupo} AS "totalDoGrupo"
         FROM combinado
         WHERE ($3::text[] IS NULL OR status = ANY($3))
@@ -766,7 +825,7 @@ export class BasePagamentoRepository {
           AND ($7::text[] IS NULL OR UPPER(TRIM("nomeConsorcio")) = ANY($7))
           AND ($8::text[] IS NULL OR "cpfCnpj" IS NULL OR NOT ("cpfCnpj" = ANY($8)))
       )
-      SELECT "dataReferencia", nomes, "cpfCnpj", "nomeConsorcio", valor, status, "chaveLinha", "codigoErro"
+      SELECT "dataReferencia", nomes, "cpfCnpj", "nomeConsorcio", valor, status, "chaveLinha", "codigoErro", motivo
       FROM filtrado
       WHERE ($4::numeric IS NULL OR "totalDoGrupo" >= $4)
         AND ($5::numeric IS NULL OR "totalDoGrupo" <= $5)
@@ -865,6 +924,8 @@ export class BasePagamentoRepository {
   // Dia unico (ADR 0008/nota do ADR 0001): a familia pai define status (historico mais recente
   // do pai) e data de referencia; o valor e' da propria filha. Sem filtro de elegibilidade (ADR
   // 0020) - esta consulta dedicada nunca teve esse filtro no legado, so o caminho de intervalo.
+  // Guardador: o lancamento com abatimento do indevido fica de fora, porque ja sai em "agrupada"
+  // como "Abatimento por duplicidade" (o zerado pelo abatimento saia aqui como Rejeitado de R$ 0).
   private buildPendenciaPagamentoDiaUnicoSql(perfil: Perfil, lateral: string, filtroFavorecido: string): string {
     const statusPai = buildStatusPagamentoCaseSql('oph_pai');
     const statusPropria = buildStatusPagamentoCaseSql('oph');
@@ -878,7 +939,8 @@ export class BasePagamentoRepository {
           da."valorLancamento" AS valor,
           ${statusPai} AS status,
           'pendencia_pagamento_familia:' || da.id::text AS "chaveLinha",
-          ${buildCodigoErroSql(statusPai, 'oph_pai')} AS "codigoErro"
+          ${buildCodigoErroSql(statusPai, 'oph_pai')} AS "codigoErro",
+          NULL::text AS motivo
         FROM ordem_pagamento_agrupado opa
         INNER JOIN ordem_pagamento_agrupado op_pai ON op_pai.id = opa."ordemPagamentoAgrupadoId"
         INNER JOIN ordem_pagamento_agrupado_historico oph ON oph."ordemPagamentoAgrupadoId" = opa.id
@@ -891,6 +953,7 @@ export class BasePagamentoRepository {
           AND ${statusPai} IN (${statusRejeitado})
           AND (oph_pai."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph_pai."motivoStatusRemessa" IS NULL)
           ${filtroFavorecido}
+          ${ABATIMENTO[perfil].foraDoRejeitado('da')}
 
         UNION ALL
 
@@ -903,7 +966,8 @@ export class BasePagamentoRepository {
           da."valorLancamento" AS valor,
           ${statusPropria} AS status,
           'pendencia_pagamento_propria:' || da.id::text AS "chaveLinha",
-          ${buildCodigoErroSql(statusPropria, 'oph')} AS "codigoErro"
+          ${buildCodigoErroSql(statusPropria, 'oph')} AS "codigoErro",
+          NULL::text AS motivo
         FROM ordem_pagamento_agrupado opa
         INNER JOIN ordem_pagamento_agrupado_historico oph ON oph."ordemPagamentoAgrupadoId" = opa.id
         INNER JOIN detalhe_a da ON da."ordemPagamentoAgrupadoHistoricoId" = oph.id
@@ -913,6 +977,7 @@ export class BasePagamentoRepository {
           AND ${statusPropria} IN (${statusRejeitado})
           AND (oph."motivoStatusRemessa" NOT IN ('AM', 'AE') OR oph."motivoStatusRemessa" IS NULL)
           ${filtroFavorecido}
+          ${ABATIMENTO[perfil].foraDoRejeitado('da')}
     `;
   }
 
@@ -930,7 +995,8 @@ export class BasePagamentoRepository {
           da."valorLancamento" AS valor,
           ${statusPropria} AS status,
           'pendencia_pagamento_intervalo:' || da.id::text AS "chaveLinha",
-          ${buildCodigoErroSql(statusPropria, 'oph')} AS "codigoErro"
+          ${buildCodigoErroSql(statusPropria, 'oph')} AS "codigoErro",
+          NULL::text AS motivo
         FROM ordem_pagamento_agrupado opa
         INNER JOIN ordem_pagamento_agrupado_historico oph ON oph."ordemPagamentoAgrupadoId" = opa.id
         INNER JOIN detalhe_a da ON da."ordemPagamentoAgrupadoHistoricoId" = oph.id
@@ -965,7 +1031,8 @@ export class BasePagamentoRepository {
           opa."valorTotal" AS valor,
           '${StatusPagamento.PENDENTES}' AS status,
           'pendentes_nunca_enviado:' || opa.id::text AS "chaveLinha",
-          NULL::text AS "codigoErro"
+          NULL::text AS "codigoErro",
+          NULL::text AS motivo
         FROM ordem_pagamento_agrupado opa
         ${lateral}
         WHERE opa."dataPagamento"::date BETWEEN $1::date AND $2::date
@@ -983,7 +1050,8 @@ export class BasePagamentoRepository {
           op."${valorColumn}" AS valor,
           '${StatusPagamento.PENDENTES}' AS status,
           'pendentes_solta:' || op.id::text AS "chaveLinha",
-          NULL::text AS "codigoErro"
+          NULL::text AS "codigoErro",
+          NULL::text AS motivo
         FROM ${ordemTable} op
         LEFT JOIN public."user" pu ON pu.id = op."userId"
         ${ASSOCIACAO_JOIN[perfil]}
@@ -1002,7 +1070,8 @@ export class BasePagamentoRepository {
           da."valorLancamento" AS valor,
           '${StatusPagamento.PENDENTES}' AS status,
           'pendentes_rejeitado:' || da.id::text AS "chaveLinha",
-          NULL::text AS "codigoErro"
+          NULL::text AS "codigoErro",
+          NULL::text AS motivo
         FROM ordem_pagamento_agrupado opa
         INNER JOIN ordem_pagamento_agrupado_historico oph ON oph."ordemPagamentoAgrupadoId" = opa.id
         INNER JOIN detalhe_a da ON da."ordemPagamentoAgrupadoHistoricoId" = oph.id

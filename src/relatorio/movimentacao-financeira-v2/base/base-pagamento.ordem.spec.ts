@@ -87,7 +87,7 @@ describe('BasePagamentoRepository - ordem alfabetica', () => {
     await repository.findGroupedRowsPage('permissionario', { dataInicio: periodo.dataInicio, dataFim }, 50);
 
     const { sql } = consultas[0];
-    expect(sql).toMatch(/SELECT "dataReferencia", nomes, "cpfCnpj", "nomeConsorcio", valor, status, "chaveLinha", "codigoErro"\s+FROM filtrado/);
+    expect(sql).toMatch(/SELECT "dataReferencia", nomes, "cpfCnpj", "nomeConsorcio", valor, status, "chaveLinha", "codigoErro", motivo\s+FROM filtrado/);
     expect(sql).toMatch(/string_agg\(DISTINCT "codigoErro"/);
     const fonteDeErro = (prefixo: string) => {
       const inicio = sql.indexOf(`'${prefixo}:'`);

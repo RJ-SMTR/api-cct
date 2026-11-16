@@ -5,5 +5,7 @@ export enum StatusPagamento {
   AGUARDANDO_PAGAMENTO = 'Aguardando Pagamento',
   PENDENCIA_PAGA = 'Pendencia Paga',
   PENDENTES = 'Pendentes',
-  A_PAGAR = 'A Pagar'
+  A_PAGAR = 'A Pagar',
+  // Guardador only: payment reduced (or zeroed) by the discount of a pagamento indevido (abatimento-duplicidade.ts).
+  ABATIMENTO_DUPLICIDADE = 'Abatimento por duplicidade',
 }

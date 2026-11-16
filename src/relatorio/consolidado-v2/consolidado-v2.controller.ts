@@ -24,6 +24,7 @@ interface StatusFlags {
   rejeitado?: boolean;
   estorno?: boolean;
   erro?: boolean;
+  abatimentoDuplicidade?: boolean;
 }
 
 // Mesma semantica do getSelectedStatuses legado: erro=true e' o combo Estorno + Rejeitado, e o
@@ -39,6 +40,7 @@ function mapStatuses(flags: StatusFlags): StatusPagamento[] | undefined {
       ...(flags.rejeitado ? [StatusPagamento.ERRO_REJEITADO] : []),
       ...(flags.estorno ? [StatusPagamento.ERRO_ESTORNO] : []),
       ...(flags.erro ? [StatusPagamento.ERRO_ESTORNO, StatusPagamento.ERRO_REJEITADO] : []),
+      ...(flags.abatimentoDuplicidade ? [StatusPagamento.ABATIMENTO_DUPLICIDADE] : []),
     ]),
   ];
 
@@ -197,6 +199,7 @@ export class ConsolidadoV2Controller {
   @ApiQuery({ name: 'userIds', description: 'Pesquisa o id dos usuários.', required: false, type: [Number] })
   @ApiQuery({ name: 'porStatus', description: 'Um bloco por status selecionado, em uma consulta (ADR 0023).', required: false, type: Boolean })
   @ApiQuery({ name: 'todosGuardadores', description: 'Todos os guardadores; com filtro de associação, soma os dois.', required: false, type: Boolean })
+  @ApiQuery({ name: 'abatimentoDuplicidade', description: 'Pagamentos com abatimento do pagamento indevido ("Abatimento por duplicidade").', required: false, type: Boolean })
   @Get('guardador/consolidado')
   async getGuardadorConsolidado(
     @Query('dataInicio', new ParseDatePipe({ dateOnly: true }))
@@ -225,6 +228,7 @@ export class ConsolidadoV2Controller {
     @Query('erro', new ParseBooleanPipe({ optional: true })) erro: boolean | undefined,
     @Query('porStatus', new ParseBooleanPipe({ optional: true })) porStatus: boolean | undefined,
     @Query('todosGuardadores', new ParseBooleanPipe({ optional: true })) todosGuardadores: boolean | undefined,
+    @Query('abatimentoDuplicidade', new ParseBooleanPipe({ optional: true })) abatimentoDuplicidade: boolean | undefined,
   ) {
     try {
       // Guardador nao tem visao por consorcio, Eleicao nem STUC-Gratuidade (PRD, AC-8/AC-9): erro
@@ -244,7 +248,7 @@ export class ConsolidadoV2Controller {
         dataFim,
         valorMin,
         valorMax,
-        statuses: mapStatuses({ pago, aPagar, emProcessamento, pendentes, pendenciaPaga, rejeitado, estorno, erro }),
+        statuses: mapStatuses({ pago, aPagar, emProcessamento, pendentes, pendenciaPaga, rejeitado, estorno, erro, abatimentoDuplicidade }),
         userIds,
         consorcioNome,
         todosConsorcios,
