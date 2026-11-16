@@ -237,4 +237,13 @@ export class FinancialMovementQueryDto {
   @IsBoolean()
   @Transform(({ value }) => value === 'true' || value === true)
   aPagar?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Guardador: pagamentos com abatimento do pagamento indevido ("Abatimento por duplicidade").',
+    default: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) => value === 'true' || value === true)
+  abatimentoDuplicidade?: boolean;
 }

@@ -179,6 +179,8 @@ export function toExportRow(row: BasePagamentoRow): RelatorioFinancialMovementNo
     valor: Number(row.valor),
     status: row.status,
     codigoErro: row.codigoErro ?? null,
+    // "Abatimento por duplicidade" traz o proprio motivo ("Valor pago em duplicidade em MM/AAAA").
+    ...(row.motivo ? { descricaoErro: row.motivo } : {}),
   });
 }
 
@@ -198,6 +200,7 @@ export function buildStatusLabelsFromFilter(statuses?: StatusPagamento[]): strin
     pendenciaPaga: selected.has(StatusPagamento.PENDENCIA_PAGA),
     pendentes: selected.has(StatusPagamento.PENDENTES),
     aPagar: selected.has(StatusPagamento.A_PAGAR),
+    abatimentoDuplicidade: selected.has(StatusPagamento.ABATIMENTO_DUPLICIDADE),
   });
 }
 
@@ -216,6 +219,7 @@ export function buildSummaryFromRows(rows: BasePagamentoRow[]): RelatorioFinanci
     valorAPagar: 0,
     valorPendente: 0,
     valorPendenciaPaga: 0,
+    valorAbatimentoDuplicidade: 0,
     valorSemFavorecido: 0,
   };
   let valorTotal = 0;
@@ -250,6 +254,9 @@ export function buildSummaryFromRows(rows: BasePagamentoRow[]): RelatorioFinanci
         break;
       case StatusPagamento.PENDENCIA_PAGA:
         totals.valorPendenciaPaga += valor;
+        break;
+      case StatusPagamento.ABATIMENTO_DUPLICIDADE:
+        totals.valorAbatimentoDuplicidade += valor;
         break;
       default:
         break;
