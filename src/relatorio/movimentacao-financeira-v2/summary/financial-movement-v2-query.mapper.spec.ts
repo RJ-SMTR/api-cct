@@ -45,6 +45,18 @@ describe('mapQueryToFinancialMovementV2Filter', () => {
     expect(filtro.todosGuardadores).toBe(true);
   });
 
+  it('"Pago" brings the abatimento por duplicidade along (own status and total)', () => {
+    const filtro = mapQueryToFinancialMovementV2Filter({ ...periodo, pago: true } as FinancialMovementQueryDto);
+
+    expect(filtro.statuses).toEqual([StatusPagamento.PAGO, StatusPagamento.ABATIMENTO_DUPLICIDADE]);
+  });
+
+  it('keeps the abatimento out when "Pago" is not selected', () => {
+    const filtro = mapQueryToFinancialMovementV2Filter({ ...periodo, aPagar: true } as FinancialMovementQueryDto);
+
+    expect(filtro.statuses).toEqual([StatusPagamento.A_PAGAR]);
+  });
+
   it('maps abatimentoDuplicidade to the "Abatimento por duplicidade" status', () => {
     const filtro = mapQueryToFinancialMovementV2Filter({ ...periodo, pago: true, abatimentoDuplicidade: true } as FinancialMovementQueryDto);
 

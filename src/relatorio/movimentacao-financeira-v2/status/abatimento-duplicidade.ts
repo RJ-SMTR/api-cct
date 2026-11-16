@@ -16,6 +16,14 @@ import { PERMIT_CODE_MAX_GUARDADOR } from '../../../pagamento_indevido/service/p
 // the same order, same day and value, was paid on), as duplicidadesDeOrdens/buildDuplicateOffsetReason do.
 export const ABATIMENTO_DUPLICIDADE_MOTIVO_BASE = 'Valor pago em duplicidade';
 
+// The abatimento is a payment too (reduced by the discount): selecting "Pago" brings it along, still with its own
+// status and total (regra de Rayanne, 2026-11-16). Only Guardador rows ever have this status.
+export function incluirAbatimentoComPago(statuses: StatusPagamento[]): StatusPagamento[] {
+  return statuses.includes(StatusPagamento.PAGO) && !statuses.includes(StatusPagamento.ABATIMENTO_DUPLICIDADE)
+    ? [...statuses, StatusPagamento.ABATIMENTO_DUPLICIDADE]
+    : statuses;
+}
+
 export const ABATIMENTO_DUPLICIDADE_CTES = `
       abatimento_usuarios AS MATERIALIZED (
         SELECT DISTINCT u.id AS user_id

@@ -1,6 +1,7 @@
 import { StatusPagamento } from '../../enum/statusRemessafinancial-movement';
 import { FinancialMovementQueryDto } from '../../dtos/pay-and-pending-query.dto';
 import { BasePagamentoCursor } from '../base/base-pagamento.repository';
+import { incluirAbatimentoComPago } from '../status/abatimento-duplicidade';
 import type { FinancialMovementV2Filter } from './financial-movement-v2-summary.service';
 
 // Same boolean-flag -> StatusPagamento[] mapping the legacy service does in getStatusParaFiltro
@@ -18,7 +19,7 @@ export function mapStatusesFromQuery(query: Pick<FinancialMovementQueryDto, 'pag
   if (query.pendenciaPaga) statuses.push(StatusPagamento.PENDENCIA_PAGA);
   if (query.pendentes) statuses.push(StatusPagamento.PENDENTES);
   if (query.abatimentoDuplicidade) statuses.push(StatusPagamento.ABATIMENTO_DUPLICIDADE);
-  return statuses.length ? [...new Set(statuses)] : undefined;
+  return statuses.length ? incluirAbatimentoComPago([...new Set(statuses)]) : undefined;
 }
 
 // Maps the existing request DTO (FinancialMovementQueryDto, shared with the legacy routes - no
