@@ -1,4 +1,5 @@
 import * as fs from 'fs';
+import { readFile as readXlsxFile, utils as xlsxUtils } from 'xlsx';
 import {
   buildStatusLabelsFromFilter,
   buildSummaryFromRows,
@@ -6,6 +7,7 @@ import {
   FinancialMovementV2ExportService,
 } from './financial-movement-v2-export.service';
 import { StatusPagamento } from '../../enum/statusRemessafinancial-movement';
+import { MOTIVO_NAO_INFORMADO } from '../../novo-remessa/queries/descricao-erro';
 import { buildSummaryLines } from '../../movimentacao-financeira/financial-movement-export.utils';
 import { BasePagamentoPage, BasePagamentoRepository, BasePagamentoRow } from '../base/base-pagamento.repository';
 import { StucGratuidadeRepository, StucGratuidadeRow } from '../stuc-gratuidade/stuc-gratuidade.repository';
@@ -189,5 +191,63 @@ describe('FinancialMovementV2ExportService', () => {
     const [header] = fs.readFileSync(filePath, 'utf8').trim().split('\n');
     expect(header).toBe('dataReferencia;dataPagamento;nomes;email;codBanco;nomeBanco;cpfCnpj;consorcio;valor;status;descricaoErro');
     fs.unlinkSync(filePath);
+  });
+
+  describe('mensagem de erro do banco (mesma descricao que a tela mostra)', () => {
+    const periodo = { dataInicio: new Date('2026-10-01'), dataFim: new Date('2026-10-31') };
+
+    it.each([
+      [StatusPagamento.ERRO_ESTORNO, '02', 'Crédito ou Débito Cancelado pelo Pagador/Credor'],
+      [StatusPagamento.ERRO_REJEITADO, 'AT', 'Tipo/número de inscrição do favorecido inválido'],
+      [StatusPagamento.ERRO_REJEITADO, 'ANHO', 'Conta digital'],
+      [StatusPagamento.ERRO_REJEITADO, 'ZZ', 'Código ZZ'],
+      [StatusPagamento.ERRO_REJEITADO, '02,AT', 'Crédito ou Débito Cancelado pelo Pagador/Credor / Tipo/número de inscrição do favorecido inválido'],
+      [StatusPagamento.ERRO_REJEITADO, null, MOTIVO_NAO_INFORMADO],
+    ])('status %s com codigoErro %s exporta "%s"', async (status, codigoErro, descricao) => {
+      const { base, stuc } = buildRepositories();
+      (base.findGroupedRowsPage as jest.Mock).mockResolvedValueOnce({ rows: [row({ status, codigoErro })], nextCursor: null } as BasePagamentoPage);
+
+      const rows = await collectRows(new FinancialMovementV2ExportService(base, stuc), 'permissionario', periodo);
+
+      expect(rows).toEqual([expect.objectContaining({ status, descricaoErro: descricao })]);
+    });
+
+    it('linha que nao e erro nao ganha descricao, mesmo com codigo', async () => {
+      const { base, stuc } = buildRepositories();
+      (base.findGroupedRowsPage as jest.Mock).mockResolvedValueOnce({ rows: [row({ status: StatusPagamento.PAGO, codigoErro: '00' })], nextCursor: null } as BasePagamentoPage);
+
+      const [exportada] = (await collectRows(new FinancialMovementV2ExportService(base, stuc), 'guardador', periodo)) as Array<{ descricaoErro?: string }>;
+
+      expect(exportada.descricaoErro).toBeUndefined();
+    });
+
+    it('Eleicao tambem exporta a descricao do erro do banco', async () => {
+      const { base, stuc } = buildRepositories();
+      (base.findEleicaoRows as jest.Mock).mockResolvedValueOnce([row({ status: StatusPagamento.ERRO_ESTORNO, codigoErro: '02' })]);
+
+      const rows = await collectRows(new FinancialMovementV2ExportService(base, stuc), 'permissionario', { ...periodo, eleicao: true });
+
+      expect(rows).toEqual([expect.objectContaining({ descricaoErro: 'Crédito ou Débito Cancelado pelo Pagador/Credor' })]);
+    });
+
+    it.each(['csv', 'xlsx'] as const)('o arquivo %s traz a mensagem na coluna de erro', async (format) => {
+      const { base, stuc } = buildRepositories();
+      (base.findGroupedRowsPage as jest.Mock).mockResolvedValueOnce({
+        rows: [row({ status: StatusPagamento.ERRO_ESTORNO, codigoErro: '02' })],
+        nextCursor: null,
+      } as BasePagamentoPage);
+
+      const { filePath } = await new FinancialMovementV2ExportService(base, stuc).downloadFinancialMovementExport('permissionario', { ...periodo, format });
+
+      try {
+        const ultimaColuna =
+          format === 'csv'
+            ? fs.readFileSync(filePath, 'utf8').trim().split('\n')[1].split(';').pop()
+            : (xlsxUtils.sheet_to_json<string[]>(readXlsxFile(filePath).Sheets['Movimentação'], { header: 1 })[1] as string[]).pop();
+        expect(ultimaColuna).toBe(format === 'csv' ? '"Crédito ou Débito Cancelado pelo Pagador/Credor"' : 'Crédito ou Débito Cancelado pelo Pagador/Credor');
+      } finally {
+        fs.unlinkSync(filePath);
+      }
+    });
   });
 });

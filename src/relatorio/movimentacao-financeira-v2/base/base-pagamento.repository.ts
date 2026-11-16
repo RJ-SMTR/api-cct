@@ -10,6 +10,7 @@ import {
   pendenciaRejeitadaPermissionario,
 } from '../../novo-remessa/queries/regras-pendencia';
 import { GUARDADOR_CONSORCIO_CASE } from '../../novo-remessa/queries/guardador-novo-remessa-query-builder';
+import { buildCodigoErroSql } from '../../novo-remessa/queries/descricao-erro';
 import { buildConsorcioCaseSql, CONSORCIOS, INSTITUTIONAL_CPF_CNPJ, MODAIS } from '../status/consorcio-resolver';
 import { resolveInicioAPagar } from '../status/data-minima-a-pagar';
 import { buildEleicaoStatusPagamentoCaseSql, buildStatusPagamentoCaseSql } from '../status/status-resolver';
@@ -47,6 +48,10 @@ export interface BasePagamentoRow {
   nomeConsorcio: string | null;
   valor: string;
   status: StatusPagamento;
+  // Codigo(s) de ocorrencia do banco (motivoStatusRemessa), so em linha de Estorno/Rejeitado;
+  // lista separada por virgula quando a linha soma lotes. Vira a descricaoErro da tela e do
+  // export (getDescricaoErro) - sem ele toda linha de erro saia "Motivo nao informado pelo banco".
+  codigoErro?: string | null;
   // Chave estavel por linha (ver CURSOR_ORDER_BY); ausente nas linhas de Eleicao, que nao paginam
   // por cursor. Nunca vai para as colunas de saida (toExportRow escolhe os campos).
   chaveLinha?: string;
@@ -604,7 +609,8 @@ export class BasePagamentoRepository {
           ${NOME_CONSORCIO_AGRUPADA[perfil]} AS "nomeConsorcio",
           da."valorLancamento" AS valor,
           ${statusCase} AS status,
-          da.id AS "detalheAId"
+          da.id AS "detalheAId",
+          ${buildCodigoErroSql(statusCase, 'oph')} AS "codigoErro"
         FROM ordem_pagamento_agrupado opa
         INNER JOIN ordem_pagamento_agrupado_historico oph ON oph."ordemPagamentoAgrupadoId" = opa.id
         INNER JOIN detalhe_a da ON da."ordemPagamentoAgrupadoHistoricoId" = oph.id
@@ -624,7 +630,8 @@ export class BasePagamentoRepository {
           ${NOME_CONSORCIO_AGRUPADA[perfil]} AS "nomeConsorcio",
           da."valorLancamento" AS valor,
           '${StatusPagamento.PENDENCIA_PAGA}' AS status,
-          'pendencia_paga:' || da.id::text AS "chaveLinha"
+          'pendencia_paga:' || da.id::text AS "chaveLinha",
+          NULL::text AS "codigoErro"
         FROM ordem_pagamento_agrupado opa
         LEFT JOIN ordem_pagamento_agrupado op_pai ON op_pai.id = opa."ordemPagamentoAgrupadoId"
         INNER JOIN ordem_pagamento_agrupado_historico oph ON oph."ordemPagamentoAgrupadoId" = opa.id
@@ -659,7 +666,8 @@ export class BasePagamentoRepository {
           ${NOME_CONSORCIO_AGRUPADA[perfil]} AS "nomeConsorcio",
           ROUND(opa."valorTotal"::numeric, 2) AS valor,
           '${StatusPagamento.PENDENCIA_PAGA}' AS status,
-          'pendencia_paga_passo0:' || opa.id::text AS "chaveLinha"
+          'pendencia_paga_passo0:' || opa.id::text AS "chaveLinha",
+          NULL::text AS "codigoErro"
         FROM ordem_pagamento_agrupado opa
         INNER JOIN ordem_pagamento_agrupado op_pai ON op_pai.id = opa."ordemPagamentoAgrupadoId"
         INNER JOIN ordem_pagamento_agrupado_historico oph ON oph.id = (
@@ -690,7 +698,8 @@ export class BasePagamentoRepository {
         -- fonte agrega (ou nao) dentro de si mesma, nunca as duas juntas. nomeConsorcio entra no
         -- GROUP BY mas e deterministico por favorecido/ordem (nao fragmenta totais reais).
         SELECT "dataReferencia", nomes, "cpfCnpj", "nomeConsorcio", SUM(valor) AS valor, status,
-          'agrupada:' || MIN("detalheAId")::text AS "chaveLinha"
+          'agrupada:' || MIN("detalheAId")::text AS "chaveLinha",
+          string_agg(DISTINCT "codigoErro", ',' ORDER BY "codigoErro") AS "codigoErro"
         FROM agrupada
         GROUP BY "dataReferencia", nomes, "cpfCnpj", "nomeConsorcio", status
       ),
@@ -705,7 +714,8 @@ export class BasePagamentoRepository {
           op."${valorColumn}" AS valor,
           '${StatusPagamento.A_PAGAR}' AS status,
           -- oph.id entra na chave: uma ordem de agrupamento sem detalhe_a sai uma vez por historico.
-          'nunca_enviada:' || op.id::text || ':' || COALESCE(oph.id::text, '0') AS "chaveLinha"
+          'nunca_enviada:' || op.id::text || ':' || COALESCE(oph.id::text, '0') AS "chaveLinha",
+          NULL::text AS "codigoErro"
         FROM ${ordemTable} op
         LEFT JOIN ordem_pagamento_agrupado opa ON op."ordemPagamentoAgrupadoId" = opa.id
         LEFT JOIN public."user" pu ON pu.id = op."userId"
@@ -733,7 +743,7 @@ export class BasePagamentoRepository {
         SELECT * FROM pendentes
       ),
       filtrado AS (
-        SELECT "dataReferencia", nomes, "cpfCnpj", "nomeConsorcio", valor, status, "chaveLinha",
+        SELECT "dataReferencia", nomes, "cpfCnpj", "nomeConsorcio", valor, status, "chaveLinha", "codigoErro",
           ${totalDoGrupo} AS "totalDoGrupo"
         FROM combinado
         WHERE ($3::text[] IS NULL OR status = ANY($3))
@@ -754,7 +764,7 @@ export class BasePagamentoRepository {
           AND ($7::text[] IS NULL OR UPPER(TRIM("nomeConsorcio")) = ANY($7))
           AND ($8::text[] IS NULL OR "cpfCnpj" IS NULL OR NOT ("cpfCnpj" = ANY($8)))
       )
-      SELECT "dataReferencia", nomes, "cpfCnpj", "nomeConsorcio", valor, status, "chaveLinha"
+      SELECT "dataReferencia", nomes, "cpfCnpj", "nomeConsorcio", valor, status, "chaveLinha", "codigoErro"
       FROM filtrado
       WHERE ($4::numeric IS NULL OR "totalDoGrupo" >= $4)
         AND ($5::numeric IS NULL OR "totalDoGrupo" <= $5)
@@ -797,7 +807,8 @@ export class BasePagamentoRepository {
           pu."cpfCnpj" AS "cpfCnpj",
           ${buildConsorcioCaseSql('pu', 'consorcio_opu')} AS "nomeConsorcio",
           da."valorLancamento" AS valor,
-          ${eleicaoStatusCase} AS status
+          ${eleicaoStatusCase} AS status,
+          ${buildCodigoErroSql(eleicaoStatusCase, 'oph')} AS "codigoErro"
         FROM ordem_pagamento_agrupado opa
         INNER JOIN ordem_pagamento_agrupado_historico oph ON oph."ordemPagamentoAgrupadoId" = opa.id
         INNER JOIN detalhe_a da ON da."ordemPagamentoAgrupadoHistoricoId" = oph.id
@@ -825,13 +836,13 @@ export class BasePagamentoRepository {
           ${condicaoBloqueado(filter)}
       )
       , filtrado AS (
-        SELECT "dataReferencia", nomes, "cpfCnpj", "nomeConsorcio", valor, status,
+        SELECT "dataReferencia", nomes, "cpfCnpj", "nomeConsorcio", valor, status, "codigoErro",
           SUM(valor) FILTER (WHERE nomes IS NOT NULL) OVER (PARTITION BY ${chaveDoTotal}) AS "totalDoGrupo"
         FROM eleicao
         WHERE ($3::text[] IS NULL OR status = ANY($3))
           AND ($7::text[] IS NULL OR UPPER(TRIM("nomeConsorcio")) = ANY($7))
       )
-      SELECT "dataReferencia", nomes, "cpfCnpj", "nomeConsorcio", valor, status
+      SELECT "dataReferencia", nomes, "cpfCnpj", "nomeConsorcio", valor, status, "codigoErro"
       FROM filtrado
       WHERE ($4::numeric IS NULL OR "totalDoGrupo" >= $4)
         AND ($5::numeric IS NULL OR "totalDoGrupo" <= $5)
@@ -864,7 +875,8 @@ export class BasePagamentoRepository {
           ${NOME_CONSORCIO_AGRUPADA[perfil]} AS "nomeConsorcio",
           da."valorLancamento" AS valor,
           ${statusPai} AS status,
-          'pendencia_pagamento_familia:' || da.id::text AS "chaveLinha"
+          'pendencia_pagamento_familia:' || da.id::text AS "chaveLinha",
+          ${buildCodigoErroSql(statusPai, 'oph_pai')} AS "codigoErro"
         FROM ordem_pagamento_agrupado opa
         INNER JOIN ordem_pagamento_agrupado op_pai ON op_pai.id = opa."ordemPagamentoAgrupadoId"
         INNER JOIN ordem_pagamento_agrupado_historico oph ON oph."ordemPagamentoAgrupadoId" = opa.id
@@ -888,7 +900,8 @@ export class BasePagamentoRepository {
           ${NOME_CONSORCIO_AGRUPADA[perfil]} AS "nomeConsorcio",
           da."valorLancamento" AS valor,
           ${statusPropria} AS status,
-          'pendencia_pagamento_propria:' || da.id::text AS "chaveLinha"
+          'pendencia_pagamento_propria:' || da.id::text AS "chaveLinha",
+          ${buildCodigoErroSql(statusPropria, 'oph')} AS "codigoErro"
         FROM ordem_pagamento_agrupado opa
         INNER JOIN ordem_pagamento_agrupado_historico oph ON oph."ordemPagamentoAgrupadoId" = opa.id
         INNER JOIN detalhe_a da ON da."ordemPagamentoAgrupadoHistoricoId" = oph.id
@@ -914,7 +927,8 @@ export class BasePagamentoRepository {
           ${NOME_CONSORCIO_AGRUPADA[perfil]} AS "nomeConsorcio",
           da."valorLancamento" AS valor,
           ${statusPropria} AS status,
-          'pendencia_pagamento_intervalo:' || da.id::text AS "chaveLinha"
+          'pendencia_pagamento_intervalo:' || da.id::text AS "chaveLinha",
+          ${buildCodigoErroSql(statusPropria, 'oph')} AS "codigoErro"
         FROM ordem_pagamento_agrupado opa
         INNER JOIN ordem_pagamento_agrupado_historico oph ON oph."ordemPagamentoAgrupadoId" = opa.id
         INNER JOIN detalhe_a da ON da."ordemPagamentoAgrupadoHistoricoId" = oph.id
@@ -948,7 +962,8 @@ export class BasePagamentoRepository {
           ${NOME_CONSORCIO_AGRUPADA[perfil]} AS "nomeConsorcio",
           opa."valorTotal" AS valor,
           '${StatusPagamento.PENDENTES}' AS status,
-          'pendentes_nunca_enviado:' || opa.id::text AS "chaveLinha"
+          'pendentes_nunca_enviado:' || opa.id::text AS "chaveLinha",
+          NULL::text AS "codigoErro"
         FROM ordem_pagamento_agrupado opa
         ${lateral}
         WHERE opa."dataPagamento"::date BETWEEN $1::date AND $2::date
@@ -965,7 +980,8 @@ export class BasePagamentoRepository {
           ${NOME_CONSORCIO_NUNCA_ENVIADA[perfil]} AS "nomeConsorcio",
           op."${valorColumn}" AS valor,
           '${StatusPagamento.PENDENTES}' AS status,
-          'pendentes_solta:' || op.id::text AS "chaveLinha"
+          'pendentes_solta:' || op.id::text AS "chaveLinha",
+          NULL::text AS "codigoErro"
         FROM ${ordemTable} op
         LEFT JOIN public."user" pu ON pu.id = op."userId"
         ${ASSOCIACAO_JOIN[perfil]}
@@ -983,7 +999,8 @@ export class BasePagamentoRepository {
           ${NOME_CONSORCIO_AGRUPADA[perfil]} AS "nomeConsorcio",
           da."valorLancamento" AS valor,
           '${StatusPagamento.PENDENTES}' AS status,
-          'pendentes_rejeitado:' || da.id::text AS "chaveLinha"
+          'pendentes_rejeitado:' || da.id::text AS "chaveLinha",
+          NULL::text AS "codigoErro"
         FROM ordem_pagamento_agrupado opa
         INNER JOIN ordem_pagamento_agrupado_historico oph ON oph."ordemPagamentoAgrupadoId" = opa.id
         INNER JOIN detalhe_a da ON da."ordemPagamentoAgrupadoHistoricoId" = oph.id

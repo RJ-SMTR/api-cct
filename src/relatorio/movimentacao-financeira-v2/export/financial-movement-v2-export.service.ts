@@ -166,13 +166,10 @@ export class FinancialMovementV2ExportService {
 // "dataPagamento"/"email"/"codBanco"/"nomeBanco" nao tem equivalente na query re-derivada
 // (nunca fizeram join com usuario/banco por linha, so com o agrupamento) e ficam undefined
 // (o writer ja trata campo ausente como celula vazia, mesmo comportamento de qualquer linha
-// legada que omitisse um campo opcional do DTO). "descricaoErro" tambem fica undefined para a
-// maioria dos status, EXCETO Estorno/Rejeitado: como BasePagamentoRow nao carrega
-// "codigoErro" por linha, getDescricaoErro (chamado pelo construtor do DTO) cai no fallback
-// generico "Motivo não informado pelo banco" para toda linha de erro - diferente do legado, que
-// podia mostrar o motivo real do banco quando disponivel. Ver T9-summary.md "Follow-up
-// Needed" - achado relatado, nao corrigido nesta task (exigiria expor motivoStatusRemessa em
-// BasePagamentoRow, fora do escopo de T9).
+// legada que omitisse um campo opcional do DTO). "codigoErro" (motivoStatusRemessa do banco,
+// so em Estorno/Rejeitado) vai para o construtor do DTO, que o traduz na mesma descricaoErro
+// que a tela mostra (getDescricaoErro) - antes ficava de fora e toda linha de erro saia como
+// "Motivo não informado pelo banco" na tela e no CSV/XLSX/PDF.
 export function toExportRow(row: BasePagamentoRow): RelatorioFinancialMovementNovoRemessaData {
   return new RelatorioFinancialMovementNovoRemessaData({
     dataReferencia: format(new Date(row.dataReferencia), 'dd/MM/yyyy'),
@@ -181,6 +178,7 @@ export function toExportRow(row: BasePagamentoRow): RelatorioFinancialMovementNo
     consorcio: row.nomeConsorcio ?? undefined,
     valor: Number(row.valor),
     status: row.status,
+    codigoErro: row.codigoErro ?? null,
   });
 }
 
