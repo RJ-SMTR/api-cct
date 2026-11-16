@@ -11,6 +11,7 @@ import {
 } from '../../novo-remessa/queries/regras-pendencia';
 import { GUARDADOR_CONSORCIO_CASE } from '../../novo-remessa/queries/guardador-novo-remessa-query-builder';
 import { buildCodigoErroSql } from '../../novo-remessa/queries/descricao-erro';
+import { chaveOrdemAlfabeticaSql } from '../../utils/ordem-alfabetica-sql';
 import { buildConsorcioCaseSql, CONSORCIOS, INSTITUTIONAL_CPF_CNPJ, MODAIS } from '../status/consorcio-resolver';
 import { resolveInicioAPagar } from '../status/data-minima-a-pagar';
 import { buildEleicaoStatusPagamentoCaseSql, buildStatusPagamentoCaseSql } from '../status/status-resolver';
@@ -106,8 +107,9 @@ export interface BasePagamentoPage {
 // sem favorecido sumia num corte de pagina. Row comparison do Postgres tambem nao aceita NULL, por
 // isso o COALESCE nos dois lados. Efeito visivel: linhas sem favorecido vem primeiro.
 // Nome antes da data: relatorio sempre em ordem alfabetica, qualquer filtro, na tela e no export.
+// O nome usa a mesma ordem do Consolidado (pt-BR, espaco contando - chaveOrdemAlfabeticaSql).
 const CURSOR_TUPLE = `
-  COALESCE(nomes, ''),
+  ${chaveOrdemAlfabeticaSql('nomes')},
   "dataReferencia",
   COALESCE("cpfCnpj", ''),
   COALESCE("nomeConsorcio", ''),
@@ -523,7 +525,7 @@ export class BasePagamentoRepository {
     const base = params.length; // last positional param already used by buildCombinadoSql
     // Mesma ordem de colunas de CURSOR_TUPLE (nome, depois data).
     const tuplaCursor = `(
-            COALESCE($${base + 2}::text, ''),
+            ${chaveOrdemAlfabeticaSql(`$${base + 2}::text`)},
             $${base + 1}::date,
             COALESCE($${base + 3}::text, ''),
             COALESCE($${base + 4}::text, ''),
@@ -848,7 +850,7 @@ export class BasePagamentoRepository {
       FROM filtrado
       WHERE ($4::numeric IS NULL OR "totalDoGrupo" >= $4)
         AND ($5::numeric IS NULL OR "totalDoGrupo" <= $5)
-      ORDER BY nomes, "dataReferencia"
+      ORDER BY ${chaveOrdemAlfabeticaSql('nomes')}, "dataReferencia"
     `;
 
     return this.runReportQuery(sql, [

@@ -4,6 +4,7 @@ import { DataSource } from 'typeorm';
 import * as fs from 'fs';
 import { RelatorioNovoRemessaFinancialMovementService } from './relatorio-novo-remessa-financial-movement.service';
 import { RelatorioGuardadorFinancialMovementRepository } from './relatorio-guardador-financial-movement.repository';
+import { chaveOrdemAlfabeticaSql } from '../utils/ordem-alfabetica-sql';
 
 const BASE_EXPORT_ROW = {
   dataReferencia: '01/01/2026',
@@ -217,9 +218,9 @@ describe('RelatorioNovoRemessaFinancialMovementService', () => {
 
       const [dataQuery] = dataSource.query.mock.calls[0];
       const orderBy = dataQuery.slice(dataQuery.lastIndexOf('ORDER BY') + 'ORDER BY'.length).trim();
-      expect(orderBy.startsWith("COALESCE(g.nomes, '')")).toBe(true);
+      expect(orderBy.startsWith(chaveOrdemAlfabeticaSql('g.nomes'))).toBe(true);
       const tuplaDoCursor = dataQuery.slice(dataQuery.indexOf(') > (') + 5).trim();
-      expect(tuplaDoCursor.startsWith("COALESCE($9::text, '')")).toBe(true);
+      expect(tuplaDoCursor.startsWith(chaveOrdemAlfabeticaSql('$9::text'))).toBe(true);
     });
 
     it('streams the export in the same alphabetical order as the page', async () => {
@@ -229,10 +230,10 @@ describe('RelatorioNovoRemessaFinancialMovementService', () => {
 
       const [dataQuery] = dataSource.query.mock.calls[0];
       const orderBy = dataQuery.slice(dataQuery.lastIndexOf('ORDER BY') + 'ORDER BY'.length).trim();
-      expect(orderBy.startsWith("COALESCE(g.nomes, '')")).toBe(true);
+      expect(orderBy.startsWith(chaveOrdemAlfabeticaSql('g.nomes'))).toBe(true);
       // O lote seguinte do export compara o nome com o nome do cursor ($9) e a data ($8) depois.
       const tuplaDoCursor = dataQuery.slice(dataQuery.indexOf(') > (') + 5).trim();
-      expect(tuplaDoCursor.startsWith("COALESCE($9::text, ''), to_date($8, 'DD/MM/YYYY')")).toBe(true);
+      expect(tuplaDoCursor.startsWith(`${chaveOrdemAlfabeticaSql('$9::text')}, to_date($8, 'DD/MM/YYYY')`)).toBe(true);
     });
 
     it('builds the next page cursor from the full tuple, so a tied group is not cut mid-way', async () => {

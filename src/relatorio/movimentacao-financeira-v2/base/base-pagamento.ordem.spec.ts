@@ -1,6 +1,10 @@
 import { DataSource } from 'typeorm';
 import { StatusPagamento } from '../../enum/statusRemessafinancial-movement';
+import { chaveOrdemAlfabeticaSql } from '../../utils/ordem-alfabetica-sql';
 import { BasePagamentoRepository } from './base-pagamento.repository';
+
+// Nome como o Consolidado ordena (pt-BR, espaco contando) - ver ordem-alfabetica-sql.ts.
+const CHAVE_NOME = chaveOrdemAlfabeticaSql('nomes');
 
 // Relatorios sempre em ordem alfabetica do nome, qualquer que seja o filtro, para Permissionario e
 // Guardador, na tela e no arquivo exportado (os dois leem findGroupedRowsPage). Sem banco aqui: o
@@ -31,7 +35,7 @@ describe('BasePagamentoRepository - ordem alfabetica', () => {
 
     await repository.findGroupedRowsPage(perfil, { ...periodo, statuses: [StatusPagamento.PAGO] }, 50);
 
-    expect(primeiraChaveDoOrderBy(consultas[0].sql)).toBe("COALESCE(nomes, '')");
+    expect(primeiraChaveDoOrderBy(consultas[0].sql)).toBe(CHAVE_NOME);
   });
 
   it('no mesmo nome, a data e a segunda chave', async () => {
@@ -45,7 +49,7 @@ describe('BasePagamentoRepository - ordem alfabetica', () => {
       .split('\n')
       .map((linha) => linha.trim().replace(/,$/, ''))
       .filter(Boolean);
-    expect(chaves.slice(0, 2)).toEqual(["COALESCE(nomes, '')", '"dataReferencia"']);
+    expect(chaves.slice(0, 2)).toEqual([CHAVE_NOME, '"dataReferencia"']);
   });
 
   it('findGroupedRows (resumos e agregacoes) segue a mesma ordem', async () => {
@@ -53,7 +57,7 @@ describe('BasePagamentoRepository - ordem alfabetica', () => {
 
     await repository.findGroupedRows('permissionario', periodo);
 
-    expect(primeiraChaveDoOrderBy(consultas[0].sql)).toBe("COALESCE(nomes, '')");
+    expect(primeiraChaveDoOrderBy(consultas[0].sql)).toBe(CHAVE_NOME);
   });
 
   it('o keyset compara o nome com o nome do cursor, na mesma posicao da ordenacao', async () => {
@@ -71,10 +75,11 @@ describe('BasePagamentoRepository - ordem alfabetica', () => {
     const { sql, params } = consultas[0];
     const posicaoNome = params.indexOf('MARIA DO CURSOR') + 1;
     const posicaoData = params.indexOf('2026-10-05') + 1;
-    const tuplaDoCursor = sql.slice(sql.indexOf('> (', sql.indexOf('OR (')) + 3);
+    const tuplaDoCursor = sql.slice(sql.indexOf('> (', sql.indexOf('OR (')) + 3).trim();
     const ordemNaTupla = (marcador: string) => tuplaDoCursor.indexOf(marcador);
 
-    expect(ordemNaTupla(`$${posicaoNome}::text`)).toBeGreaterThanOrEqual(0);
+    // O nome do cursor passa pela mesma chave da ordenacao, e vem antes da data.
+    expect(tuplaDoCursor.startsWith(chaveOrdemAlfabeticaSql(`$${posicaoNome}::text`))).toBe(true);
     expect(ordemNaTupla(`$${posicaoNome}::text`)).toBeLessThan(ordemNaTupla(`$${posicaoData}::date`));
   });
 
@@ -115,6 +120,6 @@ describe('BasePagamentoRepository - ordem alfabetica', () => {
 
     await repository.findEleicaoRows(periodo);
 
-    expect(consultas[0].sql).toMatch(/ORDER BY\s+nomes\s*,/);
+    expect(consultas[0].sql).toContain(`ORDER BY ${CHAVE_NOME}, "dataReferencia"`);
   });
 });
