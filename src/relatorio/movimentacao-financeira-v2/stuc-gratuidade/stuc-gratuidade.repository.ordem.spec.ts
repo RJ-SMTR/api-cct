@@ -35,4 +35,35 @@ describe('StucGratuidadeRepository - ordem alfabetica', () => {
       ['ZULMIRA', 10],
     ]);
   });
+
+  // Achado do Verifier: uma janela repartida (status diferentes) deixa a 1a posicao vazia na
+  // segunda linha - ela nao pode subir para antes das janelas anteriores do mesmo nome.
+  it('janela repartida em duas linhas fica na posicao da sua data, nao antes das janelas anteriores', async () => {
+    const dataSource = {
+      query: jest.fn().mockResolvedValue([
+        dia('BRUNO', new Date(2026, 9, 20), '5'),
+        dia('BRUNO', new Date(2026, 9, 23), '10'),
+        { ...dia('BRUNO', new Date(2026, 9, 24), '20'), status: StatusPagamento.A_PAGAR },
+      ]),
+    } as unknown as DataSource;
+
+    const rows = await new StucGratuidadeRepository(dataSource).findRows({ dataInicio: new Date(2026, 9, 1), dataFim: new Date(2026, 9, 31) });
+
+    expect(rows.map((row) => row.valor)).toEqual([5, 10, 20]);
+  });
+
+  it('janela repartida nao mostra Valor Ordem 0 num dia que tem valor na outra linha', async () => {
+    const dataSource = {
+      query: jest.fn().mockResolvedValue([
+        dia('BRUNO', new Date(2026, 9, 23), '10'),
+        { ...dia('BRUNO', new Date(2026, 9, 24), '20'), status: StatusPagamento.A_PAGAR },
+      ]),
+    } as unknown as DataSource;
+
+    const rows = await new StucGratuidadeRepository(dataSource).findRows({ dataInicio: new Date(2026, 9, 1), dataFim: new Date(2026, 9, 31) });
+
+    const sabado = new Date(2026, 9, 24).getTime();
+    const valoresDoSabado = rows.filter((row) => row.dataOrdemPagamento2?.getTime() === sabado).map((row) => row.valorOrdemPagamento2);
+    expect(valoresDoSabado).toEqual([20]);
+  });
 });

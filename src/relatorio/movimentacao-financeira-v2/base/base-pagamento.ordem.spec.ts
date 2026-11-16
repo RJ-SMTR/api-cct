@@ -34,6 +34,20 @@ describe('BasePagamentoRepository - ordem alfabetica', () => {
     expect(primeiraChaveDoOrderBy(consultas[0].sql)).toBe("COALESCE(nomes, '')");
   });
 
+  it('no mesmo nome, a data e a segunda chave', async () => {
+    const { repository, consultas } = repositorioCapturandoConsulta();
+
+    await repository.findGroupedRowsPage('permissionario', periodo, 50);
+
+    const { sql } = consultas[0];
+    const chaves = sql
+      .slice(sql.lastIndexOf('ORDER BY') + 'ORDER BY'.length)
+      .split('\n')
+      .map((linha) => linha.trim().replace(/,$/, ''))
+      .filter(Boolean);
+    expect(chaves.slice(0, 2)).toEqual(["COALESCE(nomes, '')", '"dataReferencia"']);
+  });
+
   it('findGroupedRows (resumos e agregacoes) segue a mesma ordem', async () => {
     const { repository, consultas } = repositorioCapturandoConsulta();
 
@@ -62,6 +76,38 @@ describe('BasePagamentoRepository - ordem alfabetica', () => {
 
     expect(ordemNaTupla(`$${posicaoNome}::text`)).toBeGreaterThanOrEqual(0);
     expect(ordemNaTupla(`$${posicaoNome}::text`)).toBeLessThan(ordemNaTupla(`$${posicaoData}::date`));
+  });
+
+  // Mensagem de erro do banco na tela e no export: o codigo de ocorrencia sai da consulta em toda
+  // fonte que pode ser Estorno/Rejeitado, e o lote somado junta os codigos em vez de perde-los.
+  it.each([false, true])('a pagina (dia unico = %s) devolve o codigo de erro do banco das fontes de Estorno/Rejeitado', async (diaUnico) => {
+    const { repository, consultas } = repositorioCapturandoConsulta();
+    const dataFim = diaUnico ? periodo.dataInicio : periodo.dataFim;
+
+    await repository.findGroupedRowsPage('permissionario', { dataInicio: periodo.dataInicio, dataFim }, 50);
+
+    const { sql } = consultas[0];
+    expect(sql).toMatch(/SELECT "dataReferencia", nomes, "cpfCnpj", "nomeConsorcio", valor, status, "chaveLinha", "codigoErro"\s+FROM filtrado/);
+    expect(sql).toMatch(/string_agg\(DISTINCT "codigoErro"/);
+    const fonteDeErro = (prefixo: string) => {
+      const inicio = sql.indexOf(`'${prefixo}:'`);
+      return sql.slice(inicio, inicio + 600);
+    };
+    const prefixos = diaUnico ? ['pendencia_pagamento_familia', 'pendencia_pagamento_propria'] : ['pendencia_pagamento_intervalo'];
+    for (const prefixo of prefixos) {
+      expect(fonteDeErro(prefixo)).toMatch(/NULLIF\(TRIM\(oph(_pai)?\."motivoStatusRemessa"\), ''\)\s+END AS "codigoErro"/);
+    }
+    const agrupada = sql.slice(sql.indexOf('agrupada AS ('), sql.indexOf('pendencia_paga AS ('));
+    expect(agrupada).toMatch(/NULLIF\(TRIM\(oph\."motivoStatusRemessa"\), ''\)\s+END AS "codigoErro"/);
+  });
+
+  it('Eleicao devolve o codigo de erro do banco', async () => {
+    const { repository, consultas } = repositorioCapturandoConsulta();
+
+    await repository.findEleicaoRows(periodo);
+
+    expect(consultas[0].sql).toMatch(/NULLIF\(TRIM\(oph\."motivoStatusRemessa"\), ''\)\s+END AS "codigoErro"/);
+    expect(consultas[0].sql).toMatch(/SELECT "dataReferencia", nomes, "cpfCnpj", "nomeConsorcio", valor, status, "codigoErro"\s+FROM filtrado/);
   });
 
   it('Eleicao tambem ordena primeiro pelo nome', async () => {

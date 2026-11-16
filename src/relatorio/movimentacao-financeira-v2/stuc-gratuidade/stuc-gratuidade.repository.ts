@@ -63,16 +63,12 @@ export class StucGratuidadeRepository {
     // 4 dias somados), nao ao valor de um dia isolado - aplicado depois do pivot, mesma
     // abordagem do legado (findStucGratuidadePivotedRows em
     // relatorio-novo-remessa-financial-movement.service.ts).
-    // Sempre em ordem alfabetica do nome e, no mesmo nome, pela janela (a consulta vem por data).
+    // Sempre em ordem alfabetica do nome e, no mesmo nome, pela data (a consulta vem por data).
     return pivoted
       .filter(
         (row) => (filter.valorMin === undefined || row.valor >= filter.valorMin) && (filter.valorMax === undefined || row.valor <= filter.valorMax),
       )
-      .sort(
-        (a, b) =>
-          (a.nomes ?? '').localeCompare(b.nomes ?? '', 'pt-BR') ||
-          (a.dataOrdemPagamento1?.getTime() ?? 0) - (b.dataOrdemPagamento1?.getTime() ?? 0),
-      );
+      .sort((a, b) => (a.nomes ?? '').localeCompare(b.nomes ?? '', 'pt-BR') || primeiraData(a) - primeiraData(b));
   }
 
   private async findDayRows(filter: StucGratuidadeFilter): Promise<StucGratuidadeDayRow[]> {
@@ -220,4 +216,11 @@ export class StucGratuidadeRepository {
 
 function dateOnly(value: Date): string {
   return new Date(value).toISOString().slice(0, 10);
+}
+
+// First filled day of the row: in a window split across rows (pivot fill scope), a row can start
+// at position 2-4, so position 1 alone would put it before the favorecido's earlier windows.
+function primeiraData(row: StucGratuidadeRow): number {
+  const dia = [row.dataOrdemPagamento1, row.dataOrdemPagamento2, row.dataOrdemPagamento3, row.dataOrdemPagamento4].find(Boolean);
+  return dia ? dia.getTime() : 0;
 }
