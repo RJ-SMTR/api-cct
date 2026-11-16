@@ -44,6 +44,9 @@ export interface BasePagamentoFilter {
   // Guardador: "Todos os guardadores" selecionado. Com filtro de associacao vira uniao (todos os guardadores +
   // pagamento da associacao); sozinho e' o mesmo que nenhum filtro.
   todosGuardadores?: boolean;
+  // Guardador: com consorcioNome, so entra o guardador vinculado a TODAS as associacoes da lista (ex. ANGLAE e
+  // SINGAERJ ao mesmo tempo), sem o pagamento proprio das associacoes. Ignorado sem consorcioNome.
+  exigirTodasAssociacoes?: boolean;
   // Sem o flag, favorecido bloqueado fica de fora; com ele, so os bloqueados. Ordem sem usuario
   // (pu NULL) continua visivel no modo padrao e nunca aparece em desativados.
   desativados?: boolean;
@@ -342,6 +345,14 @@ function resolveFiltroAssociacao(perfil: Perfil, filter: BasePagamentoFilter): {
     return {
       sql: `AND (${guardadores ?? `(pu."roleId" = ${GUARDADOR_ROLE_ID} AND assoc."nomesUpper" IS NOT NULL)`} OR ${PAGAMENTO_DA_ASSOCIACAO})`,
       params: [],
+    };
+  }
+  // Guardadores vinculados a todas as associacoes pedidas ao mesmo tempo (@> = contem todas). Tem precedencia sobre
+  // todosGuardadores: a intersecao e' o pedido explicito. Pagamento da associacao nao entra: nao e' guardador.
+  if (filter.consorcioNome?.length && filter.exigirTodasAssociacoes) {
+    return {
+      sql: `AND pu."roleId" = ${GUARDADOR_ROLE_ID} AND assoc."nomesUpper" @> $10::text[]`,
+      params: [filter.consorcioNome.map((nome) => nome.trim().toUpperCase())],
     };
   }
   if (filter.consorcioNome?.length) {

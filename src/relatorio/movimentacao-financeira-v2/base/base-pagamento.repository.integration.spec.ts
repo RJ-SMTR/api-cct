@@ -2411,6 +2411,44 @@ suite('BasePagamentoRepository (PostgreSQL)', () => {
         expect(nomes(linhas)).toEqual(['RV2 G ANGLAE', 'RV2 G AUTONOMO', 'RV2 G SINGAERJ']);
       });
 
+      describe('exigirTodasAssociacoes (ANGLAE/SINGAERJ ao mesmo tempo)', () => {
+        const G_AMBAS = A_BASE + 306;
+
+        beforeEach(async () => {
+          await seedUsuario({ id: G_AMBAS, nome: 'RV2 G AMBAS', cpf: '98500000306', roleId: 6, permitCode: 'RV2-PERMIT-E' });
+          await dataSource.query(`INSERT INTO user_relationships (user_id, related_user_id) VALUES ($1, $2), ($1, $3)`, [G_AMBAS, ASSOC_A, ASSOC_B]);
+          await seedOrdemGuardador({ id: A_BASE + 315, valor: 600, userId: G_AMBAS });
+        });
+
+        it('brings only the guardadores linked to every listed association, never the associations own payment', async () => {
+          const linhas = await repository.findGroupedRows('guardador', {
+            ...periodo,
+            consorcioNome: ['rv2 anglae', 'RV2 SINGAERJ'],
+            exigirTodasAssociacoes: true,
+          });
+
+          expect(nomes(linhas)).toEqual(['RV2 G AMBAS']);
+          expect(linhas[0].nomeConsorcio).toBe('RV2 ANGLAE / RV2 SINGAERJ');
+        });
+
+        it('wins over todosGuardadores (the intersection is the explicit ask)', async () => {
+          const linhas = await repository.findGroupedRows('guardador', {
+            ...periodo,
+            todosGuardadores: true,
+            consorcioNome: ['RV2 ANGLAE', 'RV2 SINGAERJ'],
+            exigirTodasAssociacoes: true,
+          });
+
+          expect(nomes(linhas)).toEqual(['RV2 G AMBAS']);
+        });
+
+        it('without the flag the same list is still "any of them" (unchanged behaviour)', async () => {
+          const linhas = await repository.findGroupedRows('guardador', { ...periodo, consorcioNome: ['RV2 ANGLAE', 'RV2 SINGAERJ'] });
+
+          expect(nomes(linhas)).toEqual(['RV2 ANGLAE', 'RV2 G AMBAS', 'RV2 G ANGLAE', 'RV2 G SINGAERJ']);
+        });
+      });
+
       it('todosGuardadores alone is the same as no filter (guardadores only)', async () => {
         const linhas = await repository.findGroupedRows('guardador', { ...periodo, todosGuardadores: true });
 
