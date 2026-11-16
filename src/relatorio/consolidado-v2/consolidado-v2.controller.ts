@@ -13,6 +13,7 @@ import { EleicaoAggregatorService } from './eleicao-aggregator.service';
 import { StucGratuidadeAggregatorService } from './stuc-gratuidade-aggregator.service';
 import { VanzeiroAggregatorService } from './vanzeiro-aggregator.service';
 import { rethrowRelatorioTimeoutAsHttp } from '../utils/relatorio-timeout.error';
+import { incluirAbatimentoComPago } from '../movimentacao-financeira-v2/status/abatimento-duplicidade';
 
 
 interface StatusFlags {
@@ -248,7 +249,10 @@ export class ConsolidadoV2Controller {
         dataFim,
         valorMin,
         valorMax,
-        statuses: mapStatuses({ pago, aPagar, emProcessamento, pendentes, pendenciaPaga, rejeitado, estorno, erro, abatimentoDuplicidade }),
+        // Guardador: "Pago" traz junto o abatimento por duplicidade, no proprio bloco (regra de Rayanne, 2026-11-16).
+        statuses: ((statuses) => statuses && incluirAbatimentoComPago(statuses))(
+          mapStatuses({ pago, aPagar, emProcessamento, pendentes, pendenciaPaga, rejeitado, estorno, erro, abatimentoDuplicidade }),
+        ),
         userIds,
         consorcioNome,
         todosConsorcios,
