@@ -349,6 +349,7 @@ export class RelatorioNovoRemessaFinancialMovementService {
     let pivoted = pivotStucGratuidadeRows(
       dayRows.map((row: any) => ({ ...row, dataReferencia: parse(row.dataReferencia, 'dd/MM/yyyy', new Date()) })),
       groupKeyFn,
+      (row: any) => `${row.nomes}::${row.cpfCnpj}`,
     );
     // valorMin/valorMax sobre o total do favorecido no periodo, como no Consolidado do STUC (regra
     // de Rayanne, 2026-11-11), nao sobre cada janela.

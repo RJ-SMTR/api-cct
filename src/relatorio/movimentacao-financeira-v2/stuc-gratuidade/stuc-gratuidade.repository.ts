@@ -57,6 +57,7 @@ export class StucGratuidadeRepository {
     const pivoted = pivotStucGratuidadeRows(
       dayRows.map((row) => ({ ...row, valor: Number(row.valor) })),
       groupKeyFn,
+      (row) => `${row.nomes}::${row.cpfCnpj}`,
     );
     // valorMin/valorMax se referem ao Valor Lancamento (a janela de pagamento ja pivotada, ate
     // 4 dias somados), nao ao valor de um dia isolado - aplicado depois do pivot, mesma
