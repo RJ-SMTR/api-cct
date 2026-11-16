@@ -13,6 +13,9 @@ import { CustomLogger } from 'src/utils/custom-logger';
 import { StatusPagamento } from '../../enum/statusRemessafinancial-movement';
 import { BasePagamentoRepository } from './base-pagamento.repository';
 
+// Each test seeds and cleans its own rows in the database: the 5 s default is too short on a local Postgres.
+jest.setTimeout(60000);
+
 const RUN = Boolean(process.env.RUN_RETORNO_DB_TESTS);
 const suite = RUN ? describe : describe.skip;
 
@@ -204,6 +207,59 @@ suite('BasePagamentoRepository - Abatimento por duplicidade (PostgreSQL)', () =>
 
     expect(linhas.find((linha) => linha.nome === NOME && linha.status === StatusPagamento.ABATIMENTO_DUPLICIDADE)?.valor).toBe(40);
     expect(linhas.find((linha) => linha.nome === NOME && linha.status === StatusPagamento.PAGO)?.valor).toBe(80);
+  });
+
+  // Pendencia: the child grouping (rejected, then paid through its PAI) keeps its own line; the discount went into
+  // the PAI's payment line (R$ 30 of R$ 100), so the Pendencia Paga row of the child is the abatimento.
+  async function pendenciaPagaComAbatimentoNoPai(): Promise<void> {
+    const pai = proximoId++;
+    const filha = proximoId++;
+    const ordem = proximoId++;
+    const historicoFilha = proximoId++;
+    const detalheFilha = proximoId++;
+    const historicoPai = proximoId++;
+    const detalhePai = proximoId++;
+    await dataSource.query(
+      `INSERT INTO ordem_pagamento_agrupado (id, "dataPagamento", "valorTotal", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt")
+       VALUES ($1, DATE '2097-11-10', 100, NULL, now(), now()), ($2, DATE '2097-11-05', 100, NULL, now(), now())`,
+      [pai, filha],
+    );
+    await dataSource.query(`UPDATE ordem_pagamento_agrupado SET "ordemPagamentoAgrupadoId" = $1 WHERE id = $2`, [pai, filha]);
+    await dataSource.query(
+      `INSERT INTO ordem_pagamento_guardador (
+        id, "dataOrdem", "dataInclusao", "valorRepasseGuardador", "userId", "tipoOrdemPagamento", "ordemPagamentoAgrupadoId",
+        "qtdVerificacaoTotal", "qtdVerificacaoValida", "qtdVerificacaoInvalida", "createdAt", "updatedAt"
+      ) OVERRIDING SYSTEM VALUE VALUES ($1, DATE '2097-11-03', DATE '2097-11-03', 100, $2, 'AUTOMATICA', $3, 0, 0, 0, now(), now())`,
+      [ordem, GUARDADOR_ID, filha],
+    );
+    await dataSource.query(
+      `INSERT INTO ordem_pagamento_agrupado_historico (
+        id, "ordemPagamentoAgrupadoId", "dataReferencia", "userBankCode", "userBankAgency", "userBankAccount",
+        "userBankAccountDigit", "statusRemessa", "motivoStatusRemessa"
+      ) VALUES ($1, $2, DATE '2097-11-05', '104', '0001', '99990003', '1', 5, 'AG'),
+               ($3, $4, DATE '2097-11-10', '104', '0001', '99990003', '1', 3, '00')`,
+      [historicoFilha, filha, historicoPai, pai],
+    );
+    await dataSource.query(
+      `INSERT INTO detalhe_a (
+        id, "ordemPagamentoAgrupadoHistoricoId", "numeroDocumentoEmpresa", "dataVencimento", "valorLancamento",
+        "valorRealEfetivado", nsr, "createdAt", "updatedAt"
+      ) OVERRIDING SYSTEM VALUE VALUES ($1, $2, $1, DATE '2097-11-05', 100, 100, $1, now(), now()),
+                                       ($3, $4, $3, DATE '2097-11-10', 30, 30, $3, now(), now())`,
+      [detalheFilha, historicoFilha, detalhePai, historicoPai],
+    );
+  }
+
+  it('Pendencia Paga: a filha paga pelo PAI com abatimento sai como "Abatimento por duplicidade"', async () => {
+    await pendenciaPagaComAbatimentoNoPai();
+
+    const rows = (await repository.findGroupedRows('guardador', { dataInicio: dia('2097-11-01'), dataFim: dia('2097-11-30'), userIds: [GUARDADOR_ID] })).map(
+      linhaResumo,
+    );
+
+    expect(rows).toEqual([
+      { data: '2097-11-10', nome: NOME, valor: 100, status: StatusPagamento.ABATIMENTO_DUPLICIDADE, motivo: 'Valor pago em duplicidade em 09/2097' },
+    ]);
   });
 
   it('pagina pelo cursor sem perder nem repetir as linhas de abatimento', async () => {

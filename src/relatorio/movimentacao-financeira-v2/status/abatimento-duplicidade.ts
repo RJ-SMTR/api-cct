@@ -53,27 +53,29 @@ export const ABATIMENTO_DUPLICIDADE_CTES = `
         WHERE vez > 1
         GROUP BY user_id
       ),
+      abatimento_devido AS MATERIALIZED (
+        -- What the guardador was owed in each grouping a payment can be sent from: the grouping of his orders and
+        -- its PAI (pendencia). An order counts for both, so the sum per grouping is computed once here.
+        SELECT o.user_id, v.alvo_id, SUM(o.valor) AS devido
+        FROM abatimento_ordens o
+        CROSS JOIN LATERAL (VALUES (o.agr), (o.pai)) v(alvo_id)
+        WHERE v.alvo_id IS NOT NULL
+        GROUP BY o.user_id, v.alvo_id
+      ),
       abatimento_lancamentos AS MATERIALIZED (
         SELECT DISTINCT ON (da_ab.id)
           da_ab.id AS "detalheAId",
+          d.alvo_id AS "agrupadoId",
           '${ABATIMENTO_DUPLICIDADE_MOTIVO_BASE}' || CASE
             WHEN m.meses IS NULL THEN ''
             WHEN cardinality(m.meses) = 1 THEN ' em ' || to_char(m.meses[1], 'MM/YYYY')
             ELSE ' em ' || array_to_string(ARRAY(SELECT to_char(mes, 'MM/YYYY') FROM unnest(m.meses[1:cardinality(m.meses) - 1]) mes ORDER BY mes), ', ')
               || ' e ' || to_char(m.meses[cardinality(m.meses)], 'MM/YYYY')
           END AS motivo
-        FROM (
-          SELECT user_id, agr AS id FROM abatimento_ordens
-          UNION
-          SELECT user_id, pai FROM abatimento_ordens WHERE pai IS NOT NULL
-        ) alvo
-        INNER JOIN ordem_pagamento_agrupado_historico oph_ab ON oph_ab."ordemPagamentoAgrupadoId" = alvo.id
+        FROM abatimento_devido d
+        INNER JOIN ordem_pagamento_agrupado_historico oph_ab ON oph_ab."ordemPagamentoAgrupadoId" = d.alvo_id
         INNER JOIN detalhe_a da_ab ON da_ab."ordemPagamentoAgrupadoHistoricoId" = oph_ab.id
-        CROSS JOIN LATERAL (
-          SELECT COALESCE(SUM(o.valor), 0) AS devido FROM abatimento_ordens o
-           WHERE o.user_id = alvo.user_id AND (o.agr = alvo.id OR o.pai = alvo.id)
-        ) d
-        LEFT JOIN abatimento_meses m ON m.user_id = alvo.user_id
+        LEFT JOIN abatimento_meses m ON m.user_id = d.user_id
         WHERE da_ab."valorLancamento" < d.devido
           AND (oph_ab."statusRemessa" IN (3, 5) OR (oph_ab."statusRemessa" = 4 AND da_ab."valorLancamento" = 0))
         ORDER BY da_ab.id
@@ -81,6 +83,14 @@ export const ABATIMENTO_DUPLICIDADE_CTES = `
 
 // Joins the abatimento of the payment line "daAlias" (alias "ab"; ab."detalheAId" is NULL when it is not one).
 export const abatimentoDuplicidadeJoin = (daAlias: string) => `LEFT JOIN abatimento_lancamentos ab ON ab."detalheAId" = ${daAlias}.id`;
+
+// Pendencia (child grouping paid through its PAI): the discount is in the PAI's payment line, so the child row is
+// an abatimento when its own line is one or when its PAI ("paiIdSql") has a line with abatimento.
+export const abatimentoDuplicidadeJoinComPai = (daAlias: string | null, paiIdSql: string) => `LEFT JOIN LATERAL (
+          SELECT ab0."detalheAId", ab0.motivo FROM abatimento_lancamentos ab0
+           WHERE ${daAlias ? `ab0."detalheAId" = ${daAlias}.id OR ` : ''}ab0."agrupadoId" = ${paiIdSql}
+           ORDER BY ab0."detalheAId" LIMIT 1
+        ) ab ON true`;
 
 // Status of a payment line that may be an abatimento: the abatimento wins over Pago/Pendencia Paga/Rejeitado.
 export const statusComAbatimentoDuplicidade = (statusSql: string) =>

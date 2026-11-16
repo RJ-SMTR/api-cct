@@ -16,6 +16,7 @@ import { buildEleicaoStatusPagamentoCaseSql, buildStatusPagamentoCaseSql } from 
 import {
   ABATIMENTO_DUPLICIDADE_CTES,
   abatimentoDuplicidadeJoin,
+  abatimentoDuplicidadeJoinComPai,
   naoEhAbatimentoDuplicidade,
   statusComAbatimentoDuplicidade,
 } from '../status/abatimento-duplicidade';
@@ -172,6 +173,8 @@ const REPRESENTANTE_EXTRA_COLUMN: Record<Perfil, string> = {
 interface AbatimentoPerfil {
   ctes: string;
   join: (daAlias: string) => string;
+  // Pendencia Paga: o desconto fica no lancamento do PAI; a filha sai como abatimento quando ele o tem.
+  joinPendencia: (daAlias: string | null, paiIdSql: string) => string;
   status: (statusSql: string) => string;
   motivo: string;
   // Status 4 so entra em "agrupada" quando e' o lancamento zerado pelo abatimento.
@@ -184,6 +187,7 @@ const ABATIMENTO: Record<Perfil, AbatimentoPerfil> = {
   permissionario: {
     ctes: '',
     join: () => '',
+    joinPendencia: () => '',
     status: (statusSql) => statusSql,
     motivo: 'NULL::text',
     agrupadaStatus: 'oph."statusRemessa" NOT IN (4, 5)',
@@ -192,6 +196,7 @@ const ABATIMENTO: Record<Perfil, AbatimentoPerfil> = {
   guardador: {
     ctes: ABATIMENTO_DUPLICIDADE_CTES,
     join: abatimentoDuplicidadeJoin,
+    joinPendencia: abatimentoDuplicidadeJoinComPai,
     status: statusComAbatimentoDuplicidade,
     motivo: 'ab.motivo',
     agrupadaStatus: '(oph."statusRemessa" NOT IN (4, 5) OR (oph."statusRemessa" = 4 AND ab."detalheAId" IS NOT NULL))',
@@ -678,7 +683,7 @@ export class BasePagamentoRepository {
         LEFT JOIN ordem_pagamento_agrupado op_pai ON op_pai.id = opa."ordemPagamentoAgrupadoId"
         INNER JOIN ordem_pagamento_agrupado_historico oph ON oph."ordemPagamentoAgrupadoId" = opa.id
         INNER JOIN detalhe_a da ON da."ordemPagamentoAgrupadoHistoricoId" = oph.id
-        ${abatimento.join('da')}
+        ${abatimento.joinPendencia('da', 'opa."ordemPagamentoAgrupadoId"')}
         ${lateral}
         WHERE oph."statusRemessa" = 5
           AND ${AGRUPAMENTO_SEM_FILHAS('opa')}
@@ -708,14 +713,15 @@ export class BasePagamentoRepository {
           pu."cpfCnpj" AS "cpfCnpj",
           ${NOME_CONSORCIO_AGRUPADA[perfil]} AS "nomeConsorcio",
           ROUND(opa."valorTotal"::numeric, 2) AS valor,
-          '${StatusPagamento.PENDENCIA_PAGA}' AS status,
+          ${abatimento.status(`'${StatusPagamento.PENDENCIA_PAGA}'`)} AS status,
           'pendencia_paga_passo0:' || opa.id::text AS "chaveLinha",
-          NULL::text AS motivo
+          ${abatimento.motivo} AS motivo
         FROM ordem_pagamento_agrupado opa
         INNER JOIN ordem_pagamento_agrupado op_pai ON op_pai.id = opa."ordemPagamentoAgrupadoId"
         INNER JOIN ordem_pagamento_agrupado_historico oph ON oph.id = (
           SELECT MAX(oph_mais_recente.id) FROM ordem_pagamento_agrupado_historico oph_mais_recente WHERE oph_mais_recente."ordemPagamentoAgrupadoId" = opa.id
         )
+        ${abatimento.joinPendencia(null, 'op_pai.id')}
         ${lateral}
         WHERE ${AGRUPAMENTO_SEM_FILHAS('opa')}
           AND oph."statusRemessa" = 5
