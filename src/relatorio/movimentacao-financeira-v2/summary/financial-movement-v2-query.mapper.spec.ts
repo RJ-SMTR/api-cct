@@ -44,6 +44,12 @@ describe('mapQueryToFinancialMovementV2Filter', () => {
 
     expect(filtro.todosGuardadores).toBe(true);
   });
+
+  it('maps abatimentoDuplicidade to the "Abatimento por duplicidade" status', () => {
+    const filtro = mapQueryToFinancialMovementV2Filter({ ...periodo, pago: true, abatimentoDuplicidade: true } as FinancialMovementQueryDto);
+
+    expect(filtro.statuses).toEqual([StatusPagamento.PAGO, StatusPagamento.ABATIMENTO_DUPLICIDADE]);
+  });
 });
 
 describe('toExportRow', () => {
@@ -51,5 +57,26 @@ describe('toExportRow', () => {
     const linha = toExportRow({ dataReferencia: new Date('2098-01-10T12:00:00.000Z'), nomes: 'A', cpfCnpj: '1', nomeConsorcio: null, valor: '1', status: StatusPagamento.A_PAGAR, chaveLinha: 'agrupada:9' });
 
     expect(JSON.stringify(linha)).not.toContain('agrupada:9');
+  });
+
+  it('shows the motivo of the abatimento in the description column', () => {
+    const linha = toExportRow({
+      dataReferencia: new Date('2098-01-10T12:00:00.000Z'),
+      nomes: 'A',
+      cpfCnpj: '1',
+      nomeConsorcio: null,
+      valor: '0',
+      status: StatusPagamento.ABATIMENTO_DUPLICIDADE,
+      motivo: 'Valor pago em duplicidade em 09/2097',
+    });
+
+    expect(linha.status).toBe('Abatimento por duplicidade');
+    expect(linha.descricaoErro).toBe('Valor pago em duplicidade em 09/2097');
+  });
+
+  it('keeps the description empty for rows without motivo', () => {
+    const linha = toExportRow({ dataReferencia: new Date('2098-01-10T12:00:00.000Z'), nomes: 'A', cpfCnpj: '1', nomeConsorcio: null, valor: '1', status: StatusPagamento.PAGO, motivo: null });
+
+    expect(linha.descricaoErro).toBeUndefined();
   });
 });

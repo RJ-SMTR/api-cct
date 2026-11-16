@@ -164,6 +164,24 @@ describe('FinancialMovementV2ExportService', () => {
     ]);
   });
 
+  it('totals the "Abatimento por duplicidade" rows in their own bucket, out of Valor Pago', () => {
+    const summary = buildSummaryFromRows([
+      row({ status: StatusPagamento.PAGO, valor: '80.00' }),
+      row({ status: StatusPagamento.ABATIMENTO_DUPLICIDADE, valor: '40.00' }),
+      row({ status: StatusPagamento.ABATIMENTO_DUPLICIDADE, valor: '0.00' }),
+    ]);
+
+    expect(summary.valorPago).toBe(80);
+    expect(summary.valorAbatimentoDuplicidade).toBe(40);
+    expect(summary.valorTotal).toBe(120);
+    expect(buildSummaryLines(summary)).toEqual([
+      ['Total Pago', 'R$ 80,00'],
+      ['Total Abatimento por duplicidade', 'R$ 40,00'],
+      ['Valor Total', 'R$ 120,00'],
+    ]);
+    expect(buildStatusLabelsFromFilter([StatusPagamento.ABATIMENTO_DUPLICIDADE])).toEqual(['Abatimento por duplicidade']);
+  });
+
   it('maps the new statuses[] filter into the same status labels the PDF header shows today', () => {
     expect(buildStatusLabelsFromFilter([StatusPagamento.PAGO, StatusPagamento.A_PAGAR])).toEqual(['Pago', 'A Pagar']);
     expect(buildStatusLabelsFromFilter(undefined)).toEqual([]);

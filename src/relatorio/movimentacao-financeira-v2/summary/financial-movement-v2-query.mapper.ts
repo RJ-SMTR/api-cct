@@ -7,7 +7,7 @@ import type { FinancialMovementV2Filter } from './financial-movement-v2-summary.
 // (relatorio-novo-remessa-financial-movement.service.ts) - reused here so the v2 routes accept
 // the exact same request shape (FinancialMovementQueryDto/FinancialMovementExportRequestDto,
 // T10 Constraints: "mesmos DTOs de request... se os campos nao mudaram").
-export function mapStatusesFromQuery(query: Pick<FinancialMovementQueryDto, 'pago' | 'aPagar' | 'emProcessamento' | 'erro' | 'estorno' | 'rejeitado' | 'pendenciaPaga' | 'pendentes'>): StatusPagamento[] | undefined {
+export function mapStatusesFromQuery(query: Pick<FinancialMovementQueryDto, 'pago' | 'aPagar' | 'emProcessamento' | 'erro' | 'estorno' | 'rejeitado' | 'pendenciaPaga' | 'pendentes' | 'abatimentoDuplicidade'>): StatusPagamento[] | undefined {
   const statuses: StatusPagamento[] = [];
   if (query.pago) statuses.push(StatusPagamento.PAGO);
   if (query.aPagar) statuses.push(StatusPagamento.A_PAGAR);
@@ -17,6 +17,7 @@ export function mapStatusesFromQuery(query: Pick<FinancialMovementQueryDto, 'pag
   if (query.rejeitado) statuses.push(StatusPagamento.ERRO_REJEITADO);
   if (query.pendenciaPaga) statuses.push(StatusPagamento.PENDENCIA_PAGA);
   if (query.pendentes) statuses.push(StatusPagamento.PENDENTES);
+  if (query.abatimentoDuplicidade) statuses.push(StatusPagamento.ABATIMENTO_DUPLICIDADE);
   return statuses.length ? [...new Set(statuses)] : undefined;
 }
 

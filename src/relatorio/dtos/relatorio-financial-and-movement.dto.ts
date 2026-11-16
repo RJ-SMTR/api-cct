@@ -33,6 +33,8 @@ export class RelatorioFinancialMovementNovoRemessaSummaryDto {
   valorAPagar?: number;
   valorPendente?: number;
   valorPendenciaPaga?: number;
+  // Guardador: pagamentos com abatimento do pagamento indevido ("Abatimento por duplicidade").
+  valorAbatimentoDuplicidade?: number;
   valorSemFavorecido?: number;
 }
 
@@ -56,6 +58,7 @@ export class RelatorioFinancialMovementNovoRemessaPageDto {
   valorAPagar?: number;
   valorPendente?: number;
   valorPendenciaPaga?: number;
+  valorAbatimentoDuplicidade?: number;
 }
 
 export class RelatorioFinancialMovementNovoRemessaData {
