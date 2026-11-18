@@ -2366,32 +2366,39 @@ suite('BasePagamentoRepository (PostgreSQL)', () => {
 
       const nomes = (linhas: { nomes: string }[]) => linhas.map((linha) => linha.nomes).sort();
 
-      // Regra de Rayanne (2026-11-13): selecting associations brings their guardadores AND the association's own
-      // payment; "Todos os guardadores" (no association filter) never brings the association's own payment.
-      it('consorcioNome keeps the guardadores of that association and its own payment, case-insensitive', async () => {
+      // Regra de Rayanne (2026-11-18): with no guardador selected, an association filter brings only the associations
+      // own payments, never their guardadores ("somente os nomes das associacoes com o seu valor").
+      it('no guardador + consorcioNome brings only the association own payment, case-insensitive', async () => {
         const linhas = await repository.findGroupedRows('guardador', { ...periodo, consorcioNome: [' rv2 anglae '] });
 
-        expect(nomes(linhas)).toEqual(['RV2 ANGLAE', 'RV2 G ANGLAE']);
-        expect(linhas.find((linha) => linha.nomes === 'RV2 G ANGLAE')?.nomeConsorcio).toBe('RV2 ANGLAE');
+        expect(nomes(linhas)).toEqual(['RV2 ANGLAE']);
       });
 
-      it('consorcioNome does not bring the own payment of another association', async () => {
+      it('no guardador + consorcioNome does not bring the own payment of another association', async () => {
         const linhas = await repository.findGroupedRows('guardador', { ...periodo, consorcioNome: ['RV2 SINGAERJ'] });
 
-        expect(nomes(linhas)).toEqual(['RV2 G SINGAERJ']);
+        // RV2 SINGAERJ has no own payment in the fixture, and its guardador does not come.
+        expect(nomes(linhas)).toEqual([]);
       });
 
-      it('todosConsorcios keeps every guardador with an association and the associations own payments', async () => {
+      it('no guardador + todosConsorcios brings only the associations own payments', async () => {
         const linhas = await repository.findGroupedRows('guardador', { ...periodo, todosConsorcios: true });
 
-        expect(nomes(linhas)).toEqual(['RV2 ANGLAE', 'RV2 G ANGLAE', 'RV2 G SINGAERJ']);
+        expect(nomes(linhas)).toEqual(['RV2 ANGLAE']);
+      });
+
+      it('specific guardadores + association keep those guardadores (unchanged)', async () => {
+        const linhas = await repository.findGroupedRows('guardador', { ...periodo, userIds: [G_A, G_B], consorcioNome: ['RV2 ANGLAE'] });
+
+        expect(nomes(linhas)).toEqual(['RV2 G ANGLAE']);
+        expect(linhas[0].nomeConsorcio).toBe('RV2 ANGLAE');
       });
 
       it('applies to grouped sources too (detalhe_a path, through the LATERAL)', async () => {
         await seedAgrupado({ base: A_BASE + 320, userId: G_B, statusRemessa: 3, valor: 77, perfil: 'guardador' });
 
-        const linhas = await repository.findGroupedRows('guardador', { ...periodo, consorcioNome: ['RV2 ANGLAE'], statuses: [StatusPagamento.PAGO] });
-        const singaerj = await repository.findGroupedRows('guardador', { ...periodo, consorcioNome: ['RV2 SINGAERJ'], statuses: [StatusPagamento.PAGO] });
+        const linhas = await repository.findGroupedRows('guardador', { ...periodo, todosGuardadores: true, consorcioNome: ['RV2 ANGLAE'], statuses: [StatusPagamento.PAGO] });
+        const singaerj = await repository.findGroupedRows('guardador', { ...periodo, todosGuardadores: true, consorcioNome: ['RV2 SINGAERJ'], statuses: [StatusPagamento.PAGO] });
 
         expect(linhas).toHaveLength(0);
         expect(singaerj.map((linha) => Number(linha.valor))).toEqual([77]);
@@ -2447,7 +2454,7 @@ suite('BasePagamentoRepository (PostgreSQL)', () => {
         });
 
         it('without the flag the same list is still "any of them" (unchanged behaviour)', async () => {
-          const linhas = await repository.findGroupedRows('guardador', { ...periodo, consorcioNome: ['RV2 ANGLAE', 'RV2 SINGAERJ'] });
+          const linhas = await repository.findGroupedRows('guardador', { ...periodo, todosGuardadores: true, consorcioNome: ['RV2 ANGLAE', 'RV2 SINGAERJ'] });
 
           expect(nomes(linhas)).toEqual(['RV2 ANGLAE', 'RV2 G AMBAS', 'RV2 G ANGLAE', 'RV2 G SINGAERJ']);
         });
@@ -2462,7 +2469,7 @@ suite('BasePagamentoRepository (PostgreSQL)', () => {
       it('valorMin is by favorecido for Guardador even under an association filter (decision)', async () => {
         await seedOrdemGuardador({ id: A_BASE + 314, valor: 300, userId: G_ASSOC_A_2 });
 
-        const linhas = await repository.findGroupedRows('guardador', { ...periodo, consorcioNome: ['RV2 ANGLAE'], valorMin: 500 });
+        const linhas = await repository.findGroupedRows('guardador', { ...periodo, todosGuardadores: true, consorcioNome: ['RV2 ANGLAE'], valorMin: 500 });
 
         // Guardadores of 300 each drop out; the association's own payment (900) passes the minimum.
         expect(nomes(linhas)).toEqual(['RV2 ANGLAE']);
@@ -2471,7 +2478,7 @@ suite('BasePagamentoRepository (PostgreSQL)', () => {
       it('valorMax applies to the association own payment too', async () => {
         await seedOrdemGuardador({ id: A_BASE + 316, valor: 300, userId: G_ASSOC_A_2 });
 
-        const linhas = await repository.findGroupedRows('guardador', { ...periodo, consorcioNome: ['RV2 ANGLAE'], valorMax: 500 });
+        const linhas = await repository.findGroupedRows('guardador', { ...periodo, todosGuardadores: true, consorcioNome: ['RV2 ANGLAE'], valorMax: 500 });
 
         expect(nomes(linhas)).toEqual(['RV2 G ANGLAE', 'RV2 G ANGLAE 2']);
       });
@@ -2500,9 +2507,15 @@ suite('BasePagamentoRepository (PostgreSQL)', () => {
         it('splits the association own payment from its guardadores (consorcioNome, case-insensitive)', async () => {
           await seedOrdemGuardador({ id: A_BASE + 317, valor: 50, userId: G_ASSOC_A_2 });
 
-          const totais = await repository.findTotaisPorAssociacao({ ...periodo, consorcioNome: [' rv2 anglae '] });
+          const totais = await repository.findTotaisPorAssociacao({ ...periodo, todosGuardadores: true, consorcioNome: [' rv2 anglae '] });
 
           expect(totais).toEqual([{ nome: 'RV2 ANGLAE', valorAssociacao: 900, valorGuardadores: 350 }]);
+        });
+
+        it('no guardador selected: only the association own payment, the guardadores are not in the result', async () => {
+          const totais = await repository.findTotaisPorAssociacao({ ...periodo, consorcioNome: ['RV2 ANGLAE'] });
+
+          expect(totais).toEqual([{ nome: 'RV2 ANGLAE', valorAssociacao: 900, valorGuardadores: 0 }]);
         });
 
         it('todosGuardadores + one association: only the guardadores linked to it, never the others in the result', async () => {
@@ -2516,7 +2529,7 @@ suite('BasePagamentoRepository (PostgreSQL)', () => {
           await dataSource.query(`INSERT INTO user_relationships (user_id, related_user_id) VALUES ($1, $2), ($1, $3)`, [A_BASE + 307, ASSOC_A, ASSOC_B]);
           await seedOrdemGuardador({ id: A_BASE + 318, valor: 20, userId: A_BASE + 307 });
 
-          const totais = await repository.findTotaisPorAssociacao({ ...periodo, todosConsorcios: true });
+          const totais = await repository.findTotaisPorAssociacao({ ...periodo, todosGuardadores: true, todosConsorcios: true });
 
           expect(doTeste(totais)).toEqual([
             { nome: 'RV2 ANGLAE', valorAssociacao: 900, valorGuardadores: 320 },
@@ -2527,7 +2540,7 @@ suite('BasePagamentoRepository (PostgreSQL)', () => {
         it('follows the status filter of the search', async () => {
           await seedAgrupado({ base: A_BASE + 330, userId: G_B, statusRemessa: 3, valor: 77, perfil: 'guardador' });
 
-          const totais = await repository.findTotaisPorAssociacao({ ...periodo, consorcioNome: ['RV2 SINGAERJ'], statuses: [StatusPagamento.PAGO] });
+          const totais = await repository.findTotaisPorAssociacao({ ...periodo, todosGuardadores: true, consorcioNome: ['RV2 SINGAERJ'], statuses: [StatusPagamento.PAGO] });
 
           expect(totais).toEqual([{ nome: 'RV2 SINGAERJ', valorAssociacao: 0, valorGuardadores: 77 }]);
         });
@@ -2537,17 +2550,26 @@ suite('BasePagamentoRepository (PostgreSQL)', () => {
         });
       });
 
-      it.each([
-        ['consorcioNome', { consorcioNome: ['RV2 ANGLAE'] }],
-        ['todosConsorcios', { todosConsorcios: true }],
-      ])('is the legacy Guardador total plus the association own payment (%s, documented divergence)', async (_nome, extra) => {
-        const filtro = { ...periodo, ...extra };
+      it('Todos os guardadores + association is the legacy Guardador total plus the association own payment (documented divergence)', async () => {
+        const filtro = { ...periodo, consorcioNome: ['RV2 ANGLAE'] };
 
-        const [novo, legado] = await Promise.all([repository.findGroupedRows('guardador', filtro), legacyGuardadorRepository.findFinancialMovementSummary(filtro)]);
+        const [novo, legado] = await Promise.all([
+          repository.findGroupedRows('guardador', { ...filtro, todosGuardadores: true }),
+          legacyGuardadorRepository.findFinancialMovementSummary(filtro),
+        ]);
 
         // The legacy never brings the association's own payment (RV2 ANGLAE, 900).
         expect(sumByStatus(novo)[StatusPagamento.A_PAGAR] ?? 0).toBe((legado.valorAPagar ?? 0) + 900);
       }, 30000);
+
+      it.each([
+        ['consorcioNome', { consorcioNome: ['RV2 ANGLAE'] }],
+        ['todosConsorcios', { todosConsorcios: true }],
+      ])('no guardador + association (%s) totals only the association own payment', async (_nome, extra) => {
+        const novo = await repository.findGroupedRows('guardador', { ...periodo, ...extra });
+
+        expect(sumByStatus(novo)[StatusPagamento.A_PAGAR] ?? 0).toBe(900);
+      });
     });
 
     describe('A4: findEleicaoRows', () => {
