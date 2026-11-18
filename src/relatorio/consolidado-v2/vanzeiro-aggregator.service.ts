@@ -1,7 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { RelatorioConsolidadoNovoRemessaData, RelatorioConsolidadoNovoRemessaDto } from '../dtos/relatorio-consolidado-novo-remessa.dto';
 import { StatusPagamento } from '../enum/statusRemessafinancial-movement';
-import { BasePagamentoFilter, BasePagamentoRepository, BasePagamentoRow, Perfil } from '../movimentacao-financeira-v2/base/base-pagamento.repository';
+import {
+  BasePagamentoFilter,
+  BasePagamentoRepository,
+  BasePagamentoRow,
+  BasePagamentoTotalPorAssociacao,
+  Perfil,
+} from '../movimentacao-financeira-v2/base/base-pagamento.repository';
 
 // One Consolidado block per status (T11): same content as aggregate() called with that single status.
 export type ConsolidadoPorStatus = RelatorioConsolidadoNovoRemessaDto & { status: StatusPagamento };
@@ -74,6 +80,11 @@ export class VanzeiroAggregatorService {
       valorSemFavorecido,
       data,
     });
+  }
+
+  // Guardador: each association's own payment and its guardadores' value, under the same filters as the search.
+  async totaisPorAssociacao(filter: BasePagamentoFilter): Promise<BasePagamentoTotalPorAssociacao[]> {
+    return this.basePagamentoRepository.findTotaisPorAssociacao(filter);
   }
 
   // ADR 0023 (T11): every selected status in one query, one block per status in the order of filter.statuses.

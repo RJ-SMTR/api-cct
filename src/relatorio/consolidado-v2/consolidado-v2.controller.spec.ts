@@ -23,7 +23,7 @@ describe('ConsolidadoV2Controller', () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [ConsolidadoV2Controller],
       providers: [
-        { provide: VanzeiroAggregatorService, useValue: { aggregate: jest.fn().mockResolvedValue({ count: 0, valor: 0, valorAPagar: 0, data: [] }), aggregatePorStatus: jest.fn().mockResolvedValue([]) } },
+        { provide: VanzeiroAggregatorService, useValue: { aggregate: jest.fn().mockResolvedValue({ count: 0, valor: 0, valorAPagar: 0, data: [] }), aggregatePorStatus: jest.fn().mockResolvedValue([]), totaisPorAssociacao: jest.fn().mockResolvedValue([]) } },
         { provide: ConsorcioAggregatorService, useValue: { aggregate: jest.fn().mockResolvedValue({ count: 0, valor: 0, valorAPagar: 0, data: [] }) } },
         { provide: EleicaoAggregatorService, useValue: { aggregateByFavorecido: jest.fn().mockResolvedValue({ count: 0, valor: 0, valorAPagar: 0, data: [] }), aggregateByConsorcio: jest.fn().mockResolvedValue({ count: 0, valor: 0, valorAPagar: 0, data: [] }) } },
         { provide: StucGratuidadeAggregatorService, useValue: { aggregate: jest.fn().mockResolvedValue({ count: 0, valor: 0, valorAPagar: 0, data: [] }) } },
@@ -428,6 +428,41 @@ describe('ConsolidadoV2Controller', () => {
 
       expect(vanzeiroAggregatorService.aggregate).toHaveBeenCalled();
       expect(vanzeiroAggregatorService.aggregatePorStatus).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getGuardadorTotaisPorAssociacao', () => {
+    const chamar = (args: Record<string, unknown>) => {
+      const ordem = ['userIds', 'consorcioNome', 'valorMin', 'valorMax', 'pago', 'aPagar', 'emProcessamento', 'todosConsorcios', 'eleicao', 'desativados', 'pendentes', 'rejeitado', 'estorno', 'pendenciaPaga', 'stucGratuidade', 'erro', 'todosGuardadores', 'abatimentoDuplicidade', 'exigirTodasAssociacoes'];
+      return (controller.getGuardadorTotaisPorAssociacao as (...a: unknown[]) => Promise<unknown>).call(controller, dataInicio, dataFim, ...ordem.map((k) => args[k]));
+    };
+
+    it('has AuthGuard(jwt) applied', () => {
+      const guards = Reflect.getMetadata(GUARDS_METADATA, ConsolidadoV2Controller.prototype.getGuardadorTotaisPorAssociacao);
+      expect(guards?.length).toBeGreaterThan(0);
+    });
+
+    it('builds the same filter as the Guardador Consolidado', async () => {
+      (vanzeiroAggregatorService.totaisPorAssociacao as jest.Mock).mockResolvedValue([{ nome: 'ANGLAE', valorAssociacao: 10, valorGuardadores: 20 }]);
+
+      const resposta = await chamar({ consorcioNome: ['ANGLAE'], todosGuardadores: true, pago: true, valorMax: 50 });
+
+      expect(resposta).toEqual([{ nome: 'ANGLAE', valorAssociacao: 10, valorGuardadores: 20 }]);
+      expect(vanzeiroAggregatorService.totaisPorAssociacao).toHaveBeenCalledWith(
+        expect.objectContaining({
+          dataInicio,
+          dataFim,
+          consorcioNome: ['ANGLAE'],
+          todosGuardadores: true,
+          valorMax: 50,
+          statuses: [StatusPagamento.PAGO, StatusPagamento.ABATIMENTO_DUPLICIDADE],
+        }),
+      );
+    });
+
+    it('rejects eleicao with 400, like the Guardador Consolidado', async () => {
+      await expect(chamar({ eleicao: true })).rejects.toMatchObject({ status: 400 });
+      expect(vanzeiroAggregatorService.totaisPorAssociacao).not.toHaveBeenCalled();
     });
   });
 });

@@ -93,6 +93,13 @@ export interface BasePagamentoTotalPorGrupo {
   valorAPagar: number;
 }
 
+// Guardador: an association's own payment and the value of the guardadores linked to it, under the report filters.
+export interface BasePagamentoTotalPorAssociacao {
+  nome: string;
+  valorAssociacao: number;
+  valorGuardadores: number;
+}
+
 // Keyset cursor (T4, AC-19/ADR 0002): every field of BasePagamentoRow doubles as a
 // tie-breaker, in the exact order used by CURSOR_ORDER_BY/CURSOR_TUPLE_COMPARE below - not
 // opaque to the frontend (ADR 0021 decision 6), same as the legacy Guardador cursor shape. Not
@@ -518,6 +525,44 @@ export class BasePagamentoRepository {
       grupos: linhas.filter((linha): linha is BasePagamentoTotalPorGrupo & { nome: string } => linha.nome !== null),
       valorSemFavorecido: linhas.find((linha) => linha.nome === null)?.valor ?? 0,
     };
+  }
+
+  // Guardador: one row per association with its own payment (favorecido = the association) and the guardadores linked
+  // to it, over the same combined rows as the screen, so it follows every filter. Associations are the ones in
+  // consorcioNome, or every association with todosConsorcios; none without an association filter. The link of a
+  // guardador row is its "nomeConsorcio" (associations joined by ' / ', GUARDADOR_CONSORCIO_CASE).
+  async findTotaisPorAssociacao(filter: BasePagamentoFilter): Promise<BasePagamentoTotalPorAssociacao[]> {
+    if (!filter.todosConsorcios && !filter.consorcioNome?.length) {
+      return [];
+    }
+    const { sql, params } = this.buildCombinadoSql('guardador', filter);
+    const nomesAssociacao = filter.todosConsorcios ? null : filter.consorcioNome!.map((nome) => nome.trim().toUpperCase());
+    const paramNomes = `$${params.length + 1}`;
+    return this.runReportQuery<BasePagamentoTotalPorAssociacao>(
+      `
+      WITH linhas AS MATERIALIZED (${sql}),
+      associacao AS (
+        SELECT DISTINCT ON (UPPER(TRIM(a."fullName"))) a."fullName" AS nome, UPPER(TRIM(a."fullName")) AS chave
+        FROM public."user" a
+        WHERE EXISTS (SELECT 1 FROM user_relationships ur WHERE ur.related_user_id = a.id)
+          AND a."fullName" IS NOT NULL
+          AND (${paramNomes}::text[] IS NULL OR UPPER(TRIM(a."fullName")) = ANY(${paramNomes}::text[]))
+        ORDER BY UPPER(TRIM(a."fullName")), a.id
+      )
+      SELECT
+        associacao.nome,
+        COALESCE(SUM(linhas.valor) FILTER (WHERE UPPER(TRIM(linhas.nomes)) = associacao.chave), 0)::float8 AS "valorAssociacao",
+        COALESCE(SUM(linhas.valor) FILTER (
+          WHERE UPPER(TRIM(linhas.nomes)) <> associacao.chave
+            AND associacao.chave = ANY(ARRAY(SELECT UPPER(TRIM(parte)) FROM unnest(string_to_array(linhas."nomeConsorcio", ' / ')) parte))
+        ), 0)::float8 AS "valorGuardadores"
+      FROM associacao
+      LEFT JOIN linhas ON linhas.nomes IS NOT NULL
+      GROUP BY associacao.nome
+      ORDER BY associacao.nome
+      `,
+      [...params, nomesAssociacao],
+    );
   }
 
   // Consolidado by favorecido and status in one query (ADR 0023, T11): the Guardador screen shows one block per
