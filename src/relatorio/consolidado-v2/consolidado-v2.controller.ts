@@ -244,7 +244,7 @@ export class ConsolidadoV2Controller {
   @UseGuards(AuthGuard('jwt'))
   @ApiQuery({ name: 'userIds', description: 'Pesquisa o id dos usuários.', required: false, type: [Number] })
   @ApiQuery({ name: 'porStatus', description: 'Um bloco por status selecionado, em uma consulta (ADR 0023).', required: false, type: Boolean })
-  @ApiQuery({ name: 'todosGuardadores', description: 'Todos os guardadores; com filtro de associação, soma os dois.', required: false, type: Boolean })
+  @ApiQuery({ name: 'todosGuardadores', description: 'Todos os guardadores; com "Todas as associações", soma os dois; com associação específica, só os guardadores dela.', required: false, type: Boolean })
   @ApiQuery({ name: 'abatimentoDuplicidade', description: 'Pagamentos com abatimento do pagamento indevido ("Abatimento por duplicidade").', required: false, type: Boolean })
   @ApiQuery({ name: 'exigirTodasAssociacoes', description: 'Com consorcioNome, só guardadores de todas as associações informadas.', required: false, type: Boolean })
   @Get('guardador/consolidado')
@@ -329,7 +329,7 @@ export class ConsolidadoV2Controller {
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'))
   @ApiQuery({ name: 'userIds', description: 'Pesquisa o id dos usuários.', required: false, type: [Number] })
-  @ApiQuery({ name: 'todosGuardadores', description: 'Todos os guardadores; com filtro de associação, soma os dois.', required: false, type: Boolean })
+  @ApiQuery({ name: 'todosGuardadores', description: 'Todos os guardadores; com "Todas as associações", soma os dois; com associação específica, só os guardadores dela.', required: false, type: Boolean })
   @ApiQuery({ name: 'abatimentoDuplicidade', description: 'Pagamentos com abatimento do pagamento indevido ("Abatimento por duplicidade").', required: false, type: Boolean })
   @ApiQuery({ name: 'exigirTodasAssociacoes', description: 'Com consorcioNome, só guardadores de todas as associações informadas.', required: false, type: Boolean })
   // Linha de cada associacao no resultado do Guardador (Consolidado e Movimentacao Financeira): pagamento proprio da
