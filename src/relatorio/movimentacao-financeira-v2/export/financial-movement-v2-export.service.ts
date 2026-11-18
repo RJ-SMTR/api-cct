@@ -3,6 +3,7 @@ import * as fs from 'fs';
 import { format } from 'date-fns';
 import { StatusPagamento } from '../../enum/statusRemessafinancial-movement';
 import {
+  FinancialMovementExportAssociacaoLine,
   FinancialMovementExportFormatValue,
   FinancialMovementExportResult,
   writeFinancialMovementExport,
@@ -12,7 +13,14 @@ import {
   RelatorioFinancialMovementNovoRemessaData,
   RelatorioFinancialMovementNovoRemessaSummaryDto,
 } from '../../dtos/relatorio-financial-and-movement.dto';
-import { BasePagamentoCursor, BasePagamentoFilter, BasePagamentoRepository, BasePagamentoRow, Perfil } from '../base/base-pagamento.repository';
+import {
+  BasePagamentoCursor,
+  BasePagamentoFilter,
+  BasePagamentoRepository,
+  BasePagamentoRow,
+  BasePagamentoTotalPorAssociacao,
+  Perfil,
+} from '../base/base-pagamento.repository';
 import { StucGratuidadeFilter, StucGratuidadeRepository } from '../stuc-gratuidade/stuc-gratuidade.repository';
 import { resolveStucPaymentWindow } from '../../utils/stuc-payment-window.util';
 
@@ -43,6 +51,9 @@ export class FinancialMovementV2ExportService {
     perfil: Perfil,
     filter: FinancialMovementV2ExportFilter & { format?: FinancialMovementExportFormatValue },
   ): Promise<FinancialMovementExportResult> {
+    // Guardador com filtro de associacao: as mesmas linhas por associacao da tela (regra de Rayanne, 2026-11-18).
+    const associacoes =
+      perfil === 'guardador' ? buildAssociacaoExportLines(await this.basePagamentoRepository.findTotaisPorAssociacao(filter), filter) : [];
     return writeFinancialMovementExport(
       filter.format ?? 'csv',
       'financial-movement-v2',
@@ -51,6 +62,7 @@ export class FinancialMovementV2ExportService {
         dataInicio: filter.dataInicio,
         dataFim: filter.dataFim,
         statusLabels: buildStatusLabelsFromFilter(filter.statuses),
+        associacoes,
       },
       Boolean(filter.stucGratuidade),
     );
@@ -264,4 +276,21 @@ export function buildSummaryFromRows(rows: BasePagamentoRow[]): RelatorioFinanci
   }
 
   return new RelatorioFinancialMovementNovoRemessaSummaryDto({ count, valorTotal, ...totals });
+}
+
+export const ASSOCIACAO_VALOR_PROPRIO_LABEL = 'Valor pago à associação';
+export const ASSOCIACAO_VALOR_GUARDADORES_LABEL = 'Valor dos guardadores da associação';
+
+// Mesma escolha da tela (app-cct, buildAgentAssociationTotalLines): so a associacao selecionada mostra o pagamento
+// proprio dela; com guardador selecionado ("Todos" ou especificos) ou "ambas", o valor dos guardadores vinculados.
+export function buildAssociacaoExportLines(
+  totais: BasePagamentoTotalPorAssociacao[],
+  filter: Pick<BasePagamentoFilter, 'todosGuardadores' | 'userIds' | 'exigirTodasAssociacoes'>,
+): FinancialMovementExportAssociacaoLine[] {
+  const mostraGuardadores = Boolean(filter.todosGuardadores || filter.userIds?.length || filter.exigirTodasAssociacoes);
+  return totais.map((total) => ({
+    nome: total.nome,
+    label: mostraGuardadores ? ASSOCIACAO_VALOR_GUARDADORES_LABEL : ASSOCIACAO_VALOR_PROPRIO_LABEL,
+    valor: mostraGuardadores ? total.valorGuardadores : total.valorAssociacao,
+  }));
 }

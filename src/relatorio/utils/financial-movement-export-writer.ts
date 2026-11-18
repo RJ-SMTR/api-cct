@@ -25,7 +25,19 @@ export type FinancialMovementExportMeta = {
   dataInicio?: Date;
   dataFim?: Date;
   statusLabels?: string[];
+  // Guardador com filtro de associacao: uma linha por associacao no fim do arquivo, como no export do Consolidado
+  // (app-cct, ConsolidatedReportPage.js). Fora do "Valor total" do PDF: nao sao linhas da movimentacao.
+  associacoes?: FinancialMovementExportAssociacaoLine[];
 };
+
+export type FinancialMovementExportAssociacaoLine = {
+  nome: string;
+  label: string;
+  valor: number;
+};
+
+// Mesmo texto da tela e do export do Consolidado: "Associação: <nome> (<rotulo>)".
+export const associacaoLineText = (line: FinancialMovementExportAssociacaoLine): string => `Associação: ${line.nome} (${line.label})`;
 
 type Column = {
   key: keyof RelatorioFinancialMovementNovoRemessaData;
@@ -70,13 +82,12 @@ const VALOR_KEYS = new Set<string>(['valor', 'valorLancamento']);
 
 const csvEscape = (value: unknown): string => `"${String(value ?? '').replace(/"/g, '""')}"`;
 
-async function writeCsv(prefix: string, streamRows: StreamRows, stuc: boolean): Promise<FinancialMovementExportResult> {
+async function writeCsv(prefix: string, streamRows: StreamRows, stuc: boolean, meta: FinancialMovementExportMeta = {}): Promise<FinancialMovementExportResult> {
   const columns = stuc ? STUC_COLUMNS : BASE_COLUMNS;
   const fileName = `${prefix}-${Date.now()}.csv`;
   const filePath = path.join(os.tmpdir(), `${randomUUID()}-${fileName}`);
   const ws = fs.createWriteStream(filePath, { encoding: 'utf8' });
-  ws.write(columns.map((c) => c.key).join(';') + '\n');
-  await streamRows((row) => {
+  const writeRow = (row: Partial<RelatorioFinancialMovementNovoRemessaData>) =>
     ws.write(
       columns
         .map((c) => {
@@ -87,12 +98,18 @@ async function writeCsv(prefix: string, streamRows: StreamRows, stuc: boolean): 
         })
         .join(';') + '\n',
     );
+  ws.write(columns.map((c) => c.key).join(';') + '\n');
+  await streamRows((row) => {
+    writeRow(row);
   });
+  for (const line of meta.associacoes ?? []) {
+    writeRow({ nomes: associacaoLineText(line), valor: line.valor });
+  }
   await new Promise<void>((resolve, reject) => ws.end((error: unknown) => (error ? reject(error) : resolve())));
   return { filePath, fileName, filename: fileName, contentType: 'text/csv; charset=utf-8' };
 }
 
-async function writeXlsx(prefix: string, streamRows: StreamRows, stuc: boolean): Promise<FinancialMovementExportResult> {
+async function writeXlsx(prefix: string, streamRows: StreamRows, stuc: boolean, meta: FinancialMovementExportMeta = {}): Promise<FinancialMovementExportResult> {
   const columns = stuc ? STUC_COLUMNS : BASE_COLUMNS;
   const fileName = `${prefix}-${Date.now()}.xlsx`;
   const filePath = path.join(os.tmpdir(), `${randomUUID()}-${fileName}`);
@@ -100,6 +117,10 @@ async function writeXlsx(prefix: string, streamRows: StreamRows, stuc: boolean):
   await streamRows((row) => {
     rows.push(columns.map((c) => row[c.key] ?? ''));
   });
+  for (const line of meta.associacoes ?? []) {
+    const extra: Partial<RelatorioFinancialMovementNovoRemessaData> = { nomes: associacaoLineText(line), valor: line.valor };
+    rows.push(columns.map((c) => (extra[c.key] as string | number | undefined) ?? ''));
+  }
   const worksheet = xlsxUtils.aoa_to_sheet(rows);
   const workbook = xlsxUtils.book_new();
   xlsxUtils.book_append_sheet(workbook, worksheet, 'Movimentação');
@@ -136,6 +157,9 @@ async function writePdf(prefix: string, streamRows: StreamRows, meta: FinancialM
     }
     writer.addRow(values, Number(row.valor ?? 0));
   });
+  for (const line of meta.associacoes ?? []) {
+    writer.addFullWidthLine(`${associacaoLineText(line)}: ${formatCurrency(line.valor)}`);
+  }
 
   await writer.finish();
   return { filePath, fileName, filename: fileName, contentType: 'application/pdf' };
@@ -148,7 +172,7 @@ export async function writeFinancialMovementExport(
   meta?: FinancialMovementExportMeta,
   stuc = false,
 ): Promise<FinancialMovementExportResult> {
-  if (format === 'xlsx') return writeXlsx(fileNamePrefix, streamRows, stuc);
+  if (format === 'xlsx') return writeXlsx(fileNamePrefix, streamRows, stuc, meta);
   if (format === 'pdf') return writePdf(fileNamePrefix, streamRows, meta, stuc);
-  return writeCsv(fileNamePrefix, streamRows, stuc);
+  return writeCsv(fileNamePrefix, streamRows, stuc, meta);
 }
