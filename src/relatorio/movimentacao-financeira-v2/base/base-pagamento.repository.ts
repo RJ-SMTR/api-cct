@@ -338,6 +338,16 @@ function resolveFiltroFavorecido(perfil: Perfil, filter: BasePagamentoFilter): {
 // The payment row of an association itself (SINGAERJ/ANGLAE): its user is the related side of a guardador link.
 const PAGAMENTO_DA_ASSOCIACAO = `EXISTS (SELECT 1 FROM user_relationships ur_assoc WHERE ur_assoc.related_user_id = pu.id)`;
 
+// So o pagamento proprio das associacoes (sem guardador selecionado): a lista de ids das associacoes e' calculada uma
+// vez (InitPlan) e filtra pu.id direto. Com o EXISTS acima sozinho o Postgres so descartava as linhas no fim e a
+// consulta ficava ~6x mais lenta (api_test: 6,1 s contra 1 s; HML: ~45 s). $10 = nomes em maiusculas, ou ausente.
+const somentePagamentoDasAssociacoes = (comNomes: boolean) =>
+  `AND pu.id = ANY(ARRAY(
+        SELECT a.id FROM public."user" a
+        WHERE a.id IN (SELECT ur_assoc.related_user_id FROM user_relationships ur_assoc)
+        ${comNomes ? 'AND UPPER(TRIM(a."fullName")) = ANY($10::text[])' : ''}
+      ))`;
+
 // Guardador: todosConsorcios ("Todas as Associacoes") tem precedencia sobre consorcioNome. Regra de
 // Rayanne (2026-11-13): o filtro de associacao traz os guardadores vinculados E o pagamento da propria
 // associacao (o legado nunca trazia esse pagamento: divergencia registrada). Sem filtro ("Todos os
@@ -356,7 +366,7 @@ function resolveFiltroAssociacao(perfil: Perfil, filter: BasePagamentoFilter): {
   const guardadores = filter.todosGuardadores ? `pu."roleId" = ${GUARDADOR_ROLE_ID}` : null;
   const semGuardador = !filter.todosGuardadores && !filter.userIds?.length;
   if (filter.todosConsorcios && semGuardador) {
-    return { sql: `AND ${PAGAMENTO_DA_ASSOCIACAO}`, params: [] };
+    return { sql: somentePagamentoDasAssociacoes(false), params: [] };
   }
   if (filter.todosConsorcios) {
     return {
@@ -374,7 +384,7 @@ function resolveFiltroAssociacao(perfil: Perfil, filter: BasePagamentoFilter): {
   }
   if (filter.consorcioNome?.length && semGuardador) {
     return {
-      sql: `AND ${PAGAMENTO_DA_ASSOCIACAO} AND UPPER(TRIM(pu."fullName")) = ANY($10::text[])`,
+      sql: somentePagamentoDasAssociacoes(true),
       params: [filter.consorcioNome.map((nome) => nome.trim().toUpperCase())],
     };
   }
