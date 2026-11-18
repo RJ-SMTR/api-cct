@@ -378,7 +378,16 @@ function resolveFiltroAssociacao(perfil: Perfil, filter: BasePagamentoFilter): {
   // qualquer outra selecao de guardador: a intersecao e' o pedido explicito. Pagamento da associacao nao entra: nao e' guardador.
   if (filter.consorcioNome?.length && filter.exigirTodasAssociacoes) {
     return {
-      sql: `AND pu."roleId" = ${GUARDADOR_ROLE_ID} AND assoc."nomesUpper" @> $10::text[]`,
+      // Ids dos guardadores vinculados a todas as associacoes da lista, calculados uma vez (InitPlan): com o @> sobre
+      // assoc o Postgres so descartava as linhas no fim (api_test: ~8,5 s contra ~1,5 s de "Todos + Todas").
+      sql: `AND pu."roleId" = ${GUARDADOR_ROLE_ID} AND pu.id = ANY(ARRAY(
+              SELECT ur_ambas.user_id
+              FROM user_relationships ur_ambas
+              INNER JOIN public."user" a_ambas ON a_ambas.id = ur_ambas.related_user_id
+              WHERE UPPER(TRIM(a_ambas."fullName")) = ANY($10::text[])
+              GROUP BY ur_ambas.user_id
+              HAVING COUNT(DISTINCT UPPER(TRIM(a_ambas."fullName"))) = cardinality($10::text[])
+            ))`,
       params: [filter.consorcioNome.map((nome) => nome.trim().toUpperCase())],
     };
   }
