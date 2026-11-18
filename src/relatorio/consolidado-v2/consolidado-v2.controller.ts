@@ -48,6 +48,51 @@ function mapStatuses(flags: StatusFlags): StatusPagamento[] | undefined {
   return statuses.length > 0 ? statuses : undefined;
 }
 
+// Filtro das rotas de Guardador (Consolidado e totais por associacao): os mesmos parametros viram o mesmo filtro.
+interface GuardadorQuery extends StatusFlags {
+  dataInicio: Date;
+  dataFim: Date;
+  userIds?: number[];
+  consorcioNome?: string[];
+  valorMin?: number;
+  valorMax?: number;
+  todosConsorcios?: boolean;
+  eleicao?: boolean;
+  stucGratuidade?: boolean;
+  desativados?: boolean;
+  todosGuardadores?: boolean;
+  exigirTodasAssociacoes?: boolean;
+}
+
+function montarFiltroGuardador(query: GuardadorQuery) {
+  // Guardador nao tem visao por consorcio, Eleicao nem STUC-Gratuidade (PRD, AC-8/AC-9): erro
+  // explicito, nunca ignorado silenciosamente. Desativados e Pendentes valem como na Movimentacao
+  // Financeira do Guardador, que le a mesma fonte (regra de Rayanne, 2026-11-11).
+  const naoSuportados: Record<string, boolean> = {
+    eleicao: Boolean(query.eleicao),
+    stucGratuidade: Boolean(query.stucGratuidade),
+  };
+  const parametroInvalido = Object.keys(naoSuportados).find((parametro) => naoSuportados[parametro]);
+  if (parametroInvalido) {
+    throw new HttpException({ error: `"${parametroInvalido}" não é suportado pela rota de Guardador` }, HttpStatus.BAD_REQUEST);
+  }
+
+  return {
+    dataInicio: query.dataInicio,
+    dataFim: query.dataFim,
+    valorMin: query.valorMin,
+    valorMax: query.valorMax,
+    // Guardador: "Pago" traz junto o abatimento por duplicidade, no proprio bloco (regra de Rayanne, 2026-11-16).
+    statuses: ((statuses) => statuses && incluirAbatimentoComPago(statuses))(mapStatuses(query)),
+    userIds: query.userIds,
+    consorcioNome: query.consorcioNome,
+    todosConsorcios: query.todosConsorcios,
+    todosGuardadores: query.todosGuardadores,
+    exigirTodasAssociacoes: query.exigirTodasAssociacoes,
+    desativados: query.desativados,
+  };
+}
+
 @ApiTags('Cnab')
 @Controller({
   path: 'cnab/relatorio-novo-remessa',
@@ -234,34 +279,29 @@ export class ConsolidadoV2Controller {
     @Query('exigirTodasAssociacoes', new ParseBooleanPipe({ optional: true })) exigirTodasAssociacoes: boolean | undefined,
   ) {
     try {
-      // Guardador nao tem visao por consorcio, Eleicao nem STUC-Gratuidade (PRD, AC-8/AC-9): erro
-      // explicito, nunca ignorado silenciosamente. Desativados e Pendentes valem como na Movimentacao
-      // Financeira do Guardador, que le a mesma fonte (regra de Rayanne, 2026-11-11).
-      const naoSuportados: Record<string, boolean> = {
-        eleicao: Boolean(eleicao),
-        stucGratuidade: Boolean(stucGratuidade),
-      };
-      const parametroInvalido = Object.keys(naoSuportados).find((parametro) => naoSuportados[parametro]);
-      if (parametroInvalido) {
-        throw new HttpException({ error: `"${parametroInvalido}" não é suportado pela rota de Guardador` }, HttpStatus.BAD_REQUEST);
-      }
-
-      const filter = {
+      const filter = montarFiltroGuardador({
         dataInicio,
         dataFim,
-        valorMin,
-        valorMax,
-        // Guardador: "Pago" traz junto o abatimento por duplicidade, no proprio bloco (regra de Rayanne, 2026-11-16).
-        statuses: ((statuses) => statuses && incluirAbatimentoComPago(statuses))(
-          mapStatuses({ pago, aPagar, emProcessamento, pendentes, pendenciaPaga, rejeitado, estorno, erro, abatimentoDuplicidade }),
-        ),
         userIds,
         consorcioNome,
+        valorMin,
+        valorMax,
+        pago,
+        aPagar,
+        emProcessamento,
         todosConsorcios,
-        todosGuardadores,
-        exigirTodasAssociacoes,
+        eleicao,
         desativados,
-      };
+        pendentes,
+        rejeitado,
+        estorno,
+        pendenciaPaga,
+        stucGratuidade,
+        erro,
+        todosGuardadores,
+        abatimentoDuplicidade,
+        exigirTodasAssociacoes,
+      });
 
       // ADR 0023 (T11): porStatus answers one block per selected status from a single query; the screen used to
       // send one request per status.
@@ -270,6 +310,85 @@ export class ConsolidadoV2Controller {
       }
 
       return await this.vanzeiroAggregatorService.aggregate(filter, 'guardador');
+    } catch (e) {
+      rethrowRelatorioTimeoutAsHttp(e);
+    }
+  }
+
+  @ApiQuery({ name: 'dataInicio', description: 'Data da Ordem de Pagamento Inicial', required: true, type: String })
+  @ApiQuery({ name: 'dataFim', description: 'Data da Ordem de Pagamento Final', required: true, type: String })
+  @ApiQuery({ name: 'valorMin', required: false, type: Number })
+  @ApiQuery({ name: 'valorMax', required: false, type: Number })
+  @ApiQuery({ name: 'pago', required: false, type: Boolean })
+  @ApiQuery({ name: 'aPagar', required: false, type: Boolean })
+  @ApiQuery({ name: 'emProcessamento', required: false, type: Boolean })
+  @ApiQuery({ name: 'pendenciaPaga', required: false, type: Boolean })
+  @ApiQuery({ name: 'rejeitado', required: false, type: Boolean })
+  @ApiQuery({ name: 'estorno', required: false, type: Boolean })
+  @ApiQuery({ name: 'erro', description: 'Combo Estorno + Rejeitado', required: false, type: Boolean })
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
+  @ApiQuery({ name: 'userIds', description: 'Pesquisa o id dos usuários.', required: false, type: [Number] })
+  @ApiQuery({ name: 'todosGuardadores', description: 'Todos os guardadores; com filtro de associação, soma os dois.', required: false, type: Boolean })
+  @ApiQuery({ name: 'abatimentoDuplicidade', description: 'Pagamentos com abatimento do pagamento indevido ("Abatimento por duplicidade").', required: false, type: Boolean })
+  @ApiQuery({ name: 'exigirTodasAssociacoes', description: 'Com consorcioNome, só guardadores de todas as associações informadas.', required: false, type: Boolean })
+  // Linha de cada associacao no resultado do Guardador (Consolidado e Movimentacao Financeira): pagamento proprio da
+  // associacao e valor dos guardadores vinculados a ela, com os mesmos filtros da pesquisa.
+  @Get('guardador/associacoes')
+  async getGuardadorTotaisPorAssociacao(
+    @Query('dataInicio', new ParseDatePipe({ dateOnly: true }))
+    dataInicio: Date,
+    @Query('dataFim', new ParseDatePipe({ dateOnly: true }))
+    dataFim: Date,
+    @Query('userIds', new ParseArrayPipe({ items: Int32, separator: ',', optional: true }))
+    userIds: number[] | undefined,
+    @Query('consorcioNome', new ParseArrayPipe({ items: String, separator: ',', optional: true }))
+    consorcioNome: string[] | undefined,
+    @Query('valorMin', new ParseNumberPipe({ optional: true }))
+    valorMin: number | undefined,
+    @Query('valorMax', new ParseNumberPipe({ optional: true }))
+    valorMax: number | undefined,
+    @Query('pago', new ParseBooleanPipe({ optional: true })) pago: boolean | undefined,
+    @Query('aPagar', new ParseBooleanPipe({ optional: true })) aPagar: boolean | undefined,
+    @Query('emProcessamento', new ParseBooleanPipe({ optional: true })) emProcessamento: boolean | undefined,
+    @Query('todosConsorcios', new ParseBooleanPipe({ optional: true })) todosConsorcios: boolean | undefined,
+    @Query('eleicao', new ParseBooleanPipe({ optional: true })) eleicao: boolean | undefined,
+    @Query('desativados', new ParseBooleanPipe({ optional: true })) desativados: boolean | undefined,
+    @Query('pendentes', new ParseBooleanPipe({ optional: true })) pendentes: boolean | undefined,
+    @Query('rejeitado', new ParseBooleanPipe({ optional: true })) rejeitado: boolean | undefined,
+    @Query('estorno', new ParseBooleanPipe({ optional: true })) estorno: boolean | undefined,
+    @Query('pendenciaPaga', new ParseBooleanPipe({ optional: true })) pendenciaPaga: boolean | undefined,
+    @Query('stucGratuidade', new ParseBooleanPipe({ optional: true })) stucGratuidade: boolean | undefined,
+    @Query('erro', new ParseBooleanPipe({ optional: true })) erro: boolean | undefined,
+    @Query('todosGuardadores', new ParseBooleanPipe({ optional: true })) todosGuardadores: boolean | undefined,
+    @Query('abatimentoDuplicidade', new ParseBooleanPipe({ optional: true })) abatimentoDuplicidade: boolean | undefined,
+    @Query('exigirTodasAssociacoes', new ParseBooleanPipe({ optional: true })) exigirTodasAssociacoes: boolean | undefined,
+  ) {
+    try {
+      const filter = montarFiltroGuardador({
+        dataInicio,
+        dataFim,
+        userIds,
+        consorcioNome,
+        valorMin,
+        valorMax,
+        pago,
+        aPagar,
+        emProcessamento,
+        todosConsorcios,
+        eleicao,
+        desativados,
+        pendentes,
+        rejeitado,
+        estorno,
+        pendenciaPaga,
+        stucGratuidade,
+        erro,
+        todosGuardadores,
+        abatimentoDuplicidade,
+        exigirTodasAssociacoes,
+      });
+      return await this.vanzeiroAggregatorService.totaisPorAssociacao(filter);
     } catch (e) {
       rethrowRelatorioTimeoutAsHttp(e);
     }

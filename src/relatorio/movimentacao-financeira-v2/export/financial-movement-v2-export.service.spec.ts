@@ -1,6 +1,9 @@
 import * as fs from 'fs';
 import { readFile as readXlsxFile, utils as xlsxUtils } from 'xlsx';
 import {
+  ASSOCIACAO_VALOR_GUARDADORES_LABEL,
+  ASSOCIACAO_VALOR_PROPRIO_LABEL,
+  buildAssociacaoExportLines,
   buildStatusLabelsFromFilter,
   buildSummaryFromRows,
   FINANCIAL_MOVEMENT_V2_EXPORT_BATCH_SIZE,
@@ -25,7 +28,11 @@ function row(partial: Partial<BasePagamentoRow>): BasePagamentoRow {
 }
 
 function buildRepositories(): { base: BasePagamentoRepository; stuc: StucGratuidadeRepository } {
-  const base = { findGroupedRowsPage: jest.fn(), findEleicaoRows: jest.fn() } as unknown as BasePagamentoRepository;
+  const base = {
+    findGroupedRowsPage: jest.fn(),
+    findEleicaoRows: jest.fn(),
+    findTotaisPorAssociacao: jest.fn().mockResolvedValue([]),
+  } as unknown as BasePagamentoRepository;
   const stuc = { findRows: jest.fn() } as unknown as StucGratuidadeRepository;
   return { base, stuc };
 }
@@ -266,6 +273,56 @@ describe('FinancialMovementV2ExportService', () => {
       } finally {
         fs.unlinkSync(filePath);
       }
+    });
+  });
+
+  // Linhas das associacoes no export do Guardador, como no export do Consolidado (regra de Rayanne, 2026-11-18).
+  describe('linhas das associacoes (Guardador)', () => {
+    const periodo = { dataInicio: new Date('2026-10-01'), dataFim: new Date('2026-10-31') };
+    const totais = [{ nome: 'SINGAERJ', valorAssociacao: 1200, valorGuardadores: 5000.5 }];
+
+    it('so a associacao selecionada: pagamento proprio; com guardador selecionado ou ambas: os guardadores', () => {
+      expect(buildAssociacaoExportLines(totais, {})).toEqual([{ nome: 'SINGAERJ', label: ASSOCIACAO_VALOR_PROPRIO_LABEL, valor: 1200 }]);
+      expect(buildAssociacaoExportLines(totais, { todosGuardadores: true })).toEqual([{ nome: 'SINGAERJ', label: ASSOCIACAO_VALOR_GUARDADORES_LABEL, valor: 5000.5 }]);
+      expect(buildAssociacaoExportLines(totais, { userIds: [7] })[0].valor).toBe(5000.5);
+      expect(buildAssociacaoExportLines(totais, { exigirTodasAssociacoes: true })[0].valor).toBe(5000.5);
+    });
+
+    it.each(['csv', 'xlsx', 'pdf'] as const)('o arquivo %s termina com a linha da associacao', async (format) => {
+      const { base, stuc } = buildRepositories();
+      (base.findGroupedRowsPage as jest.Mock).mockResolvedValueOnce({ rows: [row({ valor: '10.00' })], nextCursor: null } as BasePagamentoPage);
+      (base.findTotaisPorAssociacao as jest.Mock).mockResolvedValueOnce(totais);
+      const filtro = { ...periodo, consorcioNome: ['SINGAERJ'], todosGuardadores: true, format };
+
+      const { filePath } = await new FinancialMovementV2ExportService(base, stuc).downloadFinancialMovementExport('guardador', filtro);
+
+      try {
+        expect(base.findTotaisPorAssociacao).toHaveBeenCalledWith(expect.objectContaining({ consorcioNome: ['SINGAERJ'], todosGuardadores: true }));
+        const texto = `Associação: SINGAERJ (${ASSOCIACAO_VALOR_GUARDADORES_LABEL})`;
+        if (format === 'csv') {
+          const ultima = fs.readFileSync(filePath, 'utf8').trim().split('\n').pop() as string;
+          expect(ultima).toBe(`;;"${texto}";;;;;;5000,5;;""`);
+        } else if (format === 'xlsx') {
+          const linhas = xlsxUtils.sheet_to_json<string[]>(readXlsxFile(filePath).Sheets['Movimentação'], { header: 1 }) as Array<Array<string | number>>;
+          expect(linhas).toHaveLength(3);
+          expect(linhas[2][2]).toBe(texto);
+          expect(linhas[2][8]).toBe(5000.5);
+        } else {
+          expect(fs.statSync(filePath).size).toBeGreaterThan(0);
+        }
+      } finally {
+        fs.unlinkSync(filePath);
+      }
+    });
+
+    it('Permissionario nao busca totais por associacao', async () => {
+      const { base, stuc } = buildRepositories();
+      (base.findGroupedRowsPage as jest.Mock).mockResolvedValueOnce({ rows: [], nextCursor: null } as BasePagamentoPage);
+
+      const { filePath } = await new FinancialMovementV2ExportService(base, stuc).downloadFinancialMovementExport('permissionario', { ...periodo, format: 'csv' });
+
+      fs.unlinkSync(filePath);
+      expect(base.findTotaisPorAssociacao).not.toHaveBeenCalled();
     });
   });
 });

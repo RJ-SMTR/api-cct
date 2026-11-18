@@ -2487,6 +2487,52 @@ suite('BasePagamentoRepository (PostgreSQL)', () => {
 
         expect(linhas.some((linha) => linha.nomes === null)).toBe(false);
       });
+
+      // Linha de cada associacao no resultado (regra de Rayanne, 2026-11-18): so a associacao selecionada mostra o
+      // pagamento proprio dela; com "Todos os guardadores", o valor dos guardadores vinculados a ela.
+      describe('findTotaisPorAssociacao', () => {
+        const doTeste = (linhas: { nome: string }[]) => linhas.filter((linha) => linha.nome.startsWith('RV2 '));
+
+        it('splits the association own payment from its guardadores (consorcioNome, case-insensitive)', async () => {
+          await seedOrdemGuardador({ id: A_BASE + 317, valor: 50, userId: G_ASSOC_A_2 });
+
+          const totais = await repository.findTotaisPorAssociacao({ ...periodo, consorcioNome: [' rv2 anglae '] });
+
+          expect(totais).toEqual([{ nome: 'RV2 ANGLAE', valorAssociacao: 900, valorGuardadores: 350 }]);
+        });
+
+        it('todosGuardadores + one association: only the guardadores linked to it, never the others in the result', async () => {
+          const totais = await repository.findTotaisPorAssociacao({ ...periodo, todosGuardadores: true, consorcioNome: ['RV2 SINGAERJ'] });
+
+          expect(totais).toEqual([{ nome: 'RV2 SINGAERJ', valorAssociacao: 0, valorGuardadores: 400 }]);
+        });
+
+        it('todosConsorcios lists every association, a guardador of two associations counting for both', async () => {
+          await seedUsuario({ id: A_BASE + 307, nome: 'RV2 G DUAS', cpf: '98500000307', roleId: 6, permitCode: 'RV2-PERMIT-F' });
+          await dataSource.query(`INSERT INTO user_relationships (user_id, related_user_id) VALUES ($1, $2), ($1, $3)`, [A_BASE + 307, ASSOC_A, ASSOC_B]);
+          await seedOrdemGuardador({ id: A_BASE + 318, valor: 20, userId: A_BASE + 307 });
+
+          const totais = await repository.findTotaisPorAssociacao({ ...periodo, todosConsorcios: true });
+
+          expect(doTeste(totais)).toEqual([
+            { nome: 'RV2 ANGLAE', valorAssociacao: 900, valorGuardadores: 320 },
+            { nome: 'RV2 SINGAERJ', valorAssociacao: 0, valorGuardadores: 420 },
+          ]);
+        });
+
+        it('follows the status filter of the search', async () => {
+          await seedAgrupado({ base: A_BASE + 330, userId: G_B, statusRemessa: 3, valor: 77, perfil: 'guardador' });
+
+          const totais = await repository.findTotaisPorAssociacao({ ...periodo, consorcioNome: ['RV2 SINGAERJ'], statuses: [StatusPagamento.PAGO] });
+
+          expect(totais).toEqual([{ nome: 'RV2 SINGAERJ', valorAssociacao: 0, valorGuardadores: 77 }]);
+        });
+
+        it('is empty without an association filter', async () => {
+          await expect(repository.findTotaisPorAssociacao({ ...periodo, todosGuardadores: true })).resolves.toEqual([]);
+        });
+      });
+
       it.each([
         ['consorcioNome', { consorcioNome: ['RV2 ANGLAE'] }],
         ['todosConsorcios', { todosConsorcios: true }],
