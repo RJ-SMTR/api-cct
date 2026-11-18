@@ -71,6 +71,7 @@ export function buildSummaryLines(summary: RelatorioFinancialMovementNovoRemessa
     ['Total A Pagar', Number(summary.valorAPagar ?? 0)],
     ['Total OPs Atrasadas', Number(summary.valorPendente ?? 0)],
     ['Total Pendência Paga', Number(summary.valorPendenciaPaga ?? 0)],
+    ['Total Abatimento por duplicidade', Number(summary.valorAbatimentoDuplicidade ?? 0)],
   ];
 
   return [
@@ -90,6 +91,7 @@ export function buildSelectedStatusLabels(args: {
   pendenciaPaga?: boolean;
   pendentes?: boolean;
   aPagar?: boolean;
+  abatimentoDuplicidade?: boolean;
 }): string[] {
   const statuses: string[] = [];
 
@@ -101,6 +103,7 @@ export function buildSelectedStatusLabels(args: {
   if (args.pendenciaPaga) statuses.push('Pendência Paga');
   if (args.pendentes) statuses.push('OPs Atrasadas');
   if (args.aPagar) statuses.push('A Pagar');
+  if (args.abatimentoDuplicidade) statuses.push('Abatimento por duplicidade');
 
   return statuses;
 }

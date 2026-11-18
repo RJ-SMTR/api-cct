@@ -3,6 +3,7 @@ import * as fs from 'fs';
 import { format } from 'date-fns';
 import { StatusPagamento } from '../../enum/statusRemessafinancial-movement';
 import {
+  FinancialMovementExportAssociacaoLine,
   FinancialMovementExportFormatValue,
   FinancialMovementExportResult,
   writeFinancialMovementExport,
@@ -12,7 +13,14 @@ import {
   RelatorioFinancialMovementNovoRemessaData,
   RelatorioFinancialMovementNovoRemessaSummaryDto,
 } from '../../dtos/relatorio-financial-and-movement.dto';
-import { BasePagamentoCursor, BasePagamentoFilter, BasePagamentoRepository, BasePagamentoRow, Perfil } from '../base/base-pagamento.repository';
+import {
+  BasePagamentoCursor,
+  BasePagamentoFilter,
+  BasePagamentoRepository,
+  BasePagamentoRow,
+  BasePagamentoTotalPorAssociacao,
+  Perfil,
+} from '../base/base-pagamento.repository';
 import { StucGratuidadeFilter, StucGratuidadeRepository } from '../stuc-gratuidade/stuc-gratuidade.repository';
 import { resolveStucPaymentWindow } from '../../utils/stuc-payment-window.util';
 
@@ -43,6 +51,9 @@ export class FinancialMovementV2ExportService {
     perfil: Perfil,
     filter: FinancialMovementV2ExportFilter & { format?: FinancialMovementExportFormatValue },
   ): Promise<FinancialMovementExportResult> {
+    // Guardador com filtro de associacao: as mesmas linhas por associacao da tela (regra de Rayanne, 2026-11-18).
+    const associacoes =
+      perfil === 'guardador' ? buildAssociacaoExportLines(await this.basePagamentoRepository.findTotaisPorAssociacao(filter), filter) : [];
     return writeFinancialMovementExport(
       filter.format ?? 'csv',
       'financial-movement-v2',
@@ -51,6 +62,7 @@ export class FinancialMovementV2ExportService {
         dataInicio: filter.dataInicio,
         dataFim: filter.dataFim,
         statusLabels: buildStatusLabelsFromFilter(filter.statuses),
+        associacoes,
       },
       Boolean(filter.stucGratuidade),
     );
@@ -166,13 +178,10 @@ export class FinancialMovementV2ExportService {
 // "dataPagamento"/"email"/"codBanco"/"nomeBanco" nao tem equivalente na query re-derivada
 // (nunca fizeram join com usuario/banco por linha, so com o agrupamento) e ficam undefined
 // (o writer ja trata campo ausente como celula vazia, mesmo comportamento de qualquer linha
-// legada que omitisse um campo opcional do DTO). "descricaoErro" tambem fica undefined para a
-// maioria dos status, EXCETO Estorno/Rejeitado: como BasePagamentoRow nao carrega
-// "codigoErro" por linha, getDescricaoErro (chamado pelo construtor do DTO) cai no fallback
-// generico "Motivo não informado pelo banco" para toda linha de erro - diferente do legado, que
-// podia mostrar o motivo real do banco quando disponivel. Ver T9-summary.md "Follow-up
-// Needed" - achado relatado, nao corrigido nesta task (exigiria expor motivoStatusRemessa em
-// BasePagamentoRow, fora do escopo de T9).
+// legada que omitisse um campo opcional do DTO). "codigoErro" (motivoStatusRemessa do banco,
+// so em Estorno/Rejeitado) vai para o construtor do DTO, que o traduz na mesma descricaoErro
+// que a tela mostra (getDescricaoErro) - antes ficava de fora e toda linha de erro saia como
+// "Motivo não informado pelo banco" na tela e no CSV/XLSX/PDF.
 export function toExportRow(row: BasePagamentoRow): RelatorioFinancialMovementNovoRemessaData {
   return new RelatorioFinancialMovementNovoRemessaData({
     dataReferencia: format(new Date(row.dataReferencia), 'dd/MM/yyyy'),
@@ -181,6 +190,9 @@ export function toExportRow(row: BasePagamentoRow): RelatorioFinancialMovementNo
     consorcio: row.nomeConsorcio ?? undefined,
     valor: Number(row.valor),
     status: row.status,
+    codigoErro: row.codigoErro ?? null,
+    // "Abatimento por duplicidade" traz o proprio motivo ("Valor pago em duplicidade em MM/AAAA").
+    ...(row.motivo ? { descricaoErro: row.motivo } : {}),
   });
 }
 
@@ -200,6 +212,7 @@ export function buildStatusLabelsFromFilter(statuses?: StatusPagamento[]): strin
     pendenciaPaga: selected.has(StatusPagamento.PENDENCIA_PAGA),
     pendentes: selected.has(StatusPagamento.PENDENTES),
     aPagar: selected.has(StatusPagamento.A_PAGAR),
+    abatimentoDuplicidade: selected.has(StatusPagamento.ABATIMENTO_DUPLICIDADE),
   });
 }
 
@@ -218,6 +231,7 @@ export function buildSummaryFromRows(rows: BasePagamentoRow[]): RelatorioFinanci
     valorAPagar: 0,
     valorPendente: 0,
     valorPendenciaPaga: 0,
+    valorAbatimentoDuplicidade: 0,
     valorSemFavorecido: 0,
   };
   let valorTotal = 0;
@@ -253,10 +267,30 @@ export function buildSummaryFromRows(rows: BasePagamentoRow[]): RelatorioFinanci
       case StatusPagamento.PENDENCIA_PAGA:
         totals.valorPendenciaPaga += valor;
         break;
+      case StatusPagamento.ABATIMENTO_DUPLICIDADE:
+        totals.valorAbatimentoDuplicidade += valor;
+        break;
       default:
         break;
     }
   }
 
   return new RelatorioFinancialMovementNovoRemessaSummaryDto({ count, valorTotal, ...totals });
+}
+
+export const ASSOCIACAO_VALOR_PROPRIO_LABEL = 'Valor pago à associação';
+export const ASSOCIACAO_VALOR_GUARDADORES_LABEL = 'Valor dos guardadores da associação';
+
+// Mesma escolha da tela (app-cct, buildAgentAssociationTotalLines): so a associacao selecionada mostra o pagamento
+// proprio dela; com guardador selecionado ("Todos" ou especificos) ou "ambas", o valor dos guardadores vinculados.
+export function buildAssociacaoExportLines(
+  totais: BasePagamentoTotalPorAssociacao[],
+  filter: Pick<BasePagamentoFilter, 'todosGuardadores' | 'userIds' | 'exigirTodasAssociacoes'>,
+): FinancialMovementExportAssociacaoLine[] {
+  const mostraGuardadores = Boolean(filter.todosGuardadores || filter.userIds?.length || filter.exigirTodasAssociacoes);
+  return totais.map((total) => ({
+    nome: total.nome,
+    label: mostraGuardadores ? ASSOCIACAO_VALOR_GUARDADORES_LABEL : ASSOCIACAO_VALOR_PROPRIO_LABEL,
+    valor: mostraGuardadores ? total.valorGuardadores : total.valorAssociacao,
+  }));
 }

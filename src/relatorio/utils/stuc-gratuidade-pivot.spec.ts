@@ -136,4 +136,57 @@ describe('pivotStucGratuidadeRows', () => {
     expect(resultado.valorOrdemPagamento2).toBe(10);
     expect(resultado.valor).toBe(90);
   });
+
+  describe('janela do mesmo favorecido repartida em mais de uma linha (ex.: status diferentes)', () => {
+    type RowComStatus = Row & { status: string };
+    const comStatus = (dataReferencia: Date, valor: number, status: string): RowComStatus => ({ ...row(dataReferencia, valor), status });
+    const porFavorecidoEStatus = (r: RowComStatus) => `${r.favorecido}::${r.status}`;
+    const soFavorecido = (r: RowComStatus) => r.favorecido;
+
+    it('não mostra Valor Ordem 0 num dia que tem valor em outra linha do mesmo favorecido e janela', () => {
+      const rows = [comStatus(sexta, 100, 'Pago'), comStatus(sabado, 50, 'A Pagar')];
+      const resultado = pivotStucGratuidadeRows(rows, porFavorecidoEStatus, soFavorecido);
+
+      const sabadoZerado = resultado.filter((r) => r.dataOrdemPagamento2?.getTime() === sabado.getTime() && r.valorOrdemPagamento2 === 0);
+      const sextaZerada = resultado.filter((r) => r.dataOrdemPagamento1?.getTime() === sexta.getTime() && r.valorOrdemPagamento1 === 0);
+      expect(sabadoZerado).toEqual([]);
+      expect(sextaZerada).toEqual([]);
+
+      const pago = resultado.find((r) => r.status === 'Pago')!;
+      const aPagar = resultado.find((r) => r.status === 'A Pagar')!;
+      expect(pago.valorOrdemPagamento1).toBe(100);
+      expect(pago.dataOrdemPagamento2).toBeNull();
+      expect(pago.valorOrdemPagamento2).toBeNull();
+      expect(aPagar.valorOrdemPagamento2).toBe(50);
+      expect(aPagar.dataOrdemPagamento1).toBeNull();
+      expect(aPagar.valorOrdemPagamento1).toBeNull();
+    });
+
+    it('dia sem lançamento em nenhuma das linhas aparece com 0 uma única vez, não repetido em cada linha', () => {
+      const rows = [comStatus(sexta, 100, 'Pago'), comStatus(sabado, 50, 'A Pagar')];
+      const resultado = pivotStucGratuidadeRows(rows, porFavorecidoEStatus, soFavorecido);
+
+      const domingos = resultado.filter((r) => r.dataOrdemPagamento3?.getTime() === domingo.getTime());
+      const segundas = resultado.filter((r) => r.dataOrdemPagamento4?.getTime() === segunda.getTime());
+      expect(domingos.map((r) => r.valorOrdemPagamento3)).toEqual([0]);
+      expect(segundas.map((r) => r.valorOrdemPagamento4)).toEqual([0]);
+    });
+
+    it('o Valor Lançamento de cada linha continua sendo a soma só dos seus dias', () => {
+      const rows = [comStatus(sexta, 100, 'Pago'), comStatus(sabado, 50, 'A Pagar')];
+      const resultado = pivotStucGratuidadeRows(rows, porFavorecidoEStatus, soFavorecido);
+
+      expect(resultado.find((r) => r.status === 'Pago')!.valor).toBe(100);
+      expect(resultado.find((r) => r.status === 'A Pagar')!.valor).toBe(50);
+    });
+
+    it('favorecidos diferentes não escondem os dias um do outro', () => {
+      const rows = [{ ...comStatus(sexta, 100, 'Pago'), favorecido: 'Ana' }, { ...comStatus(sabado, 50, 'Pago'), favorecido: 'Bia' }];
+      const resultado = pivotStucGratuidadeRows(rows, porFavorecidoEStatus, soFavorecido);
+
+      const ana = resultado.find((r) => r.favorecido === 'Ana')!;
+      expect(ana.dataOrdemPagamento2).toEqual(sabado);
+      expect(ana.valorOrdemPagamento2).toBe(0);
+    });
+  });
 });

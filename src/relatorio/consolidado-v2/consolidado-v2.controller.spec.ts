@@ -23,7 +23,7 @@ describe('ConsolidadoV2Controller', () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [ConsolidadoV2Controller],
       providers: [
-        { provide: VanzeiroAggregatorService, useValue: { aggregate: jest.fn().mockResolvedValue({ count: 0, valor: 0, valorAPagar: 0, data: [] }), aggregatePorStatus: jest.fn().mockResolvedValue([]) } },
+        { provide: VanzeiroAggregatorService, useValue: { aggregate: jest.fn().mockResolvedValue({ count: 0, valor: 0, valorAPagar: 0, data: [] }), aggregatePorStatus: jest.fn().mockResolvedValue([]), totaisPorAssociacao: jest.fn().mockResolvedValue([]) } },
         { provide: ConsorcioAggregatorService, useValue: { aggregate: jest.fn().mockResolvedValue({ count: 0, valor: 0, valorAPagar: 0, data: [] }) } },
         { provide: EleicaoAggregatorService, useValue: { aggregateByFavorecido: jest.fn().mockResolvedValue({ count: 0, valor: 0, valorAPagar: 0, data: [] }), aggregateByConsorcio: jest.fn().mockResolvedValue({ count: 0, valor: 0, valorAPagar: 0, data: [] }) } },
         { provide: StucGratuidadeAggregatorService, useValue: { aggregate: jest.fn().mockResolvedValue({ count: 0, valor: 0, valorAPagar: 0, data: [] }) } },
@@ -290,6 +290,20 @@ describe('ConsolidadoV2Controller', () => {
       expect(calledFilter.desativados).toBe(true);
       expect(calledFilter.statuses).toEqual([StatusPagamento.PENDENTES]);
     });
+
+    it('"Pago" brings the abatimento por duplicidade along, in its own status', async () => {
+      await callGuardador({ pago: true });
+
+      const calledFilter = (vanzeiroAggregatorService.aggregate as jest.Mock).mock.calls[0][0];
+      expect(calledFilter.statuses).toEqual([StatusPagamento.PAGO, StatusPagamento.ABATIMENTO_DUPLICIDADE]);
+    });
+
+    it('without "Pago" the abatimento stays out', async () => {
+      await callGuardador({ aPagar: true });
+
+      const calledFilter = (vanzeiroAggregatorService.aggregate as jest.Mock).mock.calls[0][0];
+      expect(calledFilter.statuses).toEqual([StatusPagamento.A_PAGAR]);
+    });
   });
   it.each([
     [{ stucGratuidade: true, consorcioNome: ['VLT'], pendentes: true }],
@@ -385,7 +399,7 @@ describe('ConsolidadoV2Controller', () => {
   // ADR 0023 (T11): porStatus answers every selected status from one aggregation call.
   describe('getGuardadorConsolidado porStatus', () => {
     const chamar = (args: Record<string, unknown>) => {
-      const ordem = ['userIds', 'consorcioNome', 'valorMin', 'valorMax', 'pago', 'aPagar', 'emProcessamento', 'todosConsorcios', 'eleicao', 'desativados', 'pendentes', 'rejeitado', 'estorno', 'pendenciaPaga', 'stucGratuidade', 'erro', 'porStatus'];
+      const ordem = ['userIds', 'consorcioNome', 'valorMin', 'valorMax', 'pago', 'aPagar', 'emProcessamento', 'todosConsorcios', 'eleicao', 'desativados', 'pendentes', 'rejeitado', 'estorno', 'pendenciaPaga', 'stucGratuidade', 'erro', 'porStatus', 'todosGuardadores', 'abatimentoDuplicidade', 'exigirTodasAssociacoes'];
       return (controller.getGuardadorConsolidado as (...a: unknown[]) => Promise<unknown>).call(controller, dataInicio, dataFim, ...ordem.map((k) => args[k]));
     };
 
@@ -393,10 +407,20 @@ describe('ConsolidadoV2Controller', () => {
       await chamar({ pago: true, aPagar: true, estorno: true, porStatus: true });
 
       expect(vanzeiroAggregatorService.aggregatePorStatus).toHaveBeenCalledWith(
-        expect.objectContaining({ statuses: [StatusPagamento.PAGO, StatusPagamento.A_PAGAR, StatusPagamento.ERRO_ESTORNO] }),
+        // "Pago" traz junto o abatimento por duplicidade, no proprio bloco.
+        expect.objectContaining({ statuses: [StatusPagamento.PAGO, StatusPagamento.A_PAGAR, StatusPagamento.ERRO_ESTORNO, StatusPagamento.ABATIMENTO_DUPLICIDADE] }),
         'guardador',
       );
       expect(vanzeiroAggregatorService.aggregate).not.toHaveBeenCalled();
+    });
+
+    it('forwards exigirTodasAssociacoes with the association list (ANGLAE/SINGAERJ at the same time)', async () => {
+      await chamar({ consorcioNome: ['ANGLAE', 'SINGAERJ'], exigirTodasAssociacoes: true });
+
+      expect(vanzeiroAggregatorService.aggregate).toHaveBeenCalledWith(
+        expect.objectContaining({ consorcioNome: ['ANGLAE', 'SINGAERJ'], exigirTodasAssociacoes: true }),
+        'guardador',
+      );
     });
 
     it('keeps the single aggregate without porStatus', async () => {
@@ -404,6 +428,41 @@ describe('ConsolidadoV2Controller', () => {
 
       expect(vanzeiroAggregatorService.aggregate).toHaveBeenCalled();
       expect(vanzeiroAggregatorService.aggregatePorStatus).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getGuardadorTotaisPorAssociacao', () => {
+    const chamar = (args: Record<string, unknown>) => {
+      const ordem = ['userIds', 'consorcioNome', 'valorMin', 'valorMax', 'pago', 'aPagar', 'emProcessamento', 'todosConsorcios', 'eleicao', 'desativados', 'pendentes', 'rejeitado', 'estorno', 'pendenciaPaga', 'stucGratuidade', 'erro', 'todosGuardadores', 'abatimentoDuplicidade', 'exigirTodasAssociacoes'];
+      return (controller.getGuardadorTotaisPorAssociacao as (...a: unknown[]) => Promise<unknown>).call(controller, dataInicio, dataFim, ...ordem.map((k) => args[k]));
+    };
+
+    it('has AuthGuard(jwt) applied', () => {
+      const guards = Reflect.getMetadata(GUARDS_METADATA, ConsolidadoV2Controller.prototype.getGuardadorTotaisPorAssociacao);
+      expect(guards?.length).toBeGreaterThan(0);
+    });
+
+    it('builds the same filter as the Guardador Consolidado', async () => {
+      (vanzeiroAggregatorService.totaisPorAssociacao as jest.Mock).mockResolvedValue([{ nome: 'ANGLAE', valorAssociacao: 10, valorGuardadores: 20 }]);
+
+      const resposta = await chamar({ consorcioNome: ['ANGLAE'], todosGuardadores: true, pago: true, valorMax: 50 });
+
+      expect(resposta).toEqual([{ nome: 'ANGLAE', valorAssociacao: 10, valorGuardadores: 20 }]);
+      expect(vanzeiroAggregatorService.totaisPorAssociacao).toHaveBeenCalledWith(
+        expect.objectContaining({
+          dataInicio,
+          dataFim,
+          consorcioNome: ['ANGLAE'],
+          todosGuardadores: true,
+          valorMax: 50,
+          statuses: [StatusPagamento.PAGO, StatusPagamento.ABATIMENTO_DUPLICIDADE],
+        }),
+      );
+    });
+
+    it('rejects eleicao with 400, like the Guardador Consolidado', async () => {
+      await expect(chamar({ eleicao: true })).rejects.toMatchObject({ status: 400 });
+      expect(vanzeiroAggregatorService.totaisPorAssociacao).not.toHaveBeenCalled();
     });
   });
 });

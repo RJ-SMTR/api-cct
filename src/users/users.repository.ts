@@ -24,6 +24,7 @@ import {
 } from 'typeorm';
 import { UpdateUserRepositoryDto } from './dto/update-user-repository.dto';
 import { UserRelationship } from './entities/user-relationship.entity';
+import { UserPermitCodeHistory } from './entities/user-permit-code-history.entity';
 import { User } from './entities/user.entity';
 import { IFindUserPaginated } from './interfaces/find-user-paginated.interface';
 import { Nullable } from 'src/utils/types/nullable.type';
@@ -435,7 +436,26 @@ export class UsersRepository {
     }
     // Update user
     dataToUpdate.password = await user.parseNewPassword(dataToUpdate.password);
+    const permitCodeAntigo = this.permitCodeSubstituido(user, dataToUpdate);
+    if (permitCodeAntigo && dataToUpdate.permitCode) {
+      // O código novo não pode ser um código antigo de outro permissionário.
+      const donoAntigo = await this.findByHistoricPermitCode(String(dataToUpdate.permitCode));
+      if (donoAntigo && donoAntigo.id !== id) {
+        throw new HttpException(
+          {
+            error: HttpStatusMessage.UNPROCESSABLE_ENTITY,
+            message: 'permitCodeAlreadyUsedByOtherUser',
+            errors: { permitCode: 'permitCodeAlreadyUsedByOtherUser' },
+          },
+          HttpStatus.UNPROCESSABLE_ENTITY,
+        );
+      }
+    }
     await this.usersRepository.update(id, dataToUpdate);
+    if (permitCodeAntigo) {
+      await this.entityManager.insert(UserPermitCodeHistory, { userId: id, permitCode: permitCodeAntigo });
+      this.logger.log(`Código de permissão do usuário ${id} alterado de ${permitCodeAntigo} para ${dataToUpdate.permitCode}`, 'update()');
+    }
     const updatedUser = await this.getOne({ where: { id: id } });
     await this.loadLazyRelations([updatedUser]);
 
@@ -446,6 +466,29 @@ export class UsersRepository {
     this.logger.log(logMsg, 'update()');
 
     return updatedUser;
+  }
+
+  /** Código de permissão atual do usuário, quando o update o troca por outro. Senão, `undefined`. */
+  private permitCodeSubstituido(user: User, dataToUpdate: DeepPartial<User>): string | undefined {
+    if (!('permitCode' in dataToUpdate)) return undefined;
+    const atual = String(user.permitCode ?? '').trim();
+    const novo = String(dataToUpdate.permitCode ?? '').trim();
+    return atual && atual !== novo ? atual : undefined;
+  }
+
+  /** Histórico de códigos de permissão antigos do usuário, do mais recente para o mais antigo. */
+  async findPermitCodeHistory(userId: number): Promise<UserPermitCodeHistory[]> {
+    return this.entityManager.find(UserPermitCodeHistory, { where: { userId }, order: { createdAt: 'DESC', id: 'DESC' } });
+  }
+
+  /** Usuário dono de um código de permissão que já foi substituído (o mais recente da troca), ou `undefined`. */
+  async findByHistoricPermitCode(permitCode: string): Promise<User | undefined> {
+    const historico = await this.entityManager.findOne(UserPermitCodeHistory, {
+      where: { permitCode: String(permitCode).trim() },
+      order: { createdAt: 'DESC', id: 'DESC' },
+    });
+    if (!historico) return undefined;
+    return (await this.usersRepository.findOne({ where: { id: historico.userId } })) ?? undefined;
   }
 
   private getUpdateValidationMessage(validationErrors: InvalidRows): string {

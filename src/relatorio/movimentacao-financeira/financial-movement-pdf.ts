@@ -108,6 +108,18 @@ export class FinancialMovementPdfWriter {
     this.cursorY += rowHeight;
   }
 
+  // Linha de resumo na largura toda, depois da tabela (ex.: total por associacao do Guardador). Nao conta em
+  // rowCount nem no "Valor total" do rodape.
+  addFullWidthLine(text: string): void {
+    if (this.cursorY + ROW_HEIGHT > PAGE_SIZE[1] - MARGIN - FOOTER_HEIGHT) {
+      this.doc.addPage({ size: PAGE_SIZE, margin: MARGIN });
+      this.drawPageHeader();
+    }
+    this.doc.font('Helvetica-Bold').fontSize(HEADER_FONT_SIZE).fillColor('#000000');
+    this.doc.text(this.fitText(text, CONTENT_WIDTH - 4), MARGIN + 2, this.cursorY + 4, { width: CONTENT_WIDTH - 4, lineBreak: false });
+    this.cursorY += ROW_HEIGHT;
+  }
+
   async finish(): Promise<{ filePath: string; rowCount: number; total: number }> {
     this.drawFooterOnEveryPage();
     this.doc.end();

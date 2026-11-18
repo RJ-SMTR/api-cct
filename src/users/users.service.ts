@@ -115,6 +115,17 @@ export class UsersService {
 
     const requesterId = Number(requestUser?.id);
 
+    // Só master (0) e master_ti (7) podem alterar o código de permissão.
+    if ('permitCode' in safeDataToUpdate && Number.isFinite(requesterId) && requesterId > 0) {
+      const [requesterAtual, alvo] = await Promise.all([this.findOne({ id: requesterId }), this.findOne({ id })]);
+      const roleId = Number(requesterAtual?.role?.id);
+      const podeAlterarCodigo = roleId === RoleEnum.master || roleId === RoleEnum.master_ti;
+      const mudou = String(safeDataToUpdate.permitCode ?? '').trim() !== String(alvo?.permitCode ?? '').trim();
+      if (mudou && !podeAlterarCodigo) {
+        throw new HttpException({ error: 'Forbidden', message: 'permitCodeEditForbidden' }, HttpStatus.FORBIDDEN);
+      }
+    }
+
     if (Number.isFinite(requesterId) && requesterId > 0) {
       const [requester, targetUser] = await Promise.all([
         this.findOne({ id: requesterId }),
@@ -138,6 +149,19 @@ export class UsersService {
     }
 
     return this.usersRepository.update(id, safeDataToUpdate, logContext, requestUser);
+  }
+
+  async findPermitCodeHistory(userId: number) {
+    return this.usersRepository.findPermitCodeHistory(userId);
+  }
+
+  /**
+   * Usuário dono do código: o atual (`permitCode`) ou, se não houver, o de um código antigo guardado no histórico.
+   * Devolve `undefined` se nenhum usuário tem o código.
+   */
+  async findByAnyPermitCode(permitCode: string): Promise<User | undefined> {
+    const atual = await this.usersRepository.findOne({ where: { permitCode } });
+    return atual ?? (await this.usersRepository.findByHistoricPermitCode(permitCode));
   }
 
   /**

@@ -4,6 +4,7 @@ import { DataSource } from 'typeorm';
 import * as fs from 'fs';
 import { RelatorioNovoRemessaFinancialMovementService } from './relatorio-novo-remessa-financial-movement.service';
 import { RelatorioGuardadorFinancialMovementRepository } from './relatorio-guardador-financial-movement.repository';
+import { chaveOrdemAlfabeticaSql } from '../utils/ordem-alfabetica-sql';
 
 const BASE_EXPORT_ROW = {
   dataReferencia: '01/01/2026',
@@ -18,7 +19,8 @@ const BASE_EXPORT_ROW = {
   status: 'Pago',
   descricaoErro: '',
 };
-// Gerar PDF e XLSX passa de 5s quando as suites rodam em paralelo (hook de pre-commit).jest.setTimeout(30000);
+// Gerar PDF e XLSX passa de 5s quando as suites rodam em paralelo (hook de pre-commit).
+jest.setTimeout(30000);
 
 describe('RelatorioNovoRemessaFinancialMovementService', () => {
   let service: RelatorioNovoRemessaFinancialMovementService;
@@ -194,6 +196,44 @@ describe('RelatorioNovoRemessaFinancialMovementService', () => {
       expect(dataParams).toContain('001');
       expect(dataParams).toContain('2026-01-05T00:00:00');
       expect(dataParams).toContain('fulano@email.com');
+    });
+
+    // Relatorios sempre em ordem alfabetica, qualquer filtro (tela e export): o nome e' a primeira
+    // chave do ORDER BY e do keyset, comparado com o nome do cursor ($9), nao com a data ($8).
+    it('orders the page alphabetically by name first, and the keyset compares the name with the cursor name', async () => {
+      dataSource.query
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([{ count: '0' }])
+        .mockResolvedValueOnce([{}]);
+
+      await service.findFinancialMovementPage({
+        dataInicio: new Date('2026-01-01'),
+        dataFim: new Date('2026-01-05'),
+        eleicao: true,
+        page: 1,
+        pageSize: 50,
+        cursorDataReferencia: '01/01/2026',
+        cursorNome: 'FULANO',
+      } as any);
+
+      const [dataQuery] = dataSource.query.mock.calls[0];
+      const orderBy = dataQuery.slice(dataQuery.lastIndexOf('ORDER BY') + 'ORDER BY'.length).trim();
+      expect(orderBy.startsWith(chaveOrdemAlfabeticaSql('g.nomes'))).toBe(true);
+      const tuplaDoCursor = dataQuery.slice(dataQuery.indexOf(') > (') + 5).trim();
+      expect(tuplaDoCursor.startsWith(chaveOrdemAlfabeticaSql('$9::text'))).toBe(true);
+    });
+
+    it('streams the export in the same alphabetical order as the page', async () => {
+      dataSource.query.mockResolvedValueOnce([]);
+
+      await service.streamFinancialMovementRows({ dataInicio: new Date('2026-01-01'), dataFim: new Date('2026-01-05'), eleicao: true } as any, () => undefined);
+
+      const [dataQuery] = dataSource.query.mock.calls[0];
+      const orderBy = dataQuery.slice(dataQuery.lastIndexOf('ORDER BY') + 'ORDER BY'.length).trim();
+      expect(orderBy.startsWith(chaveOrdemAlfabeticaSql('g.nomes'))).toBe(true);
+      // O lote seguinte do export compara o nome com o nome do cursor ($9) e a data ($8) depois.
+      const tuplaDoCursor = dataQuery.slice(dataQuery.indexOf(') > (') + 5).trim();
+      expect(tuplaDoCursor.startsWith(`${chaveOrdemAlfabeticaSql('$9::text')}, to_date($8, 'DD/MM/YYYY')`)).toBe(true);
     });
 
     it('builds the next page cursor from the full tuple, so a tied group is not cut mid-way', async () => {
@@ -831,6 +871,29 @@ describe('RelatorioNovoRemessaFinancialMovementService', () => {
       expect(row.dataOrdemPagamento4).toBe('26/10/2026');
       expect(row.valorOrdemPagamento4).toBe(40);
       expect(row.valor).toBe(100);
+    });
+
+    // Valor Ordem zerado no export: a mesma janela do favorecido em duas linhas (status
+    // diferentes) nao pode mostrar 0 num dia que tem valor na outra linha.
+    it('a window split by status never shows Valor Ordem 0 on a day that has a value in the other row', async () => {
+      dataSource.query.mockResolvedValueOnce([
+        { ...DAY_ROW, dataReferencia: '23/10/2026', valor: 10, status: 'Pago' },
+        { ...DAY_ROW, dataReferencia: '24/10/2026', valor: 20, status: 'A Pagar' },
+      ]);
+
+      const exported: any[] = [];
+      await service.streamFinancialMovementRows(
+        { dataInicio: new Date('2026-10-23'), dataFim: new Date('2026-10-26'), stucGratuidade: true } as any,
+        (row) => {
+          exported.push(row);
+        },
+      );
+
+      const porDia = (dia: string) => exported.filter((row) => row.dataReferencia === dia).map((row) => row.valor);
+      expect(porDia('23/10/2026')).toEqual([10]);
+      expect(porDia('24/10/2026')).toEqual([20]);
+      expect(porDia('25/10/2026')).toEqual([0]);
+      expect(porDia('26/10/2026')).toEqual([0]);
     });
 
     it('leaves the 4th pair empty for a 3-day (Tue-Thu) window', async () => {

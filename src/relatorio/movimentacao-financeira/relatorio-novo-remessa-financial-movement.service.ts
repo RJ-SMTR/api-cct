@@ -5,6 +5,7 @@ import * as fs from 'fs';
 import { format, parse } from 'date-fns';
 import { CustomLogger } from 'src/utils/custom-logger';
 import { filtrarPeloTotalDoFavorecido, pivotStucGratuidadeRows } from '../utils/stuc-gratuidade-pivot';
+import { chaveOrdemAlfabeticaSql } from '../utils/ordem-alfabetica-sql';
 import { StatusPagamento } from '../enum/statusRemessafinancial-movement';
 import {
   buildBaseQuery,
@@ -77,10 +78,11 @@ type CursorValues = {
 
 // Tuple columns shared by the ORDER BY and the keyset WHERE comparison. COALESCE avoids
 // Postgres row-comparison returning NULL (and silently excluding the row) whenever a
-// tie-breaker column is NULL.
+// tie-breaker column is NULL. Name first: reports are always in alphabetical order, whatever the
+// filter, on the screen and in the export (COALESCEd now that it leads the tuple).
 const CURSOR_TUPLE_COLUMNS = `
+  ${chaveOrdemAlfabeticaSql('g.nomes')},
   g."dataReferencia",
-  g.nomes,
   g.status,
   g."cpfCnpj",
   COALESCE(g."nomeConsorcio", ''),
@@ -175,7 +177,7 @@ export class RelatorioNovoRemessaFinancialMovementService {
       AND (
         $8::text IS NULL
         OR (${CURSOR_TUPLE_COLUMNS}) > (
-          to_date($8, 'DD/MM/YYYY'), $9::text, $10::text, $11::text,
+          ${chaveOrdemAlfabeticaSql('$9::text')}, to_date($8, 'DD/MM/YYYY'), $10::text, $11::text,
           COALESCE($13::text, ''), COALESCE($14::text, ''), COALESCE($15::text, ''), COALESCE($16::text, '')
         )
       )
@@ -349,12 +351,13 @@ export class RelatorioNovoRemessaFinancialMovementService {
     let pivoted = pivotStucGratuidadeRows(
       dayRows.map((row: any) => ({ ...row, dataReferencia: parse(row.dataReferencia, 'dd/MM/yyyy', new Date()) })),
       groupKeyFn,
+      (row: any) => `${row.nomes}::${row.cpfCnpj}`,
     );
     // valorMin/valorMax sobre o total do favorecido no periodo, como no Consolidado do STUC (regra
     // de Rayanne, 2026-11-11), nao sobre cada janela.
     pivoted = filtrarPeloTotalDoFavorecido(pivoted, (row: any) => `${row.nomes}::${row.cpfCnpj}`, filter.valorMin, filter.valorMax);
     pivoted = [...pivoted].sort((a: any, b: any) => {
-      const porNome = String(a.nomes ?? '').localeCompare(String(b.nomes ?? ''));
+      const porNome = String(a.nomes ?? '').localeCompare(String(b.nomes ?? ''), 'pt-BR');
       if (porNome !== 0) return porNome;
       return String(a.dataPagamentoCursor ?? '').localeCompare(String(b.dataPagamentoCursor ?? ''));
     });
@@ -413,7 +416,7 @@ export class RelatorioNovoRemessaFinancialMovementService {
       AND (
         $8::text IS NULL
         OR (${CURSOR_TUPLE_COLUMNS}) > (
-          to_date($8, 'DD/MM/YYYY'), $9::text, $10::text, $11::text,
+          ${chaveOrdemAlfabeticaSql('$9::text')}, to_date($8, 'DD/MM/YYYY'), $10::text, $11::text,
           COALESCE($13::text, ''), COALESCE($14::text, ''), COALESCE($15::text, ''), COALESCE($16::text, '')
         )
       )

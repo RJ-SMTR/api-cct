@@ -74,6 +74,14 @@ export function descreverMotivo(codigo: string | null | undefined): string {
   return DESCRICOES_CUSTOMIZADAS[cod] ?? OcorrenciaEnum[cod as keyof typeof OcorrenciaEnum] ?? `Código ${cod}`;
 }
 
+/** Tudo que está em aberto (criado, enviado ao banco, aguardando) é exibido como "Aguardando pagamento". */
+export const DESCRICAO_EM_ABERTO = 'Aguardando pagamento';
+
+/** Texto do motivo para exibição: em aberto sempre "Aguardando pagamento"; nas demais situações, o motivo. */
+export function descreverMotivoDaSituacao(situacao: SituacaoDashboard | string | null | undefined, codigo: string | null | undefined): string {
+  return situacao === 'emAberto' ? DESCRICAO_EM_ABERTO : descreverMotivo(codigo);
+}
+
 export interface LinhaResumo {
   conta: ContaDashboard;
   grupo: string;
@@ -147,7 +155,7 @@ export function montarResumo(linhas: LinhaResumo[]): ContaResumo[] {
       const codigo = linha.motivo ?? (linha.situacao === 'naoPago' ? 'SEM_MOTIVO' : linha.situacao === 'pago' ? 'EFETIVADO' : 'CRIADO');
       const registrar = (mapa: Map<string, MotivoResumo>) => {
         const chave = `${linha.situacao}|${codigo}`;
-        const atual = mapa.get(chave) ?? { codigo, descricao: descreverMotivo(codigo), situacao: linha.situacao, qtd: 0, valor: 0 };
+        const atual = mapa.get(chave) ?? { codigo, descricao: descreverMotivoDaSituacao(linha.situacao, codigo), situacao: linha.situacao, qtd: 0, valor: 0 };
         somar(atual, qtd, valor);
         mapa.set(chave, atual);
       };

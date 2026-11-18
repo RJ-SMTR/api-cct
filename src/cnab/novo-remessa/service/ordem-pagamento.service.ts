@@ -422,8 +422,11 @@ export class OrdemPagamentoService {
         user = await this.usersService.getOne({ permitCode: ordem.idConsorcio });
       }
     } catch (error) {
-      if (error instanceof HttpException) return undefined;
-      throw error;
+      if (!(error instanceof HttpException)) throw error;
+      // Sem usuário com esse código atual: pode ser um código antigo (substituído), que continua do mesmo usuário.
+      const ehModal = ordem.consorcio === 'STPC' || ordem.consorcio === 'STPL' || ordem.consorcio === 'TEC';
+      if (ehModal || !ordem.idConsorcio) return undefined;
+      user = await this.usersService.findByAnyPermitCode(String(ordem.idConsorcio));
     }
     return user?.id;
   }
