@@ -2397,18 +2397,22 @@ suite('BasePagamentoRepository (PostgreSQL)', () => {
         expect(singaerj.map((linha) => Number(linha.valor))).toEqual([77]);
       });
 
-      // Regra de Rayanne (2026-11-13): "Todos os guardadores" + an association filter is a union: every guardador,
-      // with or without an association, plus the association's own payment.
+      // Regra de Rayanne (2026-11-13): "Todos os guardadores" + "Todas as associacoes" is a union: every guardador,
+      // with or without an association, plus the associations' own payments.
       it('todosGuardadores + todosConsorcios brings every guardador and the associations own payments', async () => {
         const linhas = await repository.findGroupedRows('guardador', { ...periodo, todosGuardadores: true, todosConsorcios: true });
 
         expect(nomes(linhas)).toEqual(['RV2 ANGLAE', 'RV2 G ANGLAE', 'RV2 G AUTONOMO', 'RV2 G SINGAERJ']);
       });
 
-      it('todosGuardadores + one association brings every guardador and only that association own payment', async () => {
-        const linhas = await repository.findGroupedRows('guardador', { ...periodo, todosGuardadores: true, consorcioNome: ['RV2 SINGAERJ'] });
+      // Regra de Rayanne (2026-11-18): "Todos os guardadores" + one association brings only that association's
+      // guardadores and its own payment - never a guardador of the other association (and vice-versa).
+      it('todosGuardadores + one association brings only the guardadores of that association and its own payment', async () => {
+        const anglae = await repository.findGroupedRows('guardador', { ...periodo, todosGuardadores: true, consorcioNome: ['RV2 ANGLAE'] });
+        const singaerj = await repository.findGroupedRows('guardador', { ...periodo, todosGuardadores: true, consorcioNome: ['RV2 SINGAERJ'] });
 
-        expect(nomes(linhas)).toEqual(['RV2 G ANGLAE', 'RV2 G AUTONOMO', 'RV2 G SINGAERJ']);
+        expect(nomes(anglae)).toEqual(['RV2 ANGLAE', 'RV2 G ANGLAE']);
+        expect(nomes(singaerj)).toEqual(['RV2 G SINGAERJ']);
       });
 
       describe('exigirTodasAssociacoes (ANGLAE/SINGAERJ ao mesmo tempo)', () => {

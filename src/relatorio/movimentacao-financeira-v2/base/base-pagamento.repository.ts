@@ -41,8 +41,9 @@ export interface BasePagamentoFilter {
   userIds?: number[];
   consorcioNome?: string[];
   todosConsorcios?: boolean;
-  // Guardador: "Todos os guardadores" selecionado. Com filtro de associacao vira uniao (todos os guardadores +
-  // pagamento da associacao); sozinho e' o mesmo que nenhum filtro.
+  // Guardador: "Todos os guardadores" selecionado. Com "Todas as associacoes" vira uniao (todos os guardadores +
+  // pagamento das associacoes); com associacao especifica nao muda nada (so os guardadores dela); sozinho e' o mesmo
+  // que nenhum filtro.
   todosGuardadores?: boolean;
   // Guardador: com consorcioNome, so entra o guardador vinculado a TODAS as associacoes da lista (ex. ANGLAE e
   // SINGAERJ ao mesmo tempo), sem o pagamento proprio das associacoes. Ignorado sem consorcioNome.
@@ -341,8 +342,10 @@ const PAGAMENTO_DA_ASSOCIACAO = `EXISTS (SELECT 1 FROM user_relationships ur_ass
 // Rayanne (2026-11-13): o filtro de associacao traz os guardadores vinculados E o pagamento da propria
 // associacao (o legado nunca trazia esse pagamento: divergencia registrada). Sem filtro ("Todos os
 // guardadores") so entra quem tem o papel de guardador, como no legado, sem o pagamento da associacao.
-// "Todos os guardadores" + filtro de associacao (todosGuardadores) e' uniao: todo guardador, com ou sem
-// associacao, mais o pagamento da associacao selecionada.
+// "Todos os guardadores" + "Todas as associacoes" e' uniao: todo guardador, com ou sem associacao, mais o pagamento
+// das associacoes. "Todos os guardadores" + associacao especifica = so os guardadores daquela associacao e o pagamento
+// dela, igual a associacao sozinha (regra de Rayanne, 2026-11-18: ANGLAE + Todos nao traz guardador do SINGAERJ, e
+// vice-versa).
 // Associacao = usuario apontado por user_relationships.related_user_id.
 // $10 so entra na lista de parametros quando o SQL o referencia.
 function resolveFiltroAssociacao(perfil: Perfil, filter: BasePagamentoFilter): { sql: string; params: unknown[] } {
@@ -355,7 +358,7 @@ function resolveFiltroAssociacao(perfil: Perfil, filter: BasePagamentoFilter): {
     };
   }
   // Guardadores vinculados a todas as associacoes pedidas ao mesmo tempo (@> = contem todas). Tem precedencia sobre
-  // todosGuardadores: a intersecao e' o pedido explicito. Pagamento da associacao nao entra: nao e' guardador.
+  // qualquer outra selecao de guardador: a intersecao e' o pedido explicito. Pagamento da associacao nao entra: nao e' guardador.
   if (filter.consorcioNome?.length && filter.exigirTodasAssociacoes) {
     return {
       sql: `AND pu."roleId" = ${GUARDADOR_ROLE_ID} AND assoc."nomesUpper" @> $10::text[]`,
@@ -364,7 +367,7 @@ function resolveFiltroAssociacao(perfil: Perfil, filter: BasePagamentoFilter): {
   }
   if (filter.consorcioNome?.length) {
     return {
-      sql: `AND (${guardadores ?? `(pu."roleId" = ${GUARDADOR_ROLE_ID} AND assoc."nomesUpper" && $10::text[])`}
+      sql: `AND ((pu."roleId" = ${GUARDADOR_ROLE_ID} AND assoc."nomesUpper" && $10::text[])
              OR (${PAGAMENTO_DA_ASSOCIACAO} AND UPPER(TRIM(pu."fullName")) = ANY($10::text[])))`,
       params: [filter.consorcioNome.map((nome) => nome.trim().toUpperCase())],
     };
