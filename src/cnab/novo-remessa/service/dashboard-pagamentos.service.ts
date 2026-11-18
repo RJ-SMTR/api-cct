@@ -1,7 +1,7 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { DashboardPagamentosRepository, FiltroPeriodo } from '../repository/dashboard-pagamentos.repository';
 import { DashboardPagamentosDetalheQueryDto } from '../dto/dashboard-pagamentos.dto';
-import { ContaResumo, descreverMotivo, montarResumo } from './dashboard-pagamentos.utils';
+import { ContaResumo, descreverMotivoDaSituacao, montarResumo } from './dashboard-pagamentos.utils';
 
 /** Período máximo aceito (dias), para uma consulta não varrer o histórico inteiro. */
 export const MAX_DIAS_DASHBOARD = 366;
@@ -48,7 +48,7 @@ export class DashboardPagamentosService {
       valorTotal: resultado.valorTotal,
       page,
       pageSize,
-      itens: resultado.itens.map((item) => ({ ...item, valor: Number(item.valor), motivoDescricao: descreverMotivo(item.motivo) })),
+      itens: resultado.itens.map((item) => ({ ...item, valor: Number(item.valor), motivoDescricao: descreverMotivoDaSituacao(item.situacao, item.motivo) })),
     };
   }
 
