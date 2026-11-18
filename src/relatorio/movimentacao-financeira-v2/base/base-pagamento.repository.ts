@@ -346,11 +346,18 @@ const PAGAMENTO_DA_ASSOCIACAO = `EXISTS (SELECT 1 FROM user_relationships ur_ass
 // das associacoes. "Todos os guardadores" + associacao especifica = so os guardadores daquela associacao e o pagamento
 // dela, igual a associacao sozinha (regra de Rayanne, 2026-11-18: ANGLAE + Todos nao traz guardador do SINGAERJ, e
 // vice-versa).
+// Sem guardador selecionado (nem "Todos" nem especificos) + associacao(oes), inclusive "Todas": so o pagamento proprio
+// das associacoes, sem os guardadores (regra de Rayanne, 2026-11-18: "deveria exibir somente os nomes das associacoes
+// com o seu valor").
 // Associacao = usuario apontado por user_relationships.related_user_id.
 // $10 so entra na lista de parametros quando o SQL o referencia.
 function resolveFiltroAssociacao(perfil: Perfil, filter: BasePagamentoFilter): { sql: string; params: unknown[] } {
   if (perfil !== 'guardador') return { sql: '', params: [] };
   const guardadores = filter.todosGuardadores ? `pu."roleId" = ${GUARDADOR_ROLE_ID}` : null;
+  const semGuardador = !filter.todosGuardadores && !filter.userIds?.length;
+  if (filter.todosConsorcios && semGuardador) {
+    return { sql: `AND ${PAGAMENTO_DA_ASSOCIACAO}`, params: [] };
+  }
   if (filter.todosConsorcios) {
     return {
       sql: `AND (${guardadores ?? `(pu."roleId" = ${GUARDADOR_ROLE_ID} AND assoc."nomesUpper" IS NOT NULL)`} OR ${PAGAMENTO_DA_ASSOCIACAO})`,
@@ -362,6 +369,12 @@ function resolveFiltroAssociacao(perfil: Perfil, filter: BasePagamentoFilter): {
   if (filter.consorcioNome?.length && filter.exigirTodasAssociacoes) {
     return {
       sql: `AND pu."roleId" = ${GUARDADOR_ROLE_ID} AND assoc."nomesUpper" @> $10::text[]`,
+      params: [filter.consorcioNome.map((nome) => nome.trim().toUpperCase())],
+    };
+  }
+  if (filter.consorcioNome?.length && semGuardador) {
+    return {
+      sql: `AND ${PAGAMENTO_DA_ASSOCIACAO} AND UPPER(TRIM(pu."fullName")) = ANY($10::text[])`,
       params: [filter.consorcioNome.map((nome) => nome.trim().toUpperCase())],
     };
   }
