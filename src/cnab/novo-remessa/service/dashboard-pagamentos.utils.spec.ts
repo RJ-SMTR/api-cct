@@ -5,6 +5,7 @@ import {
   descreverMotivo,
   montarResumo,
   sqlNormalizarGrupo,
+  descreverMotivoDaSituacao,
 } from './dashboard-pagamentos.utils';
 
 describe('dashboard de pagamentos - regras puras', () => {
@@ -13,6 +14,14 @@ describe('dashboard de pagamentos - regras puras', () => {
       expect(descreverMotivo('ANHO')).toBe('Conta digital');
       expect(descreverMotivo('PENDENCIA_PAGA')).toBe('Pendência paga');
       expect(descreverMotivo('ENVIADO')).toBe('Enviado ao banco (aguardando retorno)');
+    });
+
+    it('em aberto sempre aparece como "Aguardando pagamento", qualquer que seja o código', () => {
+      expect(descreverMotivoDaSituacao('emAberto', 'ENVIADO')).toBe('Aguardando pagamento');
+      expect(descreverMotivoDaSituacao('emAberto', 'CRIADO')).toBe('Aguardando pagamento');
+      expect(descreverMotivoDaSituacao('emAberto', null)).toBe('Aguardando pagamento');
+      expect(descreverMotivoDaSituacao('naoPago', 'ANHO')).toBe('Conta digital');
+      expect(descreverMotivoDaSituacao('pago', 'EFETIVADO')).toBe('Efetivado');
     });
 
     it('nunca deixa o motivo sem texto', () => {
