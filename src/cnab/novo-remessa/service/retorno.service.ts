@@ -11,8 +11,11 @@ import { CnabLote104Pgto } from "src/cnab/interfaces/cnab-240/104/pagamento/cnab
 import { SftpBackupFolder } from "src/sftp/enums/sftp-backup-folder.enum";
 import { FavorecidoEmpresaCpfCnpjEnum } from "src/cnab/enums/favorecido-empresa.enum";
 
-/** Acréscimo aplicado ao valorLancamento do detalhe_a do Intersul quando o pagamento é efetivado. */
-export const ACRESCIMO_INTERSUL = 1.05;
+/**
+ * Parte do valor do Intersul que vai no lote (PAG FORNEC); os outros 5% o banco debita como DEBITO AUTORIZADO.
+ * Só é usada quando o detalhe_a não tem o valorRealEfetivado (valor cheio) para recompor o valor.
+ */
+export const PARCELA_LOTE_INTERSUL = 0.95;
 
 @Injectable()
 export class RetornoService {
@@ -115,7 +118,9 @@ export class RetornoService {
     }
 
     /**
-     * Intersul: quando o retorno efetiva o pagamento (historico passa a Efetivado), o valorLancamento do detalhe_a sobe 5%.
+     * Intersul: o lote leva 95% do valor e o banco debita os outros 5% como DEBITO AUTORIZADO. Quando o retorno efetiva o
+     * pagamento (historico passa a Efetivado), o valorLancamento do detalhe_a passa ao valor cheio debitado, que é o
+     * valorRealEfetivado (= valorTotal da OPA). Lote x 1,05 dava 99,75% do valor (13/11/2026: 5.306,90 a menos).
      * Roda só na transição para Efetivado (os ramos que chamam partem de Aguardando/NaoEfetivado), então um retorno
      * repetido não soma o acréscimo de novo: o histórico já está Efetivado e deixa de casar com o detalhe_a.
      */
@@ -128,10 +133,13 @@ export class RetornoService {
             return;
         }
         const valorAtual = Number(detalheA.valorLancamento);
-        const novoValor = Math.round(valorAtual * ACRESCIMO_INTERSUL * 100) / 100;
+        const valorCheio = Number(detalheA.valorRealEfetivado);
+        const novoValor = valorCheio > 0
+            ? Math.round(valorCheio * 100) / 100
+            : Math.round((valorAtual / PARCELA_LOTE_INTERSUL) * 100) / 100;
         await this.detalheAService.atualizarValorLancamento(detalheA.id, novoValor);
         detalheA.valorLancamento = novoValor;
-        this.logger.debug(`detalheA ${detalheA.id} (Intersul): valorLancamento ${valorAtual} -> ${novoValor} (+5%)`);
+        this.logger.debug(`detalheA ${detalheA.id} (Intersul): valorLancamento ${valorAtual} -> ${novoValor} (valor cheio)`);
     }
 
     private async atualizarStatusRemessaHistorico(
