@@ -135,9 +135,25 @@ suite('ConsorcioAggregatorService (PostgreSQL)', () => {
     expect(result.data[0].valor).toBe(321);
   });
 
-  it('resolves nomeConsorcio to VLT via permitCode, overriding the raw nomeConsorcio column', async () => {
+  // Regra de Rayanne (2026-11-19): o consorcio vem da ordem, como o Dashboard de Pagamentos; o permitCode so
+  // decide quando a ordem nao tem consorcio.
+  it("groups by the order's nomeConsorcio, not the permitCode", async () => {
     await seedVltUser();
     await seedAPagarOrder(VLT_USER_ID, BASE_ID + 41, '2096-07-11', 888, 'CONSORCIO BRUTO DIVERGENTE');
+    const periodo = { dataInicio: new Date('2096-07-11T00:00:00.000Z'), dataFim: new Date('2096-07-11T00:00:00.000Z') };
+
+    const pelaOrdem = await aggregator.aggregate(periodo, { consorcioNome: ['CONSORCIO BRUTO DIVERGENTE'] });
+    const peloPermitCode = await aggregator.aggregate(periodo, { consorcioNome: ['VLT'] });
+
+    expect(pelaOrdem.data).toHaveLength(1);
+    expect(pelaOrdem.data[0].nomefavorecido).toBe('CONSORCIO BRUTO DIVERGENTE');
+    expect(pelaOrdem.data[0].valor).toBe(888);
+    expect(peloPermitCode.data).toHaveLength(0);
+  });
+
+  it('falls back to the permitCode (VLT) when the order has no nomeConsorcio', async () => {
+    await seedVltUser();
+    await seedAPagarOrder(VLT_USER_ID, BASE_ID + 41, '2096-07-11', 888, '');
 
     const result = await aggregator.aggregate(
       {
@@ -242,8 +258,9 @@ suite('ConsorcioAggregatorService (PostgreSQL)', () => {
   it('todosConsorcios=true includes only consorcios from the fixed CONSORCIOS list', async () => {
     await seedVltUser();
     await seedPlainUser();
-    // VLT (in CONSORCIOS) and 'CONSORCIO TESTE' (not in CONSORCIOS) on the same date.
-    await seedAPagarOrder(VLT_USER_ID, BASE_ID + 41, '2096-07-12', 888, 'CONSORCIO BRUTO DIVERGENTE');
+    // VLT (in CONSORCIOS) and 'CONSORCIO TESTE' (not in CONSORCIOS) on the same date. The consorcio comes from
+    // the order (rule of 2026-11-19), so the VLT order carries 'VLT'.
+    await seedAPagarOrder(VLT_USER_ID, BASE_ID + 41, '2096-07-12', 888, 'VLT');
     await seedAPagarOrder(PLAIN_USER_ID, BASE_ID + 42, '2096-07-12', 321, 'CONSORCIO TESTE');
 
     const result = await aggregator.aggregate(
@@ -260,7 +277,7 @@ suite('ConsorcioAggregatorService (PostgreSQL)', () => {
 
   it('consorcioNome ignores case, like the legacy Consolidado', async () => {
     await seedVltUser();
-    await seedAPagarOrder(VLT_USER_ID, BASE_ID + 41, '2096-07-13', 888, 'CONSORCIO BRUTO DIVERGENTE');
+    await seedAPagarOrder(VLT_USER_ID, BASE_ID + 41, '2096-07-13', 888, 'VLT');
 
     const result = await aggregator.aggregate(
       {

@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { buildConsorcioCaseSql, CONSORCIOS, INSTITUTIONAL_CPF_CNPJ, MODAIS } from './consorcio-resolver';
+import { buildConsorcioCaseSql, buildConsorcioDaOrdemSql, CONSORCIOS, INSTITUTIONAL_CPF_CNPJ, MODAIS } from './consorcio-resolver';
 
 describe('consorcio-resolver', () => {
   // Texto copiado literalmente de consorcioCaseSimples/MODAIS/CONSORCIOS
@@ -34,6 +34,14 @@ describe('consorcio-resolver', () => {
 
   it('produces the same CASE as consorcioCaseSimples for aliases pu/op', () => {
     expect(normalize(buildConsorcioCaseSql('pu', 'op'))).toBe(normalize(EXPECTED_CASE));
+  });
+
+  // Regra de Rayanne (2026-11-19): nos relatorios v2 do Permissionario o consorcio vem da ordem (como o Dashboard
+  // de Pagamentos); o CASE por permitCode so entra quando a ordem nao tem consorcio.
+  it('buildConsorcioDaOrdemSql uses the order consorcio first and the permitCode CASE as fallback', () => {
+    expect(normalize(buildConsorcioDaOrdemSql('pu', 'op'))).toBe(
+      normalize(`COALESCE(NULLIF(BTRIM(op."nomeConsorcio", E' \\t\\r\\n'), ''), ${EXPECTED_CASE})`),
+    );
   });
 
   it('MODAIS matches the private array in relatorio-novo-remessa-consolidado.repository.ts', () => {
