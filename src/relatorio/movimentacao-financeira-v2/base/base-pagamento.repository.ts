@@ -12,7 +12,7 @@ import {
 import { GUARDADOR_CONSORCIO_CASE } from '../../novo-remessa/queries/guardador-novo-remessa-query-builder';
 import { buildCodigoErroSql } from '../../novo-remessa/queries/descricao-erro';
 import { chaveOrdemAlfabeticaSql } from '../../utils/ordem-alfabetica-sql';
-import { buildConsorcioCaseSql, CONSORCIOS, INSTITUTIONAL_CPF_CNPJ, MODAIS } from '../status/consorcio-resolver';
+import { buildConsorcioCaseSql, buildConsorcioDaOrdemSql, CONSORCIOS, INSTITUTIONAL_CPF_CNPJ, MODAIS } from '../status/consorcio-resolver';
 import { resolveInicioAPagar } from '../status/data-minima-a-pagar';
 import { buildEleicaoStatusPagamentoCaseSql, buildStatusPagamentoCaseSql } from '../status/status-resolver';
 import {
@@ -143,15 +143,16 @@ const CURSOR_TUPLE = `
 const CURSOR_ORDER_BY = `${CURSOR_TUPLE}, "chaveLinha"`;
 
 // Dois pontos de resolucao porque os aliases disponiveis diferem por fonte: "nunca_enviada" tem a
-// tabela de ordem em si (op), "agrupada" so tem o representante trazido pela LATERAL. Guardador
-// resolve pela associacao (mesmo CASE do legado, depende do join com "assoc" abaixo).
+// tabela de ordem em si (op), "agrupada" so tem o representante trazido pela LATERAL. Permissionario:
+// consorcio da ordem, como o Dashboard de Pagamentos (buildConsorcioDaOrdemSql). Guardador resolve pela
+// associacao (mesmo CASE do legado, depende do join com "assoc" abaixo).
 const NOME_CONSORCIO_NUNCA_ENVIADA: Record<Perfil, string> = {
-  permissionario: buildConsorcioCaseSql('pu', 'op'),
+  permissionario: buildConsorcioDaOrdemSql('pu', 'op'),
   guardador: GUARDADOR_CONSORCIO_CASE,
 };
 
 const NOME_CONSORCIO_AGRUPADA: Record<Perfil, string> = {
-  permissionario: buildConsorcioCaseSql('pu', 'representante'),
+  permissionario: buildConsorcioDaOrdemSql('pu', 'representante'),
   guardador: GUARDADOR_CONSORCIO_CASE,
 };
 

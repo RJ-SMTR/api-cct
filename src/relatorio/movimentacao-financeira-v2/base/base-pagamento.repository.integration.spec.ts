@@ -582,9 +582,26 @@ suite('BasePagamentoRepository (PostgreSQL)', () => {
       expect(rows.every((row) => row.nomeConsorcio === 'CONSORCIO TESTE')).toBe(true);
     });
 
-    it('resolves nomeConsorcio to VLT via permitCode, overriding the raw nomeConsorcio column, for Permissionario', async () => {
+    // Regra de Rayanne (2026-11-19): o consorcio do Permissionario vem da ordem, como o Dashboard de Pagamentos;
+    // o permitCode so decide quando a ordem nao tem consorcio.
+    it("uses the order's nomeConsorcio over the permitCode, for Permissionario", async () => {
       await seedVltUser();
       await seedVltAPagarFamily();
+
+      const rows = await repository.findGroupedRows('permissionario', {
+        dataInicio: new Date('2098-11-10T00:00:00.000Z'),
+        dataFim: new Date('2098-11-10T00:00:00.000Z'),
+        userIds: [VLT_USER_ID],
+      });
+
+      expect(rows).toHaveLength(1);
+      expect(rows[0].nomeConsorcio).toBe('CONSORCIO BRUTO DIVERGENTE');
+    });
+
+    it('falls back to the permitCode (VLT) when the order has no nomeConsorcio, for Permissionario', async () => {
+      await seedVltUser();
+      await seedVltAPagarFamily();
+      await dataSource.query(`UPDATE ordem_pagamento SET "nomeConsorcio" = '' WHERE id = $1`, [BASE_ID + 540]);
 
       const rows = await repository.findGroupedRows('permissionario', {
         dataInicio: new Date('2098-11-10T00:00:00.000Z'),
@@ -1003,7 +1020,8 @@ suite('BasePagamentoRepository (PostgreSQL)', () => {
       await dataSource.query(
         `INSERT INTO ordem_pagamento (
           id, "dataOrdem", "dataCaptura", valor, "bqUpdatedAt", "userId", "nomeConsorcio", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt"
-        ) VALUES ($1, DATE '2098-12-10', DATE '2098-12-10', 222, now(), $2, 'RAW IGNORADO', NULL, now(), now())`,
+        ) VALUES ($1, DATE '2098-12-10', DATE '2098-12-10', 222, now(), $2, 'STPC', NULL, now(), now())`,
+        // The consorcio comes from the order (rule of 2026-11-19): the modal order carries its own 'STPC'.
         [T3_BASE_ID + 11, T3_MODAL_USER_ID],
       );
     }
@@ -1023,7 +1041,8 @@ suite('BasePagamentoRepository (PostgreSQL)', () => {
       await dataSource.query(
         `INSERT INTO ordem_pagamento (
           id, "dataOrdem", "dataCaptura", valor, "bqUpdatedAt", "userId", "nomeConsorcio", "ordemPagamentoAgrupadoId", "createdAt", "updatedAt"
-        ) VALUES ($1, DATE '2098-12-15', DATE '2098-12-15', 777, now(), $2, 'RAW IGNORADO', NULL, now(), now())`,
+        ) VALUES ($1, DATE '2098-12-15', DATE '2098-12-15', 777, now(), $2, 'VLT', NULL, now(), now())`,
+        // The consorcio comes from the order (rule of 2026-11-19): the VLT order carries its own 'VLT'.
         [T3_BASE_ID + 20, T3_VLT_USER_ID],
       );
     }
