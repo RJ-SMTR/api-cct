@@ -281,16 +281,20 @@ export function buildSummaryFromRows(rows: BasePagamentoRow[]): RelatorioFinanci
 export const ASSOCIACAO_VALOR_PROPRIO_LABEL = 'Valor pago à associação';
 export const ASSOCIACAO_VALOR_GUARDADORES_LABEL = 'Valor dos guardadores da associação';
 
-// Mesma escolha da tela (app-cct, buildAgentAssociationTotalLines): so a associacao selecionada mostra o pagamento
-// proprio dela; com guardador selecionado ("Todos" ou especificos) ou "ambas", o valor dos guardadores vinculados.
+// Mesma escolha da tela (app-cct, buildAgentAssociationTotalLines), regras de Rayanne (2026-11-18 e 2026-11-19):
+// - so a associacao selecionada: o pagamento proprio dela;
+// - "Todos os guardadores" + associacao (especifica ou "Todas"): o pagamento proprio E o valor dos guardadores
+//   vinculados, duas linhas por associacao;
+// - guardadores especificos ou "ambas": so o valor dos guardadores (o pagamento da associacao nao entra nesse
+//   resultado, a linha seria sempre zero).
 export function buildAssociacaoExportLines(
   totais: BasePagamentoTotalPorAssociacao[],
   filter: Pick<BasePagamentoFilter, 'todosGuardadores' | 'userIds' | 'exigirTodasAssociacoes'>,
 ): FinancialMovementExportAssociacaoLine[] {
   const mostraGuardadores = Boolean(filter.todosGuardadores || filter.userIds?.length || filter.exigirTodasAssociacoes);
-  return totais.map((total) => ({
-    nome: total.nome,
-    label: mostraGuardadores ? ASSOCIACAO_VALOR_GUARDADORES_LABEL : ASSOCIACAO_VALOR_PROPRIO_LABEL,
-    valor: mostraGuardadores ? total.valorGuardadores : total.valorAssociacao,
-  }));
+  const mostraPagamentoProprio = !filter.userIds?.length && !filter.exigirTodasAssociacoes;
+  return totais.flatMap((total) => [
+    ...(mostraPagamentoProprio ? [{ nome: total.nome, label: ASSOCIACAO_VALOR_PROPRIO_LABEL, valor: total.valorAssociacao }] : []),
+    ...(mostraGuardadores ? [{ nome: total.nome, label: ASSOCIACAO_VALOR_GUARDADORES_LABEL, valor: total.valorGuardadores }] : []),
+  ]);
 }
