@@ -281,11 +281,13 @@ describe('FinancialMovementV2ExportService', () => {
     const periodo = { dataInicio: new Date('2026-10-01'), dataFim: new Date('2026-10-31') };
     const totais = [{ nome: 'SINGAERJ', valorAssociacao: 1200, valorGuardadores: 5000.5 }];
 
-    it('so a associacao selecionada: pagamento proprio; com guardador selecionado ou ambas: os guardadores', () => {
-      expect(buildAssociacaoExportLines(totais, {})).toEqual([{ nome: 'SINGAERJ', label: ASSOCIACAO_VALOR_PROPRIO_LABEL, valor: 1200 }]);
-      expect(buildAssociacaoExportLines(totais, { todosGuardadores: true })).toEqual([{ nome: 'SINGAERJ', label: ASSOCIACAO_VALOR_GUARDADORES_LABEL, valor: 5000.5 }]);
-      expect(buildAssociacaoExportLines(totais, { userIds: [7] })[0].valor).toBe(5000.5);
-      expect(buildAssociacaoExportLines(totais, { exigirTodasAssociacoes: true })[0].valor).toBe(5000.5);
+    it('so a associacao selecionada: pagamento proprio; Todos os guardadores: pagamento proprio e guardadores; especificos ou ambas: so os guardadores', () => {
+      const proprio = { nome: 'SINGAERJ', label: ASSOCIACAO_VALOR_PROPRIO_LABEL, valor: 1200 };
+      const guardadores = { nome: 'SINGAERJ', label: ASSOCIACAO_VALOR_GUARDADORES_LABEL, valor: 5000.5 };
+      expect(buildAssociacaoExportLines(totais, {})).toEqual([proprio]);
+      expect(buildAssociacaoExportLines(totais, { todosGuardadores: true })).toEqual([proprio, guardadores]);
+      expect(buildAssociacaoExportLines(totais, { userIds: [7] })).toEqual([guardadores]);
+      expect(buildAssociacaoExportLines(totais, { exigirTodasAssociacoes: true, todosGuardadores: true })).toEqual([guardadores]);
     });
 
     it.each(['csv', 'xlsx', 'pdf'] as const)('o arquivo %s termina com a linha da associacao', async (format) => {
@@ -298,15 +300,19 @@ describe('FinancialMovementV2ExportService', () => {
 
       try {
         expect(base.findTotaisPorAssociacao).toHaveBeenCalledWith(expect.objectContaining({ consorcioNome: ['SINGAERJ'], todosGuardadores: true }));
+        const textoProprio = `Associação: SINGAERJ (${ASSOCIACAO_VALOR_PROPRIO_LABEL})`;
         const texto = `Associação: SINGAERJ (${ASSOCIACAO_VALOR_GUARDADORES_LABEL})`;
         if (format === 'csv') {
-          const ultima = fs.readFileSync(filePath, 'utf8').trim().split('\n').pop() as string;
+          const [penultima, ultima] = fs.readFileSync(filePath, 'utf8').trim().split('\n').slice(-2);
+          expect(penultima).toBe(`;;"${textoProprio}";;;;;;1200;;""`);
           expect(ultima).toBe(`;;"${texto}";;;;;;5000,5;;""`);
         } else if (format === 'xlsx') {
           const linhas = xlsxUtils.sheet_to_json<string[]>(readXlsxFile(filePath).Sheets['Movimentação'], { header: 1 }) as Array<Array<string | number>>;
-          expect(linhas).toHaveLength(3);
-          expect(linhas[2][2]).toBe(texto);
-          expect(linhas[2][8]).toBe(5000.5);
+          expect(linhas).toHaveLength(4);
+          expect(linhas[2][2]).toBe(textoProprio);
+          expect(linhas[2][8]).toBe(1200);
+          expect(linhas[3][2]).toBe(texto);
+          expect(linhas[3][8]).toBe(5000.5);
         } else {
           expect(fs.statSync(filePath).size).toBeGreaterThan(0);
         }
