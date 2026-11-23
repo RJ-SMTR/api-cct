@@ -336,13 +336,36 @@ export class RemessaService {
       });
     }
 
+    // Lote sem nenhum pagamento (ex.: sem ninguém em poupança) não vai no arquivo: o banco pode rejeitar header + trailer sem detalhe.
+    const headersLoteComPagamento = headersLote.filter((headerLote: HeaderLote) => (registrosPorLote.get(headerLote.id)?.length ?? 0) > 0);
+    if (headersLoteComPagamento.length === 0) {
+      this.logger.warn(`Remessa sem nenhum pagamento nos lotes - headerArqId: ${headerArquivo.id}`);
+      return listCnab;
+    }
+
+    const lotes = headersLoteComPagamento.map((headerLote: HeaderLote) => ({
+      headerLote: CnabHeaderLote104PgtoDTO.convert(headerLote, headerArquivo),
+      registros: registrosPorLote.get(headerLote.id) ?? [],
+      trailerLote: structuredClone(Cnab104PgtoTemplates.file104.registros.trailerLote),
+    }));
+
+    // Ao tirar um lote do meio, os que sobram precisam continuar numerados 1, 2, 3... (header, detalhes e trailer do lote).
+    const numerar = (registro: any, numeroLote: number) => {
+      if (registro?.loteServico) registro.loteServico.value = numeroLote;
+    };
+    lotes.forEach((lote, index) => {
+      const numeroLote = index + 1;
+      numerar(lote.headerLote, numeroLote);
+      numerar(lote.trailerLote, numeroLote);
+      lote.registros.forEach((registro) => {
+        numerar(registro.detalheA, numeroLote);
+        numerar(registro.detalheB, numeroLote);
+      });
+    });
+
     const cnab104 = new CnabFile104PgtoDTO({
       headerArquivo: headerArquivoCnab,
-      lotes: headersLote.map((headerLote: HeaderLote) => ({
-        headerLote: CnabHeaderLote104PgtoDTO.convert(headerLote, headerArquivo),
-        registros: registrosPorLote.get(headerLote.id) ?? [],
-        trailerLote: structuredClone(Cnab104PgtoTemplates.file104.registros.trailerLote),
-      })),
+      lotes,
       trailerArquivo: trailerArquivo104,
     });
 

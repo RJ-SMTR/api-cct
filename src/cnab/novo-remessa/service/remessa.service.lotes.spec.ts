@@ -97,14 +97,36 @@ describe('RemessaService.gerarListaCnab - distribuicao dos pagamentos nos lotes'
     expect((await gerar()).map((l: any) => l.docs)).toEqual([[1]]);
   });
 
-  it('lote sem pagamentos sai vazio (nao herda pagamentos de outros lotes)', async () => {
+  it('lote sem pagamentos nao vai no arquivo (e nao herda pagamentos de outros lotes)', async () => {
     contas = { 9: { userBankCode: 104 } };
     headerLoteService.findAll.mockResolvedValue([lote(1, '05'), lote(2, '01')]);
     detalheAService.getDetalheAHeaderLote.mockImplementation((loteId: number) => (loteId === 2 ? [detalheA(9)] : []));
 
-    expect((await gerar()).map((l: any) => ({ forma: l.forma, docs: l.docs }))).toEqual([
-      { forma: '05', docs: [] },
-      { forma: '01', docs: [9] },
+    expect((await gerar()).map((l: any) => ({ forma: l.forma, docs: l.docs }))).toEqual([{ forma: '01', docs: [9] }]);
+  });
+
+  it('ao tirar um lote vazio do meio, os lotes restantes continuam numerados em sequencia', async () => {
+    contas = { 1: { userBankCode: 341 }, 3: { userBankCode: 104, userBankAccountType: 'poupanca' } };
+    headerLoteService.findAll.mockResolvedValue([lote(1, '41'), lote(2, '01'), lote(3, '05')]);
+    detalheAService.getDetalheAHeaderLote.mockImplementation((loteId: number) => ({ 1: [detalheA(1)], 2: [], 3: [detalheA(3)] } as any)[loteId]);
+    (CnabHeaderLote104PgtoDTO.convert as jest.Mock).mockImplementation((h: any) => ({ formaLancamento: h.formaLancamento, loteServico: { value: h.id } }) as any);
+
+    const [cnab104] = (await (async () => {
+      await (service as any).gerarListaCnab({}, { id: 1140 }, undefined, true, [], false);
+      return (stringifyCnab104File as jest.Mock).mock.calls[0];
+    })());
+
+    expect(cnab104.lotes.map((l: any) => [l.headerLote.formaLancamento, l.headerLote.loteServico.value])).toEqual([
+      ['41', 1],
+      ['05', 2],
     ]);
+  });
+
+  it('sem nenhum pagamento nos lotes, nao gera arquivo', async () => {
+    headerLoteService.findAll.mockResolvedValue([lote(1, '41'), lote(2, '01')]);
+    detalheAService.getDetalheAHeaderLote.mockResolvedValue([]);
+
+    expect(await (service as any).gerarListaCnab({}, { id: 1140 }, undefined, true, [], false)).toEqual([]);
+    expect(stringifyCnab104File).not.toHaveBeenCalled();
   });
 });
