@@ -542,6 +542,7 @@ export class OrdemPagamentoService {
       o.descricaoStatusRemessa = ordem.descricaoStatusRemessa;
       o.data = ordem.data;
       o.dataPagamento = ordem.dataPagamento;
+      o.dataEfetivaPagamento = ordem.dataEfetivaPagamento;
       o.valorGratuidade = ordem.valorGratuidade;
       o.statusRemessaGratuidade = ordem.statusRemessaGratuidade;
       o.motivoStatusRemessaGratuidade = ordem.motivoStatusRemessaGratuidade;
