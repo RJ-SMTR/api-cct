@@ -1,4 +1,4 @@
-import { PartialType } from '@nestjs/swagger';
+import { OmitType, PartialType } from '@nestjs/swagger';
 import { CreateUserDto } from './create-user.dto';
 
 import { ApiProperty } from '@nestjs/swagger';
@@ -10,7 +10,16 @@ import { lowerCaseTransformer } from 'src/utils/transformers/lower-case.transfor
 import { IsExist } from 'src/utils/validators/is-exists.validator';
 import { Role } from '../../roles/entities/role.entity';
 
-export class UpdateUserDto extends PartialType(CreateUserDto) {
+/**
+ * `permitCode` não herda a validação de unicidade (`IsNotExist`) do CreateUserDto: o body
+ * não tem `id`, então ela barrava o próprio dono do código (#1356). A unicidade é validada
+ * no repository (UpdateUserRepositoryDto, com `id`, e o histórico de códigos).
+ */
+export class UpdateUserDto extends PartialType(OmitType(CreateUserDto, ['permitCode'] as const)) {
+  @ApiProperty({ example: '213890329890312' })
+  @IsOptional()
+  permitCode?: string;
+
   @ApiProperty({ example: 'test1@example.com' })
   @Transform(lowerCaseTransformer)
   @IsEmail()
