@@ -83,7 +83,10 @@ export class UsersService {
     return await this.usersRepository.findManyRegisteredUsers();
   }
 
-  async findManyWithPagination(paginationOptions: PaginationOptions, fields?: IFindUserPaginated): Promise<User[]> {
+  async findManyWithPagination(
+    paginationOptions: PaginationOptions | undefined,
+    fields?: IFindUserPaginated,
+  ): Promise<{ users: User[]; total: number }> {
     return await this.usersRepository.findManyWithPagination(paginationOptions, fields);
   }
 

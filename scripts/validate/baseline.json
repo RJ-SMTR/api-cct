@@ -72,6 +72,7 @@
     "src/utils/all-exteptions-filter/filters/all-exceptions.filter.spec.ts",
     "src/utils/date-utils.spec.ts",
     "src/utils/file-type/pipes/file-type-validation.pipe.spec.ts",
+    "src/utils/optional-pagination.spec.ts",
     "src/utils/payment-date-utils.spec.ts",
     "src/utils/worker-thread/run-with-worker-timeout.spec.ts"
   ],

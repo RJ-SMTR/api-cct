@@ -6,7 +6,6 @@ import { InviteStatus } from 'src/mail-history-statuses/entities/mail-history-st
 import { InviteStatusEnum } from 'src/mail-history-statuses/mail-history-status.enum';
 import { MailHistory } from 'src/mail-history/entities/mail-history.entity';
 import { MailHistoryService } from 'src/mail-history/mail-history.service';
-import { Enum } from 'src/utils/enum';
 import { HttpStatusMessage } from 'src/utils/enums/http-status-message.enum';
 import { PaginationOptions } from 'src/utils/types/pagination-options';
 import { validateDTO } from 'src/utils/validation-utils';
@@ -20,6 +19,7 @@ import {
   ILike,
   In,
   Repository,
+  SelectQueryBuilder,
   WhereExpressionBuilder,
 } from 'typeorm';
 import { UpdateUserRepositoryDto } from './dto/update-user-repository.dto';
@@ -220,64 +220,79 @@ export class UsersRepository {
 
   // #region findManyWithPagination
 
+  /**
+   * Without `paginationOptions` returns the whole filtered list (the admin home and the
+   * report filters still rely on that). With it, pages in the query itself (#1199).
+   * Every filter, including the invite status, is part of the query, so a page is never
+   * emptied by filtering afterwards and `total` is the size of the filtered set.
+   */
   async findManyWithPagination(
-    paginationOptions: PaginationOptions,
+    paginationOptions?: PaginationOptions,
     fields?: IFindUserPaginated,
-  ): Promise<User[]> {
-    let inviteStatus: any = null;
-    if (fields?.inviteStatusName) {
-      inviteStatus = {
-        id: Number(InviteStatusEnum[fields?.inviteStatusName]),
-        name: Enum.getKey(
-          InviteStatusEnum,
-          InviteStatusEnum[fields?.inviteStatusName],
-        ),
-      };
-    }
-
+  ): Promise<{ users: User[]; total: number }> {
     const { where, andWhere } = this.getFindUserPaginatedToWhere(fields);
 
-    let users = await this.usersRepository
+    const query = this.usersRepository
       .createQueryBuilder('user')
       .where(
         new Brackets((qb) => {
           where(qb);
         }),
       )
-      .andWhere(andWhere)
-      // Sem ORDER BY a lista vinha na ordem física do Postgres e mudava após updates em massa/vacuum (#1198).
-      .orderBy('"user"."fullName"', 'ASC')
-      .addOrderBy('"user"."id"', 'ASC')
-      .getMany();
-    users = await this.usersRepository.find({
+      .andWhere(andWhere);
+    this.applyInviteStatusFilter(query, fields?.inviteStatusName);
+    // Sem ORDER BY a lista vinha na ordem física do Postgres e mudava após updates em massa/vacuum (#1198).
+    query.orderBy('"user"."fullName"', 'ASC').addOrderBy('"user"."id"', 'ASC');
+    if (paginationOptions) {
+      query
+        .offset((paginationOptions.page - 1) * paginationOptions.limit)
+        .limit(paginationOptions.limit);
+    }
+
+    const [page, total] = await query.getManyAndCount();
+    if (page.length === 0) {
+      return { users: [], total };
+    }
+    // Reload through find() so the eager relations (role, status...) come along.
+    const users = await this.usersRepository.find({
       where: {
-        id: In(users.map((i) => i.id)),
+        id: In(page.map((i) => i.id)),
       },
       order: { fullName: 'ASC', id: 'ASC' },
     });
     await this.loadLazyRelations(users);
+    return { users, total };
+  }
 
-    if (inviteStatus?.id === InviteStatusEnum.prov) {
-      return users.filter(
-        (user) =>
-          user.aux_inviteStatus?.id === InviteStatusEnum.prov,
-      );
+  /**
+   * Same rules as `loadLazyAux_invite`, in SQL:
+   * - `prov` (conta_bancaria_sem_senha): `hasBankAccountWithoutPassword`.
+   * - other statuses: the user has at least one invite with that status.
+   */
+  private applyInviteStatusFilter(
+    query: SelectQueryBuilder<User>,
+    inviteStatusName?: string,
+  ) {
+    if (!inviteStatusName) {
+      return;
     }
-
-    let invites: Nullable<MailHistory[]> = null;
-    if (inviteStatus) {
-      invites = await this.mailHistoryService.find({ inviteStatus });
-    }
-
-    users = users.filter((userItem) => {
-      return (
-        !invites ||
-        (invites.length > 0 &&
-          invites.some((inviteItem) => inviteItem.user.id === userItem.id))
+    const inviteStatusId = Number(InviteStatusEnum[inviteStatusName]);
+    if (inviteStatusId === InviteStatusEnum.prov) {
+      query.andWhere(
+        `"user"."roleId" IN (:...provRoleIds)
+        AND "user"."bankCode" IS NOT NULL
+        AND COALESCE("user"."bankAgency", '') <> ''
+        AND COALESCE("user"."bankAccount", '') <> ''
+        AND COALESCE("user"."bankAccountDigit", '') <> ''
+        AND ("user"."password" IS NULL OR "user"."password" = '')`,
+        { provRoleIds: [RoleEnum.user, RoleEnum.agentes] },
       );
-    });
-
-    return users;
+      return;
+    }
+    query.andWhere(
+      `EXISTS (SELECT 1 FROM "invite" "inviteFilter" WHERE "inviteFilter"."userId" = "user"."id" AND "inviteFilter"."inviteStatusId" = :inviteStatusId)`,
+      { inviteStatusId },
+    );
   }
 
   private getFindUserPaginatedToWhere(fields?: IFindUserPaginated) {
