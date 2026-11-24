@@ -255,17 +255,20 @@ WITH
             oph."motivoStatusRemessa",
             CASE WHEN db.data_referencia = op.data_exibicao_opa
                 THEN opa.id END AS opaId,
-            opa."dataPagamento" AS "opaDataPagamento"
+            opa."dataPagamento" AS "opaDataPagamento",
+            COALESCE(da."dataEfetivacao", da."dataVencimento") AS "dataEfetivacao"
         FROM datas_base db
         LEFT JOIN capturas_com_exibicao op ON op.data_referencia = db.data_referencia
         LEFT JOIN ordem_pagamento_agrupado opa ON op."ordemPagamentoAgrupadoId" = opa.id
         LEFT JOIN LATERAL (
-            SELECT oph_i."statusRemessa", oph_i."motivoStatusRemessa"
+            SELECT oph_i.id AS "historicoId", oph_i."statusRemessa", oph_i."motivoStatusRemessa"
             FROM ordem_pagamento_agrupado_historico oph_i
             WHERE oph_i."ordemPagamentoAgrupadoId" = opa.id
             ORDER BY oph_i.id DESC
             LIMIT 1
         ) oph ON true
+        -- Data efetiva = dataEfetivacao do Detalhe A do histórico mais recente
+        LEFT JOIN detalhe_a da ON da."ordemPagamentoAgrupadoHistoricoId" = oph."historicoId"
     )
 SELECT
     r.data_referencia as data,
@@ -276,6 +279,7 @@ SELECT
     string_agg(DISTINCT r.opaId::text, ', ') as "opaIds",
     ROUND(SUM(r.valorTotalPagamento)::numeric, 2) as valor,
     max(r."opaDataPagamento") as "dataPagamento",
+    max(r."dataEfetivacao") as "dataEfetivaPagamento",
     max(rg."statusRemessaGratuidade") as "statusRemessaGratuidade",
     max(rg."motivoStatusRemessaGratuidade") as "motivoStatusRemessaGratuidade",
     max(rg."valorGratuidade") as "valorGratuidade"
@@ -295,6 +299,7 @@ ORDER BY r.data_referencia DESC;`;
       dto.data = row.data;
       dto.ordemPagamentoAgrupadoIds = row.opaIds;
       dto.dataPagamento = row.dataPagamento;
+      dto.dataEfetivaPagamento = row.dataEfetivaPagamento;
       dto.valorTotal = row.valor != null ? parseFloat(row.valor) : 0;
       if (row.motivoStatusRemessa != null) {
         dto.motivoStatusRemessa = row.motivoStatusRemessa;

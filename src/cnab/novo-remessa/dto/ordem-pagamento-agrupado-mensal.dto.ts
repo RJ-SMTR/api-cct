@@ -5,6 +5,8 @@ export class OrdemPagamentoAgrupadoMensalDto {
   valorTotal: number | undefined;
   statusRemessa: number | undefined;
   dataPagamento: Date;
+  /** dataEfetivacao do Detalhe A (retorno do banco) */
+  dataEfetivaPagamento: Date | null | undefined;
   motivoStatusRemessa: string | undefined;
   descricaoStatusRemessa: string | undefined;
   descricaoMotivoStatusRemessa: string | undefined;
