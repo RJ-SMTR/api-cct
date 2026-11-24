@@ -27,6 +27,12 @@ describe('AntifraudService', () => {
     valorTotal: 22122.5,
     primeiraCaptura: new Date('2026-11-21T10:00:00.000Z'),
     ultimaCaptura: new Date('2026-11-23T10:00:00.000Z'),
+    ordens: [
+      { id: 1069151, idOrdemPagamento: 'OP-A', dataOrdem: '2026-11-20', dataCaptura: '2026-11-21T10:00:00Z', valor: 4895 },
+      { id: 1070841, idOrdemPagamento: 'OP-B', dataOrdem: '2026-11-21', dataCaptura: '2026-11-21T10:00:00Z', valor: 5877.5 },
+      { id: 1072147, idOrdemPagamento: 'OP-C', dataOrdem: '2026-11-22', dataCaptura: '2026-11-22T10:00:00Z', valor: 5675 },
+      { id: 1073861, idOrdemPagamento: null, dataOrdem: '2026-11-23', dataCaptura: '2026-11-23T10:00:00Z', valor: 5675 },
+    ],
   };
 
   const mockEnabledSettings = () => {
@@ -169,6 +175,12 @@ describe('AntifraudService', () => {
         valor: expect.stringContaining('22.122,50'),
         primeiraCaptura: '21-11-2026',
         ultimaCaptura: '23-11-2026',
+        ordens: [
+          { id: 1069151, idOrdemPagamento: 'OP-A', dataOrdem: '20-11-2026', dataCaptura: '21-11-2026', valor: expect.stringContaining('4.895,00') },
+          { id: 1070841, idOrdemPagamento: 'OP-B', dataOrdem: '21-11-2026', dataCaptura: '21-11-2026', valor: expect.stringContaining('5.877,50') },
+          { id: 1072147, idOrdemPagamento: 'OP-C', dataOrdem: '22-11-2026', dataCaptura: '22-11-2026', valor: expect.stringContaining('5.675,00') },
+          { id: 1073861, idOrdemPagamento: '-', dataOrdem: '23-11-2026', dataCaptura: '23-11-2026', valor: expect.stringContaining('5.675,00') },
+        ],
       },
     ]);
     expect(settingsService.upsertBySettingData).toHaveBeenCalledWith(

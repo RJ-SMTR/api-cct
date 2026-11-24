@@ -267,6 +267,13 @@ export class MailService {
         valor: string;
         primeiraCaptura: string;
         ultimaCaptura: string;
+        ordens: Array<{
+          id: number;
+          idOrdemPagamento: string;
+          dataOrdem: string;
+          dataCaptura: string;
+          valor: string;
+        }>;
       }>;
     }>,
   ): Promise<MailSentInfo> {

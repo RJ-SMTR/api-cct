@@ -72,6 +72,29 @@
                             <td>{{primeiraCaptura}}</td>
                             <td>{{ultimaCaptura}}</td>
                         </tr>
+                        <tr>
+                            <td colspan="7" style="background:rgba(150,150,150,0.08);">
+                                <b style="font-size:13px;">Ordens de {{nomeOperadora}}:</b>
+                                <table style="border-collapse:collapse;margin-top:4px;font-size:13px;">
+                                    <tr>
+                                        <th style="padding:2px 10px 2px 0;">ID</th>
+                                        <th style="padding:2px 10px 2px 0;">ID Externo</th>
+                                        <th style="padding:2px 10px 2px 0;">Data da Ordem</th>
+                                        <th style="padding:2px 10px 2px 0;">Data de Captura</th>
+                                        <th style="padding:2px 10px 2px 0;">Valor</th>
+                                    </tr>
+                                    {{#each ordens}}
+                                    <tr>
+                                        <td style="padding:2px 10px 2px 0;border:0;">{{id}}</td>
+                                        <td style="padding:2px 10px 2px 0;border:0;">{{idOrdemPagamento}}</td>
+                                        <td style="padding:2px 10px 2px 0;border:0;">{{dataOrdem}}</td>
+                                        <td style="padding:2px 10px 2px 0;border:0;">{{dataCaptura}}</td>
+                                        <td style="padding:2px 10px 2px 0;border:0;">{{valor}}</td>
+                                    </tr>
+                                    {{/each}}
+                                </table>
+                            </td>
+                        </tr>
                         {{/each}}
                     </tbody>
                 </table>

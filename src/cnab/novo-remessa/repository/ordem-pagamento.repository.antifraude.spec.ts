@@ -41,21 +41,45 @@ describe('OrdemPagamentoRepository.findFavorecidosAcimaDoLimiteNoCiclo', () => {
     expect(sql).toContain(`UPPER(TRIM(COALESCE(op."nomeConsorcio", ''))) = ANY($2)`);
   });
 
-  it('maps numeric columns returned as strings by pg to numbers', async () => {
+  it('returns the orders of each favorecido (id, dates, value) in the same query, ordered by capture', async () => {
     const { repo, typeormRepo } = build();
+
+    await repo.findFavorecidosAcimaDoLimiteNoCiclo('2026-11-20', '2026-11-23', 15000, ['STPL']);
+
+    const sql = getSql(typeormRepo);
+    expect(sql).toMatch(/json_agg\( json_build_object\(.*'valor', op\.valor.*\) ORDER BY op\."dataCaptura" ASC, op\.id ASC \) AS "ordens"/);
+  });
+
+  it('maps numeric columns returned as strings by pg to numbers, including each order value', async () => {
+    const { repo, typeormRepo } = build();
+    const ordens = [
+      { id: 1069151, idOrdemPagamento: 'OP-1', dataOrdem: '2026-11-20', dataCaptura: '2026-11-21T10:00:00Z', valor: '4895.00000' },
+      { id: 1073861, idOrdemPagamento: null, dataOrdem: '2026-11-23', dataCaptura: '2026-11-23T10:00:00Z', valor: 5675 },
+    ];
     const row = {
       userId: 1426,
       nomeOperadora: 'Operadora Teste',
       nomeConsorcio: 'STPL',
-      quantidadeOrdens: '4',
-      valorTotal: '22122.50000',
+      quantidadeOrdens: '2',
+      valorTotal: '10570.00000',
       primeiraCaptura: new Date('2026-11-21T10:00:00.000Z'),
       ultimaCaptura: new Date('2026-11-23T10:00:00.000Z'),
+      ordens,
     };
     typeormRepo.query.mockResolvedValue([row]);
 
     const result = await repo.findFavorecidosAcimaDoLimiteNoCiclo('2026-11-20', '2026-11-23', 15000, ['STPL']);
 
-    expect(result).toEqual([{ ...row, valorTotal: 22122.5, quantidadeOrdens: 4 }]);
+    expect(result).toEqual([
+      {
+        ...row,
+        valorTotal: 10570,
+        quantidadeOrdens: 2,
+        ordens: [
+          { ...ordens[0], valor: 4895 },
+          { ...ordens[1], valor: 5675 },
+        ],
+      },
+    ]);
   });
 });

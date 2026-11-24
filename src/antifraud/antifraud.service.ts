@@ -203,6 +203,13 @@ export class AntifraudService {
         valor: currencyFormatter.format(order.valorTotal),
         primeiraCaptura: this.formatDate(order.primeiraCaptura),
         ultimaCaptura: this.formatDate(order.ultimaCaptura),
+        ordens: order.ordens.map((ordem) => ({
+          id: ordem.id,
+          idOrdemPagamento: ordem.idOrdemPagamento ?? '-',
+          dataOrdem: this.formatDate(ordem.dataOrdem),
+          dataCaptura: this.formatDate(ordem.dataCaptura),
+          valor: currencyFormatter.format(ordem.valor),
+        })),
       })),
     };
   }

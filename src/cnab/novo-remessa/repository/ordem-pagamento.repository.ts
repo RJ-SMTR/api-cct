@@ -34,6 +34,17 @@ export interface FavorecidoAcimaDoLimite {
   valorTotal: number;
   primeiraCaptura: Date;
   ultimaCaptura: Date;
+  ordens: OrdemDoFavorecidoNoCiclo[];
+}
+
+export interface OrdemDoFavorecidoNoCiclo {
+  id: number;
+  idOrdemPagamento: string | null;
+  /** YYYY-MM-DD */
+  dataOrdem: string;
+  /** ISO timestamp, UTC */
+  dataCaptura: string;
+  valor: number;
 }
 
 @Injectable()
@@ -694,7 +705,16 @@ ORDER BY r.data_referencia DESC;`;
         count(*) AS "quantidadeOrdens",
         SUM(op.valor) AS "valorTotal",
         MIN(op."dataCaptura") AS "primeiraCaptura",
-        MAX(op."dataCaptura") AS "ultimaCaptura"
+        MAX(op."dataCaptura") AS "ultimaCaptura",
+        json_agg(
+          json_build_object(
+            'id', op.id,
+            'idOrdemPagamento', op."idOrdemPagamento",
+            'dataOrdem', to_char(op."dataOrdem", 'YYYY-MM-DD'),
+            'dataCaptura', to_char(op."dataCaptura", 'YYYY-MM-DD"T"HH24:MI:SS"Z"'),
+            'valor', op.valor
+          ) ORDER BY op."dataCaptura" ASC, op.id ASC
+        ) AS "ordens"
       FROM ordem_pagamento op
       WHERE op."dataCaptura"::date BETWEEN $3::date AND $4::date
         AND op."userId" IS NOT NULL
@@ -715,6 +735,10 @@ ORDER BY r.data_referencia DESC;`;
       ...row,
       valorTotal: row.valorTotal ? parseFloat(String(row.valorTotal)) : 0,
       quantidadeOrdens: Number(row.quantidadeOrdens),
+      ordens: (row.ordens ?? []).map((ordem) => ({
+        ...ordem,
+        valor: ordem.valor ? parseFloat(String(ordem.valor)) : 0,
+      })),
     }));
   }
 
