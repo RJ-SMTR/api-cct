@@ -1,12 +1,10 @@
 import {
   Body,
   Controller,
-  DefaultValuePipe,
   Get,
   HttpCode,
   HttpStatus,
   Param,
-  ParseIntPipe,
   Patch,
   Post,
   Query,
@@ -30,11 +28,13 @@ import { InviteStatusNamesEnum } from 'src/mail-history-statuses/mail-history-st
 import { Role } from 'src/roles/entities/role.entity';
 import { RoleEnum } from 'src/roles/roles.enum';
 import { FileTypeValidationPipe } from 'src/utils/file-type/pipes/file-type-validation.pipe';
-import { infinityPagination } from 'src/utils/infinity-pagination';
 import { IRequest } from 'src/utils/interfaces/request.interface';
 import { EnumValidationPipe } from 'src/utils/pipes/enum-validation.pipe';
-import { PaginationOptions } from 'src/utils/types/pagination-options';
-import { InfinityPaginationResultType } from '../utils/types/infinity-pagination-result.type';
+import {
+  InfinityPaginationWithTotalResultType,
+  infinityPaginationWithTotal,
+  parseOptionalPagination,
+} from 'src/utils/optional-pagination';
 import { Nullable } from '../utils/types/nullable.type';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -67,11 +67,17 @@ export class UsersController {
   })
   @Get()
   @HttpCode(HttpStatus.OK)
-  @ApiQuery({ name: 'page', required: false, description: '_Default_ : 1' })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    description:
+      'Without page and limit the whole filtered list is returned. _Default_ when limit is given: 1',
+  })
   @ApiQuery({
     name: 'limit',
     required: false,
-    description: '_Default_ : 500 (max)',
+    description:
+      'Without page and limit the whole filtered list is returned. _Default_ when page is given: 500 (max)',
   })
   @ApiQuery({
     name: 'anyField',
@@ -98,8 +104,8 @@ export class UsersController {
     enum: InviteStatusNamesEnum,
   })
   async get(
-    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
-    @Query('limit', new DefaultValuePipe(500), ParseIntPipe) limit: number,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
     @Query('anyField') anyField?: string,
     @Query('permitCode') permitCode?: string,
     @Query('name') name?: string,
@@ -109,11 +115,9 @@ export class UsersController {
       new EnumValidationPipe(InviteStatusNamesEnum, 'value'),
     )
     inviteStatusName?: InviteStatusNamesEnum,
-  ): Promise<InfinityPaginationResultType<User>> {
-    if (limit > 500) {
-      limit = 500;
-    }
-    const pagination: PaginationOptions = { page, limit };
+  ): Promise<InfinityPaginationWithTotalResultType<User>> {
+    // No page/limit = whole list: the admin home and the report filters still expect it (#1199).
+    const pagination = parseOptionalPagination(page, limit);
     const fields: IFindUserPaginated = {
       _anyField: {
         value: anyField,
@@ -125,10 +129,11 @@ export class UsersController {
       inviteStatusName,
       role: new Role(RoleEnum.user),
     };
-    return infinityPagination(
-      await this.usersService.findManyWithPagination(pagination, fields),
+    const { users, total } = await this.usersService.findManyWithPagination(
       pagination,
+      fields,
     );
+    return infinityPaginationWithTotal(users, total, pagination);
   }
 
   @SerializeOptions({
