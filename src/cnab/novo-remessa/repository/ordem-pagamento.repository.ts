@@ -26,15 +26,25 @@ export interface OrdemPagamentoListFilters {
   nomeOperadora?: string;
 }
 
-export interface SuspiciousOrdemPagamento {
+export interface FavorecidoAcimaDoLimite {
+  userId: number;
+  nomeOperadora: string | null;
+  nomeConsorcio: string | null;
+  quantidadeOrdens: number;
+  valorTotal: number;
+  primeiraCaptura: Date;
+  ultimaCaptura: Date;
+  ordens: OrdemDoFavorecidoNoCiclo[];
+}
+
+export interface OrdemDoFavorecidoNoCiclo {
   id: number;
   idOrdemPagamento: string | null;
-  nomeConsorcio: string | null;
-  nomeOperadora: string | null;
+  /** YYYY-MM-DD */
+  dataOrdem: string;
+  /** ISO timestamp, UTC */
+  dataCaptura: string;
   valor: number;
-  dataOrdem: Date;
-  dataCaptura: Date | null;
-  createdAt: Date;
 }
 
 @Injectable()
@@ -691,43 +701,64 @@ ORDER BY r.data_referencia DESC;`;
     return Promise.resolve(undefined);
   }
 
-  async findSuspiciousOrdersCreatedBetween(
-    startDateExclusive: Date,
-    endDateInclusive: Date,
+  /**
+   * Antifraud alert (issue #1353): favorecidos whose orders captured in the
+   * payment cycle add up to more than `minimumValue`.
+   *
+   * Grouped and not-yet-grouped orders both count, so the alert does not depend
+   * on the grouping having run. Only the normal value (`valor`) is summed.
+   * Uses the index on `"dataCaptura"::date`.
+   */
+  async findFavorecidosAcimaDoLimiteNoCiclo(
+    dataInicio: string,
+    dataFim: string,
     minimumValue: number,
     consorcios: string[],
-  ): Promise<SuspiciousOrdemPagamento[]> {
+  ): Promise<FavorecidoAcimaDoLimite[]> {
     const query = `
       SELECT
-        op.id,
-        op."idOrdemPagamento",
-        op."nomeConsorcio",
-        op."nomeOperadora",
-        op.valor,
-        op."dataOrdem",
-        op."dataCaptura",
-        op."createdAt"
+        op."userId",
+        string_agg(DISTINCT op."nomeOperadora", ', ') AS "nomeOperadora",
+        string_agg(DISTINCT op."nomeConsorcio", ', ') AS "nomeConsorcio",
+        count(*) AS "quantidadeOrdens",
+        SUM(op.valor) AS "valorTotal",
+        MIN(op."dataCaptura") AS "primeiraCaptura",
+        MAX(op."dataCaptura") AS "ultimaCaptura",
+        json_agg(
+          json_build_object(
+            'id', op.id,
+            'idOrdemPagamento', op."idOrdemPagamento",
+            'dataOrdem', to_char(op."dataOrdem", 'YYYY-MM-DD'),
+            'dataCaptura', to_char(op."dataCaptura", 'YYYY-MM-DD"T"HH24:MI:SS"Z"'),
+            'valor', op.valor
+          ) ORDER BY op."dataCaptura" ASC, op.id ASC
+        ) AS "ordens"
       FROM ordem_pagamento op
-      WHERE op.valor > $1
+      WHERE op."dataCaptura"::date BETWEEN $3::date AND $4::date
+        AND op."userId" IS NOT NULL
         AND UPPER(TRIM(COALESCE(op."nomeConsorcio", ''))) = ANY($2)
-        AND op."createdAt" > $3
-        AND op."createdAt" <= $4
-      ORDER BY op."createdAt" ASC, op.id ASC
+      GROUP BY op."userId"
+      HAVING SUM(op.valor) > $1
+      ORDER BY SUM(op.valor) DESC, op."userId" ASC
     `;
 
     const result = await this.ordemPagamentoRepository.query(query, [
       minimumValue,
       consorcios.map((consorcio) => consorcio.trim().toUpperCase()),
-      startDateExclusive,
-      endDateInclusive,
+      dataInicio,
+      dataFim,
     ]);
 
-    return result.map((row: SuspiciousOrdemPagamento) => ({
+    return result.map((row: FavorecidoAcimaDoLimite) => ({
       ...row,
-      valor: row.valor ? parseFloat(String(row.valor)) : 0,
+      valorTotal: row.valorTotal ? parseFloat(String(row.valorTotal)) : 0,
+      quantidadeOrdens: Number(row.quantidadeOrdens),
+      ordens: (row.ordens ?? []).map((ordem) => ({
+        ...ordem,
+        valor: ordem.valor ? parseFloat(String(ordem.valor)) : 0,
+      })),
     }));
   }
-
 
   public async findOrdensPagamentosPendentes(dataInicio: Date, dataFim: Date, nomes: string[]): Promise<OrdemPagamentoPendenteDto[]> {
     const dataIniForm = formatDateISODate(dataInicio)

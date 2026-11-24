@@ -254,19 +254,26 @@ export class MailService {
       generatedAtDate: string;
       generatedAtTime: string;
       threshold: string;
+      cicloInicio: string;
+      cicloFim: string;
+      dataPagamento: string;
       totalOrders: number;
       totalValue: string;
       orders: Array<{
-        id: number;
-        idOrdemPagamento: string | null;
-        nomeConsorcio: string | null;
+        userId: number;
         nomeOperadora: string | null;
+        nomeConsorcio: string | null;
+        quantidadeOrdens: number;
         valor: string;
-        dataOrdem: string;
-        dataCapturaDate: string;
-        dataCapturaTime: string | null;
-        createdAtDate: string;
-        createdAtTime: string;
+        primeiraCaptura: string;
+        ultimaCaptura: string;
+        ordens: Array<{
+          id: number;
+          idOrdemPagamento: string;
+          dataOrdem: string;
+          dataCaptura: string;
+          valor: string;
+        }>;
       }>;
     }>,
   ): Promise<MailSentInfo> {
@@ -299,6 +306,9 @@ export class MailService {
           generatedAtDate: mailData.data.generatedAtDate,
           generatedAtTime: mailData.data.generatedAtTime,
           threshold: mailData.data.threshold,
+          cicloInicio: mailData.data.cicloInicio,
+          cicloFim: mailData.data.cicloFim,
+          dataPagamento: mailData.data.dataPagamento,
           totalOrders: mailData.data.totalOrders,
           totalValue: mailData.data.totalValue,
           orders: mailData.data.orders,

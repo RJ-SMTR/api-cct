@@ -2,8 +2,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { AntifraudService } from './antifraud.service';
 import {
+  FavorecidoAcimaDoLimite,
   OrdemPagamentoRepository,
-  SuspiciousOrdemPagamento,
 } from 'src/cnab/novo-remessa/repository/ordem-pagamento.repository';
 import { MailService } from 'src/mail/mail.service';
 import { SettingsService } from 'src/settings/settings.service';
@@ -16,14 +16,58 @@ describe('AntifraudService', () => {
   let settingsService: SettingsService;
   let configService: ConfigService;
 
+  // Monday 23:00 UTC: the alert closes the Friday–Monday cycle paid on Tuesday.
+  const MONDAY_ALERT = new Date('2026-11-23T23:00:00.000Z');
+
+  const favorecido: FavorecidoAcimaDoLimite = {
+    userId: 1426,
+    nomeOperadora: 'Operadora Teste',
+    nomeConsorcio: 'STPL',
+    quantidadeOrdens: 4,
+    valorTotal: 22122.5,
+    primeiraCaptura: new Date('2026-11-21T10:00:00.000Z'),
+    ultimaCaptura: new Date('2026-11-23T10:00:00.000Z'),
+    ordens: [
+      { id: 1069151, idOrdemPagamento: 'OP-A', dataOrdem: '2026-11-20', dataCaptura: '2026-11-21T10:00:00Z', valor: 4895 },
+      { id: 1070841, idOrdemPagamento: 'OP-B', dataOrdem: '2026-11-21', dataCaptura: '2026-11-21T10:00:00Z', valor: 5877.5 },
+      { id: 1072147, idOrdemPagamento: 'OP-C', dataOrdem: '2026-11-22', dataCaptura: '2026-11-22T10:00:00Z', valor: 5675 },
+      { id: 1073861, idOrdemPagamento: null, dataOrdem: '2026-11-23', dataCaptura: '2026-11-23T10:00:00Z', valor: 5675 },
+    ],
+  };
+
+  const mockEnabledSettings = () => {
+    jest
+      .spyOn(settingsService, 'getOneBySettingData')
+      .mockImplementation((setting) => {
+        if (setting.name === appSettings.any__mail_admin_fraud_enabled.name) {
+          return Promise.resolve({
+            value: 'true',
+            getValueAsBoolean: () => true,
+          } as any);
+        }
+        if (setting.name === appSettings.any__mail_admin_fraud_threshold.name) {
+          return Promise.resolve({ value: '15000' } as any);
+        }
+        return Promise.reject(new Error(`Unexpected setting ${setting.name}`));
+      });
+  };
+
+  const mockRecipients = (email = 'matthew.araujo@prefeitura.rio') => {
+    jest
+      .spyOn(settingsService, 'findManyBySettingDataGroup')
+      .mockResolvedValue([{ getValueAsString: () => email } as any]);
+  };
+
   beforeEach(async () => {
+    jest.useFakeTimers({ now: MONDAY_ALERT, doNotFake: ['nextTick', 'setImmediate'] });
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AntifraudService,
         {
           provide: OrdemPagamentoRepository,
           useValue: {
-            findSuspiciousOrdersCreatedBetween: jest.fn(),
+            findFavorecidosAcimaDoLimiteNoCiclo: jest.fn(),
           },
         },
         {
@@ -58,135 +102,104 @@ describe('AntifraudService', () => {
     }).compile();
 
     service = module.get<AntifraudService>(AntifraudService);
-    ordemPagamentoRepository = module.get<OrdemPagamentoRepository>(
-      OrdemPagamentoRepository,
-    );
+    ordemPagamentoRepository = module.get<OrdemPagamentoRepository>(OrdemPagamentoRepository);
     mailService = module.get<MailService>(MailService);
     settingsService = module.get<SettingsService>(SettingsService);
     configService = module.get<ConfigService>(ConfigService);
   });
 
-  it('sends the antifraud email when suspicious orders are found', async () => {
-    jest
-      .spyOn(settingsService, 'getOneBySettingData')
-      .mockImplementation(async (setting) => {
-        if (setting.name === appSettings.any__mail_admin_fraud_enabled.name) {
-          return {
-            value: 'true',
-            getValueAsBoolean: () => true,
-          } as any;
-        }
-        if (setting.name === appSettings.any__mail_admin_fraud_threshold.name) {
-          return { value: '15000' } as any;
-        }
-        if (
-          setting.name ===
-          appSettings.any__mail_admin_fraud_last_execution.name
-        ) {
-          return { value: '2025-01-01T00:00:00.000Z' } as any;
-        }
-        throw new Error(`Unexpected setting ${setting.name}`);
-      });
-    jest
-      .spyOn(settingsService, 'findManyBySettingDataGroup')
-      .mockResolvedValue([
-        {
-          getValueAsString: () => 'matthew.araujo@prefeitura.rio',
-        } as any,
-      ]);
+  afterEach(() => {
+    jest.useRealTimers();
+  });
 
-    const suspiciousOrders: SuspiciousOrdemPagamento[] = [
-      {
-        id: 1,
-        idOrdemPagamento: 'OP-1',
-        nomeConsorcio: 'STPC',
-        nomeOperadora: 'Operadora Teste',
-        valor: 20000,
-        dataOrdem: new Date('2025-01-05'),
-        dataCaptura: new Date('2025-01-05T10:00:00.000Z'),
-        createdAt: new Date('2025-01-06T12:00:00.000Z'),
-      },
-    ];
+  it('looks up the favorecidos of the current payment cycle (Friday–Monday on a Monday run)', async () => {
+    mockEnabledSettings();
+    mockRecipients();
+    jest.spyOn(ordemPagamentoRepository, 'findFavorecidosAcimaDoLimiteNoCiclo').mockResolvedValue([]);
 
-    jest
-      .spyOn(ordemPagamentoRepository, 'findSuspiciousOrdersCreatedBetween')
-      .mockResolvedValue(suspiciousOrders);
+    await service.runAdminFraudAlertJob();
+
+    expect(ordemPagamentoRepository.findFavorecidosAcimaDoLimiteNoCiclo).toHaveBeenCalledWith(
+      '2026-11-20',
+      '2026-11-23',
+      15000,
+      ['STPC', 'STPL', 'TEC'],
+    );
+  });
+
+  it('uses the Tuesday–Thursday cycle on a Thursday run', async () => {
+    jest.setSystemTime(new Date('2026-11-26T23:00:00.000Z'));
+    mockEnabledSettings();
+    mockRecipients();
+    jest.spyOn(ordemPagamentoRepository, 'findFavorecidosAcimaDoLimiteNoCiclo').mockResolvedValue([]);
+
+    await service.runAdminFraudAlertJob();
+
+    expect(ordemPagamentoRepository.findFavorecidosAcimaDoLimiteNoCiclo).toHaveBeenCalledWith(
+      '2026-11-24',
+      '2026-11-26',
+      15000,
+      ['STPC', 'STPL', 'TEC'],
+    );
+  });
+
+  it('sends one row per favorecido whose cycle total is above the threshold', async () => {
+    mockEnabledSettings();
+    mockRecipients();
+    jest.spyOn(ordemPagamentoRepository, 'findFavorecidosAcimaDoLimiteNoCiclo').mockResolvedValue([favorecido]);
     jest.spyOn(mailService, 'sendAdminFraudAlert').mockResolvedValue({
       success: true,
-      response: {
-        code: 250,
-        message: 'ok',
-      },
+      response: { code: 250, message: 'ok' },
     } as any);
 
     await service.runAdminFraudAlertJob();
 
-    expect(
-      ordemPagamentoRepository.findSuspiciousOrdersCreatedBetween,
-    ).toHaveBeenCalled();
     expect(mailService.sendAdminFraudAlert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        to: ['matthew.araujo@prefeitura.rio'],
-      }),
+      expect.objectContaining({ to: ['matthew.araujo@prefeitura.rio'] }),
     );
-    const [{ data: mailPayload }] = jest.mocked(mailService.sendAdminFraudAlert)
-      .mock.calls[0];
-    expect(mailPayload.generatedAtDate).toMatch(/^\d{2}-\d{2}-\d{4}$/);
-    expect(mailPayload.generatedAtTime).toMatch(/^\d{2}:\d{2}:\d{2}$/);
+    const [{ data: mailPayload }] = jest.mocked(mailService.sendAdminFraudAlert).mock.calls[0];
+    expect(mailPayload.generatedAtDate).toBe('23-11-2026');
+    expect(mailPayload.generatedAtTime).toBe('23:00:00');
     expect(mailPayload.threshold).toContain('15.000,00');
+    expect(mailPayload.cicloInicio).toBe('20-11-2026');
+    expect(mailPayload.cicloFim).toBe('23-11-2026');
+    expect(mailPayload.dataPagamento).toBe('24-11-2026');
+    expect(mailPayload.totalOrders).toBe(1);
+    expect(mailPayload.totalValue).toContain('22.122,50');
     expect(mailPayload.orders).toEqual([
-      expect.objectContaining({
-        dataOrdem: '05-01-2025',
-        dataCapturaDate: '05-01-2025',
-        dataCapturaTime: '10:00:00',
-        createdAtDate: '06-01-2025',
-        createdAtTime: '12:00:00',
-      }),
+      {
+        userId: 1426,
+        nomeOperadora: 'Operadora Teste',
+        nomeConsorcio: 'STPL',
+        quantidadeOrdens: 4,
+        valor: expect.stringContaining('22.122,50'),
+        primeiraCaptura: '21-11-2026',
+        ultimaCaptura: '23-11-2026',
+        ordens: [
+          { id: 1069151, idOrdemPagamento: 'OP-A', dataOrdem: '20-11-2026', dataCaptura: '21-11-2026', valor: expect.stringContaining('4.895,00') },
+          { id: 1070841, idOrdemPagamento: 'OP-B', dataOrdem: '21-11-2026', dataCaptura: '21-11-2026', valor: expect.stringContaining('5.877,50') },
+          { id: 1072147, idOrdemPagamento: 'OP-C', dataOrdem: '22-11-2026', dataCaptura: '22-11-2026', valor: expect.stringContaining('5.675,00') },
+          { id: 1073861, idOrdemPagamento: '-', dataOrdem: '23-11-2026', dataCaptura: '23-11-2026', valor: expect.stringContaining('5.675,00') },
+        ],
+      },
     ]);
     expect(settingsService.upsertBySettingData).toHaveBeenCalledWith(
       appSettings.any__mail_admin_fraud_last_execution,
-      expect.any(String),
+      MONDAY_ALERT.toISOString(),
     );
   });
 
-  it('updates the checkpoint without sending email when no suspicious orders are found', async () => {
-    jest
-      .spyOn(settingsService, 'getOneBySettingData')
-      .mockImplementation(async (setting) => {
-        if (setting.name === appSettings.any__mail_admin_fraud_enabled.name) {
-          return {
-            value: 'true',
-            getValueAsBoolean: () => true,
-          } as any;
-        }
-        if (setting.name === appSettings.any__mail_admin_fraud_threshold.name) {
-          return { value: '15000' } as any;
-        }
-        if (
-          setting.name ===
-          appSettings.any__mail_admin_fraud_last_execution.name
-        ) {
-          return { value: '2025-01-01T00:00:00.000Z' } as any;
-        }
-        throw new Error(`Unexpected setting ${setting.name}`);
-      });
-    jest
-      .spyOn(settingsService, 'findManyBySettingDataGroup')
-      .mockResolvedValue([
-        {
-          getValueAsString: () => 'matthew.araujo@prefeitura.rio',
-        } as any,
-      ]);
-    jest
-      .spyOn(ordemPagamentoRepository, 'findSuspiciousOrdersCreatedBetween')
-      .mockResolvedValue([]);
+  it('records the execution without sending email when no favorecido is above the threshold', async () => {
+    mockEnabledSettings();
+    mockRecipients();
+    jest.spyOn(ordemPagamentoRepository, 'findFavorecidosAcimaDoLimiteNoCiclo').mockResolvedValue([]);
 
     await service.runAdminFraudAlertJob();
 
     expect(mailService.sendAdminFraudAlert).not.toHaveBeenCalled();
     expect(settingsService.upsertBySettingData).toHaveBeenCalledWith(
       appSettings.any__mail_admin_fraud_last_execution,
-      expect.any(String),
+      MONDAY_ALERT.toISOString(),
     );
   });
 
@@ -200,113 +213,38 @@ describe('AntifraudService', () => {
       }
       return undefined;
     });
-
-    jest
-      .spyOn(settingsService, 'getOneBySettingData')
-      .mockImplementation(async (setting) => {
-        if (setting.name === appSettings.any__mail_admin_fraud_enabled.name) {
-          return {
-            value: 'true',
-            getValueAsBoolean: () => true,
-          } as any;
-        }
-        if (setting.name === appSettings.any__mail_admin_fraud_threshold.name) {
-          return { value: '15000' } as any;
-        }
-        if (
-          setting.name ===
-          appSettings.any__mail_admin_fraud_last_execution.name
-        ) {
-          return { value: '2025-01-01T00:00:00.000Z' } as any;
-        }
-        throw new Error(`Unexpected setting ${setting.name}`);
-      });
-    jest
-      .spyOn(settingsService, 'findManyBySettingDataGroup')
-      .mockResolvedValue([
-        {
-          getValueAsString: () => 'matthew.araujo@prefeitura.rio',
-        } as any,
-      ]);
-    jest
-      .spyOn(ordemPagamentoRepository, 'findSuspiciousOrdersCreatedBetween')
-      .mockResolvedValue([
-        {
-          id: 1,
-          idOrdemPagamento: 'OP-1',
-          nomeConsorcio: 'STPC',
-          nomeOperadora: 'Operadora Teste',
-          valor: 20000,
-          dataOrdem: new Date('2025-01-05'),
-          dataCaptura: new Date('2025-01-05T10:00:00.000Z'),
-          createdAt: new Date('2025-01-06T12:00:00.000Z'),
-        },
-      ] as SuspiciousOrdemPagamento[]);
-
+    mockEnabledSettings();
+    mockRecipients();
+    jest.spyOn(ordemPagamentoRepository, 'findFavorecidosAcimaDoLimiteNoCiclo').mockResolvedValue([favorecido]);
     const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
 
     await service.runAdminFraudAlertJob();
 
     expect(mailService.sendAdminFraudAlert).not.toHaveBeenCalled();
-    expect(settingsService.upsertBySettingData).not.toHaveBeenCalledWith(
-      appSettings.any__mail_admin_fraud_last_execution,
-      expect.any(String),
-    );
+    expect(settingsService.upsertBySettingData).not.toHaveBeenCalled();
     expect(consoleLogSpy).toHaveBeenCalled();
 
     consoleLogSpy.mockRestore();
   });
 
   it('skips the job when antifraud recipients are missing from the database', async () => {
-    jest
-      .spyOn(settingsService, 'getOneBySettingData')
-      .mockImplementation(async (setting) => {
-        if (setting.name === appSettings.any__mail_admin_fraud_enabled.name) {
-          return {
-            value: 'true',
-            getValueAsBoolean: () => true,
-          } as any;
-        }
-        throw new Error(`Unexpected setting ${setting.name}`);
-      });
-    jest
-      .spyOn(settingsService, 'findManyBySettingDataGroup')
-      .mockResolvedValue([]);
+    mockEnabledSettings();
+    jest.spyOn(settingsService, 'findManyBySettingDataGroup').mockResolvedValue([]);
 
     await service.runAdminFraudAlertJob();
 
-    expect(
-      ordemPagamentoRepository.findSuspiciousOrdersCreatedBetween,
-    ).not.toHaveBeenCalled();
+    expect(ordemPagamentoRepository.findFavorecidosAcimaDoLimiteNoCiclo).not.toHaveBeenCalled();
     expect(mailService.sendAdminFraudAlert).not.toHaveBeenCalled();
     expect(settingsService.upsertBySettingData).not.toHaveBeenCalled();
   });
 
   it('skips the job when antifraud recipients still use the legacy placeholder', async () => {
-    jest
-      .spyOn(settingsService, 'getOneBySettingData')
-      .mockImplementation(async (setting) => {
-        if (setting.name === appSettings.any__mail_admin_fraud_enabled.name) {
-          return {
-            value: 'true',
-            getValueAsBoolean: () => true,
-          } as any;
-        }
-        throw new Error(`Unexpected setting ${setting.name}`);
-      });
-    jest
-      .spyOn(settingsService, 'findManyBySettingDataGroup')
-      .mockResolvedValue([
-        {
-          getValueAsString: () => 'admin_fraud@example.com',
-        } as any,
-      ]);
+    mockEnabledSettings();
+    mockRecipients('admin_fraud@example.com');
 
     await service.runAdminFraudAlertJob();
 
-    expect(
-      ordemPagamentoRepository.findSuspiciousOrdersCreatedBetween,
-    ).not.toHaveBeenCalled();
+    expect(ordemPagamentoRepository.findFavorecidosAcimaDoLimiteNoCiclo).not.toHaveBeenCalled();
     expect(mailService.sendAdminFraudAlert).not.toHaveBeenCalled();
     expect(settingsService.upsertBySettingData).not.toHaveBeenCalled();
   });
