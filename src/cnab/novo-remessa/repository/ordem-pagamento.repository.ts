@@ -464,11 +464,22 @@ ORDER BY r.data_referencia DESC;`;
            MAX(ROUND(o.valor, 2)) as valor,
             date_trunc('day', o."dataCaptura") "dataCaptura",
            o."dataOrdem",
-           MAX(g."valorGratuidade") as "valorGratuidade"
+           MAX(g."valorGratuidade") as "valorGratuidade",
+           MAX(ef."dataEfetivaPagamento") as "dataEfetivaPagamento"
     FROM ordem_pagamento o
     INNER JOIN ordem_pagamento_agrupado opa
     ON o."ordemPagamentoAgrupadoId" = opa.id
     LEFT JOIN gratuidade_por_dia g ON g."dataCaptura" = date_trunc('day', o."dataCaptura")
+    -- Data efetiva = Detalhe A do histórico mais recente, só quando paga (3) ou pendência paga (5)
+    LEFT JOIN LATERAL (
+      SELECT COALESCE(da."dataEfetivacao", da."dataVencimento") AS "dataEfetivaPagamento"
+      FROM ordem_pagamento_agrupado_historico h
+      INNER JOIN detalhe_a da ON da."ordemPagamentoAgrupadoHistoricoId" = h.id
+      WHERE h."ordemPagamentoAgrupadoId" = opa.id
+        AND h."statusRemessa" IN (3, 5)
+      ORDER BY h.id DESC
+      LIMIT 1
+    ) ef ON true
     WHERE 1 = 1
       AND opa.id = ANY(string_to_array($1, ',')::int[])
       AND o."dataCaptura" IS NOT NULL
@@ -486,6 +497,7 @@ ORDER BY r.data_referencia DESC;`;
       ordemPagamento.dataCaptura = row.dataCaptura;
       ordemPagamento.valor = row.valor ? parseFloat(row.valor) : 0;
       ordemPagamento.valorGratuidade = row.valorGratuidade != null ? parseFloat(row.valorGratuidade) : undefined;
+      ordemPagamento.dataEfetivaPagamento = row.dataEfetivaPagamento ?? undefined;
       return ordemPagamento;
     });
 
@@ -497,6 +509,7 @@ ORDER BY r.data_referencia DESC;`;
       );
       if (existing) {
         existing.valor += row.valor;
+        existing.dataEfetivaPagamento ??= row.dataEfetivaPagamento;
         if (!existing.ids) {
           existing.ids = [];
         }
