@@ -131,7 +131,7 @@ Beneficiário do fluxo de pagamento próprio "guardador": ordens em `ordem-pagam
 Usuário sincronizado do BigQuery pelo módulo `agentes` (`syncWeeklyAgentUsers`, papel `RoleEnum.agentes`). O significado de negócio não está no código _(a confirmar)_.
 
 **Antifraude**:
-Módulo `antifraud`, que gera o alerta enviado aos administradores (`sendAdminFraudAlert`). _(a confirmar)_
+Módulo `antifraud`, que gera o alerta enviado aos administradores (`sendAdminFraudAlert`, cron na setting `mail_admin_fraud_cronjob`). Desde a issue #1353 (2026-11-24) o alerta é **por favorecido no ciclo de pagamento**: soma de `ordem_pagamento.valor` de STPC/STPL/TEC por `userId`, com `"dataCaptura"::date` dentro do ciclo que contém a execução, comparada com `mail_admin_fraud_threshold` (15000). O ciclo segue o `calcularPeriodoPagamento` (sexta a segunda paga terça, terça a quinta paga sexta; `src/antifraud/ciclo-pagamento.ts`). Entram ordens agrupadas e não agrupadas, porque o agrupamento automático dos modais pode não ter rodado antes do pagamento (em 24/11/2026 havia 5.593 ordens de 21 a 23/11 sem OPA). Pendências de ciclos anteriores e gratuidade ficam de fora. Com o cron de seg e qui às 23h UTC, cada execução fecha um ciclo antes do pagamento; se o cron rodar mais vezes, o mesmo favorecido é alertado de novo no mesmo ciclo. `mail_admin_fraud_last_execution` só registra a última execução.
 
 **Convite**:
 Email enviado ao usuário para concluir o cadastro; estados `queued`, `sent`, `used` (`InviteStatusEnum`).

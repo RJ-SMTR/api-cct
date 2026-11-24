@@ -41,41 +41,36 @@
                     <b>Limite até:</b><br>
                     <span>{{threshold}}</span>
                 </p>
+                <p>
+                    <b>Ciclo de captura:</b><br>
+                    <span>{{cicloInicio}} a {{cicloFim}}</span>
+                    <span style="display:block;color:#707070;font-size:14px;">Pagamento previsto: {{dataPagamento}}</span>
+                </p>
                 <p><b>Fraude(s) Encontrada(s):</b> {{totalOrders}}</p>
                 <p><b>Valor total:</b> {{totalValue}}</p>
 
                 <table id="tableStyle">
                     <thead style="text-align: left;">
                         <tr>
-                            <th>ID</th>
-                            <th>ID Externo</th>
-                            <th>Consórcio</th>
+                            <th>ID Usuário</th>
                             <th>Operadora</th>
-                            <th>Valor</th>
-                            <th>Data da Ordem</th>
-                            <th>Data de Captura</th>
-                            <th>Criado em</th>
+                            <th>Consórcio</th>
+                            <th>Qtd. Ordens</th>
+                            <th>Valor Total no Ciclo</th>
+                            <th>Primeira Captura</th>
+                            <th>Última Captura</th>
                         </tr>
                     </thead>
                     <tbody>
                         {{#each orders}}
                         <tr>
-                            <td>{{id}}</td>
-                            <td>{{idOrdemPagamento}}</td>
-                            <td>{{nomeConsorcio}}</td>
+                            <td>{{userId}}</td>
                             <td>{{nomeOperadora}}</td>
+                            <td>{{nomeConsorcio}}</td>
+                            <td>{{quantidadeOrdens}}</td>
                             <td>{{valor}}</td>
-                            <td>{{dataOrdem}}</td>
-                            <td>
-                                <span>{{dataCapturaDate}}</span>
-                                {{#if dataCapturaTime}}
-                                <span style="display:block;color:#707070;font-size:13px;">{{dataCapturaTime}}</span>
-                                {{/if}}
-                            </td>
-                            <td>
-                                <span>{{createdAtDate}}</span>
-                                <span style="display:block;color:#707070;font-size:13px;">{{createdAtTime}}</span>
-                            </td>
+                            <td>{{primeiraCaptura}}</td>
+                            <td>{{ultimaCaptura}}</td>
                         </tr>
                         {{/each}}
                     </tbody>
