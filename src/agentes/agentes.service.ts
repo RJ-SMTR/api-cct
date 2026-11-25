@@ -131,6 +131,7 @@ export class AgentesService {
         : (null as any);
       (dto as any).dataTentativaPagamento = row.data ?? null;
       (dto as any).dataEfetivaPagamento = row.dataEfetivaPagamento ?? null;
+      (dto as any).dataRemanejada = row.dataRemanejada ?? null;
       dto.dadosBancariosFaltando = dadosBancariosFaltando;
       return dto;
     });
