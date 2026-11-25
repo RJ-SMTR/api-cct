@@ -64,27 +64,37 @@ describe('RetornoService', () => {
   const atualizar = (lote: any, registro: any, detalheA: any) =>
     (service as any).atualizarStatusRemessaHistorico(lote, registro, detalheA);
 
-  describe('acrescimo de 5% do Intersul', () => {
+  describe('valor cheio do Intersul ao efetivar', () => {
     const CNPJ_INTERSUL = '12464869000176';
 
-    it('Aguardando + "00" no Intersul => Efetivado e valorLancamento x 1,05', async () => {
+    // Regressao (13/11/2026, detalhe_a 404802): o lote leva 95% da OPA (2.016.620,00, truncado) e o banco debita os
+    // outros 5% como DEBITO AUTORIZADO. O valorLancamento efetivado tem de ser o valor cheio (= valorRealEfetivado =
+    // valorTotal da OPA), nao lote x 1,05 = 2.117.451,00 (99,75%).
+    it('Efetivado no Intersul => valorLancamento passa ao valor cheio (valorRealEfetivado), nao lote x 1,05', async () => {
       opaService.getHistorico.mockResolvedValue([makeHistorico(10, StatusRemessaEnum.AguardandoPagamento)]);
-      const detalheA = { id: 7, valorLancamento: 1000 };
+      const detalheA = { id: 404802, valorLancamento: '2016620.00', valorRealEfetivado: '2122757.90' };
+      await atualizar(makeLote('00'), makeRegistro('00', CNPJ_INTERSUL), detalheA);
+      expect(detalheAService.atualizarValorLancamento).toHaveBeenCalledWith(404802, 2122757.9);
+    });
+
+    it('Aguardando + "00" no Intersul => Efetivado e valorLancamento = valorRealEfetivado', async () => {
+      opaService.getHistorico.mockResolvedValue([makeHistorico(10, StatusRemessaEnum.AguardandoPagamento)]);
+      const detalheA = { id: 7, valorLancamento: 950, valorRealEfetivado: 1000 };
       await atualizar(makeLote('00'), makeRegistro('00', CNPJ_INTERSUL), detalheA);
       expect(opaService.saveStatusHistorico).toHaveBeenCalledWith(expect.objectContaining({ id: 10 }), StatusRemessaEnum.Efetivado);
-      expect(detalheAService.atualizarValorLancamento).toHaveBeenCalledWith(7, 1050);
+      expect(detalheAService.atualizarValorLancamento).toHaveBeenCalledWith(7, 1000);
     });
 
-    it('arredonda para 2 casas', async () => {
+    it('sem valorRealEfetivado, recompoe o valor cheio como lote / 0,95 (2 casas)', async () => {
       opaService.getHistorico.mockResolvedValue([makeHistorico(10, StatusRemessaEnum.AguardandoPagamento)]);
       await atualizar(makeLote('00'), makeRegistro('00', CNPJ_INTERSUL), { id: 7, valorLancamento: '123.45' });
-      expect(detalheAService.atualizarValorLancamento).toHaveBeenCalledWith(7, 129.62);
+      expect(detalheAService.atualizarValorLancamento).toHaveBeenCalledWith(7, 129.95);
     });
 
-    it('NaoEfetivado reaberto com "00" no Intersul tambem recebe o acrescimo', async () => {
+    it('NaoEfetivado reaberto com "00" no Intersul tambem passa ao valor cheio', async () => {
       opaService.getHistorico.mockResolvedValue([makeHistorico(10, StatusRemessaEnum.NaoEfetivado)]);
-      await atualizar(makeLote('00'), makeRegistro('00', CNPJ_INTERSUL), { id: 7, valorLancamento: 200 });
-      expect(detalheAService.atualizarValorLancamento).toHaveBeenCalledWith(7, 210);
+      await atualizar(makeLote('00'), makeRegistro('00', CNPJ_INTERSUL), { id: 7, valorLancamento: 190, valorRealEfetivado: 200 });
+      expect(detalheAService.atualizarValorLancamento).toHaveBeenCalledWith(7, 200);
     });
 
     it('outro favorecido nao recebe acrescimo', async () => {

@@ -1,14 +1,15 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
+  FavorecidoAcimaDoLimite,
   OrdemPagamentoRepository,
-  SuspiciousOrdemPagamento,
 } from 'src/cnab/novo-remessa/repository/ordem-pagamento.repository';
 import { AllConfigType } from 'src/config/config.type';
 import { MailService } from 'src/mail/mail.service';
 import { appSettings } from 'src/settings/app.settings';
 import { SettingsService } from 'src/settings/settings.service';
 import { validateEmail } from 'validations-br';
+import { CicloPagamento, getCicloPagamento } from './ciclo-pagamento';
 
 @Injectable()
 export class AntifraudService {
@@ -42,18 +43,18 @@ export class AntifraudService {
     }
 
     const threshold = await this.getThreshold(METHOD);
-    const lastExecution = await this.getLastExecution(METHOD);
+    const ciclo = getCicloPagamento(jobReference);
     const orders =
-      await this.ordemPagamentoRepository.findSuspiciousOrdersCreatedBetween(
-        lastExecution,
-        jobReference,
+      await this.ordemPagamentoRepository.findFavorecidosAcimaDoLimiteNoCiclo(
+        ciclo.dataInicio,
+        ciclo.dataFim,
         threshold,
         AntifraudService.TARGET_CONSORCIOS,
       );
 
     if (!orders.length) {
       this.logger.log(
-        'Nenhuma ordem suspeita encontrada para o intervalo analisado.',
+        `Nenhum favorecido acima do limite no ciclo ${ciclo.dataInicio} a ${ciclo.dataFim}.`,
         METHOD,
       );
 
@@ -65,13 +66,13 @@ export class AntifraudService {
     }
 
     if (this.shouldBypassEmailSend()) {
-      this.printLocalTestOutput(orders, recipients, threshold, jobReference);
+      this.printLocalTestOutput(orders, recipients, threshold, ciclo, jobReference);
       return;
     }
 
     const mailSentInfo = await this.mailService.sendAdminFraudAlert({
       to: recipients,
-      data: this.buildMailPayload(orders, threshold, jobReference),
+      data: this.buildMailPayload(orders, threshold, ciclo, jobReference),
     });
 
     if (!mailSentInfo.success) {
@@ -172,28 +173,10 @@ export class AntifraudService {
     return threshold;
   }
 
-  private async getLastExecution(method: string): Promise<Date> {
-    const lastExecutionSetting = await this.settingsService.getOneBySettingData(
-      appSettings.any__mail_admin_fraud_last_execution,
-      true,
-      method,
-    );
-    const lastExecution = new Date(lastExecutionSetting.value);
-
-    if (Number.isNaN(lastExecution.getTime())) {
-      this.logger.warn(
-        `Data invalida em '${appSettings.any__mail_admin_fraud_last_execution.name}'. Usando data inicial padrao.`,
-        method,
-      );
-      return new Date(appSettings.any__mail_admin_fraud_last_execution.value);
-    }
-
-    return lastExecution;
-  }
-
   private buildMailPayload(
-    orders: SuspiciousOrdemPagamento[],
+    orders: FavorecidoAcimaDoLimite[],
     threshold: number,
+    ciclo: CicloPagamento,
     generatedAt: Date,
   ) {
     const currencyFormatter = new Intl.NumberFormat('pt-BR', {
@@ -205,27 +188,29 @@ export class AntifraudService {
       generatedAtDate: this.formatDate(generatedAt),
       generatedAtTime: this.formatTime(generatedAt),
       threshold: currencyFormatter.format(threshold),
+      cicloInicio: this.formatDate(ciclo.dataInicio),
+      cicloFim: this.formatDate(ciclo.dataFim),
+      dataPagamento: this.formatDate(ciclo.dataPagamento),
       totalOrders: orders.length,
       totalValue: currencyFormatter.format(
-        orders.reduce((sum, order) => sum + order.valor, 0),
+        orders.reduce((sum, order) => sum + order.valorTotal, 0),
       ),
-      orders: orders.map((order) => {
-        const dataCaptura = this.formatOptionalDateTime(order.dataCaptura);
-        const createdAt = this.formatDateTime(order.createdAt);
-
-        return {
-          id: order.id,
-          idOrdemPagamento: order.idOrdemPagamento,
-          nomeConsorcio: order.nomeConsorcio,
-          nomeOperadora: order.nomeOperadora,
-          valor: currencyFormatter.format(order.valor),
-          dataOrdem: this.formatDate(order.dataOrdem),
-          dataCapturaDate: dataCaptura.date,
-          dataCapturaTime: dataCaptura.time,
-          createdAtDate: createdAt.date,
-          createdAtTime: createdAt.time,
-        };
-      }),
+      orders: orders.map((order) => ({
+        userId: order.userId,
+        nomeOperadora: order.nomeOperadora,
+        nomeConsorcio: order.nomeConsorcio,
+        quantidadeOrdens: order.quantidadeOrdens,
+        valor: currencyFormatter.format(order.valorTotal),
+        primeiraCaptura: this.formatDate(order.primeiraCaptura),
+        ultimaCaptura: this.formatDate(order.ultimaCaptura),
+        ordens: order.ordens.map((ordem) => ({
+          id: ordem.id,
+          idOrdemPagamento: ordem.idOrdemPagamento ?? '-',
+          dataOrdem: this.formatDate(ordem.dataOrdem),
+          dataCaptura: this.formatDate(ordem.dataCaptura),
+          valor: currencyFormatter.format(ordem.valor),
+        })),
+      })),
     };
   }
 
@@ -235,19 +220,6 @@ export class AntifraudService {
 
   private formatTime(date: Date | string): string {
     return this.formatDateTime(date).time;
-  }
-
-  private formatOptionalDateTime(
-    date?: Date | string | null,
-  ): { date: string; time: string | null } {
-    if (!date) {
-      return {
-        date: '-',
-        time: null,
-      };
-    }
-
-    return this.formatDateTime(date);
   }
 
   private formatDateTime(date: Date | string): { date: string; time: string } {
@@ -273,12 +245,13 @@ export class AntifraudService {
   }
 
   private printLocalTestOutput(
-    orders: SuspiciousOrdemPagamento[],
+    orders: FavorecidoAcimaDoLimite[],
     recipients: string[],
     threshold: number,
+    ciclo: CicloPagamento,
     generatedAt: Date,
   ): void {
-    const payload = this.buildMailPayload(orders, threshold, generatedAt);
+    const payload = this.buildMailPayload(orders, threshold, ciclo, generatedAt);
 
     console.log('[ANTIFRAUD][LOCAL BYPASS] Email send skipped.');
     console.log('[ANTIFRAUD][LOCAL BYPASS] Recipients:', recipients);

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-11",
+  "generatedAt": "2026-11-24",
   "node": "v18.16.0",
   "passingSuites": [
     "scripts/validate/boundaries.spec.ts",
@@ -10,6 +10,7 @@
     "src/agentes/agentes.repository.spec.ts",
     "src/agentes/agentes.service.spec.ts",
     "src/antifraud/antifraud.service.spec.ts",
+    "src/antifraud/ciclo-pagamento.spec.ts",
     "src/auditoria/auditoria-acesso.guard.spec.ts",
     "src/auditoria/auditoria-requisicao.interceptor.spec.ts",
     "src/auditoria/auditoria.controller.spec.ts",
@@ -17,6 +18,7 @@
     "src/auth-licensee/auth-licensee.service.spec.ts",
     "src/auth/auth.service.spec.ts",
     "src/cnab/novo-remessa/repository/ordem-pagamento-pendentes.spec.ts",
+    "src/cnab/novo-remessa/repository/ordem-pagamento.repository.antifraude.spec.ts",
     "src/cnab/novo-remessa/repository/ordem-pagamento.repository.save.spec.ts",
     "src/cnab/novo-remessa/repository/pagamento-pendente.repository.limpar.spec.ts",
     "src/cnab/novo-remessa/service/dashboard-pagamentos.service.spec.ts",
