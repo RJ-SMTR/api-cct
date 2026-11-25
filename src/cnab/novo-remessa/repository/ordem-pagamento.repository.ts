@@ -267,8 +267,23 @@ WITH
             ORDER BY oph_i.id DESC
             LIMIT 1
         ) oph ON true
-        -- Data efetiva = dataEfetivacao do Detalhe A do histórico mais recente
-        LEFT JOIN detalhe_a da ON da."ordemPagamentoAgrupadoHistoricoId" = oph."historicoId"
+        -- Data efetiva = Detalhe A mais recente da ordem agrupada ou de qualquer ancestral
+        -- (pendência paga: a filha é reparenteada e o detalhe_a real só existe no pai)
+        LEFT JOIN LATERAL (
+            WITH RECURSIVE linhagem AS (
+                SELECT opa.id AS ancestral_id, opa."ordemPagamentoAgrupadoId" AS proximo_pai
+                UNION ALL
+                SELECT pai.id, pai."ordemPagamentoAgrupadoId"
+                FROM linhagem l
+                INNER JOIN ordem_pagamento_agrupado pai ON pai.id = l.proximo_pai
+            )
+            SELECT da_i."dataEfetivacao", da_i."dataVencimento"
+            FROM linhagem l
+            INNER JOIN ordem_pagamento_agrupado_historico h_i ON h_i."ordemPagamentoAgrupadoId" = l.ancestral_id
+            INNER JOIN detalhe_a da_i ON da_i."ordemPagamentoAgrupadoHistoricoId" = h_i.id
+            ORDER BY h_i.id DESC
+            LIMIT 1
+        ) da ON true
     )
 SELECT
     r.data_referencia as data,
