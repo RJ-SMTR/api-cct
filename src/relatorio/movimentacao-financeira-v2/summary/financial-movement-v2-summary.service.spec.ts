@@ -21,7 +21,7 @@ describe('FinancialMovementV2SummaryService', () => {
         FinancialMovementV2SummaryService,
         {
           provide: BasePagamentoRepository,
-          useValue: { findGroupedRows: jest.fn().mockResolvedValue([]), findSummaryTotals: jest.fn().mockResolvedValue({ count: 0, valorTotal: 0 }), findGroupedRowsPage: jest.fn().mockResolvedValue({ rows: [], nextCursor: null }), findEleicaoRows: jest.fn().mockResolvedValue([]) },
+          useValue: { findGroupedRows: jest.fn().mockResolvedValue([]), findSummaryTotals: jest.fn().mockResolvedValue({ count: 0, valorTotal: 0 }), findGroupedRowsPage: jest.fn().mockResolvedValue({ rows: [], nextCursor: null }), enriquecerLinhas: jest.fn().mockResolvedValue([]), findEleicaoRows: jest.fn().mockResolvedValue([]) },
         },
         {
           provide: StucGratuidadeRepository,

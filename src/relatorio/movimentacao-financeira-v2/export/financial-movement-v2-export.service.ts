@@ -19,6 +19,7 @@ import {
   BasePagamentoRepository,
   BasePagamentoRow,
   BasePagamentoTotalPorAssociacao,
+  LinhaEnriquecida,
   Perfil,
 } from '../base/base-pagamento.repository';
 import { StucGratuidadeFilter, StucGratuidadeRepository } from '../stuc-gratuidade/stuc-gratuidade.repository';
@@ -113,7 +114,8 @@ export class FinancialMovementV2ExportService {
     let cursor: BasePagamentoCursor | undefined;
     for (;;) {
       const page = await this.basePagamentoRepository.findGroupedRowsPage(perfil, { ...filter, excluirSemFavorecido: true }, FINANCIAL_MOVEMENT_V2_EXPORT_BATCH_SIZE, cursor);
-      for (const row of page.rows) await onRow(toExportRow(row));
+      const extras = await this.basePagamentoRepository.enriquecerLinhas(page.rows);
+      for (let i = 0; i < page.rows.length; i += 1) await onRow(toExportRowEnriquecida(page.rows[i], extras[i]));
       if (!page.nextCursor) break;
       cursor = page.nextCursor;
     }
@@ -193,6 +195,20 @@ export function toExportRow(row: BasePagamentoRow): RelatorioFinancialMovementNo
     codigoErro: row.codigoErro ?? null,
     // "Abatimento por duplicidade" traz o proprio motivo ("Valor pago em duplicidade em MM/AAAA").
     ...(row.motivo ? { descricaoErro: row.motivo } : {}),
+  });
+}
+
+// Mesma linha de saida, com e-mail, banco e data efetiva (BasePagamentoRepository.enriquecerLinhas).
+// "dataPagamento" e o campo que a tela e o export (coluna "Dt. Efet. Pagto.") ja leem.
+export function toExportRowEnriquecida(row: BasePagamentoRow, extra?: LinhaEnriquecida): RelatorioFinancialMovementNovoRemessaData {
+  const base = toExportRow(row);
+  if (!extra) return base;
+  return new RelatorioFinancialMovementNovoRemessaData({
+    ...base,
+    ...(extra.email ? { email: extra.email } : {}),
+    ...(extra.codBanco != null ? { codBanco: extra.codBanco } : {}),
+    ...(extra.nomeBanco ? { nomeBanco: extra.nomeBanco } : {}),
+    ...(extra.dataEfetivaPagamento ? { dataPagamento: extra.dataEfetivaPagamento } : {}),
   });
 }
 
