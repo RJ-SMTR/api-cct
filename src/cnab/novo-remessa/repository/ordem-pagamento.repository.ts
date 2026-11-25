@@ -9,6 +9,7 @@ import { OrdemPagamentoAgrupadoMensalDto } from '../dto/ordem-pagamento-agrupado
 import { OrdemPagamentoPendenteDto } from '../dto/ordem-pagamento-pendente.dto';
 import { OrdemPagamentoPendenteNuncaRemetidasDto } from '../dto/ordem-pagamento-pendente-nunca-remetidas.dto';
 import { OrdemPagamentoSemanalDto } from '../dto/ordem-pagamento-semanal.dto';
+import { ExtratoBancarioLancamentoDto } from '../dto/extrato-bancario.dto';
 import { getStatusRemessaEnumByValue } from '../../enums/novo-remessa/status-remessa.enum';
 import { OcorrenciaEnum } from '../../enums/ocorrencia.enum';
 import { Pagador } from '../../entity/pagamento/pagador.entity';
@@ -420,6 +421,161 @@ ORDER BY r.data_referencia DESC;`;
         return ordemPagamentoPendente;
       });
     }
+  }
+
+  /**
+   * Extrato bancário: todos os créditos efetivados (Detalhe A de histórico pago — status 3 ou 5) na conta do
+   * favorecido no período, com origem (pagador/remessa), documento, ocorrências e as ordens que compõem cada crédito.
+   * O histórico não guarda o userId: o vínculo com o favorecido vem das ordens (e, na pendência paga, do pai da linhagem).
+   */
+  public async findExtratoBancario(userId: number, dataInicio: string, dataFim: string): Promise<ExtratoBancarioLancamentoDto[]> {
+    const creditos = await this.ordemPagamentoRepository.query(
+      `
+      WITH RECURSIVE ordens_opa AS (
+        SELECT op."ordemPagamentoAgrupadoId" AS id FROM ordem_pagamento op
+        WHERE op."userId" = $1 AND op."ordemPagamentoAgrupadoId" IS NOT NULL
+        UNION
+        SELECT op."ordemPagamentoAgrupadoGratuidadeId" FROM ordem_pagamento op
+        WHERE op."userId" = $1 AND op."ordemPagamentoAgrupadoGratuidadeId" IS NOT NULL
+        UNION
+        SELECT g."ordemPagamentoAgrupadoId" FROM ordem_pagamento_guardador g
+        WHERE g."userId" = $1 AND g."ordemPagamentoAgrupadoId" IS NOT NULL
+      ),
+      -- Sobe a linhagem pai/filha: o detalhe_a real só existe no pai da ordem agrupada reparenteada
+      linhagem AS (
+        SELECT id FROM ordens_opa
+        UNION
+        SELECT f."ordemPagamentoAgrupadoId" FROM ordem_pagamento_agrupado f
+        INNER JOIN linhagem l ON f.id = l.id
+        WHERE f."ordemPagamentoAgrupadoId" IS NOT NULL
+      )
+      SELECT
+        da.id AS "detalheAId",
+        opa.id AS "opaId",
+        TO_CHAR(COALESCE(da."dataEfetivacao", da."dataVencimento"), 'YYYY-MM-DD') AS "dataCredito",
+        TO_CHAR(da."dataEfetivacao", 'YYYY-MM-DD') AS "dataEfetivacao",
+        TO_CHAR(da."dataVencimento", 'YYYY-MM-DD') AS "dataVencimento",
+        TO_CHAR(opa."dataPagamento", 'YYYY-MM-DD') AS "dataTentativa",
+        da."valorLancamento"::numeric AS "valorLancamento",
+        da."valorRealEfetivado"::numeric AS "valorRealEfetivado",
+        da."numeroDocumentoEmpresa"::text AS "numeroDocumentoEmpresa",
+        da."numeroDocumentoBanco" AS "numeroDocumentoBanco",
+        da.nsr,
+        da."retornoName",
+        h."statusRemessa",
+        h."motivoStatusRemessa",
+        h."userBankCode", h."userBankAgency", h."userBankAccount", h."userBankAccountDigit", h."userBankAccountType",
+        ha.nsa, ha."remessaName", TO_CHAR(ha."dataGeracao", 'YYYY-MM-DD') AS "dataGeracao",
+        hl."formaLancamento",
+        p."nomeEmpresa" AS "pagadorNome", p."cpfCnpj" AS "pagadorDocumento",
+        (SELECT STRING_AGG(o.code || ' - ' || o.message, '; ') FROM ocorrencia o WHERE o."detalheAId" = da.id) AS "ocorrencias"
+      FROM linhagem lin
+      INNER JOIN ordem_pagamento_agrupado opa ON opa.id = lin.id
+      INNER JOIN ordem_pagamento_agrupado_historico h ON h."ordemPagamentoAgrupadoId" = opa.id
+      INNER JOIN detalhe_a da ON da."ordemPagamentoAgrupadoHistoricoId" = h.id
+      LEFT JOIN header_lote hl ON hl.id = da."headerLoteId"
+      LEFT JOIN header_arquivo ha ON ha.id = hl."headerArquivoId"
+      LEFT JOIN pagador p ON p.id = hl."pagadorId"
+      WHERE h."statusRemessa" IN (3, 5)
+        AND COALESCE(da."dataEfetivacao", da."dataVencimento") BETWEEN $2::date AND $3::date
+      ORDER BY COALESCE(da."dataEfetivacao", da."dataVencimento") ASC, da.id ASC
+      `,
+      [userId, dataInicio, dataFim],
+    );
+    if (creditos.length === 0) return [];
+
+    const opaIds: number[] = [...new Set<number>(creditos.map((c: any) => Number(c.opaId)))];
+    // Ordens que compõem o crédito: da própria ordem agrupada e das filhas (pendência reparenteada)
+    const ordens = await this.ordemPagamentoRepository.query(
+      `
+      SELECT r.root AS "opaId",
+             COUNT(op.id) AS qtd,
+             TO_CHAR(MIN(op."dataOrdem"), 'YYYY-MM-DD') AS ini,
+             TO_CHAR(MAX(op."dataOrdem"), 'YYYY-MM-DD') AS fim,
+             ROUND(SUM(CASE WHEN op."ordemPagamentoAgrupadoGratuidadeId" = f.id THEN op."valorGratuidade" ELSE op.valor END)::numeric, 2) AS valor,
+             STRING_AGG(DISTINCT op."nomeConsorcio", ', ') AS consorcios
+      FROM UNNEST($2::int[]) AS r(root)
+      INNER JOIN ordem_pagamento_agrupado f ON f.id = r.root OR f."ordemPagamentoAgrupadoId" = r.root
+      INNER JOIN ordem_pagamento op
+        ON (op."ordemPagamentoAgrupadoId" = f.id OR op."ordemPagamentoAgrupadoGratuidadeId" = f.id)
+        AND op."userId" = $1
+      GROUP BY r.root
+      `,
+      [userId, opaIds],
+    );
+    const guardador = await this.ordemPagamentoRepository.query(
+      `
+      SELECT r.root AS "opaId",
+             COUNT(g.id) AS qtd,
+             TO_CHAR(MIN(g."dataOrdem"), 'YYYY-MM-DD') AS ini,
+             TO_CHAR(MAX(g."dataOrdem"), 'YYYY-MM-DD') AS fim,
+             ROUND(SUM(g."valorRepasseGuardador")::numeric, 2) AS valor
+      FROM UNNEST($2::int[]) AS r(root)
+      INNER JOIN ordem_pagamento_agrupado f ON f.id = r.root OR f."ordemPagamentoAgrupadoId" = r.root
+      INNER JOIN ordem_pagamento_guardador g ON g."ordemPagamentoAgrupadoId" = f.id AND g."userId" = $1
+      GROUP BY r.root
+      `,
+      [userId, opaIds],
+    );
+    const ordensPorOpa = new Map<number, any>(ordens.map((o: any) => [Number(o.opaId), o]));
+    const guardadorPorOpa = new Map<number, any>(guardador.map((o: any) => [Number(o.opaId), o]));
+
+    const DESCRICAO_STATUS: Record<number, string> = { 3: 'Pago', 5: 'Pendência paga' };
+    const num = (v: any) => (v === null || v === undefined ? null : parseFloat(v));
+    let saldo = 0;
+    return creditos.map((c: any) => {
+      const real = num(c.valorRealEfetivado);
+      const lanc = num(c.valorLancamento) ?? 0;
+      const creditado = real && real > 0 ? real : lanc;
+      saldo = Math.round((saldo + creditado) * 100) / 100;
+      const o = ordensPorOpa.get(Number(c.opaId));
+      const g = guardadorPorOpa.get(Number(c.opaId));
+      const dto = new ExtratoBancarioLancamentoDto();
+      dto.detalheAId = Number(c.detalheAId);
+      dto.ordemPagamentoAgrupadoId = Number(c.opaId);
+      dto.dataCredito = c.dataCredito;
+      dto.dataEfetivacao = c.dataEfetivacao;
+      dto.dataVencimento = c.dataVencimento;
+      dto.dataTentativaPagamento = c.dataTentativa;
+      dto.valorCreditado = creditado;
+      dto.valorLancamento = lanc;
+      dto.valorRealEfetivado = real;
+      dto.saldoAcumulado = saldo;
+      dto.statusRemessa = Number(c.statusRemessa);
+      dto.descricaoStatus = DESCRICAO_STATUS[Number(c.statusRemessa)] ?? String(c.statusRemessa);
+      dto.motivoStatusRemessa = c.motivoStatusRemessa ?? null;
+      dto.contaDestino = {
+        banco: c.userBankCode ?? null,
+        agencia: c.userBankAgency ?? null,
+        conta: c.userBankAccount ?? null,
+        digito: c.userBankAccountDigit ?? null,
+        tipoConta: c.userBankAccountType ?? null,
+      };
+      dto.pagador = { nome: c.pagadorNome ?? null, documento: c.pagadorDocumento ?? null };
+      dto.remessa = {
+        nsa: c.nsa != null ? Number(c.nsa) : null,
+        arquivoRemessa: c.remessaName ?? null,
+        arquivoRetorno: c.retornoName ?? null,
+        dataGeracao: c.dataGeracao ?? null,
+        formaLancamento: c.formaLancamento ?? null,
+      };
+      dto.documento = {
+        numeroDocumentoEmpresa: c.numeroDocumentoEmpresa ?? null,
+        numeroDocumentoBanco: c.numeroDocumentoBanco ?? null,
+        nsr: c.nsr != null ? Number(c.nsr) : null,
+      };
+      dto.ocorrencias = c.ocorrencias ?? null;
+      dto.ordens = {
+        quantidade: o ? Number(o.qtd) : 0,
+        dataOrdemInicio: o?.ini ?? g?.ini ?? null,
+        dataOrdemFim: o?.fim ?? g?.fim ?? null,
+        valorOrdens: o ? num(o.valor) : null,
+        consorcios: o?.consorcios ?? null,
+        quantidadeGuardador: g ? Number(g.qtd) : 0,
+        valorGuardador: g ? num(g.valor) : null,
+      };
+      return dto;
+    });
   }
 
   public async findOrdensPagamentoByOrdemPagamentoAgrupadoId(ordemPagamentoAgrupadoIds: string, userId: number): Promise<OrdemPagamentoSemanalDto[]> {
