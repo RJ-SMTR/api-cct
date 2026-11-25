@@ -9,6 +9,7 @@ import { OrdemPagamentoListFilters, OrdemPagamentoRepository } from '../reposito
 import { BigQueryToOrdemPagamento } from '../convertTo/bigquery-to-ordem-pagamento.convert';
 import { User } from 'src/users/entities/user.entity';
 import { OrdemPagamentoSemanalDto } from '../dto/ordem-pagamento-semanal.dto';
+import { ExtratoBancarioDto } from '../dto/extrato-bancario.dto';
 import { OrdemPagamentoMensalDto } from '../dto/ordem-pagamento-mensal.dto';
 import { OrdemPagamentoPendenteNuncaRemetidasDto } from '../dto/ordem-pagamento-pendente-nunca-remetidas.dto';
 import { OrdemPagamentoAgrupadoMensalDto } from '../dto/ordem-pagamento-agrupado-mensal.dto';
@@ -526,6 +527,22 @@ export class OrdemPagamentoService {
    async saveOrdemGuardador(ordem: BigqueryOrdemPagamentoGuardadorDTO, userId: number | undefined) {
     const ordemPagamento = BigQueryToOrdemPagamento.convertOrdemGuardador(ordem, userId);
     await this.ordemPagamentoGuardadorRepository.save(ordemPagamento);
+  }
+
+  async getExtratoBancario(userId: number, dataInicio: string, dataFim: string, conta: ExtratoBancarioDto['contaAtual']): Promise<ExtratoBancarioDto> {
+    const lancamentos = await this.ordemPagamentoRepository.findExtratoBancario(userId, dataInicio, dataFim);
+    const valores = lancamentos.map((l) => l.valorCreditado);
+    const dto = new ExtratoBancarioDto();
+    dto.userId = userId;
+    dto.dataInicio = dataInicio;
+    dto.dataFim = dataFim;
+    dto.contaAtual = conta;
+    dto.quantidadeCreditos = lancamentos.length;
+    dto.totalCreditado = Math.round(valores.reduce((a, b) => a + b, 0) * 100) / 100;
+    dto.maiorCredito = valores.length ? Math.max(...valores) : 0;
+    dto.menorCredito = valores.length ? Math.min(...valores) : 0;
+    dto.lancamentos = lancamentos;
+    return dto;
   }
 
   async findOrdensPagamentoAgrupadasPorMes(userId: number, yearMonth: Date): Promise<OrdemPagamentoMensalDto> {
