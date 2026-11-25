@@ -30,6 +30,7 @@ function row(partial: Partial<BasePagamentoRow>): BasePagamentoRow {
 function buildRepositories(): { base: BasePagamentoRepository; stuc: StucGratuidadeRepository } {
   const base = {
     findGroupedRowsPage: jest.fn(),
+    enriquecerLinhas: jest.fn().mockResolvedValue([]),
     findEleicaoRows: jest.fn(),
     findTotaisPorAssociacao: jest.fn().mockResolvedValue([]),
   } as unknown as BasePagamentoRepository;

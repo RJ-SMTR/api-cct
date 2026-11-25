@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  BadRequestException,
   Get,
   HttpCode,
   HttpStatus,
@@ -34,6 +35,7 @@ import { BigqueryTransacao } from '../../../bigquery/entities/transacao.bigquery
 import { OrdemPagamentoMensalDto } from '../dto/ordem-pagamento-mensal.dto';
 import { UsersService } from '../../../users/users.service';
 import { BigqueryTransacaoDiario } from 'src/bigquery/entities/transaca-diario.entity';
+import { ExtratoBancarioDto } from '../dto/extrato-bancario.dto';
 
 @ApiTags('OrdemPagamento')
 @Controller({
@@ -173,6 +175,43 @@ export class OrdemPagamentoController {
     const dataInicio = new Date(`${body.dataInicio}T00:00:00.000Z`);
     const dataFim = new Date(`${body.dataFim}T00:00:00.000Z`);
     return this.ordemPagamentoService.sincronizarOrdensPorPeriodo(dataInicio, dataFim, body.consorcios, (request as any).user?.id);
+  }
+
+  /**
+   * Extrato bancário: tudo que foi creditado na conta do favorecido no período (dataInicio..dataFim, yyyy-MM-dd).
+   * Usuário comum só consulta o próprio extrato (canProceed).
+   */
+  @Get('extrato-bancario')
+  @UseGuards(AuthGuard('jwt'))
+  @SerializeOptions({ groups: ['me'] })
+  @ApiBearerAuth()
+  @ApiQuery(CommonApiParams.userId)
+  @ApiQuery({ name: 'dataInicio', required: true, type: String, description: 'yyyy-MM-dd' })
+  @ApiQuery({ name: 'dataFim', required: true, type: String, description: 'yyyy-MM-dd' })
+  @HttpCode(HttpStatus.OK)
+  async getExtratoBancario(
+    @Request() request: IRequest,
+    @Query('userId', new ParseNumberPipe({ min: 1, optional: false })) userId: number,
+    @Query('dataInicio') dataInicio: string,
+    @Query('dataFim') dataFim: string,
+  ): Promise<ExtratoBancarioDto> {
+    this.logger.log(getRequestLog(request));
+    canProceed(request, Number(userId));
+    const isoDate = /^\d{4}-\d{2}-\d{2}$/;
+    if (!isoDate.test(dataInicio ?? '') || !isoDate.test(dataFim ?? '')) {
+      throw new BadRequestException('dataInicio e dataFim devem estar no formato yyyy-MM-dd');
+    }
+    if (dataInicio > dataFim) {
+      throw new BadRequestException('dataInicio não pode ser maior que dataFim');
+    }
+    const user = await this.usersService.findOne({ id: Number(userId) });
+    return this.ordemPagamentoService.getExtratoBancario(Number(userId), dataInicio, dataFim, {
+      banco: user?.bankCode != null ? String(user.bankCode) : null,
+      agencia: user?.bankAgency ?? null,
+      conta: user?.bankAccount ?? null,
+      digito: user?.bankAccountDigit ?? null,
+      tipoConta: user?.bankAccountType ?? null,
+    });
   }
 
   @Get('diario/:ordemPagamentoId')

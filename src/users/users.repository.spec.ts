@@ -24,7 +24,10 @@ describe('UsersRepository', () => {
     andWhere: jest.Mock;
     orderBy: jest.Mock;
     addOrderBy: jest.Mock;
+    offset: jest.Mock;
+    limit: jest.Mock;
     getMany: jest.Mock;
+    getManyAndCount: jest.Mock;
   };
 
   beforeEach(() => {
@@ -34,7 +37,10 @@ describe('UsersRepository', () => {
       andWhere: jest.fn().mockReturnThis(),
       orderBy: jest.fn().mockReturnThis(),
       addOrderBy: jest.fn().mockReturnThis(),
+      offset: jest.fn().mockReturnThis(),
+      limit: jest.fn().mockReturnThis(),
       getMany: jest.fn().mockResolvedValue([]),
+      getManyAndCount: jest.fn().mockResolvedValue([[], 0]),
     };
     typeormRepository = {
       createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
@@ -71,13 +77,86 @@ describe('UsersRepository', () => {
     });
 
     it('should apply the same order when reloading the users by id', async () => {
-      queryBuilder.getMany.mockResolvedValue([{ id: 3 }, { id: 1 }, { id: 2 }]);
+      queryBuilder.getManyAndCount.mockResolvedValue([[{ id: 3 }, { id: 1 }, { id: 2 }], 3]);
 
       await usersRepository.findManyWithPagination({ page: 1, limit: 50 });
 
       expect(typeormRepository.find).toHaveBeenCalledWith(
         expect.objectContaining({ order: { fullName: 'ASC', id: 'ASC' } }),
       );
+    });
+  });
+
+  describe('findManyWithPagination: pagination and invite filters (#1199)', () => {
+    const userWithoutBankData = (id: number) => new User({ id, fullName: `User ${id}` });
+
+    it('should return the whole filtered list when no pagination is given (admin home contract)', async () => {
+      await usersRepository.findManyWithPagination(undefined);
+
+      expect(queryBuilder.offset).not.toHaveBeenCalled();
+      expect(queryBuilder.limit).not.toHaveBeenCalled();
+    });
+
+    it('should page in the database query after ordering when pagination is given', async () => {
+      await usersRepository.findManyWithPagination({ page: 3, limit: 50 });
+
+      expect(queryBuilder.offset).toHaveBeenCalledWith(100);
+      expect(queryBuilder.limit).toHaveBeenCalledWith(50);
+      expect(queryBuilder.addOrderBy.mock.invocationCallOrder[0]).toBeLessThan(
+        queryBuilder.offset.mock.invocationCallOrder[0],
+      );
+    });
+
+    it('should return the total of the filtered set, not the size of the page', async () => {
+      queryBuilder.getManyAndCount.mockResolvedValue([[{ id: 1 }, { id: 2 }], 120]);
+      (typeormRepository.find as jest.Mock).mockResolvedValue([userWithoutBankData(1), userWithoutBankData(2)]);
+
+      const result = await usersRepository.findManyWithPagination({ page: 1, limit: 2 });
+
+      expect(result.total).toBe(120);
+      expect(result.users.map((u) => u.id)).toEqual([1, 2]);
+    });
+
+    it('should skip the reload query when the page is empty', async () => {
+      const result = await usersRepository.findManyWithPagination({ page: 9, limit: 50 });
+
+      expect(typeormRepository.find).not.toHaveBeenCalled();
+      expect(result).toEqual({ users: [], total: 0 });
+    });
+
+    it('should filter conta_bancaria_sem_senha (prov) in the query, so the page is not emptied afterwards', async () => {
+      queryBuilder.getManyAndCount.mockResolvedValue([[{ id: 1 }, { id: 2 }], 2]);
+      (typeormRepository.find as jest.Mock).mockResolvedValue([userWithoutBankData(1), userWithoutBankData(2)]);
+
+      const result = await usersRepository.findManyWithPagination(
+        { page: 1, limit: 50 },
+        { inviteStatusName: 'prov' },
+      );
+
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+        expect.stringContaining('"user"."password" IS NULL'),
+        expect.objectContaining({ provRoleIds: expect.any(Array) }),
+      );
+      expect(result.users.map((u) => u.id)).toEqual([1, 2]);
+    });
+
+    it('should filter by invite status in the query instead of loading every invite', async () => {
+      queryBuilder.getManyAndCount.mockResolvedValue([[{ id: 5 }], 1]);
+      (typeormRepository.find as jest.Mock).mockResolvedValue([userWithoutBankData(5)]);
+
+      const result = await usersRepository.findManyWithPagination(
+        { page: 1, limit: 50 },
+        { inviteStatusName: 'sent' },
+      );
+
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+        expect.stringContaining('FROM "invite"'),
+        { inviteStatusId: InviteStatusEnum.sent },
+      );
+      expect(mailHistoryService.find).not.toHaveBeenCalledWith(
+        expect.objectContaining({ inviteStatus: expect.anything() }),
+      );
+      expect(result.users.map((u) => u.id)).toEqual([5]);
     });
   });
 

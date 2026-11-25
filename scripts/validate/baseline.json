@@ -69,11 +69,13 @@
     "src/sftp/sftp-client/sftp-client.service.spec.ts",
     "src/sftp/sftp.service.spec.ts",
     "src/sftp/ssh2-compat.spec.ts",
+    "src/users/dto/update-user.dto.spec.ts",
     "src/users/users.repository.spec.ts",
     "src/users/workers/worksheet-parser.worker.spec.ts",
     "src/utils/all-exteptions-filter/filters/all-exceptions.filter.spec.ts",
     "src/utils/date-utils.spec.ts",
     "src/utils/file-type/pipes/file-type-validation.pipe.spec.ts",
+    "src/utils/optional-pagination.spec.ts",
     "src/utils/payment-date-utils.spec.ts",
     "src/utils/worker-thread/run-with-worker-timeout.spec.ts"
   ],

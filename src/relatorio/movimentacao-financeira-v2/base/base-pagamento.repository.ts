@@ -1,5 +1,6 @@
 import { Injectable, Logger, Optional } from '@nestjs/common';
 import { DataSource } from 'typeorm';
+import { format } from 'date-fns';
 import { isQueryCanceledError, RelatorioTimeoutError } from '../../utils/relatorio-timeout.error';
 import { StatusPagamento } from '../../enum/statusRemessafinancial-movement';
 import {
@@ -51,6 +52,15 @@ export interface BasePagamentoFilter {
   // Sem o flag, favorecido bloqueado fica de fora; com ele, so os bloqueados. Ordem sem usuario
   // (pu NULL) continua visivel no modo padrao e nunca aparece em desativados.
   desativados?: boolean;
+}
+
+/** Dados extras por linha do relatorio (ver BasePagamentoRepository.enriquecerLinhas). */
+export interface LinhaEnriquecida {
+  email: string | null;
+  codBanco: number | null;
+  nomeBanco: string | null;
+  /** dd/MM/yyyy; so preenchida quando a data efetiva deve aparecer no relatorio. */
+  dataEfetivaPagamento: string | null;
 }
 
 export interface BasePagamentoRow {
@@ -441,6 +451,74 @@ export class BasePagamentoRepository {
   ) {
     this.statementTimeoutMs = resolveReportStatementTimeoutMs(options?.statementTimeoutMs ?? process.env.RELATORIO_STATEMENT_TIMEOUT_MS);
     this.appTimeoutGraceMs = options?.appTimeoutGraceMs ?? DEFAULT_REPORT_APP_TIMEOUT_GRACE_MS;
+  }
+
+  // Dados por linha que a consulta agrupada nao traz (nao ha join com usuario/banco nem com o detalhe_a na query
+  // principal, que tem varias fontes unidas e cursor de paginacao): e-mail, banco do favorecido e a data efetiva do
+  // pagamento. Roda so sobre as linhas da pagina (ou do lote do export), em consultas leves por chave.
+  //  - e-mail / cod. banco / nome do banco: usuario (cpfCnpj) + banco (bankCode);
+  //  - data efetiva (devolvida em dd/MM/yyyy): Pendencia Paga sempre mostra; os demais status so quando a
+  //    dataEfetivacao do detalhe_a difere da data de tentativa (dataReferencia). O detalhe_a vem da chaveLinha
+  //    ("agrupada:<id>" ou "pendencia_paga:<id>"); sem detalhe (ex.: passo 0), pendencia paga cai na dataReferencia.
+  async enriquecerLinhas(rows: BasePagamentoRow[]): Promise<LinhaEnriquecida[]> {
+    if (rows.length === 0) return [];
+
+    const cpfs = [...new Set(rows.map((r) => r.cpfCnpj).filter((cpf): cpf is string => Boolean(cpf)))];
+    const chaveDetalhe = (row: BasePagamentoRow): number | null => {
+      const match = /^(?:agrupada|pendencia_paga):(\d+)$/.exec(row.chaveLinha ?? '');
+      return match ? Number(match[1]) : null;
+    };
+    const detalheIds = [...new Set(rows.map(chaveDetalhe).filter((id): id is number => id !== null))];
+
+    const [usuarios, detalhes] = await Promise.all([
+      cpfs.length > 0
+        ? this.runReportQuery<{ cpf: string; email: string | null; codBanco: number | null; nomeBanco: string | null }>(
+            `SELECT u."cpfCnpj" AS cpf, u.email, u."bankCode" AS "codBanco", b.name AS "nomeBanco"
+             FROM "user" u
+             LEFT JOIN bank b ON b.code = u."bankCode"
+             WHERE u."cpfCnpj" = ANY($1::text[])`,
+            [cpfs],
+          )
+        : Promise.resolve([]),
+      detalheIds.length > 0
+        ? this.runReportQuery<{ id: number; efetivacao: string | null; vencimento: string | null }>(
+            `SELECT da.id,
+                    TO_CHAR(da."dataEfetivacao", 'YYYY-MM-DD') AS efetivacao,
+                    TO_CHAR(da."dataVencimento", 'YYYY-MM-DD') AS vencimento
+             FROM detalhe_a da
+             WHERE da.id = ANY($1::int[])`,
+            [detalheIds],
+          )
+        : Promise.resolve([]),
+    ]);
+
+    const usuarioPorCpf = new Map<string, (typeof usuarios)[number]>();
+    for (const usuario of usuarios) {
+      if (!usuarioPorCpf.has(usuario.cpf)) usuarioPorCpf.set(usuario.cpf, usuario);
+    }
+    const detalhePorId = new Map(detalhes.map((d) => [Number(d.id), d]));
+    const paraBr = (iso: string): string => iso.split('-').reverse().join('/');
+
+    return rows.map((row) => {
+      const usuario = usuarioPorCpf.get(row.cpfCnpj);
+      const detalheId = chaveDetalhe(row);
+      const detalhe = detalheId !== null ? detalhePorId.get(detalheId) : undefined;
+      const referencia = format(new Date(row.dataReferencia), 'yyyy-MM-dd');
+
+      let efetiva: string | null = null;
+      if (row.status === StatusPagamento.PENDENCIA_PAGA) {
+        efetiva = detalhe?.efetivacao ?? detalhe?.vencimento ?? referencia;
+      } else if (detalhe?.efetivacao && detalhe.efetivacao !== referencia) {
+        efetiva = detalhe.efetivacao;
+      }
+
+      return {
+        email: usuario?.email ?? null,
+        codBanco: usuario?.codBanco ?? null,
+        nomeBanco: usuario?.nomeBanco ?? null,
+        dataEfetivaPagamento: efetiva ? paraBr(efetiva) : null,
+      };
+    });
   }
 
   // Runs a report query in its own read-only transaction with SET LOCAL statement_timeout, so the limit

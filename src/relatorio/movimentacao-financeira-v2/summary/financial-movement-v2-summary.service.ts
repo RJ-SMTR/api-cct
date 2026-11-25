@@ -8,7 +8,7 @@ import {
 } from '../../dtos/relatorio-financial-and-movement.dto';
 import { BasePagamentoFilter, BasePagamentoRepository, Perfil } from '../base/base-pagamento.repository';
 import { StucGratuidadeRepository, StucGratuidadeRow } from '../stuc-gratuidade/stuc-gratuidade.repository';
-import { buildSummaryFromRows, toExportRow } from '../export/financial-movement-v2-export.service';
+import { buildSummaryFromRows, toExportRow, toExportRowEnriquecida } from '../export/financial-movement-v2-export.service';
 import { resolveCursorFromQuery } from './financial-movement-v2-query.mapper';
 
 // Filtro combinado para as rotas v2 de summary/page (T10): mesmas fontes de T1-T9
@@ -85,11 +85,12 @@ export class FinancialMovementV2SummaryService {
       this.basePagamentoRepository.findGroupedRowsPage(perfil, { ...filter, excluirSemFavorecido: true }, pageSize, cursor),
       cursor ? Promise.resolve({}) : this.findSummary(perfil, filter),
     ]);
+    const extras = await this.basePagamentoRepository.enriquecerLinhas(page.rows);
     return new RelatorioFinancialMovementNovoRemessaPageDto({
       ...summary,
       currentPage,
       pageSize,
-      data: page.rows.map(toExportRow),
+      data: page.rows.map((row, i) => toExportRowEnriquecida(row, extras[i])),
       // BasePagamentoCursor (T4/ADR 0002) is the v2 cursor shape - genuinely different from the
       // legacy RelatorioFinancialMovementNovoRemessaCursor (see financial-movement-v2-query.mapper.ts
       // header comment on the field mismatch). Not opaque to the frontend by design (ADR 0021
