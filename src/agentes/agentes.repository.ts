@@ -15,6 +15,23 @@ import { User } from 'src/users/entities/user.entity';
 import { DataSource, In, Repository } from 'typeorm';
 import { format, getMonth, getYear, isFriday, isTuesday, max, subDays } from 'date-fns';
 
+/**
+ * Pagamentos de guardador feitos fora do dia previsto (ex.: feriado). A ordem é exibida no dia previsto
+ * e a data efetiva continua mostrando o dia em que foi paga.
+ */
+const ORDENS_REMANEJADAS: ReadonlyArray<{ dataOrdem: string; dataExibicao: string }> = [
+  // 20/11 (feriado) pago em 23/11.
+  { dataOrdem: '2026-11-23', dataExibicao: '2026-11-20' },
+];
+
+/** Expressão SQL com o dia em que a ordem é exibida, a partir da coluna com a data da ordem. */
+function sqlDataExibicao(coluna: string): string {
+  const casos = ORDENS_REMANEJADAS.map(
+    (r) => `WHEN DATE '${r.dataOrdem}' THEN DATE '${r.dataExibicao}'`,
+  ).join(' ');
+  return `CASE ${coluna}::date ${casos} ELSE ${coluna}::date END`;
+}
+
 export type DashboardPhotoEntry = {
   id: string;
   capturedAt: string;
@@ -65,6 +82,8 @@ type LegacyGuardadorMonthlyRow = {
   motivoStatusRemessa: string | null;
   dataTentativaPagamento: string | null;
   dataEfetivaPagamento: string | null;
+  /** Data original da ordem (YYYY-MM-DD), só quando ela é exibida em outro dia. */
+  dataRemanejada?: string | null;
 };
 
 type LegacyGuardadorWeeklyRow = {
@@ -296,7 +315,7 @@ export class AgentesRepository {
       const dataInicio = format(max([dataCalculada, dataLimite]), 'yyyy-MM-dd');
       const dataFim = format(today, 'yyyy-MM-dd');
 
-      whereData = `AND date_trunc('day', o."dataOrdem") BETWEEN $3::date AND $4::date
+      whereData = `AND ${sqlDataExibicao('o."dataOrdem"')} BETWEEN $3::date AND $4::date
       GROUP BY o.id,  o."dataOrdem", o."dataInclusao"`;
       params.push(dataInicio, dataFim);
     }
@@ -590,7 +609,7 @@ export class AgentesRepository {
 
       LEFT JOIN ordem_pagamento_guardador op
         ON op."userId" = $2
-        AND DATE_TRUNC('day', op."dataOrdem") = db.data_referencia
+        AND ${sqlDataExibicao('op."dataOrdem"')} = db.data_referencia
 
       LEFT JOIN ordem_pagamento_agrupado opa
         ON op."ordemPagamentoAgrupadoId" = opa.id
@@ -661,7 +680,11 @@ export class AgentesRepository {
         DISTINCT r.opaId::text,
         ', '
       ) AS "ordemPagamentoAgrupadoIds",
-      r.valorTotalPagamento AS "valorTotal"
+      r.valorTotalPagamento AS "valorTotal",
+      CASE
+        WHEN r."dataOrdem"::date <> r.data_referencia
+        THEN TO_CHAR(r."dataOrdem", 'YYYY-MM-DD')
+      END AS "dataRemanejada"
 
     FROM ordens_filtradas r
 
