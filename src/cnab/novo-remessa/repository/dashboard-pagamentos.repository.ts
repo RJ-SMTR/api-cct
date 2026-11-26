@@ -200,13 +200,14 @@ export class DashboardPagamentosRepository {
     return [periodo.dataInicio, periodo.dataFim, contas.map((c) => PAGADOR_ID_POR_CONTA[c])];
   }
 
+  /** Uma linha por conta x grupo x situação x motivo x dia de vencimento (o dia alimenta o gráfico "Por dia"). */
   async resumo(periodo: FiltroPeriodo): Promise<LinhaResumo[]> {
     const sql = `
       WITH ${this.cteClassificado()}
-      SELECT conta, COALESCE(grupo, 'Outros') AS grupo, situacao, motivo,
+      SELECT conta, COALESCE(grupo, 'Outros') AS grupo, situacao, motivo, to_char(data, 'YYYY-MM-DD') AS data,
              count(*)::int AS qtd, COALESCE(sum(valor), 0)::numeric(18,2) AS valor
       FROM classificado
-      GROUP BY conta, COALESCE(grupo, 'Outros'), situacao, motivo`;
+      GROUP BY conta, COALESCE(grupo, 'Outros'), situacao, motivo, data`;
     return this.dataSource.query(sql, this.params(periodo, ['bilhetagem', 'rotativo', 'cett']));
   }
 

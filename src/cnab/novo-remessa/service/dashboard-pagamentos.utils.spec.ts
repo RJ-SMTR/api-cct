@@ -94,5 +94,35 @@ describe('dashboard de pagamentos - regras puras', () => {
       expect(resumo[2].grupos.map((g) => g.grupo)).toEqual(['STPC', 'STPL', 'TEC', 'Pagamento único']);
       expect(resumo[2].emAberto).toEqual({ qtd: 2, valor: 2000 });
     });
+
+    it('linhas sem data não entram no porDia', () => {
+      expect(bilhetagem.porDia).toEqual([]);
+    });
+  });
+
+  describe('montarResumo - porDia', () => {
+    const linhas: LinhaResumo[] = [
+      { conta: 'rotativo', grupo: 'Guardador', situacao: 'pago', motivo: 'EFETIVADO', data: '2026-11-03', qtd: 5, valor: '500.10' },
+      { conta: 'rotativo', grupo: 'Guardador', situacao: 'pago', motivo: 'PENDENCIA_PAGA', data: '2026-11-03', qtd: 1, valor: 20 },
+      { conta: 'rotativo', grupo: 'Guardador', situacao: 'naoPago', motivo: '02', data: '2026-11-03', qtd: 2, valor: 30 },
+      { conta: 'rotativo', grupo: 'Guardador', situacao: 'emAberto', motivo: 'ENVIADO', data: '2026-11-01', qtd: 3, valor: 300 },
+      { conta: 'cett', grupo: 'STPL', situacao: 'pago', motivo: 'EFETIVADO', data: '2026-11-02', qtd: 1, valor: 9 },
+    ];
+    const resumo = montarResumo(linhas);
+    const rotativo = resumo.find((c) => c.conta === 'rotativo')!;
+
+    it('soma as situações de cada dia (juntando motivos) e ordena por data', () => {
+      expect(rotativo.porDia).toEqual([
+        { data: '2026-11-01', pago: { qtd: 0, valor: 0 }, naoPago: { qtd: 0, valor: 0 }, emAberto: { qtd: 3, valor: 300 } },
+        { data: '2026-11-03', pago: { qtd: 6, valor: 520.1 }, naoPago: { qtd: 2, valor: 30 }, emAberto: { qtd: 0, valor: 0 } },
+      ]);
+    });
+
+    it('cada conta tem só os próprios dias e o total da conta continua igual', () => {
+      expect(resumo.find((c) => c.conta === 'cett')!.porDia.map((d) => d.data)).toEqual(['2026-11-02']);
+      expect(resumo.find((c) => c.conta === 'bilhetagem')!.porDia).toEqual([]);
+      expect(rotativo.pago).toEqual({ qtd: 6, valor: 520.1 });
+      expect(rotativo.grupos[0].naoPago).toEqual({ qtd: 2, valor: 30 });
+    });
   });
 });

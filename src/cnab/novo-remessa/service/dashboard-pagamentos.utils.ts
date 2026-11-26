@@ -89,6 +89,8 @@ export interface LinhaResumo {
   motivo: string | null;
   qtd: number | string;
   valor: number | string | null;
+  /** Data de vencimento (YYYY-MM-DD). Opcional: sem ela a linha não entra no `porDia`. */
+  data?: string | null;
 }
 
 export interface Totais {
@@ -111,6 +113,14 @@ export interface GrupoResumo {
   motivos: MotivoResumo[];
 }
 
+/** Totais de um dia de vencimento, por situação. */
+export interface DiaResumo {
+  data: string; // YYYY-MM-DD
+  pago: Totais;
+  naoPago: Totais;
+  emAberto: Totais;
+}
+
 export interface ContaResumo {
   conta: ContaDashboard;
   nome: string;
@@ -119,6 +129,8 @@ export interface ContaResumo {
   emAberto: Totais;
   grupos: GrupoResumo[];
   motivos: MotivoResumo[];
+  /** Só os dias com pagamento no período, em ordem crescente de data. */
+  porDia: DiaResumo[];
 }
 
 const zero = (): Totais => ({ qtd: 0, valor: 0 });
@@ -131,10 +143,12 @@ const somar = (alvo: Totais, qtd: number, valor: number) => {
 /**
  * Agrega as linhas (conta x grupo x situação x motivo) no formato do dashboard. Todos os grupos
  * esperados de cada conta aparecem, mesmo zerados; grupos inesperados (ex.: "Outros") entram no fim.
+ * `porDia` soma as situações por data de vencimento (gráfico "Por dia" do dashboard).
  */
 export function montarResumo(linhas: LinhaResumo[]): ContaResumo[] {
   return CONTAS.map((conta) => {
-    const resumo: ContaResumo = { conta, nome: NOME_CONTA[conta], pago: zero(), naoPago: zero(), emAberto: zero(), grupos: [], motivos: [] };
+    const resumo: ContaResumo = { conta, nome: NOME_CONTA[conta], pago: zero(), naoPago: zero(), emAberto: zero(), grupos: [], motivos: [], porDia: [] };
+    const dias = new Map<string, DiaResumo>();
     const grupos = new Map<string, GrupoResumo>();
     for (const esperado of GRUPOS_POR_CONTA[conta]) {
       grupos.set(esperado.nome, { grupo: esperado.nome, tipo: esperado.tipo, pago: zero(), naoPago: zero(), emAberto: zero(), motivos: [] });
@@ -151,6 +165,11 @@ export function montarResumo(linhas: LinhaResumo[]): ContaResumo[] {
       }
       somar(resumo[linha.situacao], qtd, valor);
       somar(grupo[linha.situacao], qtd, valor);
+      if (linha.data) {
+        const dia = dias.get(linha.data) ?? { data: linha.data, pago: zero(), naoPago: zero(), emAberto: zero() };
+        somar(dia[linha.situacao], qtd, valor);
+        dias.set(linha.data, dia);
+      }
 
       const codigo = linha.motivo ?? (linha.situacao === 'naoPago' ? 'SEM_MOTIVO' : linha.situacao === 'pago' ? 'EFETIVADO' : 'CRIADO');
       const registrar = (mapa: Map<string, MotivoResumo>) => {
@@ -169,6 +188,7 @@ export function montarResumo(linhas: LinhaResumo[]): ContaResumo[] {
     const ordenarMotivos = (a: MotivoResumo, b: MotivoResumo) => ordemSituacao(a.situacao) - ordemSituacao(b.situacao) || b.qtd - a.qtd;
     resumo.motivos = Array.from(motivosConta.values()).sort(ordenarMotivos);
     resumo.grupos = Array.from(grupos.values()).map((g) => ({ ...g, motivos: g.motivos.sort(ordenarMotivos) }));
+    resumo.porDia = Array.from(dias.values()).sort((a, b) => a.data.localeCompare(b.data));
     return resumo;
   });
 }
