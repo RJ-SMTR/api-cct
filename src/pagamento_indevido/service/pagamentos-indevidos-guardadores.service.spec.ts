@@ -158,3 +158,36 @@ describe('PagamentosIndevidosGuardadoresService.listar: ordens duplicadas', () =
     expect(query.mock.calls[3][1]).toEqual([[2550, 10]]);
   });
 });
+
+describe('PagamentosIndevidosGuardadoresService.abatimentos', () => {
+  const linha = (detalheAId: number, userId: number, valorDevido: string, valorPago: string, statusRemessa: number) => ({
+    detalheAId,
+    userId,
+    guardador: 'G' + userId,
+    cpfCnpj: null,
+    data: '2026-11-23',
+    valorDevido,
+    valorPago,
+    valorAbatido: (Number(valorDevido) - Number(valorPago)).toFixed(2),
+    statusRemessa,
+  });
+
+  it('classifica a situação e soma nos totais só o abatimento efetivado (pago e quitado)', async () => {
+    const query = jest.fn().mockResolvedValue([
+      linha(1, 10, '105.00', '5.00', 3),
+      linha(2, 10, '0.30', '0.10', 5),
+      linha(3, 11, '16.80', '0.00', 4),
+      linha(4, 12, '50.00', '10.00', 4),
+      linha(5, 13, '40.00', '20.00', 2),
+      linha(6, 14, '30.00', '0.00', 0),
+    ]);
+    const service = new PagamentosIndevidosGuardadoresService({ query } as any);
+
+    const r = await service.abatimentos({ dataInicio: '2026-11-01', dataFim: '2026-11-30' });
+
+    expect(r.itens.map((i) => i.situacao)).toEqual(['pago', 'pago', 'quitado', 'rejeitado', 'aguardando', 'aPagar']);
+    expect(r.totais).toEqual({ quantidade: 3, guardadores: 2, valorDevido: 122.1, valorAbatido: 117, valorPago: 5.1 });
+    expect(r.itens[0]).toMatchObject({ valorDevido: 105, valorAbatido: 100, valorPago: 5 });
+    expect(query.mock.calls[0][1]).toEqual(['2026-11-01', '2026-11-30']);
+  });
+});

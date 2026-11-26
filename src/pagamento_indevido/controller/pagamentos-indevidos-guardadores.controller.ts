@@ -1,6 +1,8 @@
 import { Controller, Get, HttpCode, HttpException, HttpStatus, Query, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { DashboardPagamentosResumoQueryDto } from 'src/cnab/novo-remessa/dto/dashboard-pagamentos.dto';
+import { validarPeriodo } from 'src/cnab/novo-remessa/service/dashboard-pagamentos.service';
 import { Roles } from 'src/roles/roles.decorator';
 import { RoleEnum } from 'src/roles/roles.enum';
 import { RolesGuard } from 'src/roles/roles.guard';
@@ -24,6 +26,18 @@ export class PagamentosIndevidosGuardadoresController {
   @HttpCode(HttpStatus.OK)
   listar(@Query() q: Record<string, string>) {
     return this.service.listar({ ...filtroDaQuery(q), page: Number(q.page), pageSize: Number(q.pageSize) });
+  }
+
+  /** Pagamentos com abatimento por duplicidade no período (quadro do Dashboard de Pagamentos), com totais. */
+  @Get('abatimentos')
+  @Roles(RoleEnum.master, RoleEnum.admin)
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  abatimentos(@Query() query: DashboardPagamentosResumoQueryDto) {
+    const periodo = { dataInicio: query.dataInicio, dataFim: query.dataFim };
+    validarPeriodo(periodo);
+    return this.service.abatimentos(periodo);
   }
 
   @Get('exportar')

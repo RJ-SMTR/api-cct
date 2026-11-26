@@ -76,6 +76,40 @@ export interface DuplicidadeOrdem {
   repetidoEm: string[];
 }
 
+/**
+ * Situação de um pagamento com abatimento: `pago`; `quitado` (o desconto zerou o valor, nada a enviar, e o banco recusa o
+ * lançamento zerado); `aguardando` o retorno do banco; `rejeitado` (com valor a receber); `aPagar` (ainda não enviado).
+ */
+export type SituacaoAbatimento = 'pago' | 'quitado' | 'aguardando' | 'rejeitado' | 'aPagar';
+
+export interface PagamentoComAbatimento {
+  detalheAId: number;
+  userId: number;
+  guardador: string;
+  cpfCnpj: string | null;
+  /** Data do pagamento (AAAA-MM-DD). */
+  data: string;
+  valorDevido: number;
+  valorAbatido: number;
+  valorPago: number;
+  situacao: SituacaoAbatimento;
+}
+
+export interface ResumoAbatimentos {
+  /** Somam só os abatimentos efetivados (`pago` e `quitado`). */
+  totais: { quantidade: number; guardadores: number; valorDevido: number; valorAbatido: number; valorPago: number };
+  /** Todos os pagamentos do período com abatimento, em qualquer situação. */
+  itens: PagamentoComAbatimento[];
+}
+
+export function situacaoDoAbatimento(statusRemessa: number | null, valorPago: number): SituacaoAbatimento {
+  const status = Number(statusRemessa);
+  if (status === 3 || status === 5) return 'pago';
+  if (status === 4) return valorPago === 0 ? 'quitado' : 'rejeitado';
+  if (status === 1 || status === 2) return 'aguardando';
+  return 'aPagar';
+}
+
 const LIMITE_EXPORTACAO = 5000;
 /** Guardadores são os usuários cujo permitCode tem no máximo este tamanho. */
 export const PERMIT_CODE_MAX_GUARDADOR = 4;
@@ -290,6 +324,72 @@ export class PagamentosIndevidosGuardadoresService {
   /** Dias das ordens pagas em duplicidade (sem repetir, em ordem). */
   static diasDasOrdensDuplicadas(ordens: OrdemComPagamentos[]): string[] {
     return [...new Set(PagamentosIndevidosGuardadoresService.duplicidadesDeOrdens(ordens).map((d) => d.dataOrdem))].sort();
+  }
+
+  /**
+   * Pagamentos de todos os guardadores com abatimento do indevido, com vencimento no período. Mesma regra de `porUsuario`:
+   * o lançamento saiu menor que o devido pelas ordens do guardador no agrupamento (ou no pai dele, nas pendências).
+   */
+  async abatimentos(periodo: { dataInicio: string; dataFim: string }): Promise<ResumoAbatimentos> {
+    const linhas = await this.dataSource.query(
+      `WITH ${this.cte()},
+       devedores AS (SELECT DISTINCT user_id FROM calculado),
+       meus AS (
+         SELECT g."userId" AS uid, g."ordemPagamentoAgrupadoId" AS agr, a."ordemPagamentoAgrupadoId" AS pai, g."valorRepasseGuardador" AS valor
+           FROM ordem_pagamento_guardador g
+           JOIN ordem_pagamento_agrupado a ON a.id = g."ordemPagamentoAgrupadoId"
+          WHERE g."userId" IN (SELECT user_id FROM devedores)
+       ),
+       devido AS (
+         SELECT uid, id, SUM(valor) AS valor
+           FROM (SELECT uid, agr AS id, valor FROM meus
+                 UNION ALL
+                 SELECT uid, pai, valor FROM meus WHERE pai IS NOT NULL AND pai <> agr) x
+          GROUP BY uid, id
+       )
+       SELECT da.id AS "detalheAId", u.id AS "userId", u."fullName" AS guardador, u."cpfCnpj" AS "cpfCnpj",
+              to_char(da."dataVencimento", 'YYYY-MM-DD') AS data,
+              d.valor::numeric(18,2)::text AS "valorDevido",
+              da."valorLancamento"::numeric(18,2)::text AS "valorPago",
+              (d.valor - da."valorLancamento")::numeric(18,2)::text AS "valorAbatido",
+              oph."statusRemessa" AS "statusRemessa"
+         FROM devido d
+         JOIN ordem_pagamento_agrupado_historico oph ON oph."ordemPagamentoAgrupadoId" = d.id
+         JOIN detalhe_a da ON da."ordemPagamentoAgrupadoHistoricoId" = oph.id
+         JOIN "user" u ON u.id = d.uid
+        WHERE da."valorLancamento" < d.valor
+          AND da."dataVencimento" >= $1::date AND da."dataVencimento" < $2::date + 1
+        ORDER BY da."dataVencimento" DESC, u."fullName", da.id DESC`,
+      [periodo.dataInicio, periodo.dataFim],
+    );
+
+    const itens: PagamentoComAbatimento[] = linhas.map((l: Record<string, any>) => ({
+      detalheAId: l.detalheAId,
+      userId: l.userId,
+      guardador: l.guardador,
+      cpfCnpj: l.cpfCnpj,
+      data: l.data,
+      valorDevido: Number(l.valorDevido),
+      valorAbatido: Number(l.valorAbatido),
+      valorPago: Number(l.valorPago),
+      situacao: situacaoDoAbatimento(l.statusRemessa, Number(l.valorPago)),
+    }));
+
+    const efetivados = itens.filter((i) => i.situacao === 'pago' || i.situacao === 'quitado');
+    // Soma em centavos para não acumular erro de ponto flutuante.
+    const somar = (campo: 'valorDevido' | 'valorAbatido' | 'valorPago') =>
+      efetivados.reduce((total, i) => total + Math.round(i[campo] * 100), 0) / 100;
+
+    return {
+      totais: {
+        quantidade: efetivados.length,
+        guardadores: new Set(efetivados.map((i) => i.userId)).size,
+        valorDevido: somar('valorDevido'),
+        valorAbatido: somar('valorAbatido'),
+        valorPago: somar('valorPago'),
+      },
+      itens,
+    };
   }
 
   /** Todas as linhas do filtro (até o limite), para a exportação em Excel. */
